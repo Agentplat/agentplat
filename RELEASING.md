@@ -1,12 +1,13 @@
 # Releasing AgentPlat packages
 
 AgentPlat uses a fixed version: every public package is released with the same
-semantic version. The initial developer-preview release is `0.1.0`.
+semantic version. Prereleases use the same fixed version and an npm distribution
+tag other than `latest`.
 
 ## Prepare a version
 
 ```sh
-corepack pnpm version:set 0.1.0
+corepack pnpm version:set 0.2.0-beta.1
 corepack pnpm install
 corepack pnpm run check
 ```
@@ -22,11 +23,16 @@ to it. Authenticate with npm, then publish from a clean `main` checkout:
 
 ```sh
 npm whoami
-corepack pnpm run release:publish
-git tag v0.1.0
-git push origin v0.1.0
+corepack pnpm run release:publish:next
+git tag v0.2.0-beta.1
+git push origin v0.2.0-beta.1
 ```
 
-Alternatively, configure an `NPM_TOKEN` repository secret and run the manual
-`Release packages` GitHub Actions workflow. Never commit an npm token or place it
-in package metadata.
+Stable releases use `release:publish`, whose default distribution tag is
+`latest`. The release script rejects publishing a prerelease under `latest`.
+
+Alternatively, configure the npm organization and run the manual `Release
+packages` GitHub Actions workflow with the intended distribution tag. After the
+first publication, configure npm Trusted Publishing for the workflow and remove
+long-lived publishing tokens. Never commit a token or place it in package
+metadata.

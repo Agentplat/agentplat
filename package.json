@@ -1,6 +1,6 @@
 {
   "name": "agentplat",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "description": "Open-core runtime primitives for building agentic platforms.",
   "license": "Apache-2.0",
@@ -26,7 +26,8 @@
     "verify:release": "node scripts/verify-release.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "version:set": "node scripts/set-version.mjs",
-    "release:publish": "pnpm run check && pnpm -r publish --access public",
+    "release:publish": "pnpm run check && node scripts/publish-packages.mjs",
+    "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
     "check": "pnpm run audit:public && pnpm run build && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:release && pnpm run verify:pack"
   },
   "devDependencies": {

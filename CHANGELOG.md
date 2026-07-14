@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.1 - 2026-07-14
+
 - Added `@agentplat/model`, a provider-neutral direct model generation and streaming contract below the agent runtime layer.
 - Added `@agentplat/model-openai-compatible`, a dependency-light Chat Completions adapter for OpenAI-compatible HTTP servers.
 - Added `@agentplat/framework` with `createAgentplat`, ephemeral `quickRun`, streaming and optional Agent Room service composition.

@@ -2,6 +2,15 @@ name: Release packages
 
 on:
   workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: npm distribution tag
+        required: true
+        default: next
+        type: choice
+        options:
+          - next
+          - latest
 
 permissions:
   contents: read
@@ -20,4 +29,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run release:publish
         env:
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
