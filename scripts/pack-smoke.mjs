@@ -13,16 +13,24 @@ import path from 'node:path';
 
 const root = process.cwd();
 const packageNames = [
-  'core',
-  'auth',
-  'events',
   'audit',
-  'tools',
+  'auth',
+  'core',
+  'events',
+  'framework',
   'mcp',
   'memory',
-  'workflows',
-  'runtime',
+  'model',
+  'model-openai-compatible',
   'provider-openai',
+  'rooms',
+  'rooms-api',
+  'rooms-postgres',
+  'runtime',
+  'runtime-mock',
+  'streaming',
+  'tools',
+  'workflows',
 ];
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-pack-'));
 const tarballRoot = path.join(temporaryRoot, 'tarballs');
@@ -64,7 +72,20 @@ try {
   );
   await writeFile(
     path.join(consumerRoot, 'verify.mjs'),
-    "import { DefaultAgentRuntime } from '@agentplat/runtime';\nconst runtime = new DefaultAgentRuntime();\nif (!runtime) process.exit(1);\n"
+    [
+      "import { AgentPlat } from '@agentplat/framework';",
+      "import { InMemoryRoomRepository, RoomService } from '@agentplat/rooms';",
+      "import { DefaultAgentRuntime } from '@agentplat/runtime';",
+      "import { streamToSSE } from '@agentplat/streaming';",
+      'const runtime = new DefaultAgentRuntime();',
+      'const service = new RoomService({ repository: new InMemoryRoomRepository(), runtime });',
+      "const adapter = { id: 'consumer', capabilities: { streaming: false, tools: false, structuredOutput: false, vision: false }, generate: async () => ({ content: 'ok', finishReason: 'stop' }) };",
+      "const result = await AgentPlat.quickRun({ adapter, instructions: 'Test', input: 'hello' });",
+      "async function* events() { yield { type: 'completed', content: result.output }; }",
+      'const response = streamToSSE(events());',
+      "if (!service || result.output !== 'ok' || !response.headers.get('content-type')?.startsWith('text/event-stream')) process.exit(1);",
+      '',
+    ].join('\n')
   );
   execFileSync(
     'npm',

@@ -1,0 +1,27 @@
+{
+  "name": "@agentplat/example-rooms-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted Agent Room API reference application.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "demo": "bash scripts/demo.sh"
+  },
+  "dependencies": {
+    "@agentplat/events": "link:../../packages/events",
+    "@agentplat/rooms": "link:../../packages/rooms",
+    "@agentplat/rooms-api": "link:../../packages/rooms-api",
+    "@agentplat/rooms-postgres": "link:../../packages/rooms-postgres",
+    "@agentplat/runtime": "link:../../packages/runtime",
+    "@agentplat/runtime-mock": "link:../../packages/runtime-mock",
+    "@hono/node-server": "^1.19.0",
+    "hono": "^4.12.0"
+  }
+}

@@ -20,26 +20,76 @@
   <a href="https://agentplat.com/#contact">Contact</a>
 </p>
 
-> Developer preview: the contracts, local adapters and OpenAI provider are usable, but a durable workflow runner and stable APIs are still under development.
+> Developer preview: Agent Rooms, local adapters and provider contracts are usable, but APIs may still change before the first stable release.
 
-AgentPlat defines portable runtime, workflow, memory, tool, event, audit and auth boundaries for teams building agentic products. The open packages are infrastructure-neutral; hosted operations, enterprise capabilities and customer applications live outside this repository.
+AgentPlat is a downloadable framework for building self-hosted agentic platforms around **Agent Rooms**: durable workspaces where humans and agents coordinate through messages, tasks, versioned artifacts, approvals, policies and scoped memory.
+
+Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
 ## Packages
 
-| Package                      | Current public capability                                              |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| `@agentplat/core`            | IDs, metadata, lifecycle states, tenant context, envelopes and errors. |
-| `@agentplat/runtime`         | Provider contracts plus executable provider dispatch and streaming.    |
-| `@agentplat/provider-openai` | OpenAI Agents SDK execution with tenant-isolated credentials.          |
-| `@agentplat/workflows`       | Process/task contracts and an in-memory workflow store.                |
-| `@agentplat/memory`          | Session/retrieval contracts and a tenant-isolated in-memory store.     |
-| `@agentplat/tools`           | Tool contracts and an in-memory tool registry.                         |
-| `@agentplat/mcp`             | MCP server, tool-binding and registry contracts.                       |
-| `@agentplat/events`          | Event contracts and an in-memory event bus.                            |
-| `@agentplat/audit`           | Audit contracts, recursive redaction and an in-memory sink.            |
-| `@agentplat/auth`            | Auth, permission and tenant-resolution contracts with local adapters.  |
+| Package                              | Current public capability                                               |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| `@agentplat/core`                    | IDs, metadata, lifecycle states, tenant context, envelopes and errors.  |
+| `@agentplat/framework`               | High-level composition, safe local defaults and ephemeral quick runs.   |
+| `@agentplat/model`                   | Provider-neutral direct model generation and streaming contracts.       |
+| `@agentplat/model-openai-compatible` | Dependency-light Chat Completions adapter for compatible servers.       |
+| `@agentplat/rooms`                   | Agent Room domain, lifecycle, policy, context and repository contracts. |
+| `@agentplat/rooms-postgres`          | Durable PostgreSQL repository, migrations and transactional events.     |
+| `@agentplat/rooms-api`               | Injectable Hono REST API for the Agent Room lifecycle.                  |
+| `@agentplat/runtime`                 | Provider contracts plus executable provider dispatch and streaming.     |
+| `@agentplat/runtime-mock`            | Deterministic, network-free provider for examples and tests.            |
+| `@agentplat/streaming`               | Versioned SSE helpers for Fetch-compatible and Node HTTP frameworks.    |
+| `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
+| `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
+| `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
+| `@agentplat/tools`                   | Tool contracts and an in-memory tool registry.                          |
+| `@agentplat/mcp`                     | MCP server, tool-binding and registry contracts.                        |
+| `@agentplat/events`                  | Event contracts and an in-memory event bus.                             |
+| `@agentplat/audit`                   | Audit contracts, recursive redaction and an in-memory sink.             |
+| `@agentplat/auth`                    | Auth, permission and tenant-resolution contracts with local adapters.   |
 
-## Local example
+## Agent Room quickstart
+
+Requirements: Docker Engine with Compose v2, plus `curl` and `jq` for the demo.
+
+```sh
+git clone https://github.com/Agentplat/agentplat.git
+cd agentplat/examples/rooms-api
+cp .env.example .env
+docker compose up --build -d
+bash scripts/demo.sh
+```
+
+Compose starts PostgreSQL, applies the public migration and launches the Hono API. The demo exercises the complete flow from Room creation through agent execution, artifact approval and archival. See the [reference application](./examples/rooms-api/README.md) for configuration and the [Agent Rooms guide](./docs/agent-rooms.md) for architecture and extension points.
+
+Except for `GET /health`, the reference API requires `X-Agentplat-Tenant-Id`. This is a trusted local/self-hosted boundary, not end-user authentication. Internet-facing deployments must inject an authenticator that derives the tenant from a verified identity.
+
+## Use as packages
+
+For a direct, ephemeral model call with no Room persistence:
+
+```js
+import { AgentPlat } from '@agentplat/framework';
+import { openAICompatible } from '@agentplat/model-openai-compatible';
+
+const result = await AgentPlat.quickRun({
+  adapter: openAICompatible({
+    apiKey: process.env.OPENAI_API_KEY,
+    defaultModel: process.env.OPENAI_MODEL,
+  }),
+  instructions: 'Be concise.',
+  input: 'Draft a launch message.',
+});
+```
+
+`quickRun` is intentionally not a shortcut around Room governance. Use the
+Room service and PostgreSQL adapter when the work must be persistent,
+auditable or approval-gated. See [portable execution](./docs/portable-execution.md)
+for the model/runtime layering and Next.js or Express streaming examples.
+
+The low-level runtime registry remains available when an application wants
+full control:
 
 ```js
 import { DefaultAgentRuntime } from '@agentplat/runtime';
@@ -69,6 +119,7 @@ Run the checked-in example:
 
 ```sh
 corepack pnpm install
+corepack pnpm run example:quick
 corepack pnpm run example:basic
 ```
 
@@ -85,8 +136,8 @@ Package versioning and publishing are documented in [RELEASING.md](./RELEASING.m
 
 ## Open-core boundary
 
-This repository contains the reusable runtime and extension contracts. The hosted control plane, enterprise SSO and policy management, billing, managed infrastructure, premium connectors and customer-specific verticals are proprietary products built on these public boundaries.
+This repository contains everything needed to build and self-host an Agent Room platform; public code does not depend on AgentPlat Cloud or private packages. Hosted operations, enterprise SSO and organization-wide policy management, billing, managed infrastructure, premium connectors, advanced analytics and customer-specific verticals remain commercial products built on the same public contracts.
 
 ## License
 
-AgentPlat open-core code is licensed under the Apache License 2.0. The AgentPlat name, logo and brand assets are covered by separate trademark guidelines.
+AgentPlat open-core code is licensed under the [Apache License 2.0](./LICENSE). The AgentPlat name, logo and brand assets are covered by the [trademark guidelines](./TRADEMARKS.md).

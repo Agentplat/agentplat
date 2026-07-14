@@ -10,6 +10,11 @@ import type {
 import type { ToolRegistry } from '@agentplat/tools';
 import type { RunStatus } from '@agentplat/workflows';
 
+export {
+  ChatAgentProvider,
+  type ChatAgentProviderOptions,
+} from './chat-agent-provider.js';
+
 export interface AgentDefinition extends TenantScoped, Timestamped {
   id: AgentPlatID;
   name: string;
@@ -26,8 +31,14 @@ export interface AgentDefinition extends TenantScoped, Timestamped {
 
 export interface RuntimeExecutionContext {
   tenant: TenantContext;
+  /**
+   * Stable idempotency key for this execution. Side-effecting providers should
+   * reuse it when retrying downstream operations.
+   */
   runId?: AgentPlatID;
   agentId: AgentPlatID;
+  /** Cooperative cancellation signal for timeouts and lost execution leases. */
+  signal?: AbortSignal;
   credentials?: Record<string, string>;
   policies?: JsonObject;
   tools?: ToolRegistry;
@@ -54,7 +65,8 @@ export interface AgentRunResult {
 }
 
 export interface AgentStreamEvent {
-  type: 'started' | 'token' | 'tool_call' | 'completed' | 'failed';
+  type:
+    'started' | 'token' | 'tool_call' | 'tool_result' | 'completed' | 'failed';
   runId?: AgentPlatID;
   content?: string;
   payload?: JsonObject;

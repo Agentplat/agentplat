@@ -8,15 +8,24 @@ const expectedPackages = [
   'auth',
   'core',
   'events',
+  'framework',
   'mcp',
   'memory',
+  'model',
+  'model-openai-compatible',
   'provider-openai',
+  'rooms',
+  'rooms-api',
+  'rooms-postgres',
   'runtime',
+  'runtime-mock',
+  'streaming',
   'tools',
   'workflows',
 ];
 const packageRoot = path.join(root, 'packages');
 const actualPackages = [];
+const packageManifests = new Map();
 const rootManifest = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8')
 );
@@ -42,6 +51,7 @@ for (const packageName of expectedPackages) {
   const manifest = JSON.parse(
     await readFile(path.join(directory, 'package.json'), 'utf8')
   );
+  packageManifests.set(manifest.name, manifest);
 
   assert.notEqual(
     manifest.private,
@@ -73,10 +83,64 @@ for (const packageName of expectedPackages) {
     `${manifest.name} must declare ESM exports`
   );
   assert.ok(manifest.scripts?.build, `${manifest.name} must define a build`);
+  assert.equal(
+    manifest.sideEffects,
+    false,
+    `${manifest.name} must declare its side-effect behavior`
+  );
+  assert.equal(
+    manifest.publishConfig?.access,
+    'public',
+    `${manifest.name} must publish with public access`
+  );
+  assert.equal(
+    manifest.repository?.directory,
+    `packages/${packageName}`,
+    `${manifest.name} must identify its monorepo directory`
+  );
   await access(path.join(directory, 'dist', 'index.js'));
   await access(path.join(directory, 'dist', 'index.d.ts'));
+}
+
+for (const rootPackage of [
+  '@agentplat/framework',
+  '@agentplat/model',
+  '@agentplat/rooms',
+  '@agentplat/runtime',
+  '@agentplat/streaming',
+]) {
+  assertProviderNeutralDependencyGraph(rootPackage, packageManifests);
 }
 
 console.log(
   `Verified ${expectedPackages.length} publishable package manifests at ${rootManifest.version} and build outputs.`
 );
+
+function assertProviderNeutralDependencyGraph(rootPackage, manifests) {
+  const pending = [rootPackage];
+  const visited = new Set();
+  while (pending.length > 0) {
+    const packageName = pending.pop();
+    if (!packageName || visited.has(packageName)) continue;
+    visited.add(packageName);
+    const manifest = manifests.get(packageName);
+    assert.ok(manifest, `Missing manifest for ${packageName}`);
+    const dependencies = Object.keys(manifest.dependencies ?? {});
+    for (const dependency of dependencies) {
+      assert.ok(
+        !isVendorSdk(dependency),
+        `${rootPackage} must not depend on provider SDK ${dependency} through ${packageName}`
+      );
+      if (dependency.startsWith('@agentplat/')) pending.push(dependency);
+    }
+  }
+}
+
+function isVendorSdk(dependency) {
+  return (
+    dependency === '@agentplat/provider-openai' ||
+    dependency.startsWith('@openai/') ||
+    dependency.startsWith('@anthropic-ai/') ||
+    dependency.startsWith('@google/generative-ai')
+  );
+}

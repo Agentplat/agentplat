@@ -1,0 +1,237 @@
+import { AgentPlatError } from '@agentplat/core';
+import type {
+  AgentPlatID,
+  JsonObject,
+  Metadata,
+  TenantContext,
+} from '@agentplat/core';
+import type { ModelAdapter } from '@agentplat/model';
+import { RoomService } from '@agentplat/rooms';
+import type { RoomServiceOptions } from '@agentplat/rooms';
+import { ChatAgentProvider, DefaultAgentRuntime } from '@agentplat/runtime';
+import type {
+  AgentDefinition,
+  AgentProvider,
+  AgentRunInput,
+  AgentRunResult,
+  AgentRuntime,
+  AgentStreamEvent,
+} from '@agentplat/runtime';
+
+const quickRunPolicies: JsonObject = {
+  mode: 'quick_run',
+  tools: 'denied',
+  externalWrites: 'denied',
+};
+
+/** Options used to assemble a high-level AgentPlat client. */
+export interface CreateAgentPlatOptions {
+  /** Direct model adapter wrapped in a one-generation ChatAgentProvider. */
+  adapter?: ModelAdapter;
+  /** Full agent provider for custom loops, handoffs or orchestration. */
+  provider?: AgentProvider;
+  /** Reuse an existing runtime registry instead of creating one. */
+  runtime?: AgentRuntime;
+  /** Registry key for the supplied adapter/provider. Defaults to `chat`. */
+  platform?: string;
+  /** Defaults to the isolated local tenant. */
+  tenant?: TenantContext;
+  /** Execution-only credentials. They are never placed in result metadata. */
+  credentials?: Record<string, string>;
+  /** Optional governed Room service configuration using the same runtime. */
+  rooms?: Omit<RoomServiceOptions, 'runtime'>;
+  idGenerator?: () => AgentPlatID;
+  clock?: () => Date;
+}
+
+/** Input accepted by the ephemeral quick-run facade. */
+export interface QuickRunInput {
+  instructions: string;
+  input: AgentRunInput['input'];
+  name?: string;
+  description?: string;
+  agentId?: AgentPlatID;
+  runId?: AgentPlatID;
+  modelName?: string;
+  config?: JsonObject;
+  metadata?: Metadata;
+  signal?: AbortSignal;
+}
+
+/** Static quick-run input including its model adapter and local context. */
+export interface StaticQuickRunInput extends QuickRunInput {
+  adapter: ModelAdapter;
+  tenantId?: AgentPlatID;
+  credentials?: Record<string, string>;
+  platform?: string;
+}
+
+/**
+ * Lightweight application facade over the public runtime and Room services.
+ * Infrastructure objects remain accessible so applications are not locked
+ * into this convenience layer.
+ */
+export class AgentPlatFramework {
+  readonly runtime: AgentRuntime;
+  readonly rooms?: RoomService;
+  readonly tenant: TenantContext;
+
+  private readonly platform: string;
+  private readonly credentials?: Record<string, string>;
+  private readonly idGenerator: () => AgentPlatID;
+  private readonly clock: () => Date;
+
+  constructor(options: CreateAgentPlatOptions = {}) {
+    if (options.adapter && options.provider) {
+      throw new AgentPlatError(
+        'VALIDATION_ERROR',
+        'Configure either a model adapter or an agent provider, not both'
+      );
+    }
+    this.platform = normalizedPlatform(options.platform ?? 'chat');
+    this.tenant = options.tenant ?? { tenantId: 'local' };
+    if (!this.tenant.tenantId?.trim()) {
+      throw new AgentPlatError(
+        'VALIDATION_ERROR',
+        'tenant.tenantId is required'
+      );
+    }
+    this.runtime = options.runtime ?? new DefaultAgentRuntime();
+    this.credentials = options.credentials
+      ? { ...options.credentials }
+      : undefined;
+    this.idGenerator =
+      options.idGenerator ?? (() => globalThis.crypto.randomUUID());
+    this.clock = options.clock ?? (() => new Date());
+
+    const provider = options.adapter
+      ? new ChatAgentProvider(options.adapter)
+      : options.provider;
+    if (provider) this.runtime.registerProvider(this.platform, provider);
+    if (options.rooms) {
+      this.rooms = new RoomService({
+        ...options.rooms,
+        runtime: this.runtime,
+      });
+    }
+  }
+
+  /** Execute a single ephemeral agent run with safe, tool-free defaults. */
+  async quickRun(input: QuickRunInput): Promise<AgentRunResult> {
+    const execution = this.execution(input);
+    return this.runtime.run(
+      execution.agent,
+      execution.input,
+      execution.context
+    );
+  }
+
+  /** Stream a single ephemeral agent run as normalized runtime events. */
+  stream(input: QuickRunInput): AsyncIterable<AgentStreamEvent> {
+    const execution = this.execution(input);
+    return this.runtime.stream(
+      execution.agent,
+      execution.input,
+      execution.context
+    );
+  }
+
+  private execution(input: QuickRunInput) {
+    required(input.instructions, 'instructions');
+    if (
+      typeof input.input !== 'string' &&
+      (!Array.isArray(input.input) || input.input.length === 0)
+    ) {
+      throw new AgentPlatError('VALIDATION_ERROR', 'input is required');
+    }
+    const now = this.clock().toISOString();
+    const agentId = input.agentId ?? this.idGenerator();
+    const runId = input.runId ?? this.idGenerator();
+    const agent: AgentDefinition = {
+      id: agentId,
+      tenantId: this.tenant.tenantId,
+      name: input.name?.trim() || 'AgentPlat quick agent',
+      description: input.description,
+      instructions: input.instructions.trim(),
+      platform: this.platform,
+      modelName: input.modelName,
+      config: input.config,
+      metadata: input.metadata,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return {
+      agent,
+      input: {
+        input: input.input,
+        mode: 'invoke' as const,
+        metadata: input.metadata,
+      },
+      context: {
+        tenant: this.tenant,
+        runId,
+        agentId,
+        signal: input.signal,
+        credentials: this.credentials,
+        policies: quickRunPolicies,
+        metadata: input.metadata,
+      },
+    };
+  }
+}
+
+/** Create a reusable framework facade. */
+export function createAgentplat(
+  options: CreateAgentPlatOptions = {}
+): AgentPlatFramework {
+  return new AgentPlatFramework(options);
+}
+
+/** Minimal stateless entry point for prototypes and examples. */
+export const AgentPlat = {
+  create: createAgentplat,
+  async quickRun(input: StaticQuickRunInput): Promise<AgentRunResult> {
+    const {
+      adapter,
+      tenantId = 'local',
+      credentials,
+      platform,
+      ...run
+    } = input;
+    return createAgentplat({
+      adapter,
+      tenant: { tenantId },
+      credentials,
+      platform,
+    }).quickRun(run);
+  },
+  stream(input: StaticQuickRunInput): AsyncIterable<AgentStreamEvent> {
+    const {
+      adapter,
+      tenantId = 'local',
+      credentials,
+      platform,
+      ...run
+    } = input;
+    return createAgentplat({
+      adapter,
+      tenant: { tenantId },
+      credentials,
+      platform,
+    }).stream(run);
+  },
+};
+
+function normalizedPlatform(value: string): string {
+  const platform = value.trim().toLowerCase();
+  if (!platform) {
+    throw new AgentPlatError('VALIDATION_ERROR', 'platform is required');
+  }
+  return platform;
+}
+
+function required(value: unknown, field: string): void {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new AgentPlatError('VALIDATION_ERROR', `${field} is required`);
+  }
+}

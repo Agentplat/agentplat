@@ -269,7 +269,11 @@ export function extractOpenAIFileCitations(
 function buildRunOptions(
   input: AgentRunInput,
   context: RuntimeExecutionContext
-): { context: OpenAIRunContext; conversationId?: string } {
+): {
+  context: OpenAIRunContext;
+  conversationId?: string;
+  signal?: AbortSignal;
+} {
   return {
     context: {
       tenantId: context.tenant.tenantId,
@@ -282,6 +286,7 @@ function buildRunOptions(
       metadata: context.metadata,
       inputMetadata: input.metadata,
     },
+    ...(context.signal ? { signal: context.signal } : {}),
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   };
 }

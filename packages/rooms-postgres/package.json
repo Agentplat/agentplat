@@ -1,0 +1,46 @@
+{
+  "name": "@agentplat/rooms-postgres",
+  "version": "0.1.0",
+  "description": "PostgreSQL persistence adapter for Agentplat Agent Rooms.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "migrations",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test tests/*.test.mjs",
+    "migrate": "node dist/cli.js up",
+    "migrate:down": "node dist/cli.js down",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/core": "workspace:^",
+    "@agentplat/rooms": "workspace:^",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.11.10"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/rooms-postgres"
+  }
+}

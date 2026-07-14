@@ -1,0 +1,68 @@
+name: agentplat-rooms
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentplat}
+      POSTGRES_USER: ${POSTGRES_USER:-agentplat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentplat}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - agentplat-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: examples/rooms-api/Dockerfile
+    command: ['pnpm', '--dir', 'examples/rooms-api', 'migrate']
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-agentplat}
+      PGUSER: ${POSTGRES_USER:-agentplat}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-agentplat}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: ../..
+      dockerfile: examples/rooms-api/Dockerfile
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-agentplat}
+      PGUSER: ${POSTGRES_USER:-agentplat}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-agentplat}
+      PORT: ${API_PORT:-3000}
+    ports:
+      - '${API_PORT:-3000}:${API_PORT:-3000}'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    init: true
+    restart: unless-stopped
+
+volumes:
+  agentplat-postgres:
