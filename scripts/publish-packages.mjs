@@ -16,10 +16,41 @@ if (prerelease && distributionTag === 'latest') {
   process.exit(1);
 }
 
-const result = spawnSync(
-  'pnpm',
-  ['-r', 'publish', '--access', 'public', '--tag', distributionTag],
-  { stdio: 'inherit', env: process.env }
-);
+const status = runGit(['status', '--porcelain']);
+if (status.trim()) {
+  console.error('Refusing to publish from a dirty working tree.');
+  process.exit(1);
+}
+const branch = runGit(['branch', '--show-current']).trim();
+if (!prerelease && branch !== 'main' && branch !== 'master') {
+  console.error(`Refusing to publish a stable release from branch ${branch}.`);
+  process.exit(1);
+}
+
+const publishArguments = [
+  '-r',
+  'publish',
+  '--access',
+  'public',
+  '--tag',
+  distributionTag,
+  '--no-git-checks',
+];
+if (process.env.NPM_PUBLISH_DRY_RUN === '1') {
+  publishArguments.push('--dry-run');
+}
+const result = spawnSync('pnpm', publishArguments, {
+  stdio: 'inherit',
+  env: process.env,
+});
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
+
+function runGit(arguments_) {
+  const result = spawnSync('git', arguments_, { encoding: 'utf8' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(result.stderr || `git ${arguments_.join(' ')} failed`);
+  }
+  return result.stdout;
+}
