@@ -1,6 +1,17 @@
-import type { AgentPlatID, ISODateTime, JsonObject, LifecycleStatus, Metadata, TenantScoped, Timestamped } from '@agentplat/core';
+import type {
+  AgentPlatID,
+  ISODateTime,
+  JsonObject,
+  LifecycleStatus,
+  Metadata,
+  TenantScoped,
+  Timestamped,
+} from '@agentplat/core';
 
-export type RunStatus = Extract<LifecycleStatus, 'pending' | 'running' | 'completed' | 'failed' | 'canceled'>;
+export type RunStatus = Extract<
+  LifecycleStatus,
+  'pending' | 'running' | 'completed' | 'failed' | 'canceled'
+>;
 export type StageStatus = RunStatus;
 
 export interface TaskDefinition extends Timestamped {
@@ -80,9 +91,59 @@ export interface ProcessRun extends TenantScoped, Timestamped {
 }
 
 export interface WorkflowStore {
-  getProcessDefinition(processId: AgentPlatID): Promise<ProcessDefinition | undefined>;
-  getProcessRun(tenantId: AgentPlatID, runId: AgentPlatID): Promise<ProcessRun | undefined>;
+  getProcessDefinition(
+    processId: AgentPlatID
+  ): Promise<ProcessDefinition | undefined>;
+  getProcessRun(
+    tenantId: AgentPlatID,
+    runId: AgentPlatID
+  ): Promise<ProcessRun | undefined>;
   saveProcessRun(run: ProcessRun): Promise<void>;
-  getTaskRun(tenantId: AgentPlatID, taskRunId: AgentPlatID): Promise<TaskRun | undefined>;
+  getTaskRun(
+    tenantId: AgentPlatID,
+    taskRunId: AgentPlatID
+  ): Promise<TaskRun | undefined>;
   saveTaskRun(run: TaskRun): Promise<void>;
+}
+
+export class InMemoryWorkflowStore implements WorkflowStore {
+  private readonly definitions = new Map<AgentPlatID, ProcessDefinition>();
+  private readonly processRuns = new Map<string, ProcessRun>();
+  private readonly taskRuns = new Map<string, TaskRun>();
+
+  registerProcessDefinition(definition: ProcessDefinition): void {
+    this.definitions.set(definition.id, definition);
+  }
+
+  async getProcessDefinition(
+    processId: AgentPlatID
+  ): Promise<ProcessDefinition | undefined> {
+    return this.definitions.get(processId);
+  }
+
+  async getProcessRun(
+    tenantId: AgentPlatID,
+    runId: AgentPlatID
+  ): Promise<ProcessRun | undefined> {
+    return this.processRuns.get(this.runKey(tenantId, runId));
+  }
+
+  async saveProcessRun(run: ProcessRun): Promise<void> {
+    this.processRuns.set(this.runKey(run.tenantId, run.runId), run);
+  }
+
+  async getTaskRun(
+    tenantId: AgentPlatID,
+    taskRunId: AgentPlatID
+  ): Promise<TaskRun | undefined> {
+    return this.taskRuns.get(this.runKey(tenantId, taskRunId));
+  }
+
+  async saveTaskRun(run: TaskRun): Promise<void> {
+    this.taskRuns.set(this.runKey(run.tenantId, run.id), run);
+  }
+
+  private runKey(tenantId: AgentPlatID, runId: AgentPlatID): string {
+    return `${tenantId}:${runId}`;
+  }
 }

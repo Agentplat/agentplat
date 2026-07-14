@@ -8,7 +8,7 @@ By opening a pull request, you agree that your contribution may be distributed u
 
 ```sh
 corepack pnpm install
-corepack pnpm run type-check
+corepack pnpm run check
 ```
 
 ## Safety rule

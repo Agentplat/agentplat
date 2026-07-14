@@ -1,7 +1,7 @@
 {
-  "name": "@agentplat/core",
+  "name": "@agentplat/provider-openai",
   "version": "0.1.0",
-  "description": "Foundational types, errors and tenant context for AgentPlat.",
+  "description": "OpenAI Agents SDK provider for the AgentPlat runtime.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -22,12 +22,18 @@
     "type-check": "tsc -p tsconfig.json --noEmit",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
+  "dependencies": {
+    "@agentplat/core": "workspace:^",
+    "@agentplat/runtime": "workspace:^",
+    "@openai/agents": "^0.13.3",
+    "zod": "^4.0.0"
+  },
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",
-    "directory": "packages/core"
+    "directory": "packages/provider-openai"
   }
 }

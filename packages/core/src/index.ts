@@ -78,7 +78,11 @@ export class AgentPlatError extends Error {
   readonly statusCode?: number;
   readonly details?: unknown;
 
-  constructor(code: AgentPlatErrorCode, message: string, options: { statusCode?: number; details?: unknown } = {}) {
+  constructor(
+    code: AgentPlatErrorCode,
+    message: string,
+    options: { statusCode?: number; details?: unknown } = {}
+  ) {
     super(message);
     this.name = 'AgentPlatError';
     this.code = code;
