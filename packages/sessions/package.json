@@ -1,7 +1,7 @@
 {
-  "name": "@agentplat/framework",
+  "name": "@agentplat/sessions",
   "version": "0.2.0-beta.1",
-  "description": "Lightweight high-level composition and quick-run facade for AgentPlat.",
+  "description": "Typed ephemeral multi-agent sessions for AgentPlat runtimes.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -24,11 +24,7 @@
   },
   "dependencies": {
     "@agentplat/core": "workspace:^",
-    "@agentplat/model": "workspace:^",
-    "@agentplat/rooms": "workspace:^",
-    "@agentplat/runtime": "workspace:^",
-    "@agentplat/sessions": "workspace:^",
-    "@agentplat/streaming": "workspace:^"
+    "@agentplat/runtime": "workspace:^"
   },
   "publishConfig": {
     "access": "public"
@@ -36,6 +32,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",
-    "directory": "packages/framework"
+    "directory": "packages/sessions"
   }
 }

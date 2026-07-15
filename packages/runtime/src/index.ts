@@ -64,13 +64,42 @@ export interface AgentRunResult {
   metadata?: Metadata;
 }
 
-export interface AgentStreamEvent {
-  type:
-    'started' | 'token' | 'tool_call' | 'tool_result' | 'completed' | 'failed';
+/** Minimal event shape accepted by AgentPlat stream transports. */
+export interface StreamEvent<
+  TType extends string = string,
+  TPayload extends JsonObject = JsonObject,
+> {
+  type: TType;
   runId?: AgentPlatID;
   content?: string;
-  payload?: JsonObject;
+  payload?: TPayload;
 }
+
+/** Normalized token accounting carried by completed runtime events. */
+export type AgentUsage = JsonObject & {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+};
+
+/** Provider-neutral details emitted when an agent run completes. */
+export type AgentCompletionPayload = JsonObject & {
+  id?: AgentPlatID;
+  model?: string;
+  finishReason?: string;
+  usage?: AgentUsage;
+  latencyMs?: number;
+  toolCalls?: JsonObject[];
+};
+
+/** Discriminated events emitted by one agent runtime execution. */
+export type AgentStreamEvent =
+  | StreamEvent<'started'>
+  | (StreamEvent<'token'> & { content: string })
+  | StreamEvent<'tool_call'>
+  | StreamEvent<'tool_result'>
+  | StreamEvent<'completed', AgentCompletionPayload>
+  | (StreamEvent<'failed'> & { content: string });
 
 export interface AgentProvider {
   run(

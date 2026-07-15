@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Added `@agentplat/sessions` with deterministic multi-agent rounds, bounded
+  history, stopping rules, typed orchestration events and usage aggregation.
+- Added client-side SSE parsing and a Next.js App Router response helper that
+  propagates `request.signal` to model execution.
+- Re-exported runtime, session and SSE contract types from `@agentplat/framework`.
+- Preserved normalized provider usage, finish reason, model and latency in
+  completed runtime and composed session events.
+- Added per-agent response and event tapes to `@agentplat/runtime-mock` for
+  deterministic multi-speaker tests.
+
 ## 0.2.0-beta.1 - 2026-07-14
 
 - Added `@agentplat/model`, a provider-neutral direct model generation and streaming contract below the agent runtime layer.

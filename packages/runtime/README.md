@@ -10,6 +10,11 @@ such as `@agentplat/provider-openai` remain available when an application needs
 an SDK-managed agent loop and the provider-specific capabilities implemented by
 that adapter.
 
+`AgentStreamEvent` is a discriminated union. Completed events expose normalized
+`usage`, `model`, `finishReason` and `latencyMs` when the provider reports them,
+so higher-level orchestrators can preserve real accounting instead of
+estimating tokens.
+
 ## Execution contract
 
 Provider adapters must treat `RuntimeExecutionContext.signal` as a cooperative

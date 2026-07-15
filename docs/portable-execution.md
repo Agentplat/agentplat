@@ -12,14 +12,15 @@ ModelAdapter
 ChatAgentProvider or a full AgentProvider
           ↓
 DefaultAgentRuntime
-          ↓
-RoomService
+  ├── MultiAgentSession (ephemeral, multi-turn)
+  └── RoomService (durable and governed)
 ```
 
 `ModelAdapter` owns one generation or stream. It does not execute tools, run
 handoff loops, persist memory or grant approvals. `AgentProvider` owns an agent
-execution strategy. `RoomService` owns tenant isolation, lifecycle, policies,
-context, durable runs, artifacts and approvals.
+execution strategy. `MultiAgentSession` owns bounded speaker turns and transcript
+assembly. `RoomService` owns tenant isolation, lifecycle, policies, context,
+durable runs, artifacts and approvals.
 
 Keeping these layers separate lets a simple application change models without
 adopting an agent SDK, while advanced providers retain their native behavior.
@@ -76,17 +77,18 @@ than user-controlled input.
 ## Streaming in Next.js or Fetch-compatible handlers
 
 ```ts
-import { streamToSSE } from '@agentplat/streaming';
+import { toNextSseResponse } from '@agentplat/streaming';
 
 export async function POST(request: Request) {
-  const events = agentplat.stream({
-    instructions: 'Be concise.',
-    input: await request.text(),
-    signal: request.signal,
-  });
-  return streamToSSE(events, { signal: request.signal });
+  const input = await request.text();
+  return toNextSseResponse(request, (signal) =>
+    agentplat.stream({ instructions: 'Be concise.', input, signal })
+  );
 }
 ```
+
+For multi-turn simulations, typed orchestration events and the browser parser,
+see [multi-agent sessions](./multi-agent-sessions.md).
 
 ## Streaming in Express
 

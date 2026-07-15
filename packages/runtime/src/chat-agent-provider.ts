@@ -8,6 +8,7 @@ import type {
   ModelResult,
 } from '@agentplat/model';
 import type {
+  AgentCompletionPayload,
   AgentDefinition,
   AgentProvider,
   AgentRunInput,
@@ -44,11 +45,17 @@ export class ChatAgentProvider implements AgentProvider {
     input: AgentRunInput,
     context: RuntimeExecutionContext
   ): Promise<AgentRunResult> {
+    const startedAt = performance.now();
     const result = await this.adapter.generate(
       this.request(agent, input),
       this.executionContext(context)
     );
-    return this.toRunResult(result, input, context);
+    return this.toRunResult(
+      result,
+      input,
+      context,
+      elapsedMilliseconds(startedAt)
+    );
   }
 
   async *stream(
@@ -63,6 +70,7 @@ export class ChatAgentProvider implements AgentProvider {
       );
     }
 
+    const startedAt = performance.now();
     let started = false;
     for await (const event of this.adapter.stream(
       this.request(agent, input),
@@ -102,7 +110,10 @@ export class ChatAgentProvider implements AgentProvider {
             type: 'completed',
             runId: context.runId,
             content: event.result.content,
-            payload: this.resultPayload(event.result),
+            payload: this.resultPayload(
+              event.result,
+              elapsedMilliseconds(startedAt)
+            ),
           };
           break;
         case 'failed':
@@ -161,25 +172,33 @@ export class ChatAgentProvider implements AgentProvider {
   private toRunResult(
     result: ModelResult,
     input: AgentRunInput,
-    context: RuntimeExecutionContext
+    context: RuntimeExecutionContext,
+    latencyMs: number
   ): AgentRunResult {
     return {
       runId: context.runId,
       conversationId: input.conversationId,
       status: 'completed',
       output: result.content,
-      result: this.resultPayload(result),
+      result: this.resultPayload(result, latencyMs),
       metadata: {
         ...(result.metadata ?? {}),
         provider: 'chat',
         adapter: this.adapter.id,
+        latencyMs,
         ...(result.model ? { model: result.model } : {}),
       },
     };
   }
 
-  private resultPayload(result: ModelResult): JsonObject {
-    const payload: JsonObject = { finishReason: result.finishReason };
+  private resultPayload(
+    result: ModelResult,
+    latencyMs: number
+  ): AgentCompletionPayload {
+    const payload: AgentCompletionPayload = {
+      finishReason: result.finishReason,
+      latencyMs,
+    };
     if (result.id) payload.id = result.id;
     if (result.model) payload.model = result.model;
     if (result.usage) payload.usage = compactJson(result.usage);
@@ -192,6 +211,10 @@ export class ChatAgentProvider implements AgentProvider {
     }
     return payload;
   }
+}
+
+function elapsedMilliseconds(startedAt: number): number {
+  return Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100);
 }
 
 function defaultMessages(

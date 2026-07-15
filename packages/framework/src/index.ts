@@ -8,6 +8,11 @@ import type {
 import type { ModelAdapter } from '@agentplat/model';
 import { RoomService } from '@agentplat/rooms';
 import type { RoomServiceOptions } from '@agentplat/rooms';
+import {
+  createMultiAgentSession,
+  MultiAgentSession,
+} from '@agentplat/sessions';
+import type { MultiAgentSessionOptions } from '@agentplat/sessions';
 import { ChatAgentProvider, DefaultAgentRuntime } from '@agentplat/runtime';
 import type {
   AgentDefinition,
@@ -17,6 +22,41 @@ import type {
   AgentRuntime,
   AgentStreamEvent,
 } from '@agentplat/runtime';
+
+export {
+  createMultiAgentSession,
+  MultiAgentSession,
+} from '@agentplat/sessions';
+export type {
+  MultiAgentSessionEvent,
+  MultiAgentSessionInput,
+  MultiAgentSessionOptions,
+  MultiAgentSessionResult,
+  SessionCompletedPayload,
+  SessionEventPayload,
+  SessionFailurePayload,
+  SessionInputContext,
+  SessionMessage,
+  SessionSpeaker,
+  SessionSpeakerRef,
+  SessionStartedPayload,
+  SessionStopContext,
+  SessionStopDecision,
+  SessionStopPayload,
+  SessionStopReason,
+  SessionToolPayload,
+  SessionTurnCompletedPayload,
+  SessionTurnPayload,
+  SessionUsage,
+} from '@agentplat/sessions';
+export type {
+  AgentCompletionPayload,
+  AgentRunResult,
+  AgentStreamEvent,
+  AgentUsage,
+  StreamEvent,
+} from '@agentplat/runtime';
+export type { AgentSseEnvelope } from '@agentplat/streaming';
 
 const quickRunPolicies: JsonObject = {
   mode: 'quick_run',
@@ -65,6 +105,12 @@ export interface StaticQuickRunInput extends QuickRunInput {
   credentials?: Record<string, string>;
   platform?: string;
 }
+
+/** Session options supplied by a configured framework facade. */
+export type FrameworkSessionOptions = Omit<
+  MultiAgentSessionOptions,
+  'runtime' | 'tenant' | 'credentials'
+>;
 
 /**
  * Lightweight application facade over the public runtime and Room services.
@@ -134,6 +180,18 @@ export class AgentPlatFramework {
       execution.input,
       execution.context
     );
+  }
+
+  /** Create an ephemeral multi-agent session over this facade's runtime. */
+  createSession(options: FrameworkSessionOptions): MultiAgentSession {
+    return createMultiAgentSession({
+      ...options,
+      runtime: this.runtime,
+      tenant: this.tenant,
+      credentials: this.credentials,
+      idGenerator: options.idGenerator ?? this.idGenerator,
+      clock: options.clock ?? this.clock,
+    });
   }
 
   private execution(input: QuickRunInput) {

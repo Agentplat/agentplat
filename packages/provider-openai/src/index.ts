@@ -68,6 +68,7 @@ export class OpenAIAgentProvider implements AgentProvider {
     input: AgentRunInput,
     context: RuntimeExecutionContext
   ): Promise<AgentRunResult> {
+    const startedAt = performance.now();
     const apiKey = await this.resolveApiKey(context);
     const modelProvider = this.createModelProvider(apiKey);
     const { agent, model } = createOpenAIAgent(definition, {
@@ -96,7 +97,11 @@ export class OpenAIAgentProvider implements AgentProvider {
         status: 'completed',
         output: stringifyOutput(result.finalOutput),
         result: responseDetails,
-        metadata: compactMetadata({ provider: 'openai', model }),
+        metadata: compactMetadata({
+          provider: 'openai',
+          model,
+          latencyMs: elapsedMilliseconds(startedAt),
+        }),
       };
     } catch (error) {
       throw toAdapterError(error);
@@ -110,6 +115,7 @@ export class OpenAIAgentProvider implements AgentProvider {
     input: AgentRunInput,
     context: RuntimeExecutionContext
   ): AsyncIterable<AgentStreamEvent> {
+    const startedAt = performance.now();
     yield { type: 'started', runId: context.runId };
 
     let modelProvider: OpenAIProvider | undefined;
@@ -132,6 +138,7 @@ export class OpenAIAgentProvider implements AgentProvider {
 
       const citations = extractOpenAIFileCitations(result.rawResponses);
       const payload: JsonObject = {};
+      payload.latencyMs = elapsedMilliseconds(startedAt);
       if (result.lastResponseId) payload.lastResponseId = result.lastResponseId;
       if (citations.length > 0) {
         payload.citations = citations.map(toCitationJson);
@@ -374,6 +381,10 @@ function stringifyOutput(output: unknown): string {
   return JSON.stringify(output);
 }
 
+function elapsedMilliseconds(startedAt: number): number {
+  return Math.max(0, Math.round((performance.now() - startedAt) * 100) / 100);
+}
+
 function toAdapterError(error: unknown): AgentPlatError {
   if (error instanceof AgentPlatError) return error;
   const message =
@@ -425,7 +436,7 @@ function compactObject<T extends object>(object: T): T {
 }
 
 function compactMetadata(
-  metadata: Record<string, string | undefined>
+  metadata: Record<string, JsonValue | undefined>
 ): Metadata {
   return compactObject(metadata) as Metadata;
 }

@@ -61,6 +61,13 @@ test('AgentPlat.quickRun maps simple input to a portable model adapter', async (
 
   assert.equal(result.output, 'Portable answer');
   assert.equal(result.metadata.adapter, 'portable-test');
+  assert.deepEqual(result.result.usage, {
+    inputTokens: 2,
+    outputTokens: 2,
+    totalTokens: 4,
+  });
+  assert.equal(result.result.finishReason, 'stop');
+  assert.equal(typeof result.result.latencyMs, 'number');
   assert.deepEqual(received.request.messages, [
     { role: 'developer', content: 'Be concise.' },
     { role: 'user', content: 'Hello' },
@@ -174,6 +181,49 @@ test('OpenAI-compatible streaming normalizes SSE text chunks', async () => {
     ['started', 'text_delta', 'text_delta', 'completed']
   );
   assert.equal(events.at(-1).result.content, 'Hello');
+});
+
+test('ChatAgentProvider preserves completed usage, model and latency in streams', async () => {
+  const adapter = {
+    id: 'stream-metadata',
+    capabilities,
+    async generate() {
+      return { content: 'unused' };
+    },
+    async *stream() {
+      yield { type: 'started', model: 'portable-model' };
+      yield { type: 'text_delta', content: 'Portable' };
+      yield {
+        type: 'completed',
+        result: {
+          content: 'Portable',
+          model: 'portable-model',
+          finishReason: 'stop',
+          usage: { inputTokens: 4, outputTokens: 1, totalTokens: 5 },
+        },
+      };
+    },
+  };
+  const platform = createAgentplat({ adapter });
+  const events = [];
+
+  for await (const event of platform.stream({
+    instructions: 'Be portable.',
+    input: 'Hello',
+  })) {
+    events.push(event);
+  }
+
+  const completed = events.at(-1);
+  assert.equal(completed.type, 'completed');
+  assert.equal(completed.payload.model, 'portable-model');
+  assert.equal(completed.payload.finishReason, 'stop');
+  assert.deepEqual(completed.payload.usage, {
+    inputTokens: 4,
+    outputTokens: 1,
+    totalTokens: 5,
+  });
+  assert.equal(typeof completed.payload.latencyMs, 'number');
 });
 
 test('streamToSSE returns a versioned Fetch-compatible event stream', async () => {

@@ -1,6 +1,7 @@
-import type { JsonObject, JsonValue } from '@agentplat/core';
+import type { AgentPlatID, JsonObject, JsonValue } from '@agentplat/core';
 import {
   DefaultAgentRuntime,
+  type AgentCompletionPayload,
   type AgentDefinition,
   type AgentProvider,
   type AgentRunInput,
@@ -16,6 +17,8 @@ export interface MockAgentResponse {
   result?: JsonObject;
   errorMessage?: string;
   metadata?: JsonObject;
+  /** Optional normalized details emitted on the completed stream event. */
+  completion?: AgentCompletionPayload;
 }
 
 /** Deterministic behavior configured for a `MockAgentProvider` instance. */
@@ -23,8 +26,12 @@ export interface MockAgentProviderOptions {
   outputPrefix?: string;
   /** Responses are consumed in order; the final response is reused afterwards. */
   responses?: Array<string | MockAgentResponse>;
+  /** Per-agent response tapes with independent invocation counters. */
+  responsesByAgent?: Record<AgentPlatID, Array<string | MockAgentResponse>>;
   /** Exact stream events, useful for deterministic UI and transport tests. */
   streamEvents?: AgentStreamEvent[];
+  /** Per-agent stream event tapes, indexed first by agent and then invocation. */
+  streamEventsByAgent?: Record<AgentPlatID, AgentStreamEvent[][]>;
   /** Token chunks used when streamEvents is not provided. */
   streamTokens?: string[];
   tokenDelayMs?: number;
@@ -48,6 +55,7 @@ export interface MockAgentProviderOptions {
  */
 export class MockAgentProvider implements AgentProvider {
   private invocation = 0;
+  private readonly invocationsByAgent = new Map<AgentPlatID, number>();
 
   constructor(private readonly options: MockAgentProviderOptions = {}) {
     if (
@@ -65,22 +73,28 @@ export class MockAgentProvider implements AgentProvider {
   }
 
   async run(
-    _agent: Parameters<AgentProvider['run']>[0],
+    agent: Parameters<AgentProvider['run']>[0],
     input: AgentRunInput,
     executionContext: Parameters<AgentProvider['run']>[2]
   ): Promise<AgentRunResult> {
     this.assertActive(executionContext.signal);
     const call = ++this.invocation;
+    const agentCall = this.nextAgentCall(agent.id);
     await this.delay(executionContext.signal);
     if (this.options.failAtCall === call) {
       return {
         runId: executionContext.runId,
         status: 'failed',
         errorMessage: `Mock failure at call ${call}`,
-        metadata: { provider: 'mock', deterministic: true, call },
+        metadata: {
+          provider: 'mock',
+          deterministic: true,
+          call,
+          agentCall,
+        },
       };
     }
-    const scripted = this.scriptedResponse(call);
+    const scripted = this.scriptedResponse(agent.id, agentCall, call);
     if (scripted) {
       return {
         runId: executionContext.runId,
@@ -93,6 +107,7 @@ export class MockAgentProvider implements AgentProvider {
           provider: 'mock',
           deterministic: true,
           call,
+          agentCall,
         },
       };
     }
@@ -126,7 +141,12 @@ export class MockAgentProvider implements AgentProvider {
           ? produced.content
           : JSON.stringify(produced.content),
       result: { artifact },
-      metadata: { provider: 'mock', deterministic: true, call },
+      metadata: {
+        provider: 'mock',
+        deterministic: true,
+        call,
+        agentCall,
+      },
     };
   }
 
@@ -137,8 +157,12 @@ export class MockAgentProvider implements AgentProvider {
   ): AsyncIterable<AgentStreamEvent> {
     this.assertActive(executionContext.signal);
     const call = ++this.invocation;
-    if (this.options.streamEvents) {
-      for (const event of this.options.streamEvents) {
+    const agentCall = this.nextAgentCall(_agent.id);
+    const exactEvents =
+      this.scriptedStreamEvents(_agent.id, agentCall) ??
+      this.options.streamEvents;
+    if (exactEvents) {
+      for (const event of exactEvents) {
         await this.delay(executionContext.signal);
         yield {
           ...event,
@@ -157,7 +181,7 @@ export class MockAgentProvider implements AgentProvider {
       };
       return;
     }
-    const scripted = this.scriptedResponse(call);
+    const scripted = this.scriptedResponse(_agent.id, agentCall, call);
     const output =
       scripted?.output ??
       `${this.options.outputPrefix ?? 'Mock output'}: ${
@@ -186,6 +210,7 @@ export class MockAgentProvider implements AgentProvider {
       type: 'completed',
       runId: executionContext.runId,
       content: output,
+      payload: scripted?.completion,
     };
   }
 
@@ -196,11 +221,33 @@ export class MockAgentProvider implements AgentProvider {
     return typeof task.instruction === 'string' ? task.instruction : undefined;
   }
 
-  private scriptedResponse(call: number): MockAgentResponse | undefined {
+  private scriptedResponse(
+    agentId: AgentPlatID,
+    agentCall: number,
+    globalCall: number
+  ): MockAgentResponse | undefined {
+    const agentResponses = this.options.responsesByAgent?.[agentId];
+    if (agentResponses?.length) {
+      return selectedResponse(agentResponses, agentCall);
+    }
     const responses = this.options.responses;
     if (!responses?.length) return undefined;
-    const selected = responses[Math.min(call - 1, responses.length - 1)];
-    return typeof selected === 'string' ? { output: selected } : selected;
+    return selectedResponse(responses, globalCall);
+  }
+
+  private scriptedStreamEvents(
+    agentId: AgentPlatID,
+    agentCall: number
+  ): AgentStreamEvent[] | undefined {
+    const invocations = this.options.streamEventsByAgent?.[agentId];
+    if (!invocations?.length) return undefined;
+    return invocations[Math.min(agentCall - 1, invocations.length - 1)];
+  }
+
+  private nextAgentCall(agentId: AgentPlatID): number {
+    const call = (this.invocationsByAgent.get(agentId) ?? 0) + 1;
+    this.invocationsByAgent.set(agentId, call);
+    return call;
   }
 
   private assertActive(signal: AbortSignal | undefined): void {
@@ -225,6 +272,14 @@ export class MockAgentProvider implements AgentProvider {
       signal?.addEventListener('abort', onAbort, { once: true });
     });
   }
+}
+
+function selectedResponse(
+  responses: Array<string | MockAgentResponse>,
+  call: number
+): MockAgentResponse {
+  const selected = responses[Math.min(call - 1, responses.length - 1)];
+  return typeof selected === 'string' ? { output: selected } : selected;
 }
 
 function tokenize(output: string): string[] {

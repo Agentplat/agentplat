@@ -39,7 +39,8 @@ Clone this repository to run the complete reference API with Node.js and Postgre
 | `@agentplat/rooms-api`               | Injectable Hono REST API for the Agent Room lifecycle.                  |
 | `@agentplat/runtime`                 | Provider contracts plus executable provider dispatch and streaming.     |
 | `@agentplat/runtime-mock`            | Deterministic, network-free provider for examples and tests.            |
-| `@agentplat/streaming`               | Versioned SSE helpers for Fetch-compatible and Node HTTP frameworks.    |
+| `@agentplat/sessions`                | Typed, bounded multi-agent turn orchestration over the public runtime.  |
+| `@agentplat/streaming`               | Versioned SSE server helpers and a validated browser-side parser.       |
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
@@ -87,6 +88,7 @@ const result = await AgentPlat.quickRun({
 Room service and PostgreSQL adapter when the work must be persistent,
 auditable or approval-gated. See [portable execution](./docs/portable-execution.md)
 for the model/runtime layering and Next.js or Express streaming examples.
+For simulations and debates, see [multi-agent sessions](./docs/multi-agent-sessions.md).
 
 The low-level runtime registry remains available when an application wants
 full control:
@@ -121,6 +123,7 @@ Run the checked-in example:
 corepack pnpm install
 corepack pnpm run example:quick
 corepack pnpm run example:basic
+corepack pnpm run example:sessions
 ```
 
 ## Development

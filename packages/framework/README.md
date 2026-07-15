@@ -20,3 +20,18 @@ const result = await AgentPlat.quickRun({
 `quickRun` is intentionally ephemeral: it does not create a Room, durable
 events or approvals. Pass a Room repository in `rooms` to `createAgentplat`
 when building a governed Agent Room platform.
+
+For ephemeral debates and simulations, a configured facade can create a typed,
+bounded multi-agent session over the same runtime:
+
+```ts
+const session = agentplat.createSession({
+  speakers: [buyer, seller],
+  maxRounds: 4,
+  stopMarkers: ['DEAL AGREED'],
+});
+
+for await (const event of session.stream({ input: scenario, signal })) {
+  // MultiAgentSessionEvent is re-exported by this package.
+}
+```

@@ -19,6 +19,7 @@ const expectedPackages = [
   'rooms-postgres',
   'runtime',
   'runtime-mock',
+  'sessions',
   'streaming',
   'tools',
   'workflows',
@@ -107,6 +108,7 @@ for (const rootPackage of [
   '@agentplat/model',
   '@agentplat/rooms',
   '@agentplat/runtime',
+  '@agentplat/sessions',
   '@agentplat/streaming',
 ]) {
   assertProviderNeutralDependencyGraph(rootPackage, packageManifests);

@@ -52,6 +52,9 @@ importers:
       '@agentplat/runtime-mock':
         specifier: workspace:*
         version: link:packages/runtime-mock
+      '@agentplat/sessions':
+        specifier: workspace:*
+        version: link:packages/sessions
       '@agentplat/streaming':
         specifier: workspace:*
         version: link:packages/streaming
@@ -102,6 +105,12 @@ importers:
       '@agentplat/runtime':
         specifier: workspace:^
         version: link:../runtime
+      '@agentplat/sessions':
+        specifier: workspace:^
+        version: link:../sessions
+      '@agentplat/streaming':
+        specifier: workspace:^
+        version: link:../streaming
 
   packages/mcp:
     dependencies:
@@ -211,6 +220,15 @@ importers:
         version: link:../workflows
 
   packages/runtime-mock:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+
+  packages/sessions:
     dependencies:
       '@agentplat/core':
         specifier: workspace:^
