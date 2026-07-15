@@ -6,6 +6,11 @@ import type {
   TenantContext,
 } from '@agentplat/core';
 import type { ModelAdapter } from '@agentplat/model';
+import { chatModel } from '@agentplat/model-openai-compatible';
+import type {
+  ChatModelOptions,
+  ChatModelProvider,
+} from '@agentplat/model-openai-compatible';
 import { RoomService } from '@agentplat/rooms';
 import type { RoomServiceOptions } from '@agentplat/rooms';
 import {
@@ -124,6 +129,25 @@ export interface StaticQuickRunInput extends QuickRunInput {
   tenantId?: AgentPlatID;
   credentials?: Record<string, string>;
   platform?: string;
+}
+
+/**
+ * Smallest useful model call for prototypes and command-style applications.
+ *
+ * `ask` is intentionally limited to the portable Chat Completions transport.
+ * Use `quickRun` with a `ModelAdapter` when an application needs a provider
+ * with another wire protocol or wants the normalized run result and metadata.
+ */
+export interface AskInput extends Omit<
+  ChatModelOptions,
+  'provider' | 'defaultModel'
+> {
+  prompt: string;
+  model: string;
+  provider?: ChatModelProvider;
+  system?: string;
+  tenantId?: AgentPlatID;
+  signal?: AbortSignal;
 }
 
 /** Session options supplied by a configured framework facade. */
@@ -317,6 +341,37 @@ export function createAgentplat(
 /** Minimal stateless entry point for prototypes and examples. */
 export const AgentPlat = {
   create: createAgentplat,
+  /** Send one prompt and receive plain text using a named provider preset. */
+  async ask(input: AskInput): Promise<string> {
+    const {
+      prompt,
+      model,
+      provider = 'openai',
+      system = 'You are a helpful assistant.',
+      tenantId,
+      signal,
+      ...adapterOptions
+    } = input;
+    const result = await AgentPlat.quickRun({
+      adapter: chatModel({
+        ...adapterOptions,
+        provider,
+        defaultModel: model,
+      }),
+      ...(tenantId ? { tenantId } : {}),
+      instructions: system,
+      input: prompt,
+      modelName: model,
+      signal,
+    });
+    if (typeof result.output !== 'string') {
+      throw new AgentPlatError(
+        'ADAPTER_ERROR',
+        result.errorMessage ?? 'The model did not return a text response'
+      );
+    }
+    return result.output;
+  },
   async quickRun(input: StaticQuickRunInput): Promise<AgentRunResult> {
     const {
       adapter,

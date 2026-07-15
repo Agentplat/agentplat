@@ -80,6 +80,29 @@ test('AgentPlat.quickRun maps simple input to a portable model adapter', async (
   assert.equal(received.context.requestId, 'run-a');
 });
 
+test('AgentPlat.ask returns plain text from a provider preset', async () => {
+  const answer = await AgentPlat.ask({
+    provider: 'ollama',
+    model: 'llama3.2',
+    prompt: 'Say hello.',
+    system: 'Be concise.',
+    fetch: async (url, init) => {
+      assert.equal(url, 'http://localhost:11434/v1/chat/completions');
+      assert.equal(JSON.parse(init.body).model, 'llama3.2');
+      return Response.json({
+        choices: [
+          {
+            message: { role: 'assistant', content: 'Hello.' },
+            finish_reason: 'stop',
+          },
+        ],
+      });
+    },
+  });
+
+  assert.equal(answer, 'Hello.');
+});
+
 test('createAgentplat composes an optional RoomService around the same runtime', async () => {
   const adapter = {
     id: 'rooms-test',

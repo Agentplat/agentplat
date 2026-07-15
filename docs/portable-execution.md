@@ -27,6 +27,26 @@ adopting an agent SDK, while advanced providers retain their native behavior.
 
 ## Direct quick run
 
+For the simplest prompt/response use case, use the facade-only `ask` method:
+
+```ts
+import { AgentPlat } from '@agentplat/framework';
+
+const answer = await AgentPlat.ask({
+  provider: 'gemini',
+  apiKey: process.env.GEMINI_API_KEY,
+  model: 'gemini-2.5-flash',
+  prompt: 'Summarize this proposal in three bullets.',
+});
+```
+
+`ask` returns a `string` and supports the `openai`, `gemini`, `ollama`,
+`openrouter` and `compatible` presets. It is still one ephemeral model call:
+it does not create a Room or durable audit record.
+
+Use `quickRun` below when the caller needs normalized usage, finish reason or
+full runtime output.
+
 ```ts
 import { AgentPlat } from '@agentplat/framework';
 import { openAICompatible } from '@agentplat/model-openai-compatible';

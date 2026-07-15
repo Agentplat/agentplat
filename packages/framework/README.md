@@ -3,6 +3,24 @@
 High-level composition for applications that want a short path to AgentPlat
 without hiding the replaceable runtime and Room contracts.
 
+For the shortest path, send one prompt and receive plain text:
+
+```ts
+import { AgentPlat } from '@agentplat/framework';
+
+const answer = await AgentPlat.ask({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY,
+  model: 'gpt-4.1-mini',
+  prompt: 'Draft a friendly release note.',
+});
+```
+
+Change `provider` to `gemini`, `ollama` or `openrouter`, or use `compatible`
+with an explicit `baseURL`. `ask` is ephemeral and returns only text; use
+`quickRun` when you need usage, finish reason, normalized events or a custom
+`ModelAdapter`.
+
 ```ts
 import { AgentPlat } from '@agentplat/framework';
 import { openAICompatible } from '@agentplat/model-openai-compatible';

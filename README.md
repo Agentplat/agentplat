@@ -68,6 +68,23 @@ Except for `GET /health`, the reference API requires `X-Agentplat-Tenant-Id`. Th
 
 ## Use as packages
 
+For a single prompt, only import the facade:
+
+```js
+import { AgentPlat } from '@agentplat/framework';
+
+const answer = await AgentPlat.ask({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY,
+  model: 'gpt-4.1-mini',
+  prompt: 'Draft a launch message.',
+});
+```
+
+`ask` returns plain text. Change the provider to `gemini`, `ollama` or
+`openrouter`; use `compatible` with an explicit `baseURL` for another Chat
+Completions endpoint.
+
 For a direct, ephemeral model call with no Room persistence:
 
 ```js

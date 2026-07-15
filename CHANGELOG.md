@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added `AgentPlat.ask`, a facade-only prompt-to-text API with portable LLM
+  provider presets and no runtime or adapter setup.
+
 ## 0.2.0-beta.4 - 2026-07-15
 
 - Added SDK-free `chatModel` presets for OpenAI, Gemini, Ollama, OpenRouter
