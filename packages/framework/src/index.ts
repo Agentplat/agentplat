@@ -15,6 +15,8 @@ import { RoomService } from '@agentplat/rooms';
 import type { RoomServiceOptions } from '@agentplat/rooms';
 import {
   createMultiAgentSession,
+  defineSpeaker,
+  exportSessionHistory,
   MultiAgentSession,
 } from '@agentplat/sessions';
 import type { MultiAgentSessionOptions } from '@agentplat/sessions';
@@ -32,6 +34,8 @@ export {
   createMultiAgentSession,
   createPersonaInputBuilder,
   createSessionEventReducer,
+  defineSpeaker,
+  exportSessionHistory,
   formatSessionTranscript,
   MultiAgentSession,
   sessionMetrics,
@@ -65,6 +69,7 @@ export type {
   SessionTurnPayload,
   SessionUsage,
   SessionViewState,
+  SpeakerDefinitionInput,
   SessionTurnView,
 } from '@agentplat/sessions';
 export type {

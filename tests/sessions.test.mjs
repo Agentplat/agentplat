@@ -5,9 +5,15 @@ import {
   createAgentplat,
   createPersonaInputBuilder,
   createSessionEventReducer,
+  defineSpeaker,
   sessionMetrics,
 } from '@agentplat/framework';
 import { createSessionStreamController } from '@agentplat/framework/browser';
+import {
+  createSessionRegistry,
+  handleSessionStop,
+  toRegisteredSessionSseResponse,
+} from '@agentplat/sessions/http';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
 import {
   envelopeToEvent,
@@ -367,6 +373,20 @@ test('persona builder and event reducer produce UI-ready bounded state', async (
   );
 });
 
+test('defineSpeaker keeps dynamic speaker and persona configuration aligned', () => {
+  const { speaker, persona } = defineSpeaker({
+    id: 'buyer',
+    name: 'Buyer',
+    role: 'Budget owner',
+    goals: ['Pay less'],
+    platform: 'mock',
+    modelName: 'mock-model',
+  });
+  assert.equal(speaker.instructions, 'Budget owner');
+  assert.equal(speaker.modelName, 'mock-model');
+  assert.deepEqual(persona, { role: 'Budget owner', goals: ['Pay less'] });
+});
+
 test('parseAgentSseStream handles arbitrary chunks and validates sequence continuity', async () => {
   const wire = [
     encodeSseEvent({ type: 'session_started', runId: 'session-a' }, 1),
@@ -481,6 +501,81 @@ test('browser session stream controller owns envelope conversion and reducer sta
   await controller.consume(response);
   assert.equal(controller.state.status, 'completed');
   assert.deepEqual(observed, ['running', 'completed']);
+});
+
+test('browser controller exports completed history and invokes a soft-stop callback', async () => {
+  const stopped = [];
+  const controller = createSessionStreamController({
+    stop: async (sessionId) => stopped.push(sessionId),
+  });
+  await controller.consume(
+    streamToSSE(
+      (async function* () {
+        yield {
+          type: 'session_started',
+          payload: {
+            sessionId: 'session-b',
+            speakers: [{ id: 'a', name: 'A' }],
+            maxRounds: 1,
+            historyLimit: 1,
+          },
+        };
+        yield {
+          type: 'turn_completed',
+          content: 'Finished.',
+          payload: {
+            sessionId: 'session-b',
+            turnId: 'turn-b',
+            speaker: { id: 'a', name: 'A' },
+            round: 1,
+            turn: 1,
+            createdAt: '2026-07-15T00:00:00.000Z',
+            usage: {},
+            aggregateUsage: {
+              inputTokens: 0,
+              outputTokens: 0,
+              totalTokens: 0,
+              reportedTurns: 0,
+            },
+            latencyMs: 5,
+          },
+        };
+      })()
+    )
+  );
+  assert.deepEqual(controller.exportHistory(), [
+    {
+      speakerId: 'a',
+      speakerName: 'A',
+      content: 'Finished.',
+      round: 1,
+      turn: 1,
+      createdAt: '2026-07-15T00:00:00.000Z',
+    },
+  ]);
+  assert.equal(await controller.stop(), true);
+  assert.deepEqual(stopped, ['session-b']);
+});
+
+test('session registry provides cooperative stop handles and removes completed streams', async () => {
+  const registry = createSessionRegistry({ idGenerator: () => 'session-c' });
+  const response = toRegisteredSessionSseResponse(
+    new Request('http://localhost/api/simulate'),
+    registry,
+    async function* ({ sessionId, stopSignal }) {
+      assert.equal(sessionId, 'session-c');
+      const stop = handleSessionStop(
+        new Request('http://localhost', { method: 'POST' }),
+        registry,
+        sessionId
+      );
+      assert.equal(stop.status, 202);
+      assert.equal(stopSignal.aborted, true);
+      yield { type: 'completed', content: 'done' };
+    }
+  );
+  await response.text();
+  assert.equal(registry.get('session-c'), undefined);
 });
 
 test('toNextSseResponse passes the request signal to generation and transport', async () => {

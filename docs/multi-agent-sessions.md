@@ -255,6 +255,45 @@ const resumed = await session.run({
 `SessionViewState` now exposes `activeTurnId`, `totalLatencyMs`, and each
 turn's reported `model` and `finishReason` for operational dashboards.
 
+`@agentplat/sessions/http` provides the optional Fetch-compatible transport
+glue for a server-owned soft stop:
+
+```ts
+const registry = createSessionRegistry();
+return toRegisteredSessionSseResponse(
+  request,
+  registry,
+  ({ sessionId, signal, stopSignal }) =>
+    session.stream({ input, sessionId, signal, stopSignal })
+);
+
+// In an authenticated POST /sessions/:sessionId/stop route:
+return handleSessionStop(request, registry, sessionId);
+```
+
+The browser controller exposes `abort()` for the first recipe, `stop()` when
+given an authenticated stop callback, `metrics` through `onMetrics`, and
+`exportHistory()` for the resume recipe.
+
+## Dynamic speaker forms
+
+Use `defineSpeaker` to keep form DTOs aligned with both session scheduling and
+persona prompt assembly:
+
+```ts
+const { speaker, persona } = defineSpeaker({
+  id: 'reviewer',
+  name: 'Reviewer',
+  role: 'Critical reviewer',
+  goals: ['Find unsupported claims'],
+  platform: 'chat',
+  modelName: 'gpt-4.1-mini',
+});
+const buildInput = createPersonaInputBuilder({
+  personas: { [speaker.id]: persona },
+});
+```
+
 ## Deterministic multi-speaker tests
 
 Response tapes can be keyed by agent, so changing speaker order does not consume

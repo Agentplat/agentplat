@@ -1,8 +1,12 @@
 import {
   createSessionEventReducer,
+  exportSessionHistory,
+  sessionMetrics,
   type MultiAgentSessionEvent,
   type SessionEventReducer,
   type SessionViewState,
+  type SessionMetrics,
+  type SessionMessage,
 } from '@agentplat/sessions';
 import {
   envelopeToEvent,
@@ -13,9 +17,13 @@ import {
 
 export {
   createSessionEventReducer,
+  exportSessionHistory,
+  sessionMetrics,
   type MultiAgentSessionEvent,
   type SessionEventReducer,
   type SessionViewState,
+  type SessionMetrics,
+  type SessionMessage,
 };
 export {
   envelopeToEvent,
@@ -29,7 +37,10 @@ export interface SessionStreamControllerOptions {
   reducer?: SessionEventReducer;
   onState?(state: SessionViewState): void;
   onEvent?(event: MultiAgentSessionEvent): void;
+  onMetrics?(metrics: SessionMetrics): void;
   onError?(error: unknown): void;
+  /** Application-provided authenticated soft-stop action for a live session. */
+  stop?(sessionId: string): Promise<void> | void;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -46,6 +57,9 @@ export interface SessionStreamController {
     options?: ParseAgentSseOptions<MultiAgentSessionEvent>
   ): Promise<void>;
   abort(): void;
+  /** Request a cooperative server-side stop; unlike abort(), it keeps SSE open. */
+  stop(): Promise<boolean>;
+  exportHistory(): SessionMessage[];
   reset(): void;
 }
 
@@ -66,6 +80,7 @@ export function createSessionStreamController(
     state = reducer.reduce(state, event);
     options.onEvent?.(event);
     options.onState?.(state);
+    options.onMetrics?.(state.metrics);
   };
 
   const consume = async (
@@ -101,10 +116,19 @@ export function createSessionStreamController(
     abort() {
       controller?.abort();
     },
+    async stop() {
+      if (!state.sessionId || !options.stop) return false;
+      await options.stop(state.sessionId);
+      return true;
+    },
+    exportHistory() {
+      return exportSessionHistory(state);
+    },
     reset() {
       controller?.abort();
       state = reducer.initialState;
       options.onState?.(state);
+      options.onMetrics?.(state.metrics);
     },
   };
 }

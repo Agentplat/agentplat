@@ -1,11 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import {
-  createSessionEventReducer,
-  type MultiAgentSessionEvent,
-} from '@agentplat/framework';
-import { envelopeToEvent, subscribeAgentSse } from '@agentplat/streaming';
+import { createSessionEventReducer } from '@agentplat/framework';
+import { createSessionStreamController } from '@agentplat/framework/browser';
 
 const reducer = createSessionEventReducer();
 
@@ -15,30 +12,38 @@ export default function Home() {
   );
   const [state, setState] = useState(reducer.initialState);
   const [error, setError] = useState<string>();
-  const controller = useRef<AbortController | null>(null);
+  const controller = useRef<ReturnType<
+    typeof createSessionStreamController
+  > | null>(null);
+  if (!controller.current) {
+    controller.current = createSessionStreamController({
+      reducer,
+      onState: setState,
+      onError: (caught) =>
+        setError(caught instanceof Error ? caught.message : 'Stream failed'),
+      stop: async (sessionId) => {
+        const response = await fetch(`/api/sessions/${sessionId}/stop`, {
+          method: 'POST',
+        });
+        if (!response.ok) throw new Error('Soft stop request failed');
+      },
+    });
+  }
 
-  async function simulate() {
-    controller.current?.abort();
-    const signalController = new AbortController();
-    controller.current = signalController;
-    setState(reducer.initialState);
+  async function simulate(history = controller.current?.exportHistory()) {
+    controller.current?.reset();
     setError(undefined);
     try {
-      const response = await fetch('/api/simulate', {
+      await controller.current?.start('/api/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario }),
-        signal: signalController.signal,
-      });
-      await subscribeAgentSse<MultiAgentSessionEvent>(response, {
-        signal: signalController.signal,
-        onEvent: (envelope) =>
-          setState((current) =>
-            reducer.reduce(current, envelopeToEvent(envelope))
-          ),
+        body: JSON.stringify({
+          scenario,
+          ...(history?.length ? { history } : {}),
+        }),
       });
     } catch (caught) {
-      if (!signalController.signal.aborted) {
+      if (controller.current?.state.status !== 'aborted') {
         setError(caught instanceof Error ? caught.message : 'Stream failed');
       }
     }
@@ -53,7 +58,10 @@ export default function Home() {
         onChange={(event) => setScenario(event.target.value)}
       />
       <p>
-        <button onClick={simulate} disabled={state.status === 'running'}>
+        <button
+          onClick={() => simulate([])}
+          disabled={state.status === 'running'}
+        >
           Run simulation
         </button>
         <button
@@ -61,6 +69,18 @@ export default function Home() {
           disabled={state.status !== 'running'}
         >
           Cancel
+        </button>
+        <button
+          onClick={() => void controller.current?.stop()}
+          disabled={state.status !== 'running'}
+        >
+          Stop after turn
+        </button>
+        <button
+          onClick={() => simulate()}
+          disabled={state.turnOrder.length === 0 || state.status === 'running'}
+        >
+          Continue
         </button>
       </p>
       {error && <p role="alert">{error}</p>}
@@ -81,6 +101,7 @@ export default function Home() {
         Usage: {state.usage.totalTokens} tokens across{' '}
         {state.usage.reportedTurns} reported turns.
       </p>
+      <p>Turn latency: {state.totalLatencyMs}ms.</p>
     </main>
   );
 }

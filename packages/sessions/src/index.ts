@@ -178,6 +178,7 @@ export interface SessionTurnView {
   speaker: SessionSpeakerRef;
   round: number;
   turn: number;
+  createdAt: string;
   content: string;
   status: 'running' | 'completed' | 'failed';
   usage?: AgentUsage;
@@ -198,6 +199,8 @@ export interface SessionViewState {
   usage: SessionUsage;
   /** Sum of provider-reported completed-turn latency. */
   totalLatencyMs: number;
+  /** Stable live metrics snapshot for dashboards and transport controllers. */
+  metrics: SessionMetrics;
   stopReason?: SessionStopReason;
   stopDetail?: string;
   durationMs?: number;
@@ -239,6 +242,7 @@ export interface SessionTurnPayload extends SessionEventPayload {
   speaker: SessionSpeakerRef;
   round: number;
   turn: number;
+  createdAt: string;
 }
 
 /** Payload emitted when a session starts. */
@@ -453,6 +457,7 @@ export class MultiAgentSession {
             speaker: speakerRef(speaker),
             round,
             turn,
+            createdAt: this.clock().toISOString(),
           };
           yield {
             type: 'speaker_changed',
@@ -597,7 +602,7 @@ export class MultiAgentSession {
             content: output,
             round,
             turn,
-            createdAt: this.clock().toISOString(),
+            createdAt: turnPayload.createdAt,
           };
           history.push(message);
           if (history.length > this.historyLimit) history.shift();
@@ -868,6 +873,73 @@ export function sessionMetrics(
   };
 }
 
+/** Export reducer state as lossless session history for a later invocation. */
+export function exportSessionHistory(
+  state: Pick<SessionViewState, 'turnOrder' | 'turns'>
+): SessionMessage[] {
+  return state.turnOrder.flatMap((turnId) => {
+    const turn = state.turns[turnId];
+    if (!turn || turn.status !== 'completed') return [];
+    return [
+      {
+        speakerId: turn.speaker.id,
+        speakerName: turn.speaker.name,
+        content: turn.content,
+        round: turn.round,
+        turn: turn.turn,
+        createdAt: turn.createdAt,
+      },
+    ];
+  });
+}
+
+/** Create a speaker and aligned persona from a form-friendly configuration DTO. */
+export interface SpeakerDefinitionInput {
+  id: AgentPlatID;
+  name: string;
+  platform: string;
+  instructions?: string;
+  role?: string;
+  goals?: string[];
+  constraints?: string[];
+  peerDescription?: string;
+  description?: string;
+  modelName?: string;
+  config?: JsonObject;
+  metadata?: Metadata;
+}
+
+export function defineSpeaker(input: SpeakerDefinitionInput): {
+  speaker: SessionSpeaker;
+  persona: SessionPersona;
+} {
+  required(input.id, 'speaker.id');
+  required(input.name, 'speaker.name');
+  required(input.platform, 'speaker.platform');
+  const instructions = input.instructions?.trim() || input.role?.trim();
+  required(instructions, 'speaker.instructions or speaker.role');
+  return {
+    speaker: {
+      id: input.id,
+      name: input.name,
+      instructions,
+      platform: input.platform,
+      ...(input.description ? { description: input.description } : {}),
+      ...(input.modelName ? { modelName: input.modelName } : {}),
+      ...(input.config ? { config: structuredClone(input.config) } : {}),
+      ...(input.metadata ? { metadata: structuredClone(input.metadata) } : {}),
+    },
+    persona: {
+      ...(input.role ? { role: input.role } : {}),
+      ...(input.goals ? { goals: [...input.goals] } : {}),
+      ...(input.constraints ? { constraints: [...input.constraints] } : {}),
+      ...(input.peerDescription
+        ? { peerDescription: input.peerDescription }
+        : {}),
+    },
+  };
+}
+
 function validateSpeakers(speakers: SessionSpeaker[]): SessionSpeaker[] {
   if (!Array.isArray(speakers) || speakers.length < 2) {
     throw new AgentPlatError(
@@ -950,6 +1022,14 @@ function emptySessionViewState(): SessionViewState {
     turnOrder: [],
     usage: emptyUsage(),
     totalLatencyMs: 0,
+    metrics: {
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      reportedTurns: 0,
+      turnsCompleted: 0,
+      durationMs: 0,
+    },
   };
 }
 
@@ -979,6 +1059,7 @@ function reduceSessionEvent(
           speaker: { ...speaker },
           round,
           turn,
+          createdAt: event.payload.createdAt,
           content: '',
           status: 'running',
         };
@@ -1003,6 +1084,7 @@ function reduceSessionEvent(
       next.totalLatencyMs += event.payload.latencyMs;
       if (next.activeTurnId === current.turnId) next.activeTurnId = undefined;
       next.usage = { ...event.payload.aggregateUsage };
+      next.metrics = metricsFromState(next);
       return next;
     }
     case 'session_failed': {
@@ -1025,6 +1107,14 @@ function reduceSessionEvent(
       next.stopDetail = event.payload.stopDetail;
       next.durationMs = event.payload.durationMs;
       next.activeTurnId = undefined;
+      next.metrics = {
+        inputTokens: event.payload.usage.inputTokens,
+        outputTokens: event.payload.usage.outputTokens,
+        totalTokens: event.payload.usage.totalTokens,
+        reportedTurns: event.payload.usage.reportedTurns,
+        turnsCompleted: event.payload.turnsCompleted,
+        durationMs: event.payload.durationMs,
+      };
       next.status = event.payload.status;
       return next;
     case 'tool_call':
@@ -1044,12 +1134,26 @@ function ensureTurn(
     speaker: { ...payload.speaker },
     round: payload.round,
     turn: payload.turn,
+    createdAt: payload.createdAt,
     content: '',
     status: 'running',
   };
   state.turns[payload.turnId] = created;
   state.turnOrder.push(payload.turnId);
   return created;
+}
+
+function metricsFromState(state: SessionViewState): SessionMetrics {
+  return {
+    inputTokens: state.usage.inputTokens,
+    outputTokens: state.usage.outputTokens,
+    totalTokens: state.usage.totalTokens,
+    reportedTurns: state.usage.reportedTurns,
+    turnsCompleted: state.turnOrder.filter(
+      (turnId) => state.turns[turnId]?.status === 'completed'
+    ).length,
+    durationMs: state.durationMs ?? state.totalLatencyMs,
+  };
 }
 
 function formatPersona(

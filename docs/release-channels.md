@@ -20,6 +20,11 @@ the public API additions prepared in beta.3 through beta.6. Repository examples
 carry the same preview version as the coordinated package release; install
 packages from npm with `@next` when running an example outside this repository.
 
+Session/browser APIs remain on `next` until the reference Next.js controls,
+public contract tests, package smoke test, downstream validation and a stable
+API review are all green for a promotion candidate. `latest` is intentionally
+not advanced merely because a preview release is published.
+
 New scoped packages can receive `latest` from npm on their first publication
 even when published with `next`; npm does not permit removing the only version's
 `latest` tag. Consumers should still install the coordinated channel explicitly

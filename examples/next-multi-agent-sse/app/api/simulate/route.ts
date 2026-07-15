@@ -1,6 +1,14 @@
 import { createAgentplat } from '@agentplat/framework';
+import {
+  createConsoleAuditSink,
+  createSessionAuditSink,
+} from '@agentplat/audit';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
-import { toNextSseResponse } from '@agentplat/streaming';
+import { toRegisteredSessionSseResponse } from '@agentplat/sessions/http';
+
+import { sessionRegistry } from './registry';
+
+const audit = createConsoleAuditSink();
 
 const agentplat = createAgentplat({
   platform: 'mock',
@@ -28,17 +36,32 @@ const speakers = [
 ];
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { scenario?: unknown };
+  const body = (await request.json()) as {
+    scenario?: unknown;
+    history?: unknown;
+  };
   const scenario = body.scenario;
   if (typeof scenario !== 'string' || !scenario.trim()) {
     return Response.json({ error: 'scenario is required' }, { status: 400 });
   }
-  const session = agentplat.createSession({
-    speakers,
-    maxRounds: 4,
-    stopMarkers: ['DEAL AGREED'],
-  });
-  return toNextSseResponse(request, (signal) =>
-    session.stream({ input: scenario, signal })
+  const history = Array.isArray(body.history) ? body.history : undefined;
+  return toRegisteredSessionSseResponse(
+    request,
+    sessionRegistry,
+    ({ sessionId, signal, stopSignal }) => {
+      const session = agentplat.createSession({
+        speakers,
+        maxRounds: 4,
+        stopMarkers: ['DEAL AGREED'],
+        eventSink: createSessionAuditSink({ audit }),
+      });
+      return session.stream({
+        input: scenario,
+        ...(history ? { history } : {}),
+        sessionId,
+        signal,
+        stopSignal,
+      });
+    }
   );
 }

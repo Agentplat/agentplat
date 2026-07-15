@@ -14,9 +14,17 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`, run the negotiation and use **Cancel** to abort
-the active stream. Replace the mock registration in `app/api/simulate/route.ts`
-with an OpenAI-compatible adapter when connecting a real model; keep the same
-session, SSE and UI contracts.
+the active stream, **Stop after turn** to invoke the registered cooperative
+stop route, or **Continue** to restart with exported history. The example also
+contains the `POST /api/sessions/:sessionId/stop` route backed by a local
+`createSessionRegistry()`. Replace that registry with a shared implementation
+and authenticate the route in production.
+
+Replace the mock registration in `app/api/simulate/route.ts` with an
+OpenAI-compatible adapter when connecting a real model; keep the same session,
+SSE and UI contracts. Add `createSessionAuditSink({ audit:
+createConsoleAuditSink() })` to the server session options to print redacted
+ephemeral audit records beside the stream during development.
 
 The example converts each SSE envelope with `envelopeToEvent` before dispatching
 to the reducer. For production controls, use three distinct recipes from the
