@@ -72,10 +72,11 @@ For a direct, ephemeral model call with no Room persistence:
 
 ```js
 import { AgentPlat } from '@agentplat/framework';
-import { openAICompatible } from '@agentplat/model-openai-compatible';
+import { chatModel } from '@agentplat/model-openai-compatible';
 
 const result = await AgentPlat.quickRun({
-  adapter: openAICompatible({
+  adapter: chatModel({
+    provider: 'openai',
     apiKey: process.env.OPENAI_API_KEY,
     defaultModel: process.env.OPENAI_MODEL,
   }),
@@ -83,6 +84,12 @@ const result = await AgentPlat.quickRun({
   input: 'Draft a launch message.',
 });
 ```
+
+The same `chatModel` factory has presets for `gemini`, `ollama` and
+`openrouter`, plus `compatible` for any Chat Completions endpoint. See the
+[model adapter guide](./packages/model-openai-compatible/README.md) for the
+one-line provider changes and how to bring a non-compatible LLM through the
+public `ModelAdapter` interface.
 
 `quickRun` is intentionally not a shortcut around Room governance. Use the
 Room service and PostgreSQL adapter when the work must be persistent,

@@ -33,6 +33,27 @@ export interface OpenAICompatibleModelAdapterOptions {
   capabilities?: Partial<ModelAdapterCapabilities>;
 }
 
+/** Well-known OpenAI Chat Completions-compatible endpoints. */
+export type ChatModelProvider =
+  'openai' | 'gemini' | 'ollama' | 'openrouter' | 'compatible';
+
+/**
+ * A concise configuration for a Chat Completions-compatible model.
+ *
+ * Use `compatible` for a self-hosted or vendor endpoint not represented by a
+ * preset. This factory intentionally only covers the portable Chat
+ * Completions protocol; providers with a different wire protocol can be
+ * supplied through the public `ModelAdapter` interface instead.
+ */
+export interface ChatModelOptions extends Omit<
+  OpenAICompatibleModelAdapterOptions,
+  'baseURL' | 'requireApiKey'
+> {
+  provider: ChatModelProvider;
+  baseURL?: string;
+  requireApiKey?: boolean;
+}
+
 /**
  * Direct Chat Completions adapter for OpenAI-compatible HTTP servers.
  *
@@ -223,6 +244,51 @@ export function openAICompatible(
   options: OpenAICompatibleModelAdapterOptions = {}
 ): OpenAICompatibleModelAdapter {
   return new OpenAICompatibleModelAdapter(options);
+}
+
+/**
+ * Create a model adapter from a named provider preset.
+ *
+ * This is the recommended quickstart API for OpenAI, Gemini, Ollama and
+ * OpenRouter. It has no SDK dependency and callers can always override the
+ * endpoint or headers when their deployment requires it.
+ */
+export function chatModel(
+  options: ChatModelOptions
+): OpenAICompatibleModelAdapter {
+  const preset = chatModelPreset(options.provider);
+  if (options.provider === 'compatible' && !options.baseURL?.trim()) {
+    throw new AgentPlatError(
+      'VALIDATION_ERROR',
+      'baseURL is required when provider is "compatible"'
+    );
+  }
+  return openAICompatible({
+    ...options,
+    baseURL: options.baseURL ?? preset.baseURL,
+    requireApiKey: options.requireApiKey ?? preset.requireApiKey,
+  });
+}
+
+function chatModelPreset(provider: ChatModelProvider): {
+  baseURL: string;
+  requireApiKey: boolean;
+} {
+  switch (provider) {
+    case 'openai':
+      return { baseURL: defaultBaseURL, requireApiKey: true };
+    case 'gemini':
+      return {
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
+        requireApiKey: true,
+      };
+    case 'ollama':
+      return { baseURL: 'http://localhost:11434/v1', requireApiKey: false };
+    case 'openrouter':
+      return { baseURL: 'https://openrouter.ai/api/v1', requireApiKey: true };
+    case 'compatible':
+      return { baseURL: '', requireApiKey: false };
+  }
 }
 
 function requestBody(

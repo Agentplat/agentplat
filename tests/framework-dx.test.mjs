@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { AgentPlat, createAgentplat } from '@agentplat/framework';
-import { OpenAICompatibleModelAdapter } from '@agentplat/model-openai-compatible';
+import {
+  chatModel,
+  OpenAICompatibleModelAdapter,
+} from '@agentplat/model-openai-compatible';
 import { InMemoryRoomRepository } from '@agentplat/rooms';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
 import { encodeSseEvent, pipeSSE, streamToSSE } from '@agentplat/streaming';
@@ -180,6 +183,25 @@ test('OpenAI-compatible model generation uses the standard endpoint without leak
     totalTokens: 4,
   });
   assert.doesNotMatch(JSON.stringify(result), /test-key/);
+});
+
+test('chatModel selects portable provider presets without SDK dependencies', () => {
+  const gemini = chatModel({
+    provider: 'gemini',
+    apiKey: 'test-key',
+    defaultModel: 'gemini-2.5-flash',
+  });
+  const ollama = chatModel({
+    provider: 'ollama',
+    defaultModel: 'llama3.2',
+  });
+
+  assert.ok(gemini instanceof OpenAICompatibleModelAdapter);
+  assert.ok(ollama instanceof OpenAICompatibleModelAdapter);
+  assert.throws(
+    () => chatModel({ provider: 'compatible', defaultModel: 'custom-model' }),
+    /baseURL is required/
+  );
 });
 
 test('OpenAI-compatible streaming normalizes SSE text chunks', async () => {
