@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.5 - 2026-07-15
+
 - Added `AgentPlat.ask`, a facade-only prompt-to-text API with portable LLM
   provider presets and no runtime or adapter setup.
 
