@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.8 - 2026-07-15
+
 - Added `@agentplat/sessions/http` with a replaceable live-session registry,
   registered SSE response helper and Fetch stop handler for cooperative stop.
 - Added controller history export, client `stop()`, incremental metrics, dynamic
