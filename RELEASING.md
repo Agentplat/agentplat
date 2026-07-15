@@ -7,7 +7,7 @@ tag other than `latest`.
 ## Prepare a version
 
 ```sh
-corepack pnpm version:set 0.2.0-beta.3
+corepack pnpm version:set 0.2.0-beta.4
 corepack pnpm install
 corepack pnpm run check
 ```
@@ -24,8 +24,8 @@ to it. Authenticate with npm, then publish from a clean `main` checkout:
 ```sh
 npm whoami
 corepack pnpm run release:publish:next
-git tag v0.2.0-beta.3
-git push origin v0.2.0-beta.3
+git tag v0.2.0-beta.4
+git push origin v0.2.0-beta.4
 ```
 
 Stable releases use `release:publish`, whose default distribution tag is

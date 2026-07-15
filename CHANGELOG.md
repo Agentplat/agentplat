@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.4 - 2026-07-15
+
 - Added SDK-free `chatModel` presets for OpenAI, Gemini, Ollama, OpenRouter
   and explicitly configured Chat Completions-compatible endpoints.
 
