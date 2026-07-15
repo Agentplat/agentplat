@@ -58,6 +58,24 @@ const session = agentplat.createSession({
 });
 ```
 
+A configured single-agent facade can add a fallback or test platform without
+repeating its live provider setup:
+
+```ts
+const configured = AgentPlat.configure({
+  provider: 'openai',
+  apiKey,
+  model,
+  instructions,
+});
+configured.withPlatform('mock', { provider: mockProvider });
+
+const session = configured.createSession({
+  speakers,
+  platformOverrides: { reviewer: 'mock' },
+});
+```
+
 Speakers run in fixed array order for every round. `maxRounds` and
 `historyLimit` are mandatory safety bounds with conservative defaults. Session
 execution supplies a deny-oriented policy context for tools and external
@@ -146,6 +164,29 @@ For a reusable client path, pair `subscribeAgentSse` with the pure
 returns speaker-correlated turn bubbles, aggregate usage, stop reason and
 duration for any UI framework.
 
+When consuming an SSE envelope, remove transport metadata before passing it to
+the domain reducer:
+
+```ts
+import { envelopeToEvent, subscribeAgentSse } from '@agentplat/streaming';
+
+await subscribeAgentSse(response, {
+  onEvent: (envelope) =>
+    setState((state) => reducer.reduce(state, envelopeToEvent(envelope))),
+});
+```
+
+For browser applications that do not want to repeat AbortController ownership,
+parsing and reducer dispatch, use the browser-only subpath:
+
+```ts
+import { createSessionStreamController } from '@agentplat/framework/browser';
+
+const controller = createSessionStreamController({ onState: setState });
+await controller.start('/api/simulate', { method: 'POST', body });
+controller.abort(); // hard cancellation
+```
+
 ## Audit trail without a Room
 
 Sessions stay ephemeral, but an application may attach an append-only
@@ -188,6 +229,31 @@ runtime can report its registry. Use `turnTimeoutMs` or `sessionTimeoutMs` for
 typed `timeout` stop reasons. `stopSignal` is cooperative: it finishes the
 active turn and stops before the next one. Hard cancellation remains
 `signal`/`AbortController`.
+
+## Product controls: abort, stop and resume
+
+- **Hard abort:** pass an `AbortSignal` as `signal`. It cancels the active
+  provider request and closes the SSE response; use it for a Cancel button.
+- **Soft stop:** pass a distinct `stopSignal`. Abort that signal to finish the
+  current speaker turn, emit `stop_reason: stopped`, and avoid starting the
+  next turn. In HTTP applications, keep the stop controller server-side and
+  expose a separately authenticated stop action keyed by the session ID.
+- **Resume:** persist the reducer's completed turn messages in application
+  state, then start a fresh session invocation with `history`. A resumed
+  stream is deliberately a new SSE response and never reuses an old transport.
+
+```ts
+const stop = new AbortController();
+const result = await session.run({ input: scenario, stopSignal: stop.signal });
+
+const resumed = await session.run({
+  input: scenario,
+  history: result.history,
+});
+```
+
+`SessionViewState` now exposes `activeTurnId`, `totalLatencyMs`, and each
+turn's reported `model` and `finishReason` for operational dashboards.
 
 ## Deterministic multi-speaker tests
 

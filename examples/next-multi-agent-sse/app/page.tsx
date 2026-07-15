@@ -5,7 +5,7 @@ import {
   createSessionEventReducer,
   type MultiAgentSessionEvent,
 } from '@agentplat/framework';
-import { subscribeAgentSse } from '@agentplat/streaming';
+import { envelopeToEvent, subscribeAgentSse } from '@agentplat/streaming';
 
 const reducer = createSessionEventReducer();
 
@@ -33,7 +33,9 @@ export default function Home() {
       await subscribeAgentSse<MultiAgentSessionEvent>(response, {
         signal: signalController.signal,
         onEvent: (envelope) =>
-          setState((current) => reducer.reduce(current, envelope)),
+          setState((current) =>
+            reducer.reduce(current, envelopeToEvent(envelope))
+          ),
       });
     } catch (caught) {
       if (!signalController.signal.aborted) {

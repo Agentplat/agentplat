@@ -7,8 +7,10 @@ import {
   createSessionEventReducer,
   sessionMetrics,
 } from '@agentplat/framework';
+import { createSessionStreamController } from '@agentplat/framework/browser';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
 import {
+  envelopeToEvent,
   encodeSseEvent,
   parseAgentSseStream,
   streamToSSE,
@@ -356,6 +358,8 @@ test('persona builder and event reducer produce UI-ready bounded state', async (
   assert.equal(state.status, 'completed');
   assert.equal(state.turnOrder.length, 2);
   assert.equal(state.turns[state.turnOrder[0]].content, 'Offer');
+  assert.equal(state.activeTurnId, undefined);
+  assert.equal(typeof state.totalLatencyMs, 'number');
   assert.equal(state.stopReason, 'max_rounds');
   assert.equal(
     observed.some((event) => event.type === 'turn_completed'),
@@ -392,6 +396,8 @@ test('parseAgentSseStream handles arbitrary chunks and validates sequence contin
       { sequence: 2, type: 'token', content: 'hello' },
     ]
   );
+  const event = envelopeToEvent(envelopes[1]);
+  assert.deepEqual(event, { type: 'token', runId: 'turn-a', content: 'hello' });
 
   const invalid = new ReadableStream({
     start(controller) {
@@ -435,6 +441,46 @@ test('subscribeAgentSse dispatches validated envelopes and surfaces transport fa
     /503/
   );
   assert.match(error.message, /503/);
+});
+
+test('browser session stream controller owns envelope conversion and reducer state', async () => {
+  const observed = [];
+  const controller = createSessionStreamController({
+    onState: (state) => observed.push(state.status),
+  });
+  const response = streamToSSE(
+    (async function* () {
+      yield {
+        type: 'session_started',
+        payload: {
+          sessionId: 'session-a',
+          speakers: [],
+          maxRounds: 1,
+          historyLimit: 1,
+        },
+      };
+      yield {
+        type: 'session_completed',
+        payload: {
+          sessionId: 'session-a',
+          status: 'completed',
+          stopReason: 'max_rounds',
+          roundsCompleted: 1,
+          turnsCompleted: 0,
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            reportedTurns: 0,
+          },
+          durationMs: 1,
+        },
+      };
+    })()
+  );
+  await controller.consume(response);
+  assert.equal(controller.state.status, 'completed');
+  assert.deepEqual(observed, ['running', 'completed']);
 });
 
 test('toNextSseResponse passes the request signal to generation and transport', async () => {

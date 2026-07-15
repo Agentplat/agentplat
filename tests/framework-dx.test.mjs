@@ -141,6 +141,39 @@ test('AgentPlat.configure reuses one declarative setup for runs, streams and ses
   assert.equal((await session.run({ input: 'Discuss.' })).turnsCompleted, 2);
 });
 
+test('ConfiguredAgent adds a mock platform and applies speaker platform overrides', async () => {
+  const agent = AgentPlat.configure({
+    provider: 'ollama',
+    model: 'llama3.2',
+    instructions: 'Be concise.',
+    fetch: async () =>
+      Response.json({
+        choices: [
+          {
+            message: { role: 'assistant', content: 'Live response.' },
+            finish_reason: 'stop',
+          },
+        ],
+      }),
+  }).withPlatform('mock', {
+    provider: new MockAgentProvider({
+      responsesByAgent: { b: ['Mock response.'] },
+    }),
+  });
+
+  const session = agent.createSession({
+    maxRounds: 1,
+    platformOverrides: { b: 'mock' },
+    speakers: [
+      { id: 'a', name: 'A', instructions: 'A', platform: 'chat' },
+      { id: 'b', name: 'B', instructions: 'B', platform: 'chat' },
+    ],
+  });
+  const result = await session.run({ input: 'Discuss.' });
+  assert.equal(result.turnsCompleted, 2);
+  assert.equal(result.history[1].content, 'Mock response.');
+});
+
 test('createAgentplat composes an optional RoomService around the same runtime', async () => {
   const adapter = {
     id: 'rooms-test',

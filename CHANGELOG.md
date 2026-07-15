@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added browser-safe `@agentplat/framework/browser` session stream controller,
+  explicit SSE envelope conversion, richer UI reducer state and configurable
+  live/mock session platforms.
+- Added local memory/console audit sink factories and documented hard abort,
+  cooperative stop and resume-from-history recipes.
+
 ## 0.2.0-beta.6 - 2026-07-15
 
 - Added `AgentPlat.configure`, a reusable declarative facade with run,

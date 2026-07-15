@@ -12,6 +12,7 @@ import type {
   SessionEventRecord,
 } from '@agentplat/framework';
 import type { ParseAgentSseOptions } from '@agentplat/streaming';
+import type { SessionStreamController } from '@agentplat/framework/browser';
 
 // This file is compiled, not executed. It protects facade-only consumer imports
 // and discriminated payload narrowing across the serialized SSE boundary.
@@ -53,6 +54,7 @@ const configureAgentInput: ConfigureAgentInput = {
   instructions: 'Be concise.',
 };
 const configuredAgent = AgentPlat.configure(configureAgentInput);
+const browserController: SessionStreamController | undefined = undefined;
 const parserOptions: ParseAgentSseOptions<MultiAgentSessionEvent> = {
   strictSequence: true,
 };
@@ -79,6 +81,7 @@ void consumeSessionEnvelope;
 void consumeRuntimeEnvelope;
 void quickRunInput;
 void configuredAgent;
+void browserController;
 void parserOptions;
 void personaBuilder;
 void sessionReducer;

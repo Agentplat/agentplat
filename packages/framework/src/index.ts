@@ -179,6 +179,11 @@ export type FrameworkSessionOptions = Omit<
   'runtime' | 'tenant' | 'credentials'
 >;
 
+/** Session options with optional speaker-to-platform overrides for configured agents. */
+export interface ConfiguredAgentSessionOptions extends FrameworkSessionOptions {
+  platformOverrides?: Record<AgentPlatID, string>;
+}
+
 /**
  * Reusable high-level agent assembled from a portable provider preset.
  *
@@ -212,8 +217,21 @@ export class ConfiguredAgent {
     return this.framework.stream({ ...this.defaults, input, ...options });
   }
 
-  createSession(options: FrameworkSessionOptions): MultiAgentSession {
-    return this.framework.createSession(options);
+  createSession(options: ConfiguredAgentSessionOptions): MultiAgentSession {
+    const { platformOverrides, speakers, ...sessionOptions } = options;
+    return this.framework.createSession({
+      ...sessionOptions,
+      speakers: speakers.map((speaker) => ({
+        ...speaker,
+        platform: platformOverrides?.[speaker.id] ?? speaker.platform,
+      })),
+    });
+  }
+
+  /** Add a named live, mock or custom platform for mixed-provider sessions. */
+  withPlatform(platform: string, registration: AgentPlatPlatform): this {
+    this.framework.registerPlatform(platform, registration);
+    return this;
   }
 }
 
@@ -260,24 +278,7 @@ export class AgentPlatFramework {
       for (const [platform, registration] of Object.entries(
         options.platforms
       )) {
-        const normalized = normalizedPlatform(platform);
-        if (!registration || (registration.adapter && registration.provider)) {
-          throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            `Configure exactly one adapter or provider for platform "${platform}"`
-          );
-        }
-        const provider = registration.adapter
-          ? new ChatAgentProvider(registration.adapter)
-          : registration.provider;
-        if (!provider) {
-          throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            `A provider or adapter is required for platform "${platform}"`
-          );
-        }
-        this.runtime.registerProvider(normalized, provider);
-        this.configuredPlatforms.add(normalized);
+        this.registerPlatform(platform, registration);
       }
     }
     const provider = options.adapter
@@ -299,6 +300,34 @@ export class AgentPlatFramework {
         runtime: this.runtime,
       });
     }
+  }
+
+  /** Register one additional named platform after framework construction. */
+  registerPlatform(platform: string, registration: AgentPlatPlatform): void {
+    const normalized = normalizedPlatform(platform);
+    if (!registration || (registration.adapter && registration.provider)) {
+      throw new AgentPlatError(
+        'VALIDATION_ERROR',
+        `Configure exactly one adapter or provider for platform "${platform}"`
+      );
+    }
+    if (this.configuredPlatforms.has(normalized)) {
+      throw new AgentPlatError(
+        'CONFLICT',
+        `Platform "${normalized}" is configured more than once`
+      );
+    }
+    const provider = registration.adapter
+      ? new ChatAgentProvider(registration.adapter)
+      : registration.provider;
+    if (!provider) {
+      throw new AgentPlatError(
+        'VALIDATION_ERROR',
+        `A provider or adapter is required for platform "${platform}"`
+      );
+    }
+    this.runtime.registerProvider(normalized, provider);
+    this.configuredPlatforms.add(normalized);
   }
 
   /** Execute a single ephemeral agent run with safe, tool-free defaults. */

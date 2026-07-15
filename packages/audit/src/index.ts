@@ -75,6 +75,33 @@ export class InMemoryAuditSink implements AuditSink {
   }
 }
 
+/** Create an inspectable, redacting audit sink for local development and tests. */
+export function createMemoryAuditSink(): InMemoryAuditSink {
+  return new InMemoryAuditSink();
+}
+
+/** Minimal log surface accepted by the development console audit sink. */
+export interface AuditLogger {
+  info(record: AuditRecord): void;
+}
+
+/** Writes already-redacted audit records to a supplied development logger. */
+export class ConsoleAuditSink implements AuditSink {
+  constructor(private readonly logger: AuditLogger = console) {}
+
+  async write(record: AuditRecord): Promise<void> {
+    this.logger.info({
+      ...record,
+      details: record.details ? redactAuditDetails(record.details) : undefined,
+    });
+  }
+}
+
+/** Create a redacting console sink for local development only. */
+export function createConsoleAuditSink(logger?: AuditLogger): ConsoleAuditSink {
+  return new ConsoleAuditSink(logger);
+}
+
 /**
  * Converts append-only session event records into redacted AuditRecords.
  *

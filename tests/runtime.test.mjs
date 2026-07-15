@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createConsoleAuditSink,
+  createMemoryAuditSink,
   createSessionAuditSink,
   InMemoryAuditSink,
   redactAuditDetails,
@@ -148,6 +150,26 @@ test('audit redaction is recursive and is applied by the sink', async () => {
     createdAt: '2026-07-14T12:00:00.000Z',
   });
   assert.equal(sink.list()[0].details.password, '[REDACTED]');
+});
+
+test('development audit sink factories redact memory and console records', async () => {
+  const memory = createMemoryAuditSink();
+  await memory.write({
+    id: 'audit-dev-a',
+    tenantId: 'tenant-a',
+    action: 'test',
+    resource: { type: 'test', id: 'resource-a', tenantId: 'tenant-a' },
+    details: { apiKey: 'secret' },
+    createdAt: '2026-07-15T00:00:00.000Z',
+  });
+  assert.equal(memory.list()[0].details.apiKey, '[REDACTED]');
+
+  let logged;
+  const consoleSink = createConsoleAuditSink({
+    info: (record) => (logged = record),
+  });
+  await consoleSink.write(memory.list()[0]);
+  assert.equal(logged.details.apiKey, '[REDACTED]');
 });
 
 test('SessionAuditSink turns session records into redacted append-only audit records', async () => {

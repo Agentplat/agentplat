@@ -80,3 +80,18 @@ for await (const event of session.stream({ input: scenario, signal })) {
 For applications with mock and live backends in one process, pass a `platforms`
 map containing explicit adapters/providers. The framework validates registered
 speaker platforms without importing optional model SDKs.
+
+## Browser boundary
+
+Import `@agentplat/framework/browser` from a Next.js Client Component. It only
+exports session reducer/controller and SSE client utilities; it does not load
+Room services, PostgreSQL adapters, model credentials or server composition.
+
+```ts
+import { createSessionStreamController } from '@agentplat/framework/browser';
+```
+
+Use the package root (`@agentplat/framework`) only in server code or shared
+code that does not enter a Client Component graph. `@agentplat/rooms`,
+`@agentplat/rooms-postgres` and `@agentplat/rooms-api` are server-side
+entrypoints and must never be imported by browser bundles.

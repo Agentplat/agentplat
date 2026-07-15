@@ -182,6 +182,8 @@ export interface SessionTurnView {
   status: 'running' | 'completed' | 'failed';
   usage?: AgentUsage;
   latencyMs?: number;
+  model?: string;
+  finishReason?: string;
 }
 
 /** Reducer state suitable for browser UI bubbles and session dashboards. */
@@ -191,7 +193,11 @@ export interface SessionViewState {
   speakers: SessionSpeakerRef[];
   turns: Record<AgentPlatID, SessionTurnView>;
   turnOrder: AgentPlatID[];
+  /** The active turn, so UIs do not need to scan every turn. */
+  activeTurnId?: AgentPlatID;
   usage: SessionUsage;
+  /** Sum of provider-reported completed-turn latency. */
+  totalLatencyMs: number;
   stopReason?: SessionStopReason;
   stopDetail?: string;
   durationMs?: number;
@@ -943,6 +949,7 @@ function emptySessionViewState(): SessionViewState {
     turns: {},
     turnOrder: [],
     usage: emptyUsage(),
+    totalLatencyMs: 0,
   };
 }
 
@@ -977,6 +984,7 @@ function reduceSessionEvent(
         };
         next.turnOrder.push(turnId);
       }
+      next.activeTurnId = turnId;
       return next;
     }
     case 'token': {
@@ -990,6 +998,10 @@ function reduceSessionEvent(
       current.status = 'completed';
       current.usage = { ...event.payload.usage };
       current.latencyMs = event.payload.latencyMs;
+      current.model = event.payload.model;
+      current.finishReason = event.payload.finishReason;
+      next.totalLatencyMs += event.payload.latencyMs;
+      if (next.activeTurnId === current.turnId) next.activeTurnId = undefined;
       next.usage = { ...event.payload.aggregateUsage };
       return next;
     }
@@ -997,6 +1009,7 @@ function reduceSessionEvent(
       const current = ensureTurn(next, event.payload);
       current.status = 'failed';
       current.content ||= event.content;
+      if (next.activeTurnId === current.turnId) next.activeTurnId = undefined;
       next.status = 'failed';
       next.stopDetail = event.content;
       return next;
@@ -1011,6 +1024,7 @@ function reduceSessionEvent(
       next.stopReason = event.payload.stopReason;
       next.stopDetail = event.payload.stopDetail;
       next.durationMs = event.payload.durationMs;
+      next.activeTurnId = undefined;
       next.status = event.payload.status;
       return next;
     case 'tool_call':

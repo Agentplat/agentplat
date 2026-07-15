@@ -17,3 +17,11 @@ Open `http://localhost:3000`, run the negotiation and use **Cancel** to abort
 the active stream. Replace the mock registration in `app/api/simulate/route.ts`
 with an OpenAI-compatible adapter when connecting a real model; keep the same
 session, SSE and UI contracts.
+
+The example converts each SSE envelope with `envelopeToEvent` before dispatching
+to the reducer. For production controls, use three distinct recipes from the
+[session guide](../../docs/multi-agent-sessions.md): hard abort via `signal`,
+cooperative stop via a server-owned `stopSignal`, and a new invocation with
+`history` to resume from completed turns. The `@agentplat/framework/browser`
+entrypoint provides `createSessionStreamController` when an application wants
+the same client glue without a React dependency.

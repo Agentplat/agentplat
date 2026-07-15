@@ -19,6 +19,19 @@ export type AgentSseEnvelope<TEvent extends StreamEvent = AgentStreamEvent> =
       } & Pick<TEvent, Extract<keyof TEvent, 'runId' | 'content' | 'payload'>>
     : never;
 
+/**
+ * Remove transport metadata from a parsed SSE envelope.
+ *
+ * Use this at a domain reducer boundary so UI code consumes the stable domain
+ * event rather than relying on structural compatibility with the envelope.
+ */
+export function envelopeToEvent<TEvent extends StreamEvent>(
+  envelope: AgentSseEnvelope<TEvent>
+): TEvent {
+  const { version: _version, sequence: _sequence, ...event } = envelope;
+  return event as unknown as TEvent;
+}
+
 /** Shared behavior for Web and Node SSE helpers. */
 export interface AgentSseOptions {
   signal?: AbortSignal;

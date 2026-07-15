@@ -15,6 +15,11 @@ but may change between prereleases. A preview is promoted to `latest` only after
 the public checks, package smoke test, reference examples and downstream
 integration validation are green.
 
+`0.2.0-beta.6` is the first published `next` preview after beta.2 and includes
+the public API additions prepared in beta.3 through beta.6. Repository examples
+carry the same preview version as the coordinated package release; install
+packages from npm with `@next` when running an example outside this repository.
+
 New scoped packages can receive `latest` from npm on their first publication
 even when published with `next`; npm does not permit removing the only version's
 `latest` tag. Consumers should still install the coordinated channel explicitly
