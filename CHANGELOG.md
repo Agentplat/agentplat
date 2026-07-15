@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.3 - 2026-07-15
+
 - Added a runnable Next.js App Router multi-agent SSE reference with browser
   cancellation and reducer-backed UI state.
 - Added `subscribeAgentSse`, `createSessionEventReducer`, persona turn-input
