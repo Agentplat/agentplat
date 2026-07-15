@@ -24,6 +24,8 @@ export default function Home() {
       stop: async (sessionId) => {
         const response = await fetch(`/api/sessions/${sessionId}/stop`, {
           method: 'POST',
+          // Development-only credential; replace with the product's auth session.
+          headers: { 'X-Agentplat-Demo-Key': 'local' },
         });
         if (!response.ok) throw new Error('Soft stop request failed');
       },
@@ -58,27 +60,24 @@ export default function Home() {
         onChange={(event) => setScenario(event.target.value)}
       />
       <p>
-        <button
-          onClick={() => simulate([])}
-          disabled={state.status === 'running'}
-        >
+        <button onClick={() => simulate([])} disabled={state.isLive}>
           Run simulation
         </button>
         <button
           onClick={() => controller.current?.abort()}
-          disabled={state.status !== 'running'}
+          disabled={!state.isLive}
         >
           Cancel
         </button>
         <button
           onClick={() => void controller.current?.stop()}
-          disabled={state.status !== 'running'}
+          disabled={!state.canSoftStop}
         >
           Stop after turn
         </button>
         <button
           onClick={() => simulate()}
-          disabled={state.turnOrder.length === 0 || state.status === 'running'}
+          disabled={!state.canResume || state.isLive}
         >
           Continue
         </button>

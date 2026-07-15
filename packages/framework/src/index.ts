@@ -15,6 +15,7 @@ import { RoomService } from '@agentplat/rooms';
 import type { RoomServiceOptions } from '@agentplat/rooms';
 import {
   createMultiAgentSession,
+  buildScenarioInput,
   defineSpeaker,
   exportSessionHistory,
   MultiAgentSession,
@@ -31,6 +32,7 @@ import type {
 } from '@agentplat/runtime';
 
 export {
+  buildScenarioInput,
   createMultiAgentSession,
   createPersonaInputBuilder,
   createSessionEventReducer,
@@ -46,11 +48,13 @@ export type {
   MultiAgentSessionOptions,
   MultiAgentSessionResult,
   SessionCompletedPayload,
+  SessionCostContext,
   SessionEventRecord,
   SessionEventPayload,
   SessionEventReducer,
   SessionEventSink,
   SessionFailurePayload,
+  SessionFallbackOptions,
   SessionInputContext,
   SessionMessage,
   SessionMetrics,
@@ -63,9 +67,12 @@ export type {
   SessionStopDecision,
   SessionStopPayload,
   SessionStopReason,
+  ScenarioInput,
+  SessionProviderFallbackPayload,
   SessionSinkFailureMode,
   SessionToolPayload,
   SessionTurnCompletedPayload,
+  SessionTurnFailedPayload,
   SessionTurnPayload,
   SessionUsage,
   SessionViewState,
@@ -369,6 +376,24 @@ export class AgentPlatFramework {
         throw new AgentPlatError(
           'VALIDATION_ERROR',
           `No provider is configured for session speaker platform "${platform}"`
+        );
+      }
+    }
+    const fallback = options.fallbackPlatform;
+    if (fallback) {
+      const platform = normalizedPlatform(
+        typeof fallback === 'string' ? fallback : fallback.platform
+      );
+      const known = this.runtime.hasProvider?.(platform);
+      if (
+        known === false ||
+        (!known &&
+          this.configuredPlatforms.size > 0 &&
+          !this.configuredPlatforms.has(platform))
+      ) {
+        throw new AgentPlatError(
+          'VALIDATION_ERROR',
+          `No provider is configured for session fallback platform "${platform}"`
         );
       }
     }

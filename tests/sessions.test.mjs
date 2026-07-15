@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   createAgentplat,
+  buildScenarioInput,
   createPersonaInputBuilder,
   createSessionEventReducer,
   defineSpeaker,
@@ -265,6 +266,84 @@ test('MultiAgentSession reports the failed speaker without starting another turn
   assert.equal(events.at(-1).payload.status, 'failed');
 });
 
+test('MultiAgentSession retries a failed live turn on an explicit fallback platform', async () => {
+  const createPlatform = () =>
+    createAgentplat({
+      platform: 'live',
+      provider: new MockAgentProvider({ failAtCall: 1 }),
+      platforms: {
+        mock: {
+          provider: new MockAgentProvider({
+            responsesByAgent: {
+              buyer: ['Fallback offer'],
+              seller: ['Fallback counter'],
+            },
+          }),
+        },
+      },
+    });
+  const platform = createPlatform();
+  const events = [];
+  const result = await platform
+    .createSession({
+      speakers: speakers.map((speaker) => ({ ...speaker, platform: 'live' })),
+      maxRounds: 1,
+      fallbackPlatform: 'mock',
+    })
+    .run({ input: 'Use fallback.', sessionId: 'fallback-session' });
+
+  for await (const event of createPlatform()
+    .createSession({
+      speakers: speakers.map((speaker) => ({ ...speaker, platform: 'live' })),
+      maxRounds: 1,
+      fallbackPlatform: 'mock',
+    })
+    .stream({ input: 'Use fallback.', sessionId: 'fallback-events' })) {
+    events.push(event);
+  }
+
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(
+    result.history.map((message) => message.content),
+    ['Fallback offer', 'Fallback counter']
+  );
+  assert.equal(
+    events.some((event) => event.type === 'turn_failed'),
+    true
+  );
+  assert.deepEqual(
+    events.find((event) => event.type === 'provider_fallback').payload
+      .toPlatform,
+    'mock'
+  );
+});
+
+test('MultiAgentSession applies token and estimated-cost soft caps after preserving a turn', async () => {
+  const tokenBudget = platformWith({
+    responsesByAgent: {
+      buyer: [{ output: 'Offer', completion: { usage: { totalTokens: 5 } } }],
+      seller: ['Unused'],
+    },
+  }).createSession({ speakers, maxTokens: 5 });
+  const tokenResult = await tokenBudget.run({ input: 'Cap tokens.' });
+  assert.equal(tokenResult.stopReason, 'token_budget');
+  assert.equal(tokenResult.turnsCompleted, 1);
+
+  const costBudget = platformWith({
+    responsesByAgent: {
+      buyer: [{ output: 'Offer', completion: { usage: { totalTokens: 2 } } }],
+      seller: ['Unused'],
+    },
+  }).createSession({
+    speakers,
+    maxCostUsd: 0.01,
+    estimateCostUsd: () => 0.01,
+  });
+  const costResult = await costBudget.run({ input: 'Cap cost.' });
+  assert.equal(costResult.stopReason, 'cost_budget');
+  assert.equal(costResult.estimatedCostUsd, 0.01);
+});
+
 test('MultiAgentSession records ordered event records and can require a sink', async () => {
   const records = [];
   const session = platformWith({
@@ -385,6 +464,17 @@ test('defineSpeaker keeps dynamic speaker and persona configuration aligned', ()
   assert.equal(speaker.instructions, 'Budget owner');
   assert.equal(speaker.modelName, 'mock-model');
   assert.deepEqual(persona, { role: 'Budget owner', goals: ['Pay less'] });
+});
+
+test('buildScenarioInput formats optional structured scenario details', () => {
+  assert.match(
+    buildScenarioInput({
+      title: 'Negotiation',
+      topic: 'A used car',
+      metadata: { currency: 'USD' },
+    }),
+    /Scenario: Negotiation[\s\S]*Topic:\nA used car[\s\S]*currency/
+  );
 });
 
 test('parseAgentSseStream handles arbitrary chunks and validates sequence continuity', async () => {
@@ -564,7 +654,7 @@ test('session registry provides cooperative stop handles and removes completed s
     registry,
     async function* ({ sessionId, stopSignal }) {
       assert.equal(sessionId, 'session-c');
-      const stop = handleSessionStop(
+      const stop = await handleSessionStop(
         new Request('http://localhost', { method: 'POST' }),
         registry,
         sessionId
@@ -576,6 +666,25 @@ test('session registry provides cooperative stop handles and removes completed s
   );
   await response.text();
   assert.equal(registry.get('session-c'), undefined);
+});
+
+test('session registry reaps expired controls and stop handler invokes authorization', async () => {
+  let now = 0;
+  const registry = createSessionRegistry({
+    ttlMs: 10,
+    clock: () => now,
+    idGenerator: () => 'expired',
+  });
+  registry.create();
+  now = 11;
+  assert.equal(registry.reap(), 1);
+  const denied = await handleSessionStop(
+    new Request('http://localhost', { method: 'POST' }),
+    registry,
+    'expired',
+    { authorize: () => false }
+  );
+  assert.equal(denied.status, 403);
 });
 
 test('toNextSseResponse passes the request signal to generation and transport', async () => {

@@ -125,7 +125,7 @@ shows the complete server and browser integration path.
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.2.0-beta.7` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.2.0-beta.9` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants

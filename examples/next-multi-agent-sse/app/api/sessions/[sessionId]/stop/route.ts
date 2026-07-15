@@ -7,5 +7,9 @@ export async function POST(
   context: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await context.params;
-  return handleSessionStop(request, sessionRegistry, sessionId);
+  return handleSessionStop(request, sessionRegistry, sessionId, {
+    // Replace this development header with the application's session/tenant auth.
+    authorize: (request) =>
+      request.headers.get('x-agentplat-demo-key') === 'local',
+  });
 }

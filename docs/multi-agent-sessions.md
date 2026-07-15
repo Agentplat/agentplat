@@ -230,6 +230,47 @@ typed `timeout` stop reasons. `stopSignal` is cooperative: it finishes the
 active turn and stops before the next one. Hard cancellation remains
 `signal`/`AbortController`.
 
+### Explicit live-provider fallback
+
+For interactive demos and deliberate degraded modes, a session can switch to a
+separately registered fallback platform after a provider failure. It emits
+`turn_failed` followed by `provider_fallback`, retries the failed turn once,
+and keeps the bounded history. Every later turn uses the fallback platform.
+This is intentionally opt-in and observable; AgentPlat never masks a provider
+failure by silently changing models.
+
+```ts
+const session = agentplat.createSession({
+  speakers,
+  fallbackPlatform: { platform: 'mock', retainHistory: true },
+});
+```
+
+Fallback is not used for cancellations or timeouts. Register and test the
+fallback provider explicitly, including the continuity and disclosure behavior
+appropriate for your product.
+
+### Token and cost guardrails
+
+Use soft caps to finish the current provider turn, retain its usage and stop
+before another turn starts. `maxCostUsd` requires an application-owned
+estimator because model pricing and billing currency belong to the application.
+
+```ts
+const session = agentplat.createSession({
+  speakers,
+  maxTokens: 12_000,
+  maxTokensBySpeaker: { reviewer: 3_000 },
+  maxCostUsd: 0.25,
+  estimateCostUsd: ({ usage }) =>
+    (usage.inputTokens ?? 0) * 0.000_001 +
+    (usage.outputTokens ?? 0) * 0.000_003,
+});
+```
+
+The terminal `stop_reason` is `token_budget` or `cost_budget`. Cost estimates
+are exposed on completed-turn events, the final result and reducer metrics.
+
 ## Product controls: abort, stop and resume
 
 - **Hard abort:** pass an `AbortSignal` as `signal`. It cancels the active
@@ -271,9 +312,30 @@ return toRegisteredSessionSseResponse(
 return handleSessionStop(request, registry, sessionId);
 ```
 
+The helper accepts an authorization hook so a standard route does not need to
+reimplement stop semantics. Return `false` for a 403 or a custom `Response` for
+an application-specific 401/404 response:
+
+```ts
+return handleSessionStop(request, registry, sessionId, {
+  authorize: async (request, id) =>
+    request.headers.get('authorization') === expectedBearerFor(id),
+});
+```
+
+`createMemorySessionRegistry({ ttlMs })` is an explicit alias for the local
+registry and reaps idle handles on each operation. `SessionRegistry` is the
+small interface to implement for Redis or another shared control channel:
+`create`, `get`, `stop`, `release` and `reap`. A distributed adapter must make
+`stop` publish a signal that the process running the stream can receive; merely
+sharing metadata is not sufficient.
+
 The browser controller exposes `abort()` for the first recipe, `stop()` when
 given an authenticated stop callback, `metrics` through `onMetrics`, and
 `exportHistory()` for the resume recipe.
+
+The reducer also exposes `isLive`, `canSoftStop` and `canResume`. Bind controls
+to these flags rather than inferring them from turn counts.
 
 ## Dynamic speaker forms
 
@@ -292,6 +354,20 @@ const { speaker, persona } = defineSpeaker({
 const buildInput = createPersonaInputBuilder({
   personas: { [speaker.id]: persona },
 });
+```
+
+## Structured scenario input
+
+`buildScenarioInput` gives simple product forms a portable representation
+without imposing a simulation domain model:
+
+```ts
+const input = buildScenarioInput({
+  title: 'Vehicle negotiation',
+  topic: 'Buyer and seller negotiate a used electric car.',
+  metadata: { currency: 'USD', market: 'Montevideo' },
+});
+await session.run({ input });
 ```
 
 ## Deterministic multi-speaker tests

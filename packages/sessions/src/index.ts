@@ -58,6 +58,8 @@ export type SessionStopReason =
   | 'aborted'
   | 'stopped'
   | 'timeout'
+  | 'token_budget'
+  | 'cost_budget'
   | 'failed';
 
 /** State passed to a custom stopping predicate after every completed turn. */
@@ -133,6 +135,16 @@ export interface MultiAgentSessionOptions {
   sessionTimeoutMs?: number;
   /** Maximum duration of one speaker turn. */
   turnTimeoutMs?: number;
+  /** Switch all remaining turns to this registered platform after one provider failure. */
+  fallbackPlatform?: string | SessionFallbackOptions;
+  /** Soft cap for total reported tokens. The completing turn is preserved. */
+  maxTokens?: number;
+  /** Soft caps for total reported tokens by speaker id. */
+  maxTokensBySpeaker?: Record<AgentPlatID, number>;
+  /** Soft cap for estimated session cost. Requires `estimateCostUsd`. */
+  maxCostUsd?: number;
+  /** Converts one completed provider turn into a USD estimate. */
+  estimateCostUsd?: (context: SessionCostContext) => number;
   stopMarkers?: string[];
   stopWhen?: (
     context: SessionStopContext
@@ -144,6 +156,22 @@ export interface MultiAgentSessionOptions {
   sinkFailureMode?: SessionSinkFailureMode;
   idGenerator?: () => AgentPlatID;
   clock?: () => Date;
+}
+
+/** Explicit fallback behavior for a session whose live provider becomes unavailable. */
+export interface SessionFallbackOptions {
+  platform: string;
+  /** Kept for self-documenting configurations; session history is always retained. */
+  retainHistory?: true;
+}
+
+/** Provider usage available to a cost estimator after a turn completes. */
+export interface SessionCostContext {
+  speaker: SessionSpeaker;
+  usage: AgentUsage;
+  aggregateUsage: SessionUsage;
+  round: number;
+  turn: number;
 }
 
 /** Input for one independent session execution. */
@@ -169,6 +197,8 @@ export interface MultiAgentSessionResult {
   turnsCompleted: number;
   history: SessionMessage[];
   usage: SessionUsage;
+  /** Sum returned by `estimateCostUsd`, when configured. */
+  estimatedCostUsd?: number;
   durationMs: number;
 }
 
@@ -201,9 +231,17 @@ export interface SessionViewState {
   totalLatencyMs: number;
   /** Stable live metrics snapshot for dashboards and transport controllers. */
   metrics: SessionMetrics;
+  /** Sum of estimates supplied by the configured cost estimator. */
+  estimatedCostUsd: number;
   stopReason?: SessionStopReason;
   stopDetail?: string;
   durationMs?: number;
+  /** True while a server-side cooperative stop can affect the active session. */
+  canSoftStop: boolean;
+  /** True once at least one completed turn can be exported as history. */
+  canResume: boolean;
+  /** Convenience alias for a live stream; false after a terminal event. */
+  isLive: boolean;
 }
 
 /** Pure reducer for `MultiAgentSessionEvent` values received over SSE or in-process. */
@@ -223,6 +261,7 @@ export interface SessionMetrics extends JsonObject {
   reportedTurns: number;
   turnsCompleted: number;
   durationMs: number;
+  estimatedCostUsd: number;
 }
 
 /** Compact speaker identity transported in session event payloads. */
@@ -259,6 +298,8 @@ export type SessionTurnCompletedPayload = SessionTurnPayload & {
   latencyMs: number;
   model?: string;
   finishReason?: string;
+  estimatedCostUsd?: number;
+  totalEstimatedCostUsd?: number;
 };
 
 /** Payload that keeps provider tool details scoped to their session turn. */
@@ -281,6 +322,18 @@ export type SessionFailurePayload = SessionTurnPayload & {
   detail?: string;
 };
 
+/** Payload emitted before a failed provider turn is retried or terminates. */
+export type SessionTurnFailedPayload = SessionFailurePayload & {
+  platform: string;
+};
+
+/** Payload emitted when the session changes all remaining turns to a fallback platform. */
+export type SessionProviderFallbackPayload = SessionTurnPayload & {
+  fromPlatform: string;
+  toPlatform: string;
+  detail?: string;
+};
+
 /** Payload emitted as the final event in a session stream. */
 export type SessionCompletedPayload = SessionEventPayload & {
   status: 'completed' | 'aborted' | 'failed';
@@ -289,6 +342,7 @@ export type SessionCompletedPayload = SessionEventPayload & {
   roundsCompleted: number;
   turnsCompleted: number;
   usage: SessionUsage;
+  estimatedCostUsd?: number;
   durationMs: number;
 };
 
@@ -304,6 +358,8 @@ export type MultiAgentSessionEvent =
       content: string;
     })
   | SessionPayloadEvent<'stop_reason', SessionStopPayload>
+  | SessionPayloadEvent<'turn_failed', SessionTurnFailedPayload>
+  | SessionPayloadEvent<'provider_fallback', SessionProviderFallbackPayload>
   | (SessionPayloadEvent<'session_failed', SessionFailurePayload> & {
       content: string;
     })
@@ -328,6 +384,10 @@ export class MultiAgentSession {
   private readonly historyLimit: number;
   private readonly sessionTimeoutMs?: number;
   private readonly turnTimeoutMs?: number;
+  private readonly fallbackPlatform?: string;
+  private readonly maxTokens?: number;
+  private readonly maxTokensBySpeaker: Record<AgentPlatID, number>;
+  private readonly maxCostUsd?: number;
   private readonly stopMarkers: string[];
   private readonly sinkFailureMode: SessionSinkFailureMode;
   private readonly idGenerator: () => AgentPlatID;
@@ -356,6 +416,18 @@ export class MultiAgentSession {
       options.turnTimeoutMs,
       'turnTimeoutMs'
     );
+    this.fallbackPlatform = normalizeFallbackPlatform(options.fallbackPlatform);
+    this.maxTokens = optionalPositiveNumber(options.maxTokens, 'maxTokens');
+    this.maxTokensBySpeaker = normalizeSpeakerBudgets(
+      options.maxTokensBySpeaker
+    );
+    this.maxCostUsd = optionalPositiveNumber(options.maxCostUsd, 'maxCostUsd');
+    if (this.maxCostUsd !== undefined && !options.estimateCostUsd) {
+      throw new AgentPlatError(
+        'VALIDATION_ERROR',
+        'maxCostUsd requires estimateCostUsd'
+      );
+    }
     this.stopMarkers = (options.stopMarkers ?? []).map((marker, index) => {
       required(marker, `stopMarkers[${index}]`);
       return marker;
@@ -418,6 +490,9 @@ export class MultiAgentSession {
     let stopReason: SessionStopReason | undefined;
     let stopDetail: string | undefined;
     let stopMarker: string | undefined;
+    let activePlatform: string | undefined;
+    let estimatedCostUsd = 0;
+    const tokensBySpeaker = new Map<AgentPlatID, number>();
 
     try {
       yield {
@@ -479,89 +554,128 @@ export class MultiAgentSession {
           let output = '';
           let completion: AgentCompletionPayload | undefined;
           let turnFailure: string | undefined;
-          const agent = this.agentDefinition(speaker);
           try {
-            const runInput = this.buildInput({
-              sessionId,
-              scenario: input.input,
-              speaker,
-              round,
-              turn,
-              history,
-              metadata: input.metadata,
-            });
-            for await (const event of this.options.runtime.stream(
-              agent,
-              runInput,
-              {
-                tenant: this.tenant,
-                runId: turnId,
-                agentId: speaker.id,
-                signal: executionSignal.signal,
-                credentials: this.credentials,
-                policies: sessionPolicies,
-                metadata: {
-                  ...(input.metadata ?? {}),
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+              const platform = activePlatform ?? speaker.platform;
+              const agent = this.agentDefinition(speaker, platform);
+              output = '';
+              completion = undefined;
+              turnFailure = undefined;
+              try {
+                const runInput = this.buildInput({
                   sessionId,
-                  speakerId: speaker.id,
+                  scenario: input.input,
+                  speaker,
                   round,
                   turn,
-                },
-              }
-            )) {
-              switch (event.type) {
-                case 'started':
-                  break;
-                case 'token':
-                  output += event.content;
-                  yield {
-                    type: 'token',
+                  history,
+                  metadata: input.metadata,
+                });
+                for await (const event of this.options.runtime.stream(
+                  agent,
+                  runInput,
+                  {
+                    tenant: this.tenant,
                     runId: turnId,
-                    content: event.content,
-                    payload: turnPayload,
-                  };
-                  break;
-                case 'tool_call':
-                case 'tool_result':
-                  yield {
-                    type: event.type,
-                    runId: turnId,
-                    content: event.content,
-                    payload: {
-                      ...turnPayload,
-                      ...(event.payload
-                        ? { runtimePayload: event.payload }
-                        : {}),
+                    agentId: speaker.id,
+                    signal: executionSignal.signal,
+                    credentials: this.credentials,
+                    policies: sessionPolicies,
+                    metadata: {
+                      ...(input.metadata ?? {}),
+                      sessionId,
+                      speakerId: speaker.id,
+                      round,
+                      turn,
                     },
-                  };
-                  break;
-                case 'completed':
-                  output = event.content ?? output;
-                  completion = event.payload;
-                  break;
-                case 'failed':
-                  turnFailure = event.content;
-                  break;
+                  }
+                )) {
+                  switch (event.type) {
+                    case 'started':
+                      break;
+                    case 'token':
+                      output += event.content;
+                      yield {
+                        type: 'token',
+                        runId: turnId,
+                        content: event.content,
+                        payload: turnPayload,
+                      };
+                      break;
+                    case 'tool_call':
+                    case 'tool_result':
+                      yield {
+                        type: event.type,
+                        runId: turnId,
+                        content: event.content,
+                        payload: {
+                          ...turnPayload,
+                          ...(event.payload
+                            ? { runtimePayload: event.payload }
+                            : {}),
+                        },
+                      };
+                      break;
+                    case 'completed':
+                      output = event.content ?? output;
+                      completion = event.payload;
+                      break;
+                    case 'failed':
+                      turnFailure = event.content;
+                      break;
+                  }
+                }
+                if (sessionTimeout.timedOut || turnTimeout.timedOut) {
+                  stopReason = 'timeout';
+                  stopDetail = sessionTimeout.timedOut
+                    ? 'Session timed out'
+                    : 'Turn timed out';
+                }
+              } catch (error) {
+                if (sessionTimeout.timedOut || turnTimeout.timedOut) {
+                  stopReason = 'timeout';
+                  stopDetail = sessionTimeout.timedOut
+                    ? 'Session timed out'
+                    : 'Turn timed out';
+                } else if (input.signal?.aborted) {
+                  stopReason = 'aborted';
+                  stopDetail = abortMessage(input.signal);
+                } else {
+                  turnFailure ??= errorMessage(error);
+                }
               }
-            }
-            if (sessionTimeout.timedOut || turnTimeout.timedOut) {
-              stopReason = 'timeout';
-              stopDetail = sessionTimeout.timedOut
-                ? 'Session timed out'
-                : 'Turn timed out';
-            }
-          } catch (error) {
-            if (sessionTimeout.timedOut || turnTimeout.timedOut) {
-              stopReason = 'timeout';
-              stopDetail = sessionTimeout.timedOut
-                ? 'Session timed out'
-                : 'Turn timed out';
-            } else if (input.signal?.aborted) {
-              stopReason = 'aborted';
-              stopDetail = abortMessage(input.signal);
-            } else {
+              if (!turnFailure || stopReason) break;
+              yield {
+                type: 'turn_failed',
+                runId: turnId,
+                payload: {
+                  ...turnPayload,
+                  reason: 'failed',
+                  platform,
+                  detail: turnFailure,
+                },
+              };
+              if (
+                this.fallbackPlatform &&
+                this.fallbackPlatform !== platform &&
+                attempt === 0
+              ) {
+                activePlatform = this.fallbackPlatform;
+                yield {
+                  type: 'provider_fallback',
+                  runId: turnId,
+                  payload: {
+                    ...turnPayload,
+                    fromPlatform: platform,
+                    toPlatform: activePlatform,
+                    detail: turnFailure,
+                  },
+                };
+                continue;
+              }
               stopReason = 'failed';
-              stopDetail = turnFailure ?? errorMessage(error);
+              stopDetail = turnFailure;
+              break;
             }
           } finally {
             executionSignal.dispose();
@@ -594,6 +708,22 @@ export class MultiAgentSession {
 
           const reportedUsage = normalizedUsage(completion?.usage);
           addUsage(usage, reportedUsage, completion?.usage !== undefined);
+          const speakerTokens =
+            (tokensBySpeaker.get(speaker.id) ?? 0) +
+            (reportedUsage.totalTokens ?? 0);
+          tokensBySpeaker.set(speaker.id, speakerTokens);
+          const turnCostUsd = this.options.estimateCostUsd
+            ? normalizedCost(
+                this.options.estimateCostUsd({
+                  speaker,
+                  usage: reportedUsage,
+                  aggregateUsage: { ...usage },
+                  round,
+                  turn,
+                })
+              )
+            : undefined;
+          if (turnCostUsd !== undefined) estimatedCostUsd += turnCostUsd;
           turnsCompleted = turn;
           roundsCompleted = round;
           const message: SessionMessage = {
@@ -620,8 +750,37 @@ export class MultiAgentSession {
               ...(completion?.finishReason
                 ? { finishReason: completion.finishReason }
                 : {}),
+              ...(turnCostUsd !== undefined
+                ? { estimatedCostUsd: turnCostUsd }
+                : {}),
+              ...(this.options.estimateCostUsd
+                ? { totalEstimatedCostUsd: estimatedCostUsd }
+                : {}),
             },
           };
+
+          if (
+            this.maxTokens !== undefined &&
+            usage.totalTokens >= this.maxTokens
+          ) {
+            stopReason = 'token_budget';
+            stopDetail = `Session token budget reached: ${this.maxTokens}`;
+            break outer;
+          }
+          const speakerBudget = this.maxTokensBySpeaker[speaker.id];
+          if (speakerBudget !== undefined && speakerTokens >= speakerBudget) {
+            stopReason = 'token_budget';
+            stopDetail = `Token budget reached for speaker ${speaker.id}: ${speakerBudget}`;
+            break outer;
+          }
+          if (
+            this.maxCostUsd !== undefined &&
+            estimatedCostUsd >= this.maxCostUsd
+          ) {
+            stopReason = 'cost_budget';
+            stopDetail = `Session cost budget reached: $${this.maxCostUsd}`;
+            break outer;
+          }
 
           if (input.stopSignal?.aborted) {
             stopReason = 'stopped';
@@ -712,6 +871,7 @@ export class MultiAgentSession {
         turnsCompleted,
         history: cloneHistory(history),
         usage: { ...usage },
+        ...(this.options.estimateCostUsd ? { estimatedCostUsd } : {}),
         durationMs: elapsedMilliseconds(startedAt),
       };
       onResult?.(result);
@@ -726,6 +886,7 @@ export class MultiAgentSession {
           roundsCompleted,
           turnsCompleted,
           usage: { ...usage },
+          ...(this.options.estimateCostUsd ? { estimatedCostUsd } : {}),
           durationMs: result.durationMs,
         },
       };
@@ -765,7 +926,10 @@ export class MultiAgentSession {
     }
   }
 
-  private agentDefinition(speaker: SessionSpeaker): AgentDefinition {
+  private agentDefinition(
+    speaker: SessionSpeaker,
+    platform = speaker.platform
+  ): AgentDefinition {
     const now = this.clock().toISOString();
     return {
       id: speaker.id,
@@ -773,7 +937,7 @@ export class MultiAgentSession {
       name: speaker.name,
       description: speaker.description,
       instructions: speaker.instructions,
-      platform: speaker.platform,
+      platform,
       modelName: speaker.modelName,
       config: speaker.config,
       metadata: speaker.metadata,
@@ -860,7 +1024,7 @@ export function createSessionEventReducer(): SessionEventReducer {
 export function sessionMetrics(
   result: Pick<
     MultiAgentSessionResult,
-    'usage' | 'turnsCompleted' | 'durationMs'
+    'usage' | 'turnsCompleted' | 'durationMs' | 'estimatedCostUsd'
   >
 ): SessionMetrics {
   return {
@@ -870,6 +1034,7 @@ export function sessionMetrics(
     reportedTurns: result.usage.reportedTurns,
     turnsCompleted: result.turnsCompleted,
     durationMs: result.durationMs,
+    estimatedCostUsd: result.estimatedCostUsd ?? 0,
   };
 }
 
@@ -938,6 +1103,26 @@ export function defineSpeaker(input: SpeakerDefinitionInput): {
         : {}),
     },
   };
+}
+
+/** Portable, form-friendly scenario DTO for sessions that do not need a domain model. */
+export interface ScenarioInput {
+  topic: string;
+  title?: string;
+  metadata?: JsonObject;
+}
+
+/** Format a structured scenario consistently before it becomes a session prompt. */
+export function buildScenarioInput(input: ScenarioInput): string {
+  required(input.topic, 'scenario.topic');
+  const parts = [
+    input.title ? `Scenario: ${input.title}` : undefined,
+    `Topic:\n${input.topic}`,
+    input.metadata && Object.keys(input.metadata).length
+      ? `Metadata:\n${JSON.stringify(input.metadata)}`
+      : undefined,
+  ].filter((part): part is string => Boolean(part));
+  return parts.join('\n\n');
 }
 
 function validateSpeakers(speakers: SessionSpeaker[]): SessionSpeaker[] {
@@ -1029,7 +1214,12 @@ function emptySessionViewState(): SessionViewState {
       reportedTurns: 0,
       turnsCompleted: 0,
       durationMs: 0,
+      estimatedCostUsd: 0,
     },
+    estimatedCostUsd: 0,
+    canSoftStop: false,
+    canResume: false,
+    isLive: false,
   };
 }
 
@@ -1049,6 +1239,9 @@ function reduceSessionEvent(
       next.sessionId = event.payload.sessionId;
       next.status = 'running';
       next.speakers = event.payload.speakers.map((speaker) => ({ ...speaker }));
+      next.canSoftStop = true;
+      next.canResume = false;
+      next.isLive = true;
       return next;
     case 'speaker_changed':
     case 'turn_started': {
@@ -1085,8 +1278,16 @@ function reduceSessionEvent(
       if (next.activeTurnId === current.turnId) next.activeTurnId = undefined;
       next.usage = { ...event.payload.aggregateUsage };
       next.metrics = metricsFromState(next);
+      next.estimatedCostUsd =
+        event.payload.totalEstimatedCostUsd ?? next.estimatedCostUsd;
+      next.metrics.estimatedCostUsd = next.estimatedCostUsd;
+      next.canResume = true;
       return next;
     }
+    case 'turn_failed':
+      return next;
+    case 'provider_fallback':
+      return next;
     case 'session_failed': {
       const current = ensureTurn(next, event.payload);
       current.status = 'failed';
@@ -1094,6 +1295,11 @@ function reduceSessionEvent(
       if (next.activeTurnId === current.turnId) next.activeTurnId = undefined;
       next.status = 'failed';
       next.stopDetail = event.content;
+      next.canSoftStop = false;
+      next.canResume = next.turnOrder.some(
+        (turnId) => next.turns[turnId]?.status === 'completed'
+      );
+      next.isLive = false;
       return next;
     }
     case 'stop_reason':
@@ -1114,8 +1320,15 @@ function reduceSessionEvent(
         reportedTurns: event.payload.usage.reportedTurns,
         turnsCompleted: event.payload.turnsCompleted,
         durationMs: event.payload.durationMs,
+        estimatedCostUsd: event.payload.estimatedCostUsd ?? 0,
       };
+      next.estimatedCostUsd = event.payload.estimatedCostUsd ?? 0;
       next.status = event.payload.status;
+      next.canSoftStop = false;
+      next.canResume = next.turnOrder.some(
+        (turnId) => next.turns[turnId]?.status === 'completed'
+      );
+      next.isLive = false;
       return next;
     case 'tool_call':
     case 'tool_result':
@@ -1153,7 +1366,50 @@ function metricsFromState(state: SessionViewState): SessionMetrics {
       (turnId) => state.turns[turnId]?.status === 'completed'
     ).length,
     durationMs: state.durationMs ?? state.totalLatencyMs,
+    estimatedCostUsd: state.estimatedCostUsd,
   };
+}
+
+function normalizeFallbackPlatform(
+  value: MultiAgentSessionOptions['fallbackPlatform']
+): string | undefined {
+  if (!value) return undefined;
+  const platform = typeof value === 'string' ? value : value.platform;
+  required(platform, 'fallbackPlatform');
+  return platform.trim();
+}
+
+function optionalPositiveNumber(
+  value: number | undefined,
+  name: string
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new AgentPlatError('VALIDATION_ERROR', `${name} must be positive`);
+  }
+  return value;
+}
+
+function normalizeSpeakerBudgets(
+  budgets: Record<AgentPlatID, number> | undefined
+): Record<AgentPlatID, number> {
+  if (!budgets) return {};
+  return Object.fromEntries(
+    Object.entries(budgets).map(([speakerId, budget]) => [
+      speakerId,
+      optionalPositiveNumber(budget, `maxTokensBySpeaker.${speakerId}`)!,
+    ])
+  );
+}
+
+function normalizedCost(value: number): number {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new AgentPlatError(
+      'VALIDATION_ERROR',
+      'estimateCostUsd must return a non-negative finite number'
+    );
+  }
+  return value;
 }
 
 function formatPersona(
