@@ -85,6 +85,10 @@ const answer = await AgentPlat.ask({
 `openrouter`; use `compatible` with an explicit `baseURL` for another Chat
 Completions endpoint.
 
+To reuse the same configuration for advanced execution, streaming, and
+multi-agent sessions, create it once with `AgentPlat.configure({...})`; see
+the [`@agentplat/framework` guide](./packages/framework/README.md).
+
 For a direct, ephemeral model call with no Room persistence:
 
 ```js

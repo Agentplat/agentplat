@@ -47,6 +47,36 @@ it does not create a Room or durable audit record.
 Use `quickRun` below when the caller needs normalized usage, finish reason or
 full runtime output.
 
+## Reusable advanced composition
+
+`AgentPlat.configure` keeps provider configuration declarative as an
+application grows. It returns a reusable agent with `run`, `ask`, `stream` and
+`createSession` methods:
+
+```ts
+const analyst = AgentPlat.configure({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY,
+  model: 'gpt-4.1-mini',
+  instructions: 'Act as a careful market analyst.',
+  tenantId: 'acme',
+});
+
+const result = await analyst.run('Evaluate this opportunity.');
+for await (const event of analyst.stream('Explain your reasoning live.')) {
+  // AgentStreamEvent
+}
+
+const review = analyst.createSession({
+  speakers: [analystSpeaker, reviewerSpeaker],
+  maxRounds: 3,
+});
+```
+
+All session speakers in this configuration use `platform: 'chat'`. For
+multiple models or a provider with a non-compatible protocol, use
+`createAgentplat` with its public `platforms` map and custom adapters.
+
 ```ts
 import { AgentPlat } from '@agentplat/framework';
 import { openAICompatible } from '@agentplat/model-openai-compatible';

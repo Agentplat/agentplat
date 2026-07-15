@@ -21,6 +21,29 @@ with an explicit `baseURL`. `ask` is ephemeral and returns only text; use
 `quickRun` when you need usage, finish reason, normalized events or a custom
 `ModelAdapter`.
 
+When that prompt becomes a reusable agent, configure it once and progressively
+use the same object for a normal run, streaming, or a multi-agent session:
+
+```ts
+const researcher = AgentPlat.configure({
+  provider: 'openai',
+  apiKey: process.env.OPENAI_API_KEY,
+  model: 'gpt-4.1-mini',
+  instructions: 'Research carefully and cite uncertainty.',
+  tenantId: 'acme',
+});
+
+const answer = await researcher.ask('Compare two options.');
+for await (const event of researcher.stream('Give a live update.')) {
+  // normalized AgentStreamEvent
+}
+
+const discussion = researcher.createSession({
+  speakers: [analyst, reviewer], // speakers use platform: 'chat'
+  maxRounds: 3,
+});
+```
+
 ```ts
 import { AgentPlat } from '@agentplat/framework';
 import { openAICompatible } from '@agentplat/model-openai-compatible';

@@ -150,11 +150,72 @@ export interface AskInput extends Omit<
   signal?: AbortSignal;
 }
 
+/** Declarative configuration for a reusable portable agent. */
+export interface ConfigureAgentInput extends Omit<
+  ChatModelOptions,
+  'provider' | 'defaultModel'
+> {
+  model: string;
+  instructions: string;
+  provider?: ChatModelProvider;
+  name?: string;
+  description?: string;
+  agentId?: AgentPlatID;
+  tenantId?: AgentPlatID;
+  config?: JsonObject;
+  metadata?: Metadata;
+}
+
+/** Per-invocation controls for a configured agent. */
+export interface ConfiguredAgentRunOptions {
+  runId?: AgentPlatID;
+  signal?: AbortSignal;
+  metadata?: Metadata;
+}
+
 /** Session options supplied by a configured framework facade. */
 export type FrameworkSessionOptions = Omit<
   MultiAgentSessionOptions,
   'runtime' | 'tenant' | 'credentials'
 >;
+
+/**
+ * Reusable high-level agent assembled from a portable provider preset.
+ *
+ * It keeps the convenience setup in one place while exposing the normalized
+ * run, stream and multi-agent session APIs for progressively advanced use.
+ */
+export class ConfiguredAgent {
+  constructor(
+    private readonly framework: AgentPlatFramework,
+    private readonly defaults: Omit<QuickRunInput, 'input' | 'runId' | 'signal'>
+  ) {}
+
+  run(
+    input: AgentRunInput['input'],
+    options: ConfiguredAgentRunOptions = {}
+  ): Promise<AgentRunResult> {
+    return this.framework.quickRun({ ...this.defaults, input, ...options });
+  }
+
+  async ask(
+    prompt: string,
+    options: ConfiguredAgentRunOptions = {}
+  ): Promise<string> {
+    return textOutput(await this.run(prompt, options));
+  }
+
+  stream(
+    input: AgentRunInput['input'],
+    options: ConfiguredAgentRunOptions = {}
+  ): AsyncIterable<AgentStreamEvent> {
+    return this.framework.stream({ ...this.defaults, input, ...options });
+  }
+
+  createSession(options: FrameworkSessionOptions): MultiAgentSession {
+    return this.framework.createSession(options);
+  }
+}
 
 /**
  * Lightweight application facade over the public runtime and Room services.
@@ -341,6 +402,43 @@ export function createAgentplat(
 /** Minimal stateless entry point for prototypes and examples. */
 export const AgentPlat = {
   create: createAgentplat,
+  /**
+   * Configure a reusable agent once, then run, stream or compose sessions
+   * without repeating provider, model, tenant or instruction setup.
+   */
+  configure(input: ConfigureAgentInput): ConfiguredAgent {
+    const {
+      model,
+      provider = 'openai',
+      tenantId = 'local',
+      instructions,
+      name,
+      description,
+      agentId,
+      config,
+      metadata,
+      ...adapterOptions
+    } = input;
+    return new ConfiguredAgent(
+      createAgentplat({
+        adapter: chatModel({
+          ...adapterOptions,
+          provider,
+          defaultModel: model,
+        }),
+        tenant: { tenantId },
+      }),
+      {
+        instructions,
+        ...(name ? { name } : {}),
+        ...(description ? { description } : {}),
+        ...(agentId ? { agentId } : {}),
+        modelName: model,
+        ...(config ? { config } : {}),
+        ...(metadata ? { metadata } : {}),
+      }
+    );
+  },
   /** Send one prompt and receive plain text using a named provider preset. */
   async ask(input: AskInput): Promise<string> {
     const {
@@ -364,13 +462,7 @@ export const AgentPlat = {
       modelName: model,
       signal,
     });
-    if (typeof result.output !== 'string') {
-      throw new AgentPlatError(
-        'ADAPTER_ERROR',
-        result.errorMessage ?? 'The model did not return a text response'
-      );
-    }
-    return result.output;
+    return textOutput(result);
   },
   async quickRun(input: StaticQuickRunInput): Promise<AgentRunResult> {
     const {
@@ -416,4 +508,14 @@ function required(value: unknown, field: string): void {
   if (typeof value !== 'string' || !value.trim()) {
     throw new AgentPlatError('VALIDATION_ERROR', `${field} is required`);
   }
+}
+
+function textOutput(result: AgentRunResult): string {
+  if (typeof result.output !== 'string') {
+    throw new AgentPlatError(
+      'ADAPTER_ERROR',
+      result.errorMessage ?? 'The model did not return a text response'
+    );
+  }
+  return result.output;
 }

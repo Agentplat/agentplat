@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added `AgentPlat.configure`, a reusable declarative facade with run,
+  prompt, streaming and multi-agent session APIs.
+
 ## 0.2.0-beta.5 - 2026-07-15
 
 - Added `AgentPlat.ask`, a facade-only prompt-to-text API with portable LLM

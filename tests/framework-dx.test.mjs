@@ -103,6 +103,44 @@ test('AgentPlat.ask returns plain text from a provider preset', async () => {
   assert.equal(answer, 'Hello.');
 });
 
+test('AgentPlat.configure reuses one declarative setup for runs, streams and sessions', async () => {
+  const agent = AgentPlat.configure({
+    provider: 'ollama',
+    model: 'llama3.2',
+    instructions: 'Be concise.',
+    fetch: async (_url, init) => {
+      if (JSON.parse(init.body).stream) {
+        return new Response(
+          'data: {"choices":[{"delta":{"content":"Configured response."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+          { headers: { 'Content-Type': 'text/event-stream' } }
+        );
+      }
+      return Response.json({
+        choices: [
+          {
+            message: { role: 'assistant', content: 'Configured response.' },
+            finish_reason: 'stop',
+          },
+        ],
+      });
+    },
+  });
+
+  assert.equal(await agent.ask('Hello.'), 'Configured response.');
+  const events = [];
+  for await (const event of agent.stream('Hello.')) events.push(event.type);
+  assert.deepEqual(events, ['started', 'token', 'completed']);
+
+  const session = agent.createSession({
+    maxRounds: 1,
+    speakers: [
+      { id: 'a', name: 'A', instructions: 'A', platform: 'chat' },
+      { id: 'b', name: 'B', instructions: 'B', platform: 'chat' },
+    ],
+  });
+  assert.equal((await session.run({ input: 'Discuss.' })).turnsCompleted, 2);
+});
+
 test('createAgentplat composes an optional RoomService around the same runtime', async () => {
   const adapter = {
     id: 'rooms-test',

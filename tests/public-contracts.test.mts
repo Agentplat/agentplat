@@ -1,10 +1,12 @@
 import {
+  AgentPlat,
   createPersonaInputBuilder,
   createSessionEventReducer,
 } from '@agentplat/framework';
 import type {
   AgentSseEnvelope,
   AgentStreamEvent,
+  ConfigureAgentInput,
   MultiAgentSessionEvent,
   QuickRunInput,
   SessionEventRecord,
@@ -45,6 +47,12 @@ const quickRunInput: QuickRunInput = {
   instructions: 'Be concise.',
   input: 'Hello',
 };
+const configureAgentInput: ConfigureAgentInput = {
+  provider: 'ollama',
+  model: 'llama3.2',
+  instructions: 'Be concise.',
+};
+const configuredAgent = AgentPlat.configure(configureAgentInput);
 const parserOptions: ParseAgentSseOptions<MultiAgentSessionEvent> = {
   strictSequence: true,
 };
@@ -70,6 +78,7 @@ const sessionRecord: SessionEventRecord = {
 void consumeSessionEnvelope;
 void consumeRuntimeEnvelope;
 void quickRunInput;
+void configuredAgent;
 void parserOptions;
 void personaBuilder;
 void sessionReducer;
