@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.7 - 2026-07-15
+
 - Added browser-safe `@agentplat/framework/browser` session stream controller,
   explicit SSE envelope conversion, richer UI reducer state and configurable
   live/mock session platforms.
