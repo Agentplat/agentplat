@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.6 - 2026-07-15
+
 - Added `AgentPlat.configure`, a reusable declarative facade with run,
   prompt, streaming and multi-agent session APIs.
 
