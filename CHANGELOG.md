@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0-beta.2 - 2026-07-14
+
 - Added `@agentplat/sessions` with deterministic multi-agent rounds, bounded
   history, stopping rules, typed orchestration events and usage aggregation.
 - Added client-side SSE parsing and a Next.js App Router response helper that
