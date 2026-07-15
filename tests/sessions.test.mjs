@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAgentplat } from '@agentplat/framework';
+import {
+  createAgentplat,
+  createPersonaInputBuilder,
+  createSessionEventReducer,
+  sessionMetrics,
+} from '@agentplat/framework';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
 import {
   encodeSseEvent,
   parseAgentSseStream,
+  streamToSSE,
+  subscribeAgentSse,
   toNextSseResponse,
 } from '@agentplat/streaming';
 
@@ -250,6 +257,112 @@ test('MultiAgentSession reports the failed speaker without starting another turn
   assert.equal(events.at(-1).payload.status, 'failed');
 });
 
+test('MultiAgentSession records ordered event records and can require a sink', async () => {
+  const records = [];
+  const session = platformWith({
+    responsesByAgent: { buyer: ['Buyer'], seller: ['Seller'] },
+  }).createSession({
+    speakers,
+    maxRounds: 1,
+    eventSink: {
+      async append(record) {
+        records.push(record);
+      },
+    },
+    sinkFailureMode: 'required',
+  });
+
+  const result = await session.run({
+    sessionId: 'audit-session',
+    input: 'Audit.',
+  });
+
+  assert.equal(records.length > 4, true);
+  assert.deepEqual(
+    records.map((record) => record.sequence),
+    Array.from({ length: records.length }, (_, index) => index + 1)
+  );
+  assert.equal(records[0].eventId, 'audit-session:1');
+  assert.equal(records[0].tenantId, 'tenant-a');
+  assert.equal(records.at(-1).event.type, 'session_completed');
+  assert.equal(sessionMetrics(result).turnsCompleted, 2);
+
+  const failing = platformWith({
+    responsesByAgent: { buyer: ['Buyer'] },
+  }).createSession({
+    speakers,
+    eventSink: {
+      async append() {
+        throw new Error('storage unavailable');
+      },
+    },
+    sinkFailureMode: 'required',
+  });
+  await assert.rejects(failing.run({ input: 'Fail closed.' }), /sink failed/);
+});
+
+test('MultiAgentSession supports cooperative stop and typed turn timeouts', async () => {
+  const stopController = new AbortController();
+  const cooperative = platformWith({
+    responsesByAgent: { buyer: ['Buyer speaks'], seller: ['Seller unused'] },
+  }).createSession({ speakers, maxRounds: 3 });
+  const cooperativeEvents = [];
+  for await (const event of cooperative.stream({
+    input: 'Stop after a turn.',
+    stopSignal: stopController.signal,
+  })) {
+    cooperativeEvents.push(event);
+    if (event.type === 'token')
+      stopController.abort(new Error('Stop requested'));
+  }
+  assert.equal(
+    cooperativeEvents.find((event) => event.type === 'stop_reason').payload
+      .reason,
+    'stopped'
+  );
+  assert.equal(
+    cooperativeEvents.some((event) => event.payload?.speaker?.id === 'seller'),
+    false
+  );
+
+  const timeout = platformWith({
+    responsesByAgent: { buyer: ['Slow answer'], seller: ['Unused'] },
+    tokenDelayMs: 10,
+  }).createSession({ speakers, turnTimeoutMs: 1 });
+  const result = await timeout.run({ input: 'Time out the first turn.' });
+  assert.equal(result.stopReason, 'timeout');
+  assert.equal(result.status, 'failed');
+  assert.equal(result.turnsCompleted, 0);
+});
+
+test('persona builder and event reducer produce UI-ready bounded state', async () => {
+  const observed = [];
+  const session = platformWith({
+    responsesByAgent: { buyer: ['Offer'], seller: ['Counter'] },
+  }).createSession({
+    speakers,
+    maxRounds: 1,
+    buildInput: createPersonaInputBuilder({
+      personas: { buyer: { role: 'Budget owner', goals: ['Pay less'] } },
+    }),
+  });
+  const reducer = createSessionEventReducer();
+  let state = reducer.initialState;
+  for await (const event of session.stream({ input: 'Negotiate.' })) {
+    observed.push(event);
+    state = reducer.reduce(state, event);
+  }
+
+  assert.equal(state.status, 'completed');
+  assert.equal(state.turnOrder.length, 2);
+  assert.equal(state.turns[state.turnOrder[0]].content, 'Offer');
+  assert.equal(state.stopReason, 'max_rounds');
+  assert.equal(
+    observed.some((event) => event.type === 'turn_completed'),
+    true
+  );
+});
+
 test('parseAgentSseStream handles arbitrary chunks and validates sequence continuity', async () => {
   const wire = [
     encodeSseEvent({ type: 'session_started', runId: 'session-a' }, 1),
@@ -295,6 +408,33 @@ test('parseAgentSseStream handles arbitrary chunks and validates sequence contin
       // Drain the parser to surface validation errors.
     }
   }, /expected 1/);
+});
+
+test('subscribeAgentSse dispatches validated envelopes and surfaces transport failures', async () => {
+  async function* events() {
+    yield { type: 'token', runId: 'turn-a', content: 'Hello' };
+    yield { type: 'completed', runId: 'turn-a', content: 'Hello' };
+  }
+  const response = streamToSSE(events());
+  const received = [];
+  await subscribeAgentSse(response, {
+    onEvent(envelope) {
+      received.push(envelope.type);
+    },
+  });
+  assert.deepEqual(received, ['token', 'completed']);
+
+  let error;
+  await assert.rejects(
+    subscribeAgentSse(new Response(null, { status: 503 }), {
+      onEvent() {},
+      onError(receivedError) {
+        error = receivedError;
+      },
+    }),
+    /503/
+  );
+  assert.match(error.message, /503/);
 });
 
 test('toNextSseResponse passes the request signal to generation and transport', async () => {

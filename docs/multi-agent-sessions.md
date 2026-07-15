@@ -141,6 +141,54 @@ The generic parameter preserves event-specific payload types after parsing.
 The parser validates the common envelope; applications can provide `validate`
 for additional runtime validation at a trust boundary.
 
+For a reusable client path, pair `subscribeAgentSse` with the pure
+`createSessionEventReducer` helper. Neither package requires React; the reducer
+returns speaker-correlated turn bubbles, aggregate usage, stop reason and
+duration for any UI framework.
+
+## Audit trail without a Room
+
+Sessions stay ephemeral, but an application may attach an append-only
+`SessionEventSink`. Every yielded event is wrapped in a `SessionEventRecord`
+with a deterministic `eventId`, sequence and timestamp. `best_effort` is the
+default; use `sinkFailureMode: 'required'` when continuing without a recorded
+event is unacceptable.
+
+```ts
+import { InMemoryAuditSink, createSessionAuditSink } from '@agentplat/audit';
+
+const session = agentplat.createSession({
+  speakers,
+  eventSink: createSessionAuditSink({ audit: new InMemoryAuditSink() }),
+  sinkFailureMode: 'required',
+});
+```
+
+`SessionAuditSink` applies the same recursive secret redaction as
+`@agentplat/audit`. This records an event trail; it does not create a Room or
+claim approvals, durable artifacts or Room lifecycle governance.
+
+## Multi-platform sessions and controls
+
+Register all adapters/providers explicitly without adding vendor SDKs to the
+framework:
+
+```ts
+const agentplat = createAgentplat({
+  platform: 'chat',
+  platforms: {
+    mock: { provider: mockProvider },
+    chat: { adapter: compatibleAdapter },
+  },
+});
+```
+
+`createSession` rejects a speaker whose platform is not registered when the
+runtime can report its registry. Use `turnTimeoutMs` or `sessionTimeoutMs` for
+typed `timeout` stop reasons. `stopSignal` is cooperative: it finishes the
+active turn and stops before the next one. Hard cancellation remains
+`signal`/`AbortController`.
+
 ## Deterministic multi-speaker tests
 
 Response tapes can be keyed by agent, so changing speaker order does not consume
@@ -169,4 +217,5 @@ outside this primitive until their contracts can be designed without coupling
 sessions to a model vendor or persistence adapter.
 
 The architectural boundary is recorded in
-[ADR 0002](./adr/0002-ephemeral-multi-agent-sessions.md).
+[ADR 0002](./adr/0002-ephemeral-multi-agent-sessions.md) and
+[ADR 0003](./adr/0003-observable-session-integrations.md).

@@ -20,6 +20,11 @@ for await (const event of session.stream({ input: scenario, signal })) {
 }
 ```
 
-Use Agent Rooms when work must be durable, approval-gated or governed. A future
-session sink can bridge this ephemeral event stream into Room audit without
-changing the scheduler contract.
+Use Agent Rooms when work must be durable, approval-gated or governed. An
+optional session sink can record an event trail without changing the scheduler
+contract.
+
+For browser clients, use `createSessionEventReducer` with
+`subscribeAgentSse` from `@agentplat/streaming`. Sessions can also emit
+append-only `SessionEventRecord` values through `eventSink`; choose
+`sinkFailureMode: 'required'` to fail closed when the sink is unavailable.

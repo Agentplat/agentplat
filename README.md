@@ -40,7 +40,7 @@ Clone this repository to run the complete reference API with Node.js and Postgre
 | `@agentplat/runtime`                 | Provider contracts plus executable provider dispatch and streaming.     |
 | `@agentplat/runtime-mock`            | Deterministic, network-free provider for examples and tests.            |
 | `@agentplat/sessions`                | Typed, bounded multi-agent turn orchestration over the public runtime.  |
-| `@agentplat/streaming`               | Versioned SSE server helpers and a validated browser-side parser.       |
+| `@agentplat/streaming`               | Versioned SSE server helpers, parser and thin browser subscription API. |
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
@@ -89,6 +89,8 @@ Room service and PostgreSQL adapter when the work must be persistent,
 auditable or approval-gated. See [portable execution](./docs/portable-execution.md)
 for the model/runtime layering and Next.js or Express streaming examples.
 For simulations and debates, see [multi-agent sessions](./docs/multi-agent-sessions.md).
+The runnable [Next.js SSE reference](./examples/next-multi-agent-sse/README.md)
+shows the complete server and browser integration path.
 
 The low-level runtime registry remains available when an application wants
 full control:
@@ -136,6 +138,7 @@ corepack pnpm run check
 `check` builds every package, type-checks the workspace, runs unit tests, validates release metadata, packs every package and installs the tarballs in an isolated consumer project.
 
 Package versioning and publishing are documented in [RELEASING.md](./RELEASING.md).
+See [release channels](./docs/release-channels.md) for `next` versus `latest`.
 
 ## Open-core boundary
 

@@ -37,6 +37,15 @@ export interface ParseAgentSseOptions<TEvent extends StreamEvent> {
   validate?: (envelope: AgentSseEnvelope<TEvent>) => void;
 }
 
+/** Callback hooks for consuming an AgentPlat SSE response without UI framework glue. */
+export interface AgentSseSubscription<TEvent extends StreamEvent> {
+  onEvent(envelope: AgentSseEnvelope<TEvent>): void | Promise<void>;
+  onError?(error: unknown): void | Promise<void>;
+  signal?: AbortSignal;
+  strictSequence?: boolean;
+  validate?: (envelope: AgentSseEnvelope<TEvent>) => void;
+}
+
 /** Minimal Node/Express response surface used without a framework dependency. */
 export interface NodeSseResponse {
   setHeader(name: string, value: string): void;
@@ -254,6 +263,44 @@ export async function* parseAgentSseStream<
   } finally {
     options.signal?.removeEventListener('abort', onAbort);
     reader.releaseLock();
+  }
+}
+
+/**
+ * Consume a Fetch response through the validated envelope parser.
+ *
+ * Errors are reported to `onError` and then rethrown so callers cannot
+ * accidentally treat a broken stream as a completed session.
+ */
+export async function subscribeAgentSse<
+  TEvent extends StreamEvent = AgentStreamEvent,
+>(
+  response: Response,
+  subscription: AgentSseSubscription<TEvent>
+): Promise<void> {
+  if (!response.ok) {
+    const error = new Error(
+      `AgentPlat SSE request failed with HTTP ${response.status}`
+    );
+    await subscription.onError?.(error);
+    throw error;
+  }
+  if (!response.body) {
+    const error = new Error('AgentPlat SSE response has no body');
+    await subscription.onError?.(error);
+    throw error;
+  }
+  try {
+    for await (const envelope of parseAgentSseStream<TEvent>(response.body, {
+      signal: subscription.signal,
+      strictSequence: subscription.strictSequence,
+      validate: subscription.validate,
+    })) {
+      await subscription.onEvent(envelope);
+    }
+  } catch (error) {
+    await subscription.onError?.(error);
+    throw error;
   }
 }
 

@@ -48,3 +48,7 @@ for await (const envelope of parseAgentSseStream<MultiAgentSessionEvent>(
 
 The wire envelope is versioned and includes a monotonic sequence number. Do
 not send credentials or secrets in runtime stream event payloads.
+
+For callback-style UI integration, use `subscribeAgentSse(response, { onEvent,
+onError, signal })`. It uses the same parser and rethrows malformed or failed
+streams after invoking `onError`.

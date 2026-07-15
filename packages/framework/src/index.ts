@@ -25,7 +25,11 @@ import type {
 
 export {
   createMultiAgentSession,
+  createPersonaInputBuilder,
+  createSessionEventReducer,
+  formatSessionTranscript,
   MultiAgentSession,
+  sessionMetrics,
 } from '@agentplat/sessions';
 export type {
   MultiAgentSessionEvent,
@@ -33,10 +37,16 @@ export type {
   MultiAgentSessionOptions,
   MultiAgentSessionResult,
   SessionCompletedPayload,
+  SessionEventRecord,
   SessionEventPayload,
+  SessionEventReducer,
+  SessionEventSink,
   SessionFailurePayload,
   SessionInputContext,
   SessionMessage,
+  SessionMetrics,
+  SessionPersona,
+  PersonaInputBuilderOptions,
   SessionSpeaker,
   SessionSpeakerRef,
   SessionStartedPayload,
@@ -44,10 +54,13 @@ export type {
   SessionStopDecision,
   SessionStopPayload,
   SessionStopReason,
+  SessionSinkFailureMode,
   SessionToolPayload,
   SessionTurnCompletedPayload,
   SessionTurnPayload,
   SessionUsage,
+  SessionViewState,
+  SessionTurnView,
 } from '@agentplat/sessions';
 export type {
   AgentCompletionPayload,
@@ -74,6 +87,8 @@ export interface CreateAgentPlatOptions {
   runtime?: AgentRuntime;
   /** Registry key for the supplied adapter/provider. Defaults to `chat`. */
   platform?: string;
+  /** Provider-neutral registrations for applications that use several backends. */
+  platforms?: Record<string, AgentPlatPlatform>;
   /** Defaults to the isolated local tenant. */
   tenant?: TenantContext;
   /** Execution-only credentials. They are never placed in result metadata. */
@@ -83,6 +98,11 @@ export interface CreateAgentPlatOptions {
   idGenerator?: () => AgentPlatID;
   clock?: () => Date;
 }
+
+/** One explicit adapter or provider registration in a composed framework client. */
+export type AgentPlatPlatform =
+  | { adapter: ModelAdapter; provider?: never }
+  | { provider: AgentProvider; adapter?: never };
 
 /** Input accepted by the ephemeral quick-run facade. */
 export interface QuickRunInput {
@@ -123,6 +143,7 @@ export class AgentPlatFramework {
   readonly tenant: TenantContext;
 
   private readonly platform: string;
+  private readonly configuredPlatforms = new Set<string>();
   private readonly credentials?: Record<string, string>;
   private readonly idGenerator: () => AgentPlatID;
   private readonly clock: () => Date;
@@ -150,10 +171,43 @@ export class AgentPlatFramework {
       options.idGenerator ?? (() => globalThis.crypto.randomUUID());
     this.clock = options.clock ?? (() => new Date());
 
+    if (options.platforms) {
+      for (const [platform, registration] of Object.entries(
+        options.platforms
+      )) {
+        const normalized = normalizedPlatform(platform);
+        if (!registration || (registration.adapter && registration.provider)) {
+          throw new AgentPlatError(
+            'VALIDATION_ERROR',
+            `Configure exactly one adapter or provider for platform "${platform}"`
+          );
+        }
+        const provider = registration.adapter
+          ? new ChatAgentProvider(registration.adapter)
+          : registration.provider;
+        if (!provider) {
+          throw new AgentPlatError(
+            'VALIDATION_ERROR',
+            `A provider or adapter is required for platform "${platform}"`
+          );
+        }
+        this.runtime.registerProvider(normalized, provider);
+        this.configuredPlatforms.add(normalized);
+      }
+    }
     const provider = options.adapter
       ? new ChatAgentProvider(options.adapter)
       : options.provider;
-    if (provider) this.runtime.registerProvider(this.platform, provider);
+    if (provider) {
+      if (this.configuredPlatforms.has(this.platform)) {
+        throw new AgentPlatError(
+          'CONFLICT',
+          `Platform "${this.platform}" is configured more than once`
+        );
+      }
+      this.runtime.registerProvider(this.platform, provider);
+      this.configuredPlatforms.add(this.platform);
+    }
     if (options.rooms) {
       this.rooms = new RoomService({
         ...options.rooms,
@@ -184,6 +238,21 @@ export class AgentPlatFramework {
 
   /** Create an ephemeral multi-agent session over this facade's runtime. */
   createSession(options: FrameworkSessionOptions): MultiAgentSession {
+    for (const speaker of options.speakers) {
+      const platform = normalizedPlatform(speaker.platform);
+      const known = this.runtime.hasProvider?.(platform);
+      if (
+        known === false ||
+        (!known &&
+          this.configuredPlatforms.size > 0 &&
+          !this.configuredPlatforms.has(platform))
+      ) {
+        throw new AgentPlatError(
+          'VALIDATION_ERROR',
+          `No provider is configured for session speaker platform "${platform}"`
+        );
+      }
+    }
     return createMultiAgentSession({
       ...options,
       runtime: this.runtime,

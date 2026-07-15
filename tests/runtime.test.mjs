@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { InMemoryAuditSink, redactAuditDetails } from '@agentplat/audit';
+import {
+  createSessionAuditSink,
+  InMemoryAuditSink,
+  redactAuditDetails,
+} from '@agentplat/audit';
 import {
   AuthContextTenantResolver,
   StaticAuthProvider,
@@ -144,6 +148,32 @@ test('audit redaction is recursive and is applied by the sink', async () => {
     createdAt: '2026-07-14T12:00:00.000Z',
   });
   assert.equal(sink.list()[0].details.password, '[REDACTED]');
+});
+
+test('SessionAuditSink turns session records into redacted append-only audit records', async () => {
+  const audit = new InMemoryAuditSink();
+  const sink = createSessionAuditSink({ audit });
+  await sink.append({
+    eventId: 'session-a:1',
+    tenantId: 'tenant-a',
+    sessionId: 'session-a',
+    sequence: 1,
+    occurredAt: '2026-07-15T12:00:00.000Z',
+    event: {
+      type: 'session_started',
+      payload: {
+        sessionId: 'session-a',
+        speakers: [],
+        maxRounds: 1,
+        historyLimit: 1,
+        apiKey: 'must be redacted',
+      },
+    },
+  });
+  const record = audit.list()[0];
+  assert.equal(record.action, 'session.session_started');
+  assert.equal(record.resource.type, 'agent_session');
+  assert.equal(record.details.event.payload.apiKey, '[REDACTED]');
 });
 
 test('local auth adapters resolve permissions and tenant context', async () => {

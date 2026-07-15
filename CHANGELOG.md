@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Added a runnable Next.js App Router multi-agent SSE reference with browser
+  cancellation and reducer-backed UI state.
+- Added `subscribeAgentSse`, `createSessionEventReducer`, persona turn-input
+  helpers and dependency-free session metrics.
+- Added optional append-only session event sinks, including redacted audit sink
+  integration with explicit best-effort or required failure behavior.
+- Added neutral multi-platform runtime/framework registration and validation.
+- Added session and turn timeouts plus cooperative between-turn stop control.
+- Documented npm preview release channels and promotion expectations.
+
 ## 0.2.0-beta.2 - 2026-07-14
 
 - Added `@agentplat/sessions` with deterministic multi-agent rounds, bounded

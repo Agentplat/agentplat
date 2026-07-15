@@ -103,6 +103,39 @@ test('createAgentplat composes an optional RoomService around the same runtime',
   );
 });
 
+test('createAgentplat registers multiple neutral platforms and validates session speakers', async () => {
+  const mock = new MockAgentProvider({
+    responsesByAgent: { buyer: ['Buyer'], seller: ['Seller'] },
+  });
+  const platform = createAgentplat({
+    platform: 'mock',
+    platforms: {
+      mock: { provider: mock },
+      fallback: {
+        provider: new MockAgentProvider({ responses: ['Fallback'] }),
+      },
+    },
+  });
+  const session = platform.createSession({
+    maxRounds: 1,
+    speakers: [
+      { id: 'buyer', name: 'Buyer', instructions: 'Buy', platform: 'mock' },
+      { id: 'seller', name: 'Seller', instructions: 'Sell', platform: 'mock' },
+    ],
+  });
+  assert.equal((await session.run({ input: 'Negotiate.' })).turnsCompleted, 2);
+  assert.throws(
+    () =>
+      platform.createSession({
+        speakers: [
+          { id: 'a', name: 'A', instructions: 'A', platform: 'unknown' },
+          { id: 'b', name: 'B', instructions: 'B', platform: 'mock' },
+        ],
+      }),
+    /No provider is configured/
+  );
+});
+
 test('OpenAI-compatible model generation uses the standard endpoint without leaking credentials', async () => {
   let observed;
   const adapter = new OpenAICompatibleModelAdapter({

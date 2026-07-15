@@ -1,0 +1,28 @@
+{
+  "name": "@agentplat/example-next-multi-agent-sse",
+  "version": "0.2.0-beta.3",
+  "private": true,
+  "description": "Next.js App Router reference for AgentPlat multi-agent SSE sessions.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@agentplat/framework": "link:../../packages/framework",
+    "@agentplat/runtime-mock": "link:../../packages/runtime-mock",
+    "@agentplat/streaming": "link:../../packages/streaming",
+    "next": "^15.3.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

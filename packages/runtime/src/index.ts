@@ -116,6 +116,8 @@ export interface AgentProvider {
 
 export interface AgentRuntime {
   registerProvider(platform: string, provider: AgentProvider): void;
+  /** Optional capability used by higher-level composition validation. */
+  hasProvider?(platform: string): boolean;
   run(
     agent: AgentDefinition,
     input: AgentRunInput,
@@ -126,6 +128,16 @@ export interface AgentRuntime {
     input: AgentRunInput,
     context: RuntimeExecutionContext
   ): AsyncIterable<AgentStreamEvent>;
+}
+
+/** Register a map of provider-neutral platforms on any AgentPlat runtime. */
+export function registerRuntimeProviders(
+  runtime: AgentRuntime,
+  providers: Record<string, AgentProvider>
+): void {
+  for (const [platform, provider] of Object.entries(providers)) {
+    runtime.registerProvider(platform, provider);
+  }
 }
 
 export class DefaultAgentRuntime implements AgentRuntime {
@@ -140,6 +152,15 @@ export class DefaultAgentRuntime implements AgentRuntime {
       );
     }
     this.providers.set(normalizedPlatform, provider);
+  }
+
+  /** Register several named platforms without coupling the runtime to vendor SDKs. */
+  registerAll(providers: Record<string, AgentProvider>): void {
+    registerRuntimeProviders(this, providers);
+  }
+
+  hasProvider(platform: string): boolean {
+    return this.providers.has(platform.trim().toLowerCase());
   }
 
   async run(

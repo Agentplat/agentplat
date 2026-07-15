@@ -35,3 +35,7 @@ for await (const event of session.stream({ input: scenario, signal })) {
   // MultiAgentSessionEvent is re-exported by this package.
 }
 ```
+
+For applications with mock and live backends in one process, pass a `platforms`
+map containing explicit adapters/providers. The framework validates registered
+speaker platforms without importing optional model SDKs.

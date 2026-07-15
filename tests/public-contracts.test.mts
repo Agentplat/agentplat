@@ -1,8 +1,13 @@
+import {
+  createPersonaInputBuilder,
+  createSessionEventReducer,
+} from '@agentplat/framework';
 import type {
   AgentSseEnvelope,
   AgentStreamEvent,
   MultiAgentSessionEvent,
   QuickRunInput,
+  SessionEventRecord,
 } from '@agentplat/framework';
 import type { ParseAgentSseOptions } from '@agentplat/streaming';
 
@@ -43,8 +48,29 @@ const quickRunInput: QuickRunInput = {
 const parserOptions: ParseAgentSseOptions<MultiAgentSessionEvent> = {
   strictSequence: true,
 };
+const personaBuilder = createPersonaInputBuilder();
+const sessionReducer = createSessionEventReducer();
+const sessionRecord: SessionEventRecord = {
+  eventId: 'session-a:1',
+  tenantId: 'tenant-a',
+  sessionId: 'session-a',
+  sequence: 1,
+  occurredAt: '2026-07-15T00:00:00.000Z',
+  event: {
+    type: 'session_started',
+    payload: {
+      sessionId: 'session-a',
+      speakers: [],
+      maxRounds: 1,
+      historyLimit: 1,
+    },
+  },
+};
 
 void consumeSessionEnvelope;
 void consumeRuntimeEnvelope;
 void quickRunInput;
 void parserOptions;
+void personaBuilder;
+void sessionReducer;
+void sessionRecord;
