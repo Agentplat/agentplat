@@ -11,6 +11,9 @@ importers:
       '@agentplat/audit':
         specifier: workspace:*
         version: link:packages/audit
+      '@agentplat/audit-postgres':
+        specifier: workspace:*
+        version: link:packages/audit-postgres
       '@agentplat/auth':
         specifier: workspace:*
         version: link:packages/auth
@@ -35,6 +38,9 @@ importers:
       '@agentplat/model-openai-compatible':
         specifier: workspace:*
         version: link:packages/model-openai-compatible
+      '@agentplat/postgres':
+        specifier: workspace:*
+        version: link:packages/postgres
       '@agentplat/provider-openai':
         specifier: workspace:*
         version: link:packages/provider-openai
@@ -56,6 +62,9 @@ importers:
       '@agentplat/sessions':
         specifier: workspace:*
         version: link:packages/sessions
+      '@agentplat/sessions-redis':
+        specifier: workspace:*
+        version: link:packages/sessions-redis
       '@agentplat/streaming':
         specifier: workspace:*
         version: link:packages/streaming
@@ -80,6 +89,31 @@ importers:
       '@agentplat/sessions':
         specifier: workspace:^
         version: link:../sessions
+
+  packages/audit-postgres:
+    dependencies:
+      '@agentplat/audit':
+        specifier: workspace:^
+        version: link:../audit
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@agentplat/sessions':
+        specifier: workspace:^
+        version: link:../sessions
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
 
   packages/auth:
     dependencies:
@@ -167,6 +201,19 @@ importers:
         specifier: workspace:^
         version: link:../model
 
+  packages/postgres:
+    dependencies:
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+
   packages/provider-openai:
     dependencies:
       '@agentplat/core':
@@ -193,6 +240,9 @@ importers:
       '@agentplat/runtime':
         specifier: workspace:^
         version: link:../runtime
+      '@agentplat/sessions':
+        specifier: workspace:^
+        version: link:../sessions
 
   packages/rooms-api:
     dependencies:
@@ -215,6 +265,9 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
       '@agentplat/rooms':
         specifier: workspace:^
         version: link:../rooms
@@ -264,6 +317,19 @@ importers:
       '@agentplat/streaming':
         specifier: workspace:^
         version: link:../streaming
+
+  packages/sessions-redis:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/sessions':
+        specifier: workspace:^
+        version: link:../sessions
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
 
   packages/streaming:
     dependencies:

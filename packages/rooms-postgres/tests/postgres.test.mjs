@@ -4,6 +4,7 @@ import { RoomService } from '@agentplat/rooms';
 import {
   createPostgresPool,
   PostgresRoomRepository,
+  rollbackConfirmation,
   rollbackMigrations,
   runMigrations,
 } from '../dist/index.js';
@@ -18,11 +19,15 @@ test(
       : 'set AGENTPLAT_POSTGRES_TEST=1 for PostgreSQL integration tests',
   },
   async () => {
+    const schema = process.env.AGENTPLAT_POSTGRES_TEST_SCHEMA ?? 'public';
     const pool = createPostgresPool({ options: '-c search_path=pg_catalog' });
     const searchPath = await pool.query('SHOW search_path');
     assert.equal(searchPath.rows[0].search_path, 'pg_catalog');
-    await runMigrations(pool);
-    const repository = new PostgresRoomRepository(pool);
+    await runMigrations(pool, {
+      schema,
+      createSchema: schema !== 'public',
+    });
+    const repository = new PostgresRoomRepository(pool, { schema });
     const at = '2026-07-14T12:00:00.000Z';
 
     const roomFor = (tenantId, title) => ({
@@ -308,14 +313,14 @@ test(
 
       await assert.rejects(
         pool.query(
-          'UPDATE public.artifact_versions SET content = $1::jsonb WHERE tenant_id = $2 AND id = $3',
+          `UPDATE "${schema}".artifact_versions SET content = $1::jsonb WHERE tenant_id = $2 AND id = $3`,
           ['{}', 'tenant-a', 'artifact-version-1']
         ),
         /immutable/
       );
       await assert.rejects(
         pool.query(
-          'DELETE FROM public.events WHERE tenant_id = $1 AND id = $2',
+          `DELETE FROM "${schema}".events WHERE tenant_id = $1 AND id = $2`,
           ['tenant-a', 'event-a-2']
         ),
         /append-only/
@@ -413,7 +418,12 @@ test(
         await firstRun.catch(() => undefined);
       }
     } finally {
-      await rollbackMigrations(pool);
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 1,
+        schema,
+        confirm: rollbackConfirmation(schema, 1),
+        allowDataLoss: true,
+      });
       await pool.end();
     }
   }

@@ -1,0 +1,60 @@
+{
+  "family": "agentplat-orders",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::111122223333:role/ecs-agentplat-orders-execution",
+  "taskRoleArn": "arn:aws:iam::111122223333:role/ecs-agentplat-orders-runtime",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/agentplat-orders:IMAGE_TAG",
+      "essential": true,
+      "portMappings": [
+        {
+          "name": "http",
+          "containerPort": 3000,
+          "protocol": "tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AGENTPLAT_APP_ID", "value": "agentplat-orders-prod" },
+        { "name": "AGENTPLAT_DB_SCHEMA", "value": "agentplat_orders" },
+        {
+          "name": "PGHOST",
+          "value": "orders.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com"
+        },
+        { "name": "PGPORT", "value": "5432" },
+        { "name": "PGDATABASE", "value": "platform" },
+        { "name": "PGUSER", "value": "agentplat_orders_runtime" },
+        { "name": "PGPOOL_MAX", "value": "8" },
+        {
+          "name": "REDIS_URL",
+          "value": "rediss://agentplat-cache.xxxxxx.use1.cache.amazonaws.com:6379"
+        },
+        { "name": "SESSION_REDIS_PREFIX", "value": "agentplat:orders:prod" }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:3000/health/live || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/agentplat-orders",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "app"
+        }
+      }
+    }
+  ]
+}

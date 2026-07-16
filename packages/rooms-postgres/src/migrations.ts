@@ -1,74 +1,106 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import type { Pool, PoolClient } from 'pg';
+import {
+  defaultPostgresSchema,
+  getPostgresMigrationStatus,
+  postgresRollbackConfirmation,
+  rollbackPostgresMigration,
+  runPostgresMigrations,
+} from '@agentplat/postgres';
+import type {
+  PostgresMigration,
+  PostgresMigrationStatus,
+} from '@agentplat/postgres';
+import type { Pool } from 'pg';
 
+const applicationId = '@agentplat/rooms-postgres';
 const migrationName = '001_agent_rooms';
-const migrationLock = 'agentplat:rooms:migrations';
 
 export const migrationDirectory = fileURLToPath(
   new URL('../migrations/', import.meta.url)
 );
 
-async function migrationSql(direction: 'up' | 'down'): Promise<string> {
-  return readFile(
-    new URL(`../migrations/${migrationName}.${direction}.sql`, import.meta.url),
-    'utf8'
-  );
+export interface RoomPostgresMigrationOptions {
+  schema?: string;
+  createSchema?: boolean;
 }
 
-async function hasMigrationTable(client: PoolClient): Promise<boolean> {
-  const result = await client.query<{ present: boolean }>(
-    "SELECT to_regclass('public.agentplat_schema_migrations') IS NOT NULL AS present"
-  );
-  return result.rows[0]?.present === true;
+async function migrations(): Promise<PostgresMigration[]> {
+  const [up, down] = await Promise.all([
+    readFile(
+      new URL(`../migrations/${migrationName}.up.sql`, import.meta.url),
+      'utf8'
+    ),
+    readFile(
+      new URL(`../migrations/${migrationName}.down.sql`, import.meta.url),
+      'utf8'
+    ),
+  ]);
+  return [
+    {
+      version: 1,
+      name: migrationName,
+      up,
+      down,
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.rooms') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.events') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.artifact_versions') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.agentplat_schema_migrations') IS NOT NULL
+          AS present
+      `,
+    },
+  ];
 }
 
-async function isApplied(client: PoolClient): Promise<boolean> {
-  if (!(await hasMigrationTable(client))) return false;
-  const result = await client.query(
-    'SELECT 1 FROM public.agentplat_schema_migrations WHERE name = $1',
-    [migrationName]
-  );
-  return (result.rowCount ?? 0) > 0;
-}
-
-async function withMigrationLock<T>(
+export async function runMigrations(
   pool: Pool,
-  operation: (client: PoolClient) => Promise<T>
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query('SELECT pg_advisory_lock(hashtext($1))', [
-      migrationLock,
-    ]);
-    try {
-      return await operation(client);
-    } catch (error) {
-      // The packaged SQL owns BEGIN/COMMIT. An error leaves the connection in
-      // an aborted transaction until it is explicitly rolled back.
-      await client.query('ROLLBACK').catch(() => undefined);
-      throw error;
-    }
-  } finally {
-    await client
-      .query('SELECT pg_advisory_unlock(hashtext($1))', [migrationLock])
-      .catch(() => undefined);
-    client.release();
-  }
-}
-
-/** Apply the packaged schema migration once. Safe to call during every startup. */
-export async function runMigrations(pool: Pool): Promise<void> {
-  await withMigrationLock(pool, async (client) => {
-    if (await isApplied(client)) return;
-    await client.query(await migrationSql('up'));
+  options: RoomPostgresMigrationOptions = {}
+): Promise<PostgresMigrationStatus> {
+  return runPostgresMigrations(pool, {
+    applicationId,
+    schema: options.schema,
+    createSchema: options.createSchema,
+    migrations: await migrations(),
   });
 }
 
-/** Roll back the packaged schema migration when it is currently applied. */
-export async function rollbackMigrations(pool: Pool): Promise<void> {
-  await withMigrationLock(pool, async (client) => {
-    if (!(await isApplied(client))) return;
-    await client.query(await migrationSql('down'));
+export async function getMigrationStatus(
+  pool: Pool,
+  options: RoomPostgresMigrationOptions = {}
+): Promise<PostgresMigrationStatus> {
+  return getPostgresMigrationStatus(pool, {
+    applicationId,
+    schema: options.schema,
+    migrations: await migrations(),
+  });
+}
+
+export function rollbackConfirmation(
+  schema = defaultPostgresSchema,
+  version = 1
+): string {
+  return postgresRollbackConfirmation(applicationId, schema, version);
+}
+
+/** Roll back one version only after explicit version and data-loss confirmation. */
+export async function rollbackMigrations(
+  pool: Pool,
+  options: RoomPostgresMigrationOptions & {
+    expectedCurrentVersion: number;
+    confirm: string;
+    allowDataLoss?: boolean;
+  }
+): Promise<PostgresMigrationStatus> {
+  return rollbackPostgresMigration(pool, {
+    applicationId,
+    schema: options.schema,
+    createSchema: false,
+    migrations: await migrations(),
+    expectedCurrentVersion: options.expectedCurrentVersion,
+    confirm: options.confirm,
+    allowDataLoss: options.allowDataLoss,
   });
 }

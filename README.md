@@ -36,10 +36,13 @@ Clone this repository to run the complete reference API with Node.js and Postgre
 | `@agentplat/model-openai-compatible` | Dependency-light Chat Completions adapter for compatible servers.       |
 | `@agentplat/rooms`                   | Agent Room domain, lifecycle, policy, context and repository contracts. |
 | `@agentplat/rooms-postgres`          | Durable PostgreSQL repository, migrations and transactional events.     |
+| `@agentplat/postgres`                | Shared pool health, schema safety and versioned migration primitives.   |
+| `@agentplat/audit-postgres`          | PostgreSQL audit and Session event sinks without Agent Rooms.           |
 | `@agentplat/rooms-api`               | Injectable Hono REST API for the Agent Room lifecycle.                  |
 | `@agentplat/runtime`                 | Provider contracts plus executable provider dispatch and streaming.     |
 | `@agentplat/runtime-mock`            | Deterministic, network-free provider for examples and tests.            |
 | `@agentplat/sessions`                | Typed, bounded multi-agent turn orchestration over the public runtime.  |
+| `@agentplat/sessions-redis`          | Redis pub/sub control for Sessions across service instances.            |
 | `@agentplat/streaming`               | Versioned SSE server helpers, parser and thin browser subscription API. |
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
@@ -120,12 +123,17 @@ For simulations and debates, see [multi-agent sessions](./docs/multi-agent-sessi
 The runnable [Next.js SSE reference](./examples/next-multi-agent-sse/README.md)
 shows the complete server and browser integration path.
 
+For an AWS deployment that reuses an existing RDS/Aurora cluster, Redis and
+Secrets Manager or IAM database auth, see
+[Bring your own PostgreSQL on AWS](./docs/bring-your-own-postgres-aws.md). The
+path does not require DynamoDB or the Agent Rooms schema.
+
 ### npm from a fork or monorepo
 
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.2.0-beta.9` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.2.0-beta.11` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants

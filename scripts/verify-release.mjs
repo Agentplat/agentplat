@@ -5,6 +5,7 @@ import path from 'node:path';
 const root = process.cwd();
 const expectedPackages = [
   'audit',
+  'audit-postgres',
   'auth',
   'core',
   'events',
@@ -15,6 +16,7 @@ const expectedPackages = [
   'model-anthropic',
   'model-gemini',
   'model-openai-compatible',
+  'postgres',
   'provider-openai',
   'rooms',
   'rooms-api',
@@ -22,6 +24,7 @@ const expectedPackages = [
   'runtime',
   'runtime-mock',
   'sessions',
+  'sessions-redis',
   'streaming',
   'tools',
   'workflows',

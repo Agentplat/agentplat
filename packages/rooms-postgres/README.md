@@ -11,10 +11,10 @@ The pool accepts an explicit `connectionString`. With no options it uses
 `DATABASE_URL` when present, otherwise `pg`'s standard `PGHOST`, `PGPORT`,
 `PGDATABASE`, `PGUSER`, and `PGPASSWORD` environment variables.
 
-The adapter owns its tables and migration ledger in the `public` schema and
-fully qualifies every database object. It therefore works with a restricted or
-custom session `search_path`; the database role must have the corresponding
-usage and creation privileges on `public` when applying the migration.
+The adapter defaults to `public` for compatibility. For a shared cluster,
+allocate one schema per application and pass the same schema to migrations and
+the repository. Every object is fully qualified, so the adapter does not rely
+on a mutable `search_path`.
 
 ```ts
 import {
@@ -24,9 +24,14 @@ import {
 } from '@agentplat/rooms-postgres';
 
 const pool = createPostgresPool();
-await runMigrations(pool);
+await runMigrations(pool, {
+  schema: 'agentplat_orders',
+  createSchema: false, // Prefer a DBA-created, role-owned schema.
+});
 
-const repository = new PostgresRoomRepository(pool);
+const repository = new PostgresRoomRepository(pool, {
+  schema: 'agentplat_orders',
+});
 // Inject repository into RoomService.
 
 await pool.end();
@@ -38,10 +43,19 @@ After building the package, migrations can also be run from the workspace:
 pnpm --filter @agentplat/rooms-postgres migrate
 ```
 
-`migrate:down` removes every Agent Room table and is intended only for local
-development or controlled rollback. The packaged SQL is available under
-`migrations/` for deployments that use Flyway, Liquibase, dbmate, or another
-migration orchestrator.
+Set `AGENTPLAT_DB_SCHEMA` in the migration task. Migrations are serialized with
+a schema/application advisory lock and recorded with version plus checksum in
+`<schema>._agentplat_migrations`. Editing an applied migration is rejected.
+
+`migrate:down` removes every Agent Room table. It rolls back only the observed
+top version and requires `AGENTPLAT_MIGRATE_DOWN_VERSION`, the exact
+`AGENTPLAT_MIGRATE_DOWN_CONFIRM` value returned by `rollbackConfirmation`, and
+`AGENTPLAT_ALLOW_DATA_LOSS=true`. Use it only after a tested backup/restore;
+prefer a forward fix in production.
+
+The packaged SQL uses the explicit `__AGENTPLAT_SCHEMA__` token. Use the
+package runner to render it, or replace it with a quoted identifier when a
+separate migration orchestrator owns execution.
 
 ## Transaction model
 
@@ -60,6 +74,10 @@ responsible for supplying a trusted tenant identity.
 Artifact versions cannot be updated or deleted, and events are append-only.
 Rooms are archived rather than physically deleted so their history remains
 available.
+
+For SSL verification, RDS IAM authentication, Secrets Manager, CI migration
+tasks, pool budgets and multi-app tenancy, see the repository
+[AWS BYOI guide](../../docs/bring-your-own-postgres-aws.md).
 
 ## Integration tests
 
