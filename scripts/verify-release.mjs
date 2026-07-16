@@ -4,12 +4,14 @@ import path from 'node:path';
 
 const root = process.cwd();
 const expectedPackages = [
+  'a2a',
   'audit',
   'audit-postgres',
   'auth',
   'core',
   'events',
   'framework',
+  'interop',
   'mcp',
   'memory',
   'model',
