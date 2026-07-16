@@ -10,7 +10,14 @@ import type {
 
 export type RunStatus = Extract<
   LifecycleStatus,
-  'pending' | 'running' | 'completed' | 'failed' | 'canceled'
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'canceled'
+  | 'rejected'
+  | 'input_required'
+  | 'auth_required'
 >;
 export type StageStatus = RunStatus;
 
