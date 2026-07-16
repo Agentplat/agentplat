@@ -18,6 +18,9 @@ export type LifecycleStatus =
   | 'completed'
   | 'failed'
   | 'canceled'
+  | 'rejected'
+  | 'input_required'
+  | 'auth_required'
   | 'suspended'
   | 'archived';
 

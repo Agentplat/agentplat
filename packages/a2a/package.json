@@ -1,7 +1,7 @@
 {
-  "name": "@agentplat/mcp",
+  "name": "@agentplat/a2a",
   "version": "0.2.0-beta.11",
-  "description": "MCP server, tool binding and registry contracts for AgentPlat.",
+  "description": "A2A v1 HTTP+JSON interoperability for AgentPlat.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -13,29 +13,25 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/*.test.ts",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@agentplat/core": "workspace:^",
-    "@agentplat/tools": "workspace:^"
+    "@agentplat/runtime": "workspace:^",
+    "@agentplat/workflows": "workspace:^"
   },
   "devDependencies": {
-    "tsx": "^4.20.0"
+    "tsx": "^4.20.0",
+    "typescript": "^5.3.0"
   },
-  "publishConfig": {
-    "access": "public"
-  },
+  "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",
-    "directory": "packages/mcp"
+    "directory": "packages/a2a"
   }
 }

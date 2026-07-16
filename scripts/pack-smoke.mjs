@@ -13,12 +13,14 @@ import path from 'node:path';
 
 const root = process.cwd();
 const packageNames = [
+  'a2a',
   'audit',
   'audit-postgres',
   'auth',
   'core',
   'events',
   'framework',
+  'interop',
   'mcp',
   'memory',
   'model',
