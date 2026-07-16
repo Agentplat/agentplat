@@ -12,6 +12,8 @@ const expectedPackages = [
   'mcp',
   'memory',
   'model',
+  'model-anthropic',
+  'model-gemini',
   'model-openai-compatible',
   'provider-openai',
   'rooms',

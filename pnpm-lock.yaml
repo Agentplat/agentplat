@@ -140,6 +140,24 @@ importers:
         specifier: workspace:^
         version: link:../core
 
+  packages/model-anthropic:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/model':
+        specifier: workspace:^
+        version: link:../model
+
+  packages/model-gemini:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/model':
+        specifier: workspace:^
+        version: link:../model
+
   packages/model-openai-compatible:
     dependencies:
       '@agentplat/core':
