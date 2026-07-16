@@ -21,3 +21,28 @@ const room = await service.createRoom('tenant-a', {
 
 Use `@agentplat/rooms-postgres` for durable self-hosted deployments. The
 in-memory repository is intended for tests and examples.
+
+## Promote a Session
+
+`promoteSessionToRoom` atomically turns a completed ephemeral simulation into a
+governed Room through `RoomService`. Session speakers become Room participants
+and the bounded Session transcript becomes ordinary Room messages; no second
+durable simulation model is introduced.
+
+```ts
+import { promoteSessionToRoom } from '@agentplat/rooms';
+
+const promotion = await promoteSessionToRoom(service, {
+  tenantId: 'tenant-a',
+  session: sessionResult,
+  speakers,
+  room: {
+    title: 'Approved negotiation',
+    goal: 'Review and operationalize the simulated agreement',
+  },
+});
+```
+
+Incomplete sessions require `allowIncomplete: true`. Promotion records source
+session, turn and timestamp metadata so consumers do not mistake the imported
+transcript for messages originally authored inside the Room lifecycle.

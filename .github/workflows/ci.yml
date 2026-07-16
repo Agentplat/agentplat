@@ -34,6 +34,15 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
+      - run: pnpm --filter @agentplat/sessions-redis test
+      - run: pnpm --filter @agentplat/audit-postgres test
+        env:
+          AGENTPLAT_POSTGRES_TEST: '1'
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/rooms-postgres test
         env:
           AGENTPLAT_POSTGRES_TEST: '1'

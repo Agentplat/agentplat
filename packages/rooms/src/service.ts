@@ -28,6 +28,10 @@ import type {
   RoomRepository,
   RoomRepositoryTransaction,
 } from './repository.js';
+import type {
+  PromoteSessionToRoomInput,
+  SessionRoomPromotion,
+} from './promotion.js';
 
 const participantTypes = new Set(['human', 'agent']);
 const messageRoles = new Set(['human', 'agent', 'system', 'tool']);
@@ -222,6 +226,225 @@ export class RoomService {
         await transaction.insertRoom(room);
         await this.appendEvents(transaction, events);
         return { value: room, events };
+      }
+    );
+    await this.publish(result.events);
+    return result.value;
+  }
+
+  /** Atomically promote one Session transcript into existing Room models. */
+  async promoteSessionToRoom(
+    input: PromoteSessionToRoomInput
+  ): Promise<SessionRoomPromotion> {
+    this.required(input.tenantId, 'tenantId');
+    this.required(input.session.sessionId, 'sessionId');
+    this.required(input.room.title, 'title');
+    this.required(input.room.goal, 'goal');
+    if (
+      input.session.status !== 'completed' &&
+      input.allowIncomplete !== true
+    ) {
+      throw new AgentPlatError(
+        'CONFLICT',
+        `Session "${input.session.sessionId}" is ${input.session.status}; set allowIncomplete to preserve its partial transcript`,
+        { statusCode: 409 }
+      );
+    }
+    const sourceSpeakers = new Map<string, (typeof input.speakers)[number]>();
+    for (const speaker of input.speakers) {
+      this.required(speaker.id, 'speaker.id');
+      this.required(speaker.name, 'speaker.name');
+      if (sourceSpeakers.has(speaker.id)) {
+        throw new AgentPlatError(
+          'VALIDATION_ERROR',
+          `Session speaker "${speaker.id}" is duplicated`
+        );
+      }
+      sourceSpeakers.set(speaker.id, speaker);
+    }
+    for (const message of input.session.history) {
+      if (!sourceSpeakers.has(message.speakerId)) {
+        throw new AgentPlatError(
+          'VALIDATION_ERROR',
+          `Session speaker "${message.speakerId}" is missing from promotion input`
+        );
+      }
+    }
+
+    const result = await this.repository.transaction(
+      input.tenantId,
+      async (transaction) => {
+        const now = this.now();
+        const room: Room = {
+          id: input.room.id ?? this.id(),
+          tenantId: input.tenantId,
+          title: input.room.title.trim(),
+          goal: input.room.goal.trim(),
+          status: 'active',
+          createdBy: input.room.createdBy,
+          createdAt: now,
+          updatedAt: now,
+          metadata: {
+            ...(input.room.metadata ?? {}),
+            sourceSessionId: input.session.sessionId,
+            sourceSessionStatus: input.session.status,
+            sourceSessionStopReason: input.session.stopReason,
+            sourceSessionUsage: input.session.usage,
+            sourceSessionTurns: input.session.turnsCompleted,
+            sourceSessionRounds: input.session.roundsCompleted,
+            sourceSessionDurationMs: input.session.durationMs,
+            ...(input.session.estimatedCostUsd === undefined
+              ? {}
+              : {
+                  sourceSessionEstimatedCostUsd: input.session.estimatedCostUsd,
+                }),
+            promotionVersion: 1,
+          },
+        };
+        const events: DomainEvent[] = [
+          this.event(
+            input.tenantId,
+            room.id,
+            'room_created',
+            {
+              roomId: room.id,
+              parentRoomId: null,
+              title: room.title,
+              sourceSessionId: input.session.sessionId,
+            },
+            input.room.createdBy
+          ),
+        ];
+        await transaction.insertRoom(room);
+
+        const participantId =
+          input.participantId ??
+          ((speaker: (typeof input.speakers)[number], roomId: string) =>
+            `${roomId}:speaker:${speaker.id}`);
+        const participantBySpeaker = new Map<string, Participant>();
+        const speakerByParticipantId = new Map<string, string>();
+        const participants: Participant[] = [];
+        for (const speaker of input.speakers) {
+          const id = participantId(speaker, room.id);
+          const mappedSpeaker = speakerByParticipantId.get(id);
+          if (mappedSpeaker) {
+            throw new AgentPlatError(
+              'VALIDATION_ERROR',
+              `Session speakers "${mappedSpeaker}" and "${speaker.id}" map to participant "${id}"`
+            );
+          }
+          speakerByParticipantId.set(id, speaker.id);
+          const existing = await transaction.getParticipant(input.tenantId, id);
+          if (existing && existing.type !== 'agent') {
+            throw new AgentPlatError(
+              'CONFLICT',
+              `Session speaker "${speaker.id}" cannot reuse non-agent participant "${id}"`,
+              { statusCode: 409 }
+            );
+          }
+          const participant: Participant = existing ?? {
+            id,
+            tenantId: input.tenantId,
+            type: 'agent',
+            displayName: speaker.name,
+            role: speaker.description ?? speaker.name,
+            authorityLevel: 0,
+            permissions: [],
+            boundaries: [],
+            runtime: {
+              platform: speaker.platform,
+              modelName: speaker.modelName,
+              instructions: speaker.instructions,
+              config: speaker.config,
+            },
+            metadata: {
+              ...(speaker.metadata ?? {}),
+              sourceSessionId: input.session.sessionId,
+              sourceSpeakerId: speaker.id,
+              promotionVersion: 1,
+            },
+            createdAt: now,
+            updatedAt: now,
+          };
+          if (!existing) await transaction.insertParticipant(participant);
+          await transaction.addRoomParticipant({
+            tenantId: input.tenantId,
+            roomId: room.id,
+            participantId: id,
+            joinedAt: now,
+          });
+          participants.push(participant);
+          participantBySpeaker.set(speaker.id, participant);
+          events.push(
+            this.event(
+              input.tenantId,
+              room.id,
+              'participant_added',
+              {
+                roomId: room.id,
+                participantId: id,
+                participantType: participant.type,
+                role: participant.role,
+                sourceSpeakerId: speaker.id,
+              },
+              input.room.createdBy
+            )
+          );
+        }
+
+        const messageId =
+          input.messageId ??
+          ((message: (typeof input.session.history)[number], roomId: string) =>
+            `${roomId}:session-turn:${message.turn}`);
+        const messages: RoomMessage[] = [];
+        for (const source of input.session.history) {
+          const participant = participantBySpeaker.get(source.speakerId);
+          if (!participant) continue;
+          const message: RoomMessage = {
+            id: messageId(source, room.id),
+            tenantId: input.tenantId,
+            roomId: room.id,
+            authorParticipantId: participant.id,
+            role: 'agent',
+            content: source.content,
+            metadata: {
+              sourceSessionId: input.session.sessionId,
+              sourceSpeakerId: source.speakerId,
+              sourceRound: source.round,
+              sourceTurn: source.turn,
+              sourceCreatedAt: source.createdAt,
+              promotionVersion: 1,
+            },
+            createdAt: this.now(),
+          };
+          await transaction.insertMessage(message);
+          messages.push(message);
+          events.push(
+            this.event(
+              input.tenantId,
+              room.id,
+              'message_created',
+              {
+                roomId: room.id,
+                messageId: message.id,
+                role: message.role,
+                sourceTurn: source.turn,
+              },
+              participant.id
+            )
+          );
+        }
+
+        await this.appendEvents(transaction, events);
+        return {
+          value: {
+            room,
+            participants,
+            messages,
+            sourceSessionId: input.session.sessionId,
+          },
+          events,
+        };
       }
     );
     await this.publish(result.events);

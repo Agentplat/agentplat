@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.2.0-beta.11 - 2026-07-16
+
+- Added `@agentplat/postgres` with verified-pool health, strict multi-schema
+  identifiers, application-scoped migration versions/checksums and guarded
+  one-version rollback.
+- Added `@agentplat/audit-postgres` for append-only Audit and Session event
+  persistence without installing Agent Rooms.
+- Added `@agentplat/sessions-redis`; owner leases and pub/sub route cooperative
+  stops while AbortController stays in the process that owns the live stream.
+- Added atomic `promoteSessionToRoom` materialization of Session
+  speakers/transcripts through existing Room participants and messages with
+  source provenance.
+- Added an RDS/Aurora BYOI guide and ECS/Fargate migration-gate example that do
+  not require DynamoDB.
+
 ## 0.2.0-beta.8 - 2026-07-15
 
 - Added `@agentplat/sessions/http` with a replaceable live-session registry,

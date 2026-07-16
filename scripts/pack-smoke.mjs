@@ -14,6 +14,7 @@ import path from 'node:path';
 const root = process.cwd();
 const packageNames = [
   'audit',
+  'audit-postgres',
   'auth',
   'core',
   'events',
@@ -24,6 +25,7 @@ const packageNames = [
   'model-anthropic',
   'model-gemini',
   'model-openai-compatible',
+  'postgres',
   'provider-openai',
   'rooms',
   'rooms-api',
@@ -31,6 +33,7 @@ const packageNames = [
   'runtime',
   'runtime-mock',
   'sessions',
+  'sessions-redis',
   'streaming',
   'tools',
   'workflows',
@@ -99,7 +102,14 @@ try {
   execFileSync(
     'npm',
     ['install', '--ignore-scripts', '--no-audit', '--no-fund'],
-    { cwd: consumerRoot, stdio: 'pipe' }
+    {
+      cwd: consumerRoot,
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        npm_config_cache: path.join(temporaryRoot, 'npm-cache'),
+      },
+    }
   );
   execFileSync(process.execPath, ['verify.mjs'], {
     cwd: consumerRoot,

@@ -1,11 +1,4 @@
-BEGIN;
-
-CREATE TABLE IF NOT EXISTS public.agentplat_schema_migrations (
-  name text PRIMARY KEY,
-  applied_at timestamptz NOT NULL DEFAULT clock_timestamp()
-);
-
-CREATE TABLE public.rooms (
+CREATE TABLE __AGENTPLAT_SCHEMA__.rooms (
   tenant_id text NOT NULL,
   id text NOT NULL,
   parent_room_id text,
@@ -19,16 +12,16 @@ CREATE TABLE public.rooms (
   completed_at timestamptz,
   archived_at timestamptz,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, parent_room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE RESTRICT,
+  FOREIGN KEY (tenant_id, parent_room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE RESTRICT,
   CHECK (parent_room_id IS NULL OR parent_room_id <> id)
 );
 
 CREATE INDEX rooms_tenant_status_idx
-  ON public.rooms (tenant_id, status, updated_at DESC);
+  ON __AGENTPLAT_SCHEMA__.rooms (tenant_id, status, updated_at DESC);
 CREATE INDEX rooms_tenant_parent_idx
-  ON public.rooms (tenant_id, parent_room_id) WHERE parent_room_id IS NOT NULL;
+  ON __AGENTPLAT_SCHEMA__.rooms (tenant_id, parent_room_id) WHERE parent_room_id IS NOT NULL;
 
-CREATE TABLE public.participants (
+CREATE TABLE __AGENTPLAT_SCHEMA__.participants (
   tenant_id text NOT NULL,
   id text NOT NULL,
   type text NOT NULL CHECK (type IN ('human', 'agent')),
@@ -48,20 +41,20 @@ CREATE TABLE public.participants (
   PRIMARY KEY (tenant_id, id)
 );
 
-CREATE TABLE public.room_participants (
+CREATE TABLE __AGENTPLAT_SCHEMA__.room_participants (
   tenant_id text NOT NULL,
   room_id text NOT NULL,
   participant_id text NOT NULL,
   joined_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, room_id, participant_id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
-  FOREIGN KEY (tenant_id, participant_id) REFERENCES public.participants (tenant_id, id) ON DELETE RESTRICT
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, participant_id) REFERENCES __AGENTPLAT_SCHEMA__.participants (tenant_id, id) ON DELETE RESTRICT
 );
 
 CREATE INDEX room_participants_tenant_participant_idx
-  ON public.room_participants (tenant_id, participant_id, room_id);
+  ON __AGENTPLAT_SCHEMA__.room_participants (tenant_id, participant_id, room_id);
 
-CREATE TABLE public.messages (
+CREATE TABLE __AGENTPLAT_SCHEMA__.messages (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -71,15 +64,15 @@ CREATE TABLE public.messages (
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, author_participant_id)
-    REFERENCES public.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
+    REFERENCES __AGENTPLAT_SCHEMA__.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX messages_tenant_room_created_idx
-  ON public.messages (tenant_id, room_id, created_at, id);
+  ON __AGENTPLAT_SCHEMA__.messages (tenant_id, room_id, created_at, id);
 
-CREATE TABLE public.tasks (
+CREATE TABLE __AGENTPLAT_SCHEMA__.tasks (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -103,15 +96,15 @@ CREATE TABLE public.tasks (
   PRIMARY KEY (tenant_id, id),
   UNIQUE (tenant_id, room_id, step_id),
   UNIQUE (tenant_id, room_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, assigned_participant_id)
-    REFERENCES public.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
+    REFERENCES __AGENTPLAT_SCHEMA__.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX tasks_tenant_room_status_idx
-  ON public.tasks (tenant_id, room_id, status, created_at, id);
+  ON __AGENTPLAT_SCHEMA__.tasks (tenant_id, room_id, status, created_at, id);
 
-CREATE TABLE public.artifacts (
+CREATE TABLE __AGENTPLAT_SCHEMA__.artifacts (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -128,13 +121,13 @@ CREATE TABLE public.artifacts (
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX artifacts_tenant_room_status_idx
-  ON public.artifacts (tenant_id, room_id, status, updated_at DESC);
+  ON __AGENTPLAT_SCHEMA__.artifacts (tenant_id, room_id, status, updated_at DESC);
 
-CREATE TABLE public.artifact_versions (
+CREATE TABLE __AGENTPLAT_SCHEMA__.artifact_versions (
   tenant_id text NOT NULL,
   id text NOT NULL,
   artifact_id text NOT NULL,
@@ -145,13 +138,13 @@ CREATE TABLE public.artifact_versions (
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
   UNIQUE (tenant_id, artifact_id, version),
-  FOREIGN KEY (tenant_id, artifact_id) REFERENCES public.artifacts (tenant_id, id) ON DELETE CASCADE
+  FOREIGN KEY (tenant_id, artifact_id) REFERENCES __AGENTPLAT_SCHEMA__.artifacts (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX artifact_versions_tenant_artifact_idx
-  ON public.artifact_versions (tenant_id, artifact_id, version DESC);
+  ON __AGENTPLAT_SCHEMA__.artifact_versions (tenant_id, artifact_id, version DESC);
 
-CREATE FUNCTION public.agentplat_prevent_artifact_version_mutation()
+CREATE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_artifact_version_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
@@ -161,13 +154,13 @@ END;
 $$;
 
 CREATE TRIGGER artifact_versions_immutable_update
-  BEFORE UPDATE ON public.artifact_versions
-  FOR EACH ROW EXECUTE FUNCTION public.agentplat_prevent_artifact_version_mutation();
+  BEFORE UPDATE ON __AGENTPLAT_SCHEMA__.artifact_versions
+  FOR EACH ROW EXECUTE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_artifact_version_mutation();
 CREATE TRIGGER artifact_versions_immutable_delete
-  BEFORE DELETE ON public.artifact_versions
-  FOR EACH ROW EXECUTE FUNCTION public.agentplat_prevent_artifact_version_mutation();
+  BEFORE DELETE ON __AGENTPLAT_SCHEMA__.artifact_versions
+  FOR EACH ROW EXECUTE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_artifact_version_mutation();
 
-CREATE TABLE public.approvals (
+CREATE TABLE __AGENTPLAT_SCHEMA__.approvals (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -183,15 +176,15 @@ CREATE TABLE public.approvals (
   updated_at timestamptz NOT NULL,
   decided_at timestamptz,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX approvals_tenant_room_status_idx
-  ON public.approvals (tenant_id, room_id, status, created_at, id);
+  ON __AGENTPLAT_SCHEMA__.approvals (tenant_id, room_id, status, created_at, id);
 CREATE INDEX approvals_tenant_target_idx
-  ON public.approvals (tenant_id, target_type, target_id, created_at DESC);
+  ON __AGENTPLAT_SCHEMA__.approvals (tenant_id, target_type, target_id, created_at DESC);
 CREATE UNIQUE INDEX approvals_one_requested_target_idx
-  ON public.approvals (
+  ON __AGENTPLAT_SCHEMA__.approvals (
     tenant_id,
     room_id,
     target_type,
@@ -201,7 +194,7 @@ CREATE UNIQUE INDEX approvals_one_requested_target_idx
   )
   WHERE status = 'requested';
 
-CREATE TABLE public.policies (
+CREATE TABLE __AGENTPLAT_SCHEMA__.policies (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -215,13 +208,13 @@ CREATE TABLE public.policies (
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX policies_tenant_room_idx
-  ON public.policies (tenant_id, room_id, created_at, id);
+  ON __AGENTPLAT_SCHEMA__.policies (tenant_id, room_id, created_at, id);
 
-CREATE TABLE public.memory_entries (
+CREATE TABLE __AGENTPLAT_SCHEMA__.memory_entries (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text,
@@ -236,16 +229,16 @@ CREATE TABLE public.memory_entries (
   provenance jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   CHECK (retention <> 'until' OR retain_until IS NOT NULL)
 );
 
 CREATE INDEX memory_entries_tenant_scope_idx
-  ON public.memory_entries (tenant_id, scope, scope_id, created_at DESC);
+  ON __AGENTPLAT_SCHEMA__.memory_entries (tenant_id, scope, scope_id, created_at DESC);
 CREATE INDEX memory_entries_tenant_room_idx
-  ON public.memory_entries (tenant_id, room_id, created_at DESC) WHERE room_id IS NOT NULL;
+  ON __AGENTPLAT_SCHEMA__.memory_entries (tenant_id, room_id, created_at DESC) WHERE room_id IS NOT NULL;
 
-CREATE TABLE public.runs (
+CREATE TABLE __AGENTPLAT_SCHEMA__.runs (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -263,19 +256,19 @@ CREATE TABLE public.runs (
   PRIMARY KEY (tenant_id, id),
   UNIQUE (tenant_id, room_id, id),
   UNIQUE (tenant_id, room_id, task_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, task_id)
-    REFERENCES public.tasks (tenant_id, room_id, id) ON DELETE CASCADE,
+    REFERENCES __AGENTPLAT_SCHEMA__.tasks (tenant_id, room_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, participant_id)
-    REFERENCES public.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
+    REFERENCES __AGENTPLAT_SCHEMA__.room_participants (tenant_id, room_id, participant_id) ON DELETE RESTRICT
 );
 
 CREATE INDEX runs_tenant_room_started_idx
-  ON public.runs (tenant_id, room_id, started_at DESC);
+  ON __AGENTPLAT_SCHEMA__.runs (tenant_id, room_id, started_at DESC);
 CREATE INDEX runs_tenant_task_started_idx
-  ON public.runs (tenant_id, task_id, started_at DESC);
+  ON __AGENTPLAT_SCHEMA__.runs (tenant_id, task_id, started_at DESC);
 
-CREATE TABLE public.context_snapshots (
+CREATE TABLE __AGENTPLAT_SCHEMA__.context_snapshots (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -284,17 +277,17 @@ CREATE TABLE public.context_snapshots (
   context jsonb NOT NULL,
   created_at timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, task_id)
-    REFERENCES public.tasks (tenant_id, room_id, id) ON DELETE CASCADE,
+    REFERENCES __AGENTPLAT_SCHEMA__.tasks (tenant_id, room_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, task_id, run_id)
-    REFERENCES public.runs (tenant_id, room_id, task_id, id) ON DELETE CASCADE
+    REFERENCES __AGENTPLAT_SCHEMA__.runs (tenant_id, room_id, task_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX context_snapshots_tenant_room_created_idx
-  ON public.context_snapshots (tenant_id, room_id, created_at DESC);
+  ON __AGENTPLAT_SCHEMA__.context_snapshots (tenant_id, room_id, created_at DESC);
 
-CREATE TABLE public.tool_calls (
+CREATE TABLE __AGENTPLAT_SCHEMA__.tool_calls (
   tenant_id text NOT NULL,
   id text NOT NULL,
   room_id text NOT NULL,
@@ -307,15 +300,15 @@ CREATE TABLE public.tool_calls (
   created_at timestamptz NOT NULL,
   completed_at timestamptz,
   PRIMARY KEY (tenant_id, id),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, room_id, run_id)
-    REFERENCES public.runs (tenant_id, room_id, id) ON DELETE CASCADE
+    REFERENCES __AGENTPLAT_SCHEMA__.runs (tenant_id, room_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX tool_calls_tenant_run_created_idx
-  ON public.tool_calls (tenant_id, run_id, created_at, id);
+  ON __AGENTPLAT_SCHEMA__.tool_calls (tenant_id, run_id, created_at, id);
 
-CREATE TABLE public.events (
+CREATE TABLE __AGENTPLAT_SCHEMA__.events (
   sequence bigint GENERATED ALWAYS AS IDENTITY,
   tenant_id text NOT NULL,
   id text NOT NULL,
@@ -329,15 +322,15 @@ CREATE TABLE public.events (
   actor_id text,
   PRIMARY KEY (tenant_id, id),
   UNIQUE (tenant_id, sequence),
-  FOREIGN KEY (tenant_id, room_id) REFERENCES public.rooms (tenant_id, id) ON DELETE CASCADE
+  FOREIGN KEY (tenant_id, room_id) REFERENCES __AGENTPLAT_SCHEMA__.rooms (tenant_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX events_tenant_room_sequence_idx
-  ON public.events (tenant_id, room_id, sequence);
+  ON __AGENTPLAT_SCHEMA__.events (tenant_id, room_id, sequence);
 CREATE INDEX events_tenant_type_occurred_idx
-  ON public.events (tenant_id, type, occurred_at DESC);
+  ON __AGENTPLAT_SCHEMA__.events (tenant_id, type, occurred_at DESC);
 
-CREATE FUNCTION public.agentplat_prevent_event_mutation()
+CREATE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_event_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
@@ -347,14 +340,8 @@ END;
 $$;
 
 CREATE TRIGGER events_append_only_update
-  BEFORE UPDATE ON public.events
-  FOR EACH ROW EXECUTE FUNCTION public.agentplat_prevent_event_mutation();
+  BEFORE UPDATE ON __AGENTPLAT_SCHEMA__.events
+  FOR EACH ROW EXECUTE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_event_mutation();
 CREATE TRIGGER events_append_only_delete
-  BEFORE DELETE ON public.events
-  FOR EACH ROW EXECUTE FUNCTION public.agentplat_prevent_event_mutation();
-
-INSERT INTO public.agentplat_schema_migrations (name)
-VALUES ('001_agent_rooms')
-ON CONFLICT (name) DO NOTHING;
-
-COMMIT;
+  BEFORE DELETE ON __AGENTPLAT_SCHEMA__.events
+  FOR EACH ROW EXECUTE FUNCTION __AGENTPLAT_SCHEMA__.agentplat_prevent_event_mutation();

@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/rooms-postgres",
-  "version": "0.2.0-beta.10",
+  "version": "0.2.0-beta.11",
   "description": "PostgreSQL persistence adapter for Agentplat Agent Rooms.",
   "type": "module",
   "license": "Apache-2.0",
@@ -23,11 +23,13 @@
     "type-check": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test tests/*.test.mjs",
     "migrate": "node dist/cli.js up",
+    "migrate:status": "node dist/cli.js status",
     "migrate:down": "node dist/cli.js down",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "@agentplat/core": "workspace:^",
+    "@agentplat/postgres": "workspace:^",
     "@agentplat/rooms": "workspace:^",
     "pg": "^8.13.1"
   },

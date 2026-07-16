@@ -32,8 +32,10 @@ application-estimated cost guardrails, typed UI capability flags, and the
 
 Use `@agentplat/sessions/http` for a Fetch-compatible stop registry. Its local
 `createMemorySessionRegistry({ ttlMs })` implementation cleans up idle handles,
-and `handleSessionStop` accepts an authorization hook. Implement the exported
-`SessionRegistry` interface to use a shared control channel such as Redis.
+and `handleSessionStop` accepts an authorization hook. Use
+`@agentplat/sessions-redis` for a multi-instance pub/sub control path. The Redis
+adapter stores only owner leases; AbortController remains local to the process
+running the stream.
 
 For browser clients, use `createSessionEventReducer` with
 `subscribeAgentSse` from `@agentplat/streaming`. Sessions can also emit

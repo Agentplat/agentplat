@@ -11,14 +11,18 @@ export interface SessionHandle {
   expiresAt?: number;
 }
 
+export type SessionRegistryResult<T> = T | Promise<T>;
+
 /** Replaceable store for live session stop controls (in-memory, Redis, etc.). */
 export interface SessionRegistry {
-  create(sessionId?: AgentPlatID): SessionHandle;
-  get(sessionId: AgentPlatID): SessionHandle | undefined;
-  stop(sessionId: AgentPlatID, reason?: string): boolean;
-  release(sessionId: AgentPlatID): void;
+  create(sessionId?: AgentPlatID): SessionRegistryResult<SessionHandle>;
+  get(sessionId: AgentPlatID): SessionRegistryResult<SessionHandle | undefined>;
+  stop(sessionId: AgentPlatID, reason?: string): SessionRegistryResult<boolean>;
+  release(sessionId: AgentPlatID): SessionRegistryResult<void>;
   /** Remove expired local controls and return the number removed. */
-  reap(): number;
+  reap(): SessionRegistryResult<number>;
+  /** Release adapter-owned subscriptions or timers without closing app-owned clients. */
+  close?(): SessionRegistryResult<void>;
 }
 
 /** Options for the local in-memory session registry. */
@@ -103,13 +107,15 @@ export interface RegisteredSessionInput {
  * server-owned cooperative stop control. The registry entry is removed when
  * the stream finishes or the client disconnects.
  */
-export function toRegisteredSessionSseResponse<TEvent extends StreamEvent>(
+export async function toRegisteredSessionSseResponse<
+  TEvent extends StreamEvent,
+>(
   request: Request,
   registry: SessionRegistry,
   events: (input: RegisteredSessionInput) => AsyncIterable<TEvent>,
   sessionId?: AgentPlatID
-): Response {
-  const handle = registry.create(sessionId);
+): Promise<Response> {
+  const handle = await registry.create(sessionId);
   return toNextSseResponse(request, async function* (signal) {
     try {
       yield* events({
@@ -118,7 +124,7 @@ export function toRegisteredSessionSseResponse<TEvent extends StreamEvent>(
         stopSignal: handle.stopSignal,
       });
     } finally {
-      registry.release(handle.sessionId);
+      await registry.release(handle.sessionId);
     }
   });
 }
@@ -152,7 +158,7 @@ export async function handleSessionStop(
       return Response.json({ error: 'forbidden' }, { status: 403 });
     }
   }
-  const stopped = registry.stop(sessionId, 'stopped_by_client');
+  const stopped = await registry.stop(sessionId, 'stopped_by_client');
   return Response.json({ sessionId, stopped }, { status: stopped ? 202 : 404 });
 }
 

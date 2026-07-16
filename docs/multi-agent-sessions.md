@@ -324,11 +324,12 @@ return handleSessionStop(request, registry, sessionId, {
 ```
 
 `createMemorySessionRegistry({ ttlMs })` is an explicit alias for the local
-registry and reaps idle handles on each operation. `SessionRegistry` is the
-small interface to implement for Redis or another shared control channel:
-`create`, `get`, `stop`, `release` and `reap`. A distributed adapter must make
-`stop` publish a signal that the process running the stream can receive; merely
-sharing metadata is not sufficient.
+registry and reaps idle handles on each operation. Registry methods accept
+synchronous or asynchronous implementations, so the same HTTP helper works
+with `@agentplat/sessions-redis`. That adapter keeps `AbortController` local to
+the process running the stream, stores a short owner lease and sends stop
+commands through pub/sub. Merely writing controller metadata to a shared store
+cannot cancel a provider request.
 
 The browser controller exposes `abort()` for the first recipe, `stop()` when
 given an authenticated stop callback, `metrics` through `onMetrics`, and

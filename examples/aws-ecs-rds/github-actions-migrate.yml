@@ -1,0 +1,59 @@
+name: Example - migrate existing RDS then deploy ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Immutable image URI already pushed to ECR
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  migrate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/github-agentplat-orders-deploy
+          aws-region: us-east-1
+
+      - name: Register immutable task definition revision
+        run: |
+          sed "s|111122223333.dkr.ecr.us-east-1.amazonaws.com/agentplat-orders:IMAGE_TAG|${{ inputs.image }}|" \
+            examples/aws-ecs-rds/task-definition.json > /tmp/task-definition.json
+          aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text > /tmp/task-definition-arn
+
+      - name: Run one migration task
+        run: |
+          TASK_ARN="$(cat /tmp/task-definition-arn)"
+          TASK_ID="$(aws ecs run-task \
+            --cluster existing-platform \
+            --launch-type FARGATE \
+            --task-definition "$TASK_ARN" \
+            --network-configuration 'awsvpcConfiguration={subnets=[subnet-private-a,subnet-private-b],securityGroups=[sg-agentplat-orders],assignPublicIp=DISABLED}' \
+            --overrides '{"taskRoleArn":"arn:aws:iam::111122223333:role/ecs-agentplat-orders-migrator","containerOverrides":[{"name":"app","command":["pnpm","db:migrate"]}]}' \
+            --query 'tasks[0].taskArn' \
+            --output text)"
+          aws ecs wait tasks-stopped --cluster existing-platform --tasks "$TASK_ID"
+          EXIT_CODE="$(aws ecs describe-tasks \
+            --cluster existing-platform \
+            --tasks "$TASK_ID" \
+            --query 'tasks[0].containers[?name==`app`].exitCode | [0]' \
+            --output text)"
+          test "$EXIT_CODE" = "0"
+
+      - name: Deploy only after migration succeeds
+        run: |
+          aws ecs update-service \
+            --cluster existing-platform \
+            --service agentplat-orders \
+            --task-definition "$(cat /tmp/task-definition-arn)"
+          aws ecs wait services-stable \
+            --cluster existing-platform \
+            --services agentplat-orders

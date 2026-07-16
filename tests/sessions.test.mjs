@@ -649,7 +649,7 @@ test('browser controller exports completed history and invokes a soft-stop callb
 
 test('session registry provides cooperative stop handles and removes completed streams', async () => {
   const registry = createSessionRegistry({ idGenerator: () => 'session-c' });
-  const response = toRegisteredSessionSseResponse(
+  const response = await toRegisteredSessionSseResponse(
     new Request('http://localhost/api/simulate'),
     registry,
     async function* ({ sessionId, stopSignal }) {

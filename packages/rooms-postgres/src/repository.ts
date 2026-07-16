@@ -27,10 +27,32 @@ import type {
   RoomTask,
   ToolCall,
 } from '@agentplat/rooms';
-import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import {
+  defaultPostgresSchema,
+  normalizePostgresIdentifier,
+  quotePostgresIdentifier,
+} from '@agentplat/postgres';
+import type { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
-type Database = Pool | PoolClient;
+interface Database {
+  query<R extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[]
+  ): Promise<QueryResult<R>>;
+}
 type Row = QueryResultRow & Record<string, unknown>;
+
+function scopedDatabase(database: Pool | PoolClient, schema: string): Database {
+  const prefix = `${quotePostgresIdentifier(schema)}.`;
+  return {
+    query<R extends QueryResultRow = QueryResultRow>(
+      text: string,
+      values?: unknown[]
+    ) {
+      return database.query<R>(text.replaceAll('public.', prefix), values);
+    },
+  };
+}
 
 function iso(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
@@ -544,9 +566,10 @@ class PostgresRoomTransaction
 {
   constructor(
     client: PoolClient,
-    private readonly tenantId: AgentPlatID
+    private readonly tenantId: AgentPlatID,
+    schema: string
   ) {
-    super(client, tenantId, true);
+    super(scopedDatabase(client, schema), tenantId, true);
   }
 
   private assertEntityTenant(entity: { tenantId: AgentPlatID }): void {
@@ -1049,8 +1072,18 @@ export class PostgresRoomRepository
   extends PostgresRoomReader
   implements RoomRepository
 {
-  constructor(private readonly pool: Pool) {
-    super(pool);
+  private readonly schema: string;
+
+  constructor(
+    private readonly pool: Pool,
+    options: PostgresRoomRepositoryOptions = {}
+  ) {
+    const schema = normalizePostgresIdentifier(
+      options.schema ?? defaultPostgresSchema,
+      'schema'
+    );
+    super(scopedDatabase(pool, schema));
+    this.schema = schema;
   }
 
   override async getRoomState(
@@ -1060,10 +1093,10 @@ export class PostgresRoomRepository
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const state = await new PostgresRoomReader(client, tenantId).getRoomState(
-        tenantId,
-        roomId
-      );
+      const state = await new PostgresRoomReader(
+        scopedDatabase(client, this.schema),
+        tenantId
+      ).getRoomState(tenantId, roomId);
       await client.query('COMMIT');
       return state;
     } catch (error) {
@@ -1084,7 +1117,9 @@ export class PostgresRoomRepository
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const result = await work(new PostgresRoomTransaction(client, tenantId));
+      const result = await work(
+        new PostgresRoomTransaction(client, tenantId, this.schema)
+      );
       await client.query('COMMIT');
       return result;
     } catch (error) {
@@ -1094,4 +1129,8 @@ export class PostgresRoomRepository
       client.release();
     }
   }
+}
+
+export interface PostgresRoomRepositoryOptions {
+  schema?: string;
 }

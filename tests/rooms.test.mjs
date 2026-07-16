@@ -5,6 +5,7 @@ import { InMemoryEventBus } from '@agentplat/events';
 import {
   BoundedContextBuilder,
   InMemoryRoomRepository,
+  promoteSessionToRoom,
   RoomService,
 } from '@agentplat/rooms';
 import { createMockRuntime } from '@agentplat/runtime-mock';
@@ -640,4 +641,105 @@ test('a slow started-event publisher cannot cause duplicate runtime execution', 
   assert.equal(runtimeCalls, 1);
   assert.equal(second.status, 'completed');
   await assert.rejects(first, (error) => error.code === 'CONFLICT');
+});
+
+test('promotes a completed Session transcript through existing Room models', async () => {
+  const { service } = fixture();
+  const promotion = await promoteSessionToRoom(service, {
+    tenantId: 'tenant-a',
+    speakers: [
+      {
+        id: 'buyer',
+        name: 'Buyer',
+        instructions: 'Negotiate',
+        platform: 'mock',
+      },
+    ],
+    session: {
+      sessionId: 'session-1',
+      status: 'completed',
+      stopReason: 'max_rounds',
+      roundsCompleted: 1,
+      turnsCompleted: 1,
+      history: [
+        {
+          speakerId: 'buyer',
+          speakerName: 'Buyer',
+          content: 'Offer accepted',
+          round: 1,
+          turn: 1,
+          createdAt: '2026-07-14T11:00:00.000Z',
+        },
+      ],
+      usage: {
+        inputTokens: 2,
+        outputTokens: 2,
+        totalTokens: 4,
+        reportedTurns: 1,
+      },
+      durationMs: 10,
+    },
+    room: {
+      id: 'promoted-room',
+      title: 'Negotiation review',
+      goal: 'Review the simulated agreement',
+    },
+  });
+
+  const state = await service.getRoomState('tenant-a', promotion.room.id);
+  assert.equal(state.room.metadata.sourceSessionId, 'session-1');
+  assert.equal(state.participants[0].metadata.sourceSpeakerId, 'buyer');
+  assert.equal(state.messages[0].content, 'Offer accepted');
+  assert.equal(state.messages[0].metadata.sourceTurn, 1);
+});
+
+test('Session promotion rolls back the whole Room when transcript import fails', async () => {
+  const { service, repository } = fixture();
+  await assert.rejects(
+    promoteSessionToRoom(service, {
+      tenantId: 'tenant-a',
+      speakers: [
+        {
+          id: 'agent',
+          name: 'Agent',
+          instructions: 'Simulate',
+          platform: 'mock',
+        },
+      ],
+      session: {
+        sessionId: 'session-rollback',
+        status: 'completed',
+        stopReason: 'max_rounds',
+        roundsCompleted: 1,
+        turnsCompleted: 2,
+        history: [1, 2].map((turn) => ({
+          speakerId: 'agent',
+          speakerName: 'Agent',
+          content: `Turn ${turn}`,
+          round: 1,
+          turn,
+          createdAt: '2026-07-14T11:00:00.000Z',
+        })),
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          reportedTurns: 0,
+        },
+        durationMs: 1,
+      },
+      room: {
+        id: 'rolled-back-promotion',
+        title: 'Should roll back',
+        goal: 'Prove atomicity',
+      },
+      messageId: () => 'duplicate-message',
+    }),
+    (error) => error.code === 'CONFLICT'
+  );
+
+  assert.equal(
+    await repository.getRoom('tenant-a', 'rolled-back-promotion'),
+    undefined
+  );
 });
