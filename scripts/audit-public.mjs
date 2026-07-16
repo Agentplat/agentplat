@@ -19,21 +19,12 @@ const scanRoots = [
   'scripts',
 ];
 const ignoredDirectories = new Set(['.git', 'dist', 'node_modules']);
-const blockedTerms = [
-  'Pooshlo',
-  'Trafilea',
-  'Santander',
-  'NoFirmes',
-  'Kidney Connective',
-  'thekidneyconnective',
-  'El Pais',
-  'elpais',
-  'ContactMetrics',
-  'Biodexia',
-  'ClientesReales',
-  'DondeVivir',
-  'Grishen',
-];
+// The private export pipeline can provide comma-separated customer, product,
+// and domain names without publishing those identifiers in this repository.
+const blockedTerms = (process.env.AGENTPLAT_PUBLIC_AUDIT_BLOCKED_TERMS ?? '')
+  .split(',')
+  .map((term) => term.trim())
+  .filter(Boolean);
 const patterns = [
   ['private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/g],
   ['bearer token', /\bBearer\s+[A-Za-z0-9._~+/=-]{30,}/gi],
