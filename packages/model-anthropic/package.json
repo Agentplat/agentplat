@@ -1,13 +1,18 @@
 {
   "name": "@agentplat/model-anthropic",
-  "version": "0.2.0-beta.9",
+  "version": "0.2.0-beta.10",
   "description": "Dependency-light native Anthropic Messages API model adapter for AgentPlat.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
     "README.md"
