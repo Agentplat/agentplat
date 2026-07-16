@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/interop",
-  "version": "0.2.0-beta.11",
+  "version": "0.2.0-beta.12",
   "description": "Framework-neutral MCP and A2A transport mounting for AgentPlat.",
   "type": "module",
   "license": "Apache-2.0",
@@ -13,7 +13,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
@@ -27,7 +30,9 @@
     "tsx": "^4.20.0",
     "typescript": "^5.3.0"
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",
