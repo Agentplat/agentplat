@@ -9,6 +9,9 @@
 - Added strict bounded parsing, deterministic JSON canonicalization,
   closed-schema validation and structural conformance fixtures to
   `@agentplat/mesh-protocol`.
+- Added canonical SHA-256 digests, Ed25519 signing and verification, bounded
+  static key resolution and public verification fixtures to
+  `@agentplat/mesh-crypto`.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.

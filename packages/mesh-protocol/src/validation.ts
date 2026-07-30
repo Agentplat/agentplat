@@ -18,6 +18,7 @@ import {
   type MeshProtocolOptions,
   type MeshProtocolResult,
   type MeshSigningDocument,
+  type MeshTimestampOrder,
   type PeerHelloPayload,
   type PeerPingAckPayload,
   type PeerPingPayload,
@@ -99,6 +100,28 @@ export function canonicalizeMeshJsonBytes(
 ): MeshProtocolResult<Uint8Array> {
   const result = canonicalizeMeshJsonInternal(input, options);
   return result.ok ? success(result.bytes) : result;
+}
+
+/** Compares two timestamps using the exact protocol v0 timestamp profile. */
+export function compareMeshTimestamps(
+  left: string,
+  right: string
+): MeshProtocolResult<MeshTimestampOrder> {
+  try {
+    const leftInstant = parseRfc3339(
+      assertString(left, '$["left"]', 'invalid_timestamp'),
+      '$["left"]'
+    );
+    const rightInstant = parseRfc3339(
+      assertString(right, '$["right"]', 'invalid_timestamp'),
+      '$["right"]'
+    );
+    return success(
+      leftInstant < rightInstant ? -1 : leftInstant > rightInstant ? 1 : 0
+    );
+  } catch (error) {
+    return validationFailure(error);
+  }
 }
 
 /**

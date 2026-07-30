@@ -269,6 +269,9 @@ export interface MeshEnvelopeContext {
   readonly supportedCriticalExtensions?: readonly string[];
 }
 
+/** Exact chronological ordering between two valid protocol timestamps. */
+export type MeshTimestampOrder = -1 | 0 | 1;
+
 /** Generic validation result used across parsing and protocol stages. */
 export type MeshProtocolResult<T> =
   | {

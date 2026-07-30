@@ -1,7 +1,21 @@
-import type {
-  MeshEnvelopeSigner,
-  MeshKeyResolver,
-  MeshVerifyRequest,
+import {
+  DEFAULT_MESH_CRYPTO_POLICY,
+  StaticMeshKeyResolver,
+  WebCryptoMeshEnvelopeSigner,
+  WebCryptoMeshEnvelopeVerifier,
+  computeMeshPayloadHash,
+  createStaticMeshKeyResolver,
+  createWebCryptoMeshEnvelopeSigner,
+  createWebCryptoMeshEnvelopeVerifier,
+  exportMeshEd25519PublicKey,
+  importMeshEd25519PublicKey,
+  signMeshEnvelope,
+  verifyMeshEnvelope,
+  type MeshCryptoPolicy,
+  type MeshEnvelopeSigner,
+  type MeshKeyRecord,
+  type MeshKeyResolver,
+  type MeshVerifyRequest,
 } from '@agentplat/mesh-crypto';
 import type {
   MeshAdmissionPolicy,
@@ -20,6 +34,7 @@ import {
   canonicalizeMeshJsonBytes,
   canonicalizeMeshPayload,
   canonicalizeMeshSigningDocument,
+  compareMeshTimestamps,
   createMeshSigningDocument,
   DEFAULT_MESH_PROTOCOL_LIMITS,
   MESH_PROTOCOL,
@@ -123,6 +138,43 @@ const invariant: MeshSimulationInvariant = {
 const signer: MeshEnvelopeSigner | undefined = undefined;
 const resolver: MeshKeyResolver | undefined = undefined;
 const verifierInput: MeshVerifyRequest | undefined = undefined;
+const contractPrivateKey = {} as CryptoKey;
+const contractPublicKey = {} as CryptoKey;
+const keyRecord: MeshKeyRecord = {
+  tenantId: 'tenant-a',
+  meshId: 'mesh-a',
+  peerId: 'peer-a',
+  keyId: 'key-a',
+  algorithm: MESH_SIGNATURE_ALGORITHM,
+  publicKey: contractPublicKey,
+  validFrom: '2026-01-01T00:00:00Z',
+  validUntil: '2027-01-01T00:00:00Z',
+  status: 'active',
+};
+const cryptoPolicy: MeshCryptoPolicy = DEFAULT_MESH_CRYPTO_POLICY;
+const revocationBypassPolicy: MeshCryptoPolicy = {
+  allowedAlgorithms: [MESH_SIGNATURE_ALGORITHM],
+  // @ts-expect-error live verification exposes no revocation bypass
+  rejectRevokedKeys: false,
+};
+// @ts-expect-error revoked records require an explicit revocation timestamp
+const incompleteRevokedRecord: MeshKeyRecord = {
+  ...keyRecord,
+  status: 'revoked',
+};
+const staticResolver = createStaticMeshKeyResolver([keyRecord]);
+const staticResolverClass: StaticMeshKeyResolver = staticResolver;
+const referenceSigner: WebCryptoMeshEnvelopeSigner =
+  createWebCryptoMeshEnvelopeSigner();
+const referenceVerifier: WebCryptoMeshEnvelopeVerifier =
+  createWebCryptoMeshEnvelopeVerifier();
+const digestPromise = computeMeshPayloadHash({ payload: helloPayload });
+const importedPublicKey = importMeshEd25519PublicKey(new Uint8Array(32));
+const exportedPublicKey = exportMeshEd25519PublicKey(contractPublicKey);
+const signedPromise = signMeshEnvelope({
+  envelope: unsignedHello,
+  privateKey: contractPrivateKey,
+});
 const signedEnvelope: SignedMeshEnvelope | undefined = undefined;
 const envelopeContext: MeshEnvelopeContext = {
   tenantId: 'tenant-a',
@@ -133,6 +185,10 @@ const envelopeContext: MeshEnvelopeContext = {
 const parsedJson = parseMeshJson('{"bounded":true}');
 const canonicalJson = canonicalizeMeshJson({ bounded: true });
 const canonicalBytes = canonicalizeMeshJsonBytes({ bounded: true });
+const timestampOrder = compareMeshTimestamps(
+  '2026-07-29T00:00:00Z',
+  '2026-07-29T00:00:01Z'
+);
 const parsedEnvelope = parseSignedMeshEnvelope(new Uint8Array());
 // @ts-expect-error wire parsing requires bytes so UTF-8 failures stay visible
 parseSignedMeshEnvelope('{}');
@@ -140,6 +196,12 @@ const validatedEnvelope = validateSignedMeshEnvelope({});
 const canonicalPayload = canonicalizeMeshPayload(helloPayload);
 const expectedResult: MeshProtocolResult<unknown> = parsedJson;
 const signedForContract = {} as SignedMeshEnvelope<PeerHelloPayload>;
+const verificationPromise = verifyMeshEnvelope({
+  envelope: signedForContract,
+  resolver: staticResolver,
+  policy: cryptoPolicy,
+  verifiedAt: '2026-07-29T00:00:01Z',
+});
 const signingDocument = createMeshSigningDocument(signedForContract);
 const signingBytes = canonicalizeMeshSigningDocument(signedForContract);
 const contextValidation = validateMeshEnvelopeContext(
@@ -157,10 +219,25 @@ void invariant;
 void signer;
 void resolver;
 void verifierInput;
+void contractPrivateKey;
+void contractPublicKey;
+void keyRecord;
+void cryptoPolicy;
+void revocationBypassPolicy;
+void incompleteRevokedRecord;
+void staticResolverClass;
+void referenceSigner;
+void referenceVerifier;
+void digestPromise;
+void importedPublicKey;
+void exportedPublicKey;
+void signedPromise;
+void verificationPromise;
 void signedEnvelope;
 void envelopeContext;
 void canonicalJson;
 void canonicalBytes;
+void timestampOrder;
 void parsedEnvelope;
 void validatedEnvelope;
 void canonicalPayload;

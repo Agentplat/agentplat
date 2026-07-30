@@ -4,6 +4,7 @@ export {
   canonicalizeMeshJsonBytes,
   canonicalizeMeshPayload,
   canonicalizeMeshSigningDocument,
+  compareMeshTimestamps,
   createMeshSigningDocument,
   parseMeshJson,
   parseSignedMeshEnvelope,

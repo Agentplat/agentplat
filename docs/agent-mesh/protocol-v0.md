@@ -114,6 +114,8 @@ acceptance.
 A local key record binds:
 
 ```text
+tenantId
+meshId
 peerId
 keyId
 algorithm
@@ -123,6 +125,15 @@ validUntil
 status
 revokedAt?
 ```
+
+`validFrom` is inclusive and `validUntil` is exclusive. Live verification uses
+a trusted local verification time rather than the sender-controlled `sentAt`.
+The reference static resolver is bounded at construction, rejects duplicate
+bindings and performs no callbacks or I/O during lookup. Lookup is scoped by
+`tenantId`, `meshId`, `peerId`, `keyId` and `algorithm`; a key from another
+tenant or Mesh cannot satisfy the binding. A revoked record requires a
+`revokedAt` inside its validity interval, while an active record cannot carry
+one.
 
 For live acceptance, a locally revoked key is rejected regardless of the
 sender-controlled `sentAt`. Historical verification may establish that an
