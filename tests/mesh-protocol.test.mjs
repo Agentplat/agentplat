@@ -264,6 +264,410 @@ test('the three Alpha 1 conformance fixtures validate and are deeply frozen', as
   }
 });
 
+test('Alpha 2 discovery and capability fixtures are closed, bounded wire records', async () => {
+  const fixtures = await Promise.all(
+    [
+      'peer-card',
+      'peer-goodbye',
+      'capability-advertise',
+      'capability-withdraw',
+    ].map(async (name) => [name, await loadFixture(name)])
+  );
+
+  for (const [name, fixture] of fixtures) {
+    const result = validateSignedMeshEnvelope(fixture);
+    assert.equal(result.ok, true, name);
+    assert.equal(
+      parseSignedMeshEnvelope(await loadFixtureBytes(name)).ok,
+      true,
+      `${name} wire bytes`
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+  }
+
+  const card = fixtures.find(([name]) => name === 'peer-card')[1];
+  const goodbye = fixtures.find(([name]) => name === 'peer-goodbye')[1];
+  const advertise = fixtures.find(
+    ([name]) => name === 'capability-advertise'
+  )[1];
+  const withdraw = fixtures.find(([name]) => name === 'capability-withdraw')[1];
+
+  for (const fixture of [card, goodbye]) {
+    expectIssue(
+      validateSignedMeshEnvelope({ ...fixture, objectiveId: 'objective-a' }),
+      'invalid_payload',
+      '$["objectiveId"]'
+    );
+  }
+  assert.equal(
+    validateSignedMeshEnvelope({ ...advertise, objectiveId: 'objective-a' }).ok,
+    true
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({ ...withdraw, objectiveId: 'objective-a' }).ok,
+    true
+  );
+  for (const fixture of [goodbye, withdraw]) {
+    const { causationId: _causationId, ...withoutCausation } = fixture;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+  }
+
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...card,
+      payload: { ...card.payload, transportHints: [1] },
+    }),
+    'invalid_payload',
+    '$["payload"]["transportHints"][0]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...card,
+      payload: { ...card.payload, previousPeerCardId: 'card-prior' },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousPeerCardId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...card,
+      payload: { ...card.payload, cardRevision: 2 },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousPeerCardId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...advertise,
+      payload: {
+        ...advertise.payload,
+        previousAdvertisementId: 'advertisement-prior',
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousAdvertisementId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...advertise,
+      payload: { ...advertise.payload, capabilityRevision: 2 },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousAdvertisementId"]'
+  );
+
+  for (const fixture of [card, goodbye, advertise, withdraw]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt:
+          fixture.type === 'peer.goodbye'
+            ? '2026-07-30T00:01:00.000000001Z'
+            : '2026-07-30T00:02:00.000000001Z',
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+  }
+});
+
+test('Alpha 2 discovery and capability boundaries fail closed', async () => {
+  const card = await loadFixture('peer-card');
+  const advertise = await loadFixture('capability-advertise');
+  const withdraw = await loadFixture('capability-withdraw');
+  const expectPayloadIssue = (fixture, payload, path) =>
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, ...payload },
+      }),
+      'invalid_payload',
+      path
+    );
+
+  for (const [fixture, payload, path] of [
+    [card, { subjectPeerId: 'peer-b' }, '$["payload"]["subjectPeerId"]'],
+    [card, { instanceId: 'instance-b' }, '$["payload"]["instanceId"]'],
+    [advertise, { ownerPeerId: 'peer-b' }, '$["payload"]["ownerPeerId"]'],
+    [
+      card,
+      { validUntil: card.payload.validFrom },
+      '$["payload"]["validUntil"]',
+    ],
+    [
+      advertise,
+      { validUntil: advertise.payload.validFrom },
+      '$["payload"]["validUntil"]',
+    ],
+    [
+      card,
+      { protocolVersions: Array.from({ length: 9 }, (_, index) => index) },
+      '$["payload"]["protocolVersions"]',
+    ],
+    [card, { protocolVersions: [1, 0] }, '$["payload"]["protocolVersions"][1]'],
+    [card, { protocolVersions: [1] }, '$["payload"]["protocolVersions"]'],
+    [
+      card,
+      {
+        transportHints: Array.from(
+          { length: 9 },
+          (_, index) => `https://hint-${index}`
+        ),
+      },
+      '$["payload"]["transportHints"]',
+    ],
+    [card, { transportHints: ['z', 'a'] }, '$["payload"]["transportHints"][1]'],
+    [card, { transportHints: [''] }, '$["payload"]["transportHints"][0]'],
+    [
+      card,
+      { transportHints: ['x'.repeat(2_049)] },
+      '$["payload"]["transportHints"][0]',
+    ],
+    [
+      card,
+      {
+        capabilityIds: Array.from(
+          { length: 33 },
+          (_, index) => `capability-${index}`
+        ),
+      },
+      '$["payload"]["capabilityIds"]',
+    ],
+    [
+      card,
+      { capabilityIds: ['capability-b', 'capability-a'] },
+      '$["payload"]["capabilityIds"][1]',
+    ],
+    [
+      advertise,
+      {
+        inputMediaTypes: Array.from(
+          { length: 17 },
+          (_, index) => `application/x-${index}`
+        ),
+      },
+      '$["payload"]["inputMediaTypes"]',
+    ],
+    [
+      advertise,
+      { outputMediaTypes: ['z', 'a'] },
+      '$["payload"]["outputMediaTypes"][1]',
+    ],
+    [
+      advertise,
+      { inputMediaTypes: [''] },
+      '$["payload"]["inputMediaTypes"][0]',
+    ],
+    [
+      advertise,
+      { outputMediaTypes: ['x'.repeat(129)] },
+      '$["payload"]["outputMediaTypes"][0]',
+    ],
+    [
+      advertise,
+      {
+        attributes: Object.fromEntries(
+          Array.from({ length: 33 }, (_, index) => [`key-${index}`, 'value'])
+        ),
+      },
+      '$["payload"]["attributes"]',
+    ],
+    [
+      advertise,
+      { attributes: { '': 'value' } },
+      '$["payload"]["attributes"][""]',
+    ],
+    [
+      advertise,
+      { attributes: { key: '' } },
+      '$["payload"]["attributes"]["key"]',
+    ],
+    [
+      advertise,
+      { attributes: { key: 'x'.repeat(1_025) } },
+      '$["payload"]["attributes"]["key"]',
+    ],
+    [advertise, { capabilityKey: '' }, '$["payload"]["capabilityKey"]'],
+    [advertise, { version: '' }, '$["payload"]["version"]'],
+  ]) {
+    expectPayloadIssue(fixture, payload, path);
+  }
+
+  const utf16Ordered = ['\u{10000}', '\uE000'];
+  assert.equal(utf16Ordered[0] < utf16Ordered[1], true);
+  assert.equal(
+    utf16Ordered[0].codePointAt(0) > utf16Ordered[1].codePointAt(0),
+    true
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...card,
+      payload: { ...card.payload, transportHints: utf16Ordered },
+    }).ok,
+    true
+  );
+  for (const transportHints of [
+    [...utf16Ordered].reverse(),
+    [utf16Ordered[0], utf16Ordered[0]],
+  ]) {
+    expectPayloadIssue(
+      card,
+      { transportHints },
+      '$["payload"]["transportHints"][1]'
+    );
+  }
+
+  for (const [fixture, topic] of [
+    [card, 'capability'],
+    [advertise, 'membership'],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        audience: { kind: 'mesh', topic },
+      }),
+      'invalid_audience',
+      '$["audience"]["topic"]'
+    );
+  }
+
+  const { advertisementId: _advertisementId, ...advertiseWithoutId } =
+    advertise.payload;
+  expectIssue(
+    validateSignedMeshEnvelope({ ...advertise, payload: advertiseWithoutId }),
+    'invalid_payload',
+    '$["payload"]["advertisementId"]'
+  );
+  const { causationId: _causationId, ...withdrawWithoutCausation } = withdraw;
+  expectIssue(
+    validateSignedMeshEnvelope(withdrawWithoutCausation),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+
+  for (const [fixture, revisionKey, predecessorKey, predecessor] of [
+    [card, 'cardRevision', 'previousPeerCardId', 'card-prior'],
+    [
+      advertise,
+      'capabilityRevision',
+      'previousAdvertisementId',
+      'advertisement-prior',
+    ],
+  ]) {
+    assert.equal(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+        payload: {
+          ...fixture.payload,
+          [revisionKey]: 2,
+          [predecessorKey]: predecessor,
+        },
+      }).ok,
+      true
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: {
+          ...fixture.payload,
+          [revisionKey]: 2,
+          [predecessorKey]: predecessor,
+        },
+      }),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+        payload: { ...fixture.payload, [revisionKey]: 2 },
+      }),
+      'invalid_payload',
+      `$["payload"]["${predecessorKey}"]`
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+      }),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+  }
+
+  for (const fixture of [card, advertise]) {
+    assert.equal(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: {
+          ...fixture.payload,
+          validUntil: '2026-07-31T00:00:00.000Z',
+        },
+      }).ok,
+      true
+    );
+    expectPayloadIssue(
+      fixture,
+      { validUntil: '2026-07-31T00:00:00.000000001Z' },
+      '$["payload"]["validUntil"]'
+    );
+  }
+
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...card,
+      causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+      payload: {
+        ...card.payload,
+        cardRevision: 2,
+        previousPeerCardId: card.payload.peerCardId,
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousPeerCardId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...advertise,
+      causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+      payload: {
+        ...advertise.payload,
+        capabilityRevision: 2,
+        previousAdvertisementId: advertise.payload.advertisementId,
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["previousAdvertisementId"]'
+  );
+});
+
+test('parsed capability attributes preserve own prototype-named keys', async () => {
+  const wire = (await loadFixtureText('capability-advertise')).replace(
+    '"attributes": { "language": "en" }',
+    '"attributes": { "__proto__": "preserved" }'
+  );
+  const result = parseSignedMeshEnvelope(utf8Encoder.encode(wire));
+  assert.equal(result.ok, true);
+  assert.equal(
+    Object.hasOwn(result.value.payload.attributes, '__proto__'),
+    true
+  );
+  assert.equal(result.value.payload.attributes.__proto__, 'preserved');
+});
+
 test('envelopes and nested protocol objects use closed schemas', async () => {
   const hello = await loadFixture('peer-hello');
   const { payload: _payload, ...helloWithoutPayload } = hello;
@@ -316,8 +720,9 @@ test('envelopes and nested protocol objects use closed schemas', async () => {
   expectIssue(
     validateSignedMeshEnvelope({
       ...hello,
-      type: 'peer.card',
-      payload: { type: 'peer.card' },
+      // Reserved families remain unavailable; Alpha 2 makes peer.card valid.
+      type: 'peer.digest',
+      payload: { type: 'peer.digest' },
     }),
     'unsupported_message_type',
     '$["type"]'
@@ -484,6 +889,13 @@ test('message families enforce their audience and causation constraints', async 
     validateSignedMeshEnvelope({
       ...hello,
       audience: { kind: 'peer', peerId: 'peer-b' },
+    }).ok,
+    true
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...hello,
+      objectiveId: 'objective-a',
     }).ok,
     true
   );

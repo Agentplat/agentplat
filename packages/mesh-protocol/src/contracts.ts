@@ -104,6 +104,21 @@ export interface PeerHelloPayload {
   readonly cardRevision: number;
 }
 
+/** Publishes one bounded revision of a peer's discovery card. */
+export interface PeerCardPayload {
+  readonly type: 'peer.card';
+  readonly peerCardId: string;
+  readonly cardRevision: number;
+  readonly subjectPeerId: string;
+  readonly instanceId: string;
+  readonly protocolVersions: readonly number[];
+  readonly transportHints: readonly string[];
+  readonly capabilityIds: readonly string[];
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly previousPeerCardId?: string;
+}
+
 /** Requests a direct liveness response from the audience peer. */
 export interface PeerPingPayload {
   readonly type: 'peer.ping';
@@ -114,9 +129,51 @@ export interface PeerPingAckPayload {
   readonly type: 'peer.ping_ack';
 }
 
-/** Payload subset implemented by the Alpha 1 vertical slice. */
+/** Retires the sender's current peer card and process instance. */
+export interface PeerGoodbyePayload {
+  readonly type: 'peer.goodbye';
+  readonly peerCardId: string;
+  readonly cardRevision: number;
+  readonly instanceId: string;
+}
+
+/** Publishes one bounded revision of a peer-owned capability. */
+export interface CapabilityAdvertisePayload {
+  readonly type: 'capability.advertise';
+  readonly advertisementId: string;
+  readonly capabilityId: string;
+  readonly capabilityRevision: number;
+  readonly ownerPeerId: string;
+  readonly capabilityKey: string;
+  readonly version: string;
+  readonly variant?: string;
+  readonly inputMediaTypes: readonly string[];
+  readonly outputMediaTypes: readonly string[];
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly maximumConcurrency?: number;
+  readonly maximumPayloadBytes?: number;
+  readonly previousAdvertisementId?: string;
+}
+
+/** Withdraws one specific advertised revision of a capability. */
+export interface CapabilityWithdrawPayload {
+  readonly type: 'capability.withdraw';
+  readonly capabilityId: string;
+  readonly capabilityRevision: number;
+  readonly advertisementId: string;
+}
+
+/** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
-  PeerHelloPayload | PeerPingPayload | PeerPingAckPayload;
+  | PeerHelloPayload
+  | PeerCardPayload
+  | PeerPingPayload
+  | PeerPingAckPayload
+  | PeerGoodbyePayload
+  | CapabilityAdvertisePayload
+  | CapabilityWithdrawPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

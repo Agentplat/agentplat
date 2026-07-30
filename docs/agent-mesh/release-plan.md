@@ -33,6 +33,11 @@ Milestone 0 is not published by itself.
 - leases, epochs, fencing and reassignment;
 - crash, loss, duplicate, reorder and partition scenarios.
 
+The detailed scope, invariants and implementation increments are in the
+[Alpha 2 implementation plan](./alpha-2-implementation-plan.md). Release
+evidence is tracked in the
+[Alpha 2 acceptance checklist](./alpha-2-acceptance-checklist.md).
+
 ### `0.3.0-alpha.3`: inference and actions
 
 - `@agentplat/inference-control`;

@@ -39,9 +39,7 @@ import {
   type MeshSimulationInvariant,
   type MeshSimulationKernel,
 } from '@agentplat/mesh-sim';
-import type {
-  MeshSimulationEventInput,
-} from '@agentplat/mesh-sim';
+import type { MeshSimulationEventInput } from '@agentplat/mesh-sim';
 import {
   canonicalizeMeshJson,
   canonicalizeMeshJsonBytes,
@@ -58,8 +56,13 @@ import {
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
   type MeshEnvelopeContext,
+  type MeshMessagePayload,
   type MeshProtocolResult,
+  type PeerCardPayload,
+  type PeerGoodbyePayload,
   type PeerHelloPayload,
+  type CapabilityAdvertisePayload,
+  type CapabilityWithdrawPayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -71,6 +74,90 @@ const helloPayload: PeerHelloPayload = {
   peerCardId: 'card-a',
   cardRevision: 1,
 };
+
+const peerCardPayload: PeerCardPayload = {
+  type: 'peer.card',
+  peerCardId: 'card-a',
+  cardRevision: 1,
+  subjectPeerId: 'peer-a',
+  instanceId: 'instance-a',
+  protocolVersions: [0],
+  transportHints: ['https://peer-a.example.test/mesh'],
+  capabilityIds: ['capability-a'],
+  validFrom: '2026-07-30T00:00:00.000Z',
+  validUntil: '2026-07-30T00:02:00.000Z',
+};
+
+const peerGoodbyePayload: PeerGoodbyePayload = {
+  type: 'peer.goodbye',
+  peerCardId: 'card-a',
+  cardRevision: 1,
+  instanceId: 'instance-a',
+};
+
+const capabilityAdvertisePayload: CapabilityAdvertisePayload = {
+  type: 'capability.advertise',
+  advertisementId: 'advertisement-a',
+  capabilityId: 'capability-a',
+  capabilityRevision: 1,
+  ownerPeerId: 'peer-a',
+  capabilityKey: 'summarize',
+  version: 'v1',
+  inputMediaTypes: ['text/plain'],
+  outputMediaTypes: ['text/plain'],
+  attributes: { language: 'en' },
+  validFrom: '2026-07-30T00:00:00.000Z',
+  validUntil: '2026-07-30T00:02:00.000Z',
+  maximumConcurrency: 1,
+  maximumPayloadBytes: 1024,
+};
+
+const capabilityWithdrawPayload: CapabilityWithdrawPayload = {
+  type: 'capability.withdraw',
+  capabilityId: 'capability-a',
+  capabilityRevision: 1,
+  advertisementId: 'advertisement-a',
+};
+
+const invalidPeerCardType: PeerCardPayload = {
+  ...peerCardPayload,
+  // @ts-expect-error closed discriminant rejects another payload family
+  type: 'peer.ping',
+};
+// @ts-expect-error peer goodbye must name its Peer Card
+const incompletePeerGoodbye: PeerGoodbyePayload = {
+  type: 'peer.goodbye',
+  cardRevision: 1,
+  instanceId: 'instance-a',
+};
+const invalidCapabilityRevision: CapabilityAdvertisePayload = {
+  ...capabilityAdvertisePayload,
+  // @ts-expect-error capability revisions are numeric scalars
+  capabilityRevision: '1',
+};
+// @ts-expect-error withdrawal requires the accepted advertisement identifier
+const incompleteCapabilityWithdraw: CapabilityWithdrawPayload = {
+  type: 'capability.withdraw',
+  capabilityId: 'capability-a',
+  capabilityRevision: 1,
+};
+
+function implementedPayloadType(payload: MeshMessagePayload): string {
+  switch (payload.type) {
+    case 'peer.hello':
+    case 'peer.card':
+    case 'peer.ping':
+    case 'peer.ping_ack':
+    case 'peer.goodbye':
+    case 'capability.advertise':
+    case 'capability.withdraw':
+      return payload.type;
+    default: {
+      const exhaustive: never = payload;
+      return exhaustive;
+    }
+  }
+}
 
 const unsignedHello: UnsignedMeshEnvelope<PeerHelloPayload> = {
   protocol: MESH_PROTOCOL,
@@ -258,6 +345,7 @@ const simulationReplayPromise = simulationRunPromise.then((trace) =>
 );
 
 void unsignedHello;
+void implementedPayloadType;
 void admissionPolicy;
 void DEFAULT_MESH_PROTOCOL_LIMITS;
 void THREE_PEER_SCENARIO_IDS;

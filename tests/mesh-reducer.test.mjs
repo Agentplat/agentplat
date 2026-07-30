@@ -703,6 +703,38 @@ test('logical time cannot regress before cryptographic work', async () => {
   assert.equal(verifierCalls, 0);
 });
 
+test('Alpha 2 protocol records stop at the runtime boundary until enabled', async () => {
+  const state = runningState();
+  const envelope = await signedEnvelope(
+    'capability.advertise',
+    1,
+    messageId(98),
+    {
+      expiresAt: '2026-07-30T00:02:00Z',
+      payload: {
+        type: 'capability.advertise',
+        advertisementId: 'advertisement-a',
+        capabilityId: 'capability-a',
+        capabilityRevision: 1,
+        ownerPeerId: 'peer-a',
+        capabilityKey: 'summarize',
+        version: 'v1',
+        inputMediaTypes: ['text/plain'],
+        outputMediaTypes: ['text/plain'],
+        attributes: { language: 'en' },
+        validFrom: '2026-07-30T00:00:00Z',
+        validUntil: '2026-07-30T00:02:00Z',
+      },
+    }
+  );
+
+  expectRejected(
+    await process(state, envelope),
+    'unsupported_message_type',
+    state
+  );
+});
+
 test('admission and authority failures preserve the original state', async () => {
   const cases = [
     {
