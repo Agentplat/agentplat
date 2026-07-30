@@ -377,7 +377,7 @@ immediately preceding domain record where the matrix requires causation.
 | `work.result`                 | current Work Item revision and assignment epoch                          | accepted `work.accept` and applicable checkpoint     |     lesser of 5 minutes or remaining lease | Immutable result; later verification or evidence may accept or contest it without rewriting it            |
 | `work.release`                | current Work Item revision and assignment epoch                          | accepted `work.accept` or latest `lease.renew` ID    |                                  2 minutes | Appends release; a new assignment requires a higher epoch                                                 |
 | `work.cancel`                 | current Work Item revision and assignment epoch                          | current `work.award`, `work.accept` or lease ID      |                                  2 minutes | Appends cancellation; it does not erase completed effects or evidence                                     |
-| `lease.renew`                 | current Work Item revision and assignment epoch                          | current award or preceding lease ID                  |    lesser of 30 seconds or remaining lease | Appends a bounded lease extension under Objective policy                                                  |
+| `lease.renew`                 | current Work Item revision and assignment epoch                          | accepted `work.accept` or preceding renewal envelope |    lesser of 30 seconds or remaining lease | Appends a bounded lease extension under Objective policy                                                  |
 | `lease.takeover_proposal`     | proposed epoch strictly greater than current epoch                       | expired lease or latest lease certificate ID         |                                   1 minute | Immutable proposal                                                                                        |
 | `lease.vote`                  | proposed epoch from takeover proposal                                    | accepted takeover proposal ID                        |                                   1 minute | One immutable vote per witness, Work Item and proposed epoch; conflicting votes are equivocation evidence |
 | `lease.certificate`           | certified epoch strictly greater than current epoch                      | takeover proposal and required vote IDs              |                                   1 minute | Immutable certificate; only a later valid certificate can supersede its epoch                             |
@@ -427,6 +427,24 @@ authorization and causal resolution are stateful: pending cancellation names
 the current accepted `work.award`, while active cancellation and release name
 the accepted `work.accept` or latest accepted `lease.renew`. Current authority,
 lease, terminal state, idempotency and budget accounting also remain stateful.
+
+`lease.renew` is an accepted-assignment record carrying the same authority
+fields as execution records. Its `leaseExpiresAt` names the currently accepted
+lease; `renewedLeaseExpiresAt` is a strictly later proposed expiry, with a
+structural extension ceiling of 24 hours. It adds a stable `leaseRenewalId` and
+positive `leaseRenewalSequence`. Sequence one omits
+`previousLeaseRenewalId`; every later sequence requires a different predecessor
+ID. The assignee self-binds as sender, delivery is direct, causation is required,
+the Objective header must match, and TTL is at most the lesser of 30 seconds and
+the remaining current lease.
+
+The first renewal's causation resolves to the accepted `work.accept`; later
+renewals resolve to the immediately preceding renewal envelope for that
+recipient, while `previousLeaseRenewalId` identifies the shared logical record.
+The wire validator does not authorize recipients or prove that the declared
+current expiry, predecessor, sequence, assignment authority or lease is current.
+It also does not enforce the Work deadline, the accepted Objective's lower
+duration/count limits, terminality or idempotency; those are reducer rules.
 
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown

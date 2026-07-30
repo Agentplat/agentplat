@@ -424,6 +424,210 @@ test('Alpha 2 Work Release and Cancel fixtures are closed direct records', async
   );
 });
 
+test('Alpha 2 Lease Renewal fixture extends one current lease fail-closed', async () => {
+  const renewal = await loadFixture('lease-renew');
+  const parsed = parseSignedMeshEnvelope(await loadFixtureBytes('lease-renew'));
+  assert.equal(parsed.ok, true);
+  assert.equal(Object.isFrozen(parsed.value), true);
+  assert.equal(Object.isFrozen(parsed.value.payload), true);
+  assert.equal(validateSignedMeshEnvelope(renewal).ok, true);
+
+  for (const [envelope, code, path] of [
+    [
+      {
+        ...renewal,
+        audience: { kind: 'mesh', topic: 'work' },
+      },
+      'invalid_audience',
+      '$["audience"]',
+    ],
+    [
+      {
+        ...renewal,
+        sender: { peerId: 'peer-other', instanceId: 'instance-other' },
+      },
+      'invalid_payload',
+      '$["payload"]["assigneePeerId"]',
+    ],
+    [
+      {
+        ...renewal,
+        objectiveId: 'objective-other',
+      },
+      'invalid_payload',
+      '$["objectiveId"]',
+    ],
+    [
+      {
+        ...renewal,
+        payload: { ...renewal.payload, unexpected: true },
+      },
+      'invalid_payload',
+      '$["payload"]["unexpected"]',
+    ],
+    [
+      {
+        ...renewal,
+        payload: {
+          ...renewal.payload,
+          fencingToken: 'different-authority',
+        },
+      },
+      'invalid_payload',
+      '$["payload"]["fencingToken"]',
+    ],
+  ]) {
+    expectIssue(validateSignedMeshEnvelope(envelope), code, path);
+  }
+
+  const { causationId: _causationId, ...withoutCausation } = renewal;
+  expectIssue(
+    validateSignedMeshEnvelope(withoutCausation),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      expiresAt: new Date(
+        Date.parse(renewal.sentAt) + 30_000 + 1
+      ).toISOString(),
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        leaseExpiresAt: renewal.sentAt,
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["leaseExpiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      expiresAt: new Date(Date.parse(renewal.sentAt) + 30_000).toISOString(),
+      payload: {
+        ...renewal.payload,
+        leaseExpiresAt: new Date(
+          Date.parse(renewal.sentAt) + 29_999
+        ).toISOString(),
+      },
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        renewedLeaseExpiresAt: renewal.payload.leaseExpiresAt,
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["renewedLeaseExpiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        leaseRenewalId: '',
+      },
+    }),
+    'invalid_identifier',
+    '$["payload"]["leaseRenewalId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        renewedLeaseExpiresAt: 'not-a-timestamp',
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["renewedLeaseExpiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        renewedLeaseExpiresAt: new Date(
+          Date.parse(renewal.payload.leaseExpiresAt) + 24 * 60 * 60 * 1_000 + 1
+        ).toISOString(),
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["renewedLeaseExpiresAt"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      payload: {
+        ...renewal.payload,
+        renewedLeaseExpiresAt: new Date(
+          Date.parse(renewal.payload.leaseExpiresAt) + 24 * 60 * 60 * 1_000
+        ).toISOString(),
+      },
+    }).ok,
+    true,
+    'the global 24-hour extension boundary is inclusive'
+  );
+
+  for (const [payload, path] of [
+    [{ leaseRenewalSequence: 0 }, '$["payload"]["leaseRenewalSequence"]'],
+    [{ leaseRenewalSequence: 101 }, '$["payload"]["leaseRenewalSequence"]'],
+    [
+      {
+        previousLeaseRenewalId: 'lease-renewal-previous',
+      },
+      '$["payload"]["previousLeaseRenewalId"]',
+    ],
+    [
+      {
+        leaseRenewalSequence: 2,
+      },
+      '$["payload"]["previousLeaseRenewalId"]',
+    ],
+    [
+      {
+        leaseRenewalSequence: 2,
+        previousLeaseRenewalId: renewal.payload.leaseRenewalId,
+      },
+      '$["payload"]["previousLeaseRenewalId"]',
+    ],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...renewal,
+        payload: { ...renewal.payload, ...payload },
+      }),
+      'invalid_payload',
+      path
+    );
+  }
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...renewal,
+      causationId: 'IIIIIIIIIIIIIIIIIIIIIA',
+      payload: {
+        ...renewal.payload,
+        leaseRenewalSequence: 2,
+        previousLeaseRenewalId: 'lease-renewal-previous',
+      },
+    }).ok,
+    true,
+    'later renewal structurally names its stable predecessor'
+  );
+});
+
 test('strict JSON parsing rejects ambiguous and malformed documents', () => {
   for (const input of [
     '',

@@ -449,6 +449,15 @@ export type WorkCancelPayload = WorkAssignmentAuthorityFields & {
       }
   );
 
+/** Extends one accepted assignment lease without changing its authority. */
+export interface LeaseRenewPayload extends WorkExecutionAuthorityFields {
+  readonly type: 'lease.renew';
+  readonly leaseRenewalId: string;
+  readonly leaseRenewalSequence: number;
+  readonly previousLeaseRenewalId?: string;
+  readonly renewedLeaseExpiresAt: string;
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -470,7 +479,8 @@ export type MeshMessagePayload =
   | WorkCheckpointPayload
   | WorkResultPayload
   | WorkReleasePayload
-  | WorkCancelPayload;
+  | WorkCancelPayload
+  | LeaseRenewPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

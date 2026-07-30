@@ -101,6 +101,7 @@ Alpha 2 introduces bounded identifiers for:
 - bid, award and assignment authority;
 - progress, checkpoint and result;
 - release and cancellation;
+- lease renewal;
 - takeover proposal, vote and recovery certificate.
 
 Receivers deduplicate envelopes by `messageId` and logical records by their
@@ -553,6 +554,14 @@ duplicate or reordered records produce the same projection.
 - bind all execution records to epoch and fencing token;
 - reject stale, future, conflicting and expired authority;
 - expose redacted transition and rejection events.
+
+Wire conformance for renewal covers a closed accepted-assignment payload,
+stable renewal IDs and predecessor sequences, assignee self-binding, direct
+audience, Objective-header equality, mandatory causation, a positive bounded
+lease extension and the lesser-of-30-seconds-or-current-lease TTL. Stateful
+tests must separately cover recipient authorization, accepted causal records,
+the exact current lease/authority/sequence, Work and Objective deadlines,
+Objective duration/count policy, terminality and idempotency.
 
 Exit criterion: no stale or expired executor record changes Work Item, journal
 or budget state.
