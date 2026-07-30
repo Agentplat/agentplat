@@ -829,6 +829,109 @@ test('Alpha 2 Lease Takeover Proposal fixture freezes recovery intent', async ()
   );
 });
 
+test('Alpha 2 Lease Vote fixture freezes one witness endorsement', async () => {
+  const vote = await loadFixture('lease-vote');
+  const parsed = parseSignedMeshEnvelope(await loadFixtureBytes('lease-vote'));
+  assert.equal(parsed.ok, true);
+  assert.equal(Object.isFrozen(parsed.value), true);
+  assert.equal(Object.isFrozen(parsed.value.payload), true);
+  assert.equal(validateSignedMeshEnvelope(vote).ok, true);
+
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...vote,
+      audience: { kind: 'peer', peerId: 'peer-c' },
+    }).ok,
+    true,
+    'recipient recovery-participant authorization is stateful'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...vote,
+      causationId: 'AAAAAAAAAAAAAAAAAAAAAA',
+    }).ok,
+    true,
+    'accepted proposal causation is resolved from local state'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...vote,
+      sentAt: '2026-07-30T00:59:59.000Z',
+      expiresAt: '2026-07-30T01:00:59.000Z',
+    }).ok,
+    true,
+    'trusted receiver state, not sender-declared time, decides vote eligibility'
+  );
+
+  for (const [envelope, code, path] of [
+    [
+      {
+        ...vote,
+        audience: { kind: 'mesh', topic: 'work' },
+      },
+      'invalid_audience',
+      '$["audience"]',
+    ],
+    [
+      {
+        ...vote,
+        sender: { peerId: 'peer-other', instanceId: 'instance-other' },
+      },
+      'invalid_payload',
+      '$["payload"]["witnessPeerId"]',
+    ],
+    [
+      {
+        ...vote,
+        objectiveId: 'objective-other',
+      },
+      'invalid_payload',
+      '$["objectiveId"]',
+    ],
+    [
+      {
+        ...vote,
+        payload: { ...vote.payload, decision: 'approve' },
+      },
+      'invalid_payload',
+      '$["payload"]["decision"]',
+    ],
+  ]) {
+    expectIssue(validateSignedMeshEnvelope(envelope), code, path);
+  }
+
+  const { causationId: _causationId, ...withoutCausation } = vote;
+  expectIssue(
+    validateSignedMeshEnvelope(withoutCausation),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...vote,
+      expiresAt: new Date(Date.parse(vote.sentAt) + 60_000 + 1).toISOString(),
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+
+  for (const [payload, path] of [
+    [{ leaseVoteId: '' }, '$["payload"]["leaseVoteId"]'],
+    [{ takeoverProposalId: '' }, '$["payload"]["takeoverProposalId"]'],
+    [{ witnessPeerId: '' }, '$["payload"]["witnessPeerId"]'],
+    [{ objectiveId: '' }, '$["payload"]["objectiveId"]'],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...vote,
+        payload: { ...vote.payload, ...payload },
+      }),
+      'invalid_identifier',
+      path
+    );
+  }
+});
+
 test('strict JSON parsing rejects ambiguous and malformed documents', () => {
   for (const input of [
     '',

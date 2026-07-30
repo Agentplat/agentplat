@@ -10,6 +10,7 @@ import {
   type CapabilityWithdrawPayload,
   type LeaseRenewPayload,
   type LeaseTakeoverProposalPayload,
+  type LeaseVotePayload,
   type MeshAudience,
   type MeshAudienceTopic,
   type MeshEnvelope,
@@ -1009,6 +1010,9 @@ function validatePayload(
   }
   if (type === 'lease.takeover_proposal') {
     return validateLeaseTakeoverProposal(input, limits);
+  }
+  if (type === 'lease.vote') {
+    return validateLeaseVote(input, limits);
   }
   return fail('unsupported_message_type', '$["type"]');
 }
@@ -2113,6 +2117,48 @@ function validateLeaseTakeoverProposal(
   };
 }
 
+function validateLeaseVote(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): LeaseVotePayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'leaseVoteId',
+      'objectiveId',
+      'takeoverProposalId',
+      'type',
+      'witnessPeerId',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  return {
+    type: assertPayloadType(payload.type, 'lease.vote'),
+    leaseVoteId: assertIdentifier(
+      payload.leaseVoteId,
+      '$["payload"]["leaseVoteId"]',
+      limits
+    ),
+    takeoverProposalId: assertIdentifier(
+      payload.takeoverProposalId,
+      '$["payload"]["takeoverProposalId"]',
+      limits
+    ),
+    witnessPeerId: assertIdentifier(
+      payload.witnessPeerId,
+      '$["payload"]["witnessPeerId"]',
+      limits
+    ),
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
+  };
+}
+
 function validateWorkExecutionAuthorityFields(
   payload: Record<string, unknown>,
   limits: Readonly<MeshProtocolLimits>
@@ -2768,6 +2814,11 @@ function validateMessageSpecificEnvelope(
     payload.proposerPeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["proposerPeerId"]');
+  } else if (
+    payload.type === 'lease.vote' &&
+    payload.witnessPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["witnessPeerId"]');
   }
 
   if (
@@ -2814,7 +2865,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.release' ||
     type === 'work.cancel' ||
     type === 'lease.renew' ||
-    type === 'lease.takeover_proposal'
+    type === 'lease.takeover_proposal' ||
+    type === 'lease.vote'
   ) {
     if (audience.kind !== 'peer') {
       fail('invalid_audience', '$["audience"]');
@@ -2880,7 +2932,8 @@ function validateMessageSpecificEnvelope(
       type === 'work.release' ||
       type === 'work.cancel' ||
       type === 'lease.renew' ||
-      type === 'lease.takeover_proposal') &&
+      type === 'lease.takeover_proposal' ||
+      type === 'lease.vote') &&
     causationId === undefined
   ) {
     fail('invalid_payload', '$["causationId"]');
@@ -2901,7 +2954,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.release' ||
     type === 'work.cancel' ||
     type === 'lease.renew' ||
-    type === 'lease.takeover_proposal'
+    type === 'lease.takeover_proposal' ||
+    type === 'lease.vote'
   ) {
     if (
       objectiveId === undefined ||
@@ -2923,6 +2977,7 @@ function validateMessageSpecificEnvelope(
             | WorkCancelPayload
             | LeaseRenewPayload
             | LeaseTakeoverProposalPayload
+            | LeaseVotePayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -3352,7 +3407,9 @@ function validateLifetime(
   const messageMaximum =
     type === 'peer.ping' || type === 'peer.ping_ack'
       ? 30_000
-      : type === 'peer.goodbye' || type === 'lease.takeover_proposal'
+      : type === 'peer.goodbye' ||
+          type === 'lease.takeover_proposal' ||
+          type === 'lease.vote'
         ? 60_000
         : type === 'objective.announce' || type === 'objective.revise'
           ? 5 * 60_000
@@ -3622,7 +3679,8 @@ function isImplementedMessageType(
     value === 'work.release' ||
     value === 'work.cancel' ||
     value === 'lease.renew' ||
-    value === 'lease.takeover_proposal'
+    value === 'lease.takeover_proposal' ||
+    value === 'lease.vote'
   );
 }
 

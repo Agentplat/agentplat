@@ -57,6 +57,7 @@ import {
   validateSignedMeshEnvelope,
   type LeaseRenewPayload,
   type LeaseTakeoverProposalPayload,
+  type LeaseVotePayload,
   type MeshEnvelopeContext,
   type MeshMessagePayload,
   type MeshProtocolResult,
@@ -365,6 +366,23 @@ const invalidTakeoverProposalEpoch: LeaseTakeoverProposalPayload = {
   // @ts-expect-error proposed epoch is a numeric scalar
   proposedAssignmentEpoch: '2',
 };
+const leaseVotePayload: LeaseVotePayload = {
+  type: 'lease.vote',
+  leaseVoteId: 'lease-vote-a',
+  takeoverProposalId: 'takeover-proposal-a',
+  witnessPeerId: 'peer-c',
+  objectiveId: 'objective-a',
+};
+const invalidLeaseVoteId: LeaseVotePayload = {
+  ...leaseVotePayload,
+  // @ts-expect-error lease vote identifiers are strings
+  leaseVoteId: 1,
+};
+const invalidLeaseVoteType: LeaseVotePayload = {
+  ...leaseVotePayload,
+  // @ts-expect-error lease votes have one closed message type
+  type: 'lease.certificate',
+};
 // @ts-expect-error pending cancellation cannot name an acceptance
 const invalidWorkCancelPending: WorkCancelPayload = {
   ...workCancelPendingPayload,
@@ -557,6 +575,7 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'work.cancel':
     case 'lease.renew':
     case 'lease.takeover_proposal':
+    case 'lease.vote':
       return payload.type;
     default: {
       const exhaustive: never = payload;

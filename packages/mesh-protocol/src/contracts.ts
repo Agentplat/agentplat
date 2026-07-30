@@ -470,6 +470,15 @@ export interface LeaseTakeoverProposalPayload extends WorkExecutionAuthorityFiel
   readonly latestLeaseRenewalId?: string;
 }
 
+/** Endorses one accepted takeover proposal under configured witness authority. */
+export interface LeaseVotePayload {
+  readonly type: 'lease.vote';
+  readonly leaseVoteId: string;
+  readonly takeoverProposalId: string;
+  readonly witnessPeerId: string;
+  readonly objectiveId: string;
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -493,7 +502,8 @@ export type MeshMessagePayload =
   | WorkReleasePayload
   | WorkCancelPayload
   | LeaseRenewPayload
-  | LeaseTakeoverProposalPayload;
+  | LeaseTakeoverProposalPayload
+  | LeaseVotePayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

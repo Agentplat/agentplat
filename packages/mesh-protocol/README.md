@@ -46,12 +46,12 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Lease voting and certification, evidence, trust and peer-sync message families
-remain reserved until their closed payload contracts are implemented. They fail
+Lease certification, evidence, trust and peer-sync message families remain
+reserved until their closed payload contracts are implemented. They fail
 explicitly rather than entering a generic payload path. Implemented Objective,
-Work, Lease Renewal and Lease Takeover Proposal records parse, sign and verify
-structurally, but remain explicitly unsupported at the Mesh runtime boundary
-until their reducers and state authorization are implemented.
+Work, Lease Renewal, Lease Takeover Proposal and Lease Vote records parse, sign
+and verify structurally, but remain explicitly unsupported at the Mesh runtime
+boundary until their reducers and state authorization are implemented.
 
 ## Frozen limits
 
@@ -112,6 +112,11 @@ Lease Takeover Proposal envelopes have a one-minute TTL. They require one direct
 peer audience, mandatory causation and Objective-header equality. The trusted
 receiver clock and accepted Objective policy—not sender-declared time—determine
 whether lease expiry plus recovery grace has elapsed.
+
+Lease Vote envelopes also have a one-minute TTL. They self-bind the witness,
+require direct delivery and Objective-header equality, and causally name the
+accepted takeover proposal they endorse. Witness membership and vote
+uniqueness require accepted local state.
 
 Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return
@@ -273,6 +278,24 @@ is current and non-terminal. Those checks require accepted local state and a
 trusted receiver clock. A valid proposal records recovery intent only; it does
 not advance the epoch, grant execution authority, change fencing or reserve
 budget.
+
+## Lease Vote limits
+
+Lease Vote is an affirmative witness endorsement of one accepted takeover
+proposal. Its closed payload contains a stable `leaseVoteId`, the logical
+`takeoverProposalId`, the self-bound `witnessPeerId` and the Objective ID. It
+does not repeat candidate, Work Item, assignment, lease, epoch or fencing
+fields; those are resolved from the causally accepted proposal so that two
+signed snapshots cannot disagree.
+
+The audience is one direct peer, the envelope Objective ID equals the payload
+Objective ID, causation is required and TTL is at most one minute. The parser
+does not establish that causation names the matching accepted proposal, the
+sender belongs to its fixed witness set, the recipient is a recovery
+participant, or the witness has not already endorsed another proposal for the
+same Work Item revision and proposed epoch. Those are stateful reducer checks.
+A vote alone does not advance an epoch, change fencing, grant execution
+authority, activate a candidate or mutate budget.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.
