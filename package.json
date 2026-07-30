@@ -25,12 +25,13 @@
     "example:sessions": "pnpm run build && node examples/multi-agent-session.mjs",
     "example:rooms": "pnpm --dir examples/rooms-api start",
     "audit:public": "node scripts/audit-public.mjs",
+    "audit:public:release": "node scripts/audit-public.mjs --require-terminology-denylist",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "version:set": "node scripts/set-version.mjs",
-    "release:publish": "pnpm run check && node scripts/publish-packages.mjs",
+    "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run build && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:release && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:release && pnpm run verify:pack"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

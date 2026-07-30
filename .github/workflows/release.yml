@@ -18,7 +18,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -27,6 +27,19 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - name: Prepare required public terminology denylist
+        shell: bash
+        env:
+          AGENTPLAT_PUBLIC_DENYLIST: ${{ secrets.AGENTPLAT_PUBLIC_DENYLIST }}
+        run: |
+          if [ -z "${AGENTPLAT_PUBLIC_DENYLIST:-}" ]; then
+            echo "The release terminology denylist secret is required." >&2
+            exit 1
+          fi
+          umask 077
+          denylist_path="${RUNNER_TEMP}/agentplat-public-terminology.txt"
+          printf '%s\n' "${AGENTPLAT_PUBLIC_DENYLIST}" > "${denylist_path}"
+          echo "AGENTPLAT_PUBLIC_DENYLIST_FILE=${denylist_path}" >> "${GITHUB_ENV}"
       - run: pnpm run release:publish
         env:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}

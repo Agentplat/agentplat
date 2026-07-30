@@ -26,6 +26,21 @@ AgentPlat is a downloadable framework for building self-hosted agentic platforms
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
+### Agent Mesh development track
+
+Agent Mesh is the planned public layer for distributed capability discovery,
+work allocation, lease-based recovery, evidence fusion and local inference
+control. It is designed as an additive sibling to Sessions and Rooms: peers
+keep bounded local state and can continue accepted work without a global
+scheduler or always-on control plane.
+
+Milestone 0 defines the architecture, protocol boundaries, threat model,
+compatibility rules and release gates. It does not ship a Mesh runtime yet. See
+the [Agent Mesh glossary](./docs/agent-mesh/glossary.md), [protocol v0
+design](./docs/agent-mesh/protocol-v0.md), [compatibility
+policy](./docs/agent-mesh/compatibility.md) and [release
+plan](./docs/agent-mesh/release-plan.md).
+
 ## Packages
 
 | Package                              | Current public capability                                               |
@@ -33,6 +48,8 @@ Clone this repository to run the complete reference API with Node.js and Postgre
 | `@agentplat/core`                    | IDs, metadata, lifecycle states, tenant context, envelopes and errors.  |
 | `@agentplat/framework`               | High-level composition, safe local defaults and ephemeral quick runs.   |
 | `@agentplat/model`                   | Provider-neutral direct model generation and streaming contracts.       |
+| `@agentplat/model-anthropic`         | Dependency-light Anthropic Messages adapter.                            |
+| `@agentplat/model-gemini`            | Dependency-light Gemini generateContent adapter.                        |
 | `@agentplat/model-openai-compatible` | Dependency-light Chat Completions adapter for compatible servers.       |
 | `@agentplat/rooms`                   | Agent Room domain, lifecycle, policy, context and repository contracts. |
 | `@agentplat/rooms-postgres`          | Durable PostgreSQL repository, migrations and transactional events.     |
@@ -179,7 +196,16 @@ corepack pnpm install
 corepack pnpm run check
 ```
 
-`check` builds every package, type-checks the workspace, runs unit tests, validates release metadata, packs every package and installs the tarballs in an isolated consumer project.
+`check` audits the checkout, removes stale build output, rebuilds every package,
+audits the built tree, type-checks the workspace, runs unit tests and validates
+release metadata. It then audits every package tarball, imports every declared
+export from a package-isolated consumer and runs an aggregate functional smoke
+test.
+
+The intentional publication allowlist is
+[`config/public-packages.json`](./config/public-packages.json). Release,
+versioning and pack-smoke scripts consume this same catalog so adding a
+workspace directory cannot publish a package accidentally.
 
 Package versioning and publishing are documented in [RELEASING.md](./RELEASING.md).
 See [release channels](./docs/release-channels.md) for `next` versus `latest`.
