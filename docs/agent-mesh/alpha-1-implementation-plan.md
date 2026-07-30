@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.1` implementation plan
 
-Status: approved implementation sequence.
+Status: release candidate implemented; registry promotion pending.
 
 This plan turns the Milestone 0 contracts into one reproducible local vertical
 slice. It preserves the existing AgentPlat package behavior while introducing

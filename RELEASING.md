@@ -12,7 +12,7 @@ verification rather than becoming publishable implicitly.
 ## Prepare a version
 
 ```sh
-corepack pnpm version:set 0.2.0-beta.11
+corepack pnpm version:set 0.3.0-alpha.1
 corepack pnpm install
 corepack pnpm run check
 ```
@@ -50,9 +50,16 @@ to it. Authenticate with npm, then publish from a clean `main` checkout:
 ```sh
 npm whoami
 corepack pnpm run release:publish:next
-git tag v0.2.0-beta.11
-git push origin v0.2.0-beta.11
+corepack pnpm run verify:registry-consumer
+git tag v0.3.0-alpha.1
+git push origin v0.3.0-alpha.1
 ```
+
+Do not create the Git tag if the exact-version registry consumer fails. The
+consumer pins the installer to the public registry, uses a fresh package store,
+ignores install scripts, and exposes neither credentials nor host npm
+configuration to downloaded code. It compiles the declarations and replays the
+signed three-peer scenario before the release commit is tagged.
 
 Stable releases use `release:publish`, whose default distribution tag is
 `latest`. The release script rejects publishing a prerelease under `latest` and
@@ -89,3 +96,6 @@ packages` GitHub Actions workflow with the intended distribution tag. After the
 first publication, configure npm Trusted Publishing for the workflow and remove
 long-lived publishing tokens. Never commit a token or place it in package
 metadata.
+
+The Alpha 1 promotion state, evidence and rollback baseline are recorded in the
+[Alpha 1 release checklist](./docs/agent-mesh/alpha-1-release-checklist.md).

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0-alpha.1 - 2026-07-30
+
 - Added a canonical public package catalog shared by release verification,
   versioning, package smoke tests and publishing.
 - Added Agent Mesh architecture decisions, glossary, protocol v0 design, threat

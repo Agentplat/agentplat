@@ -26,17 +26,23 @@ AgentPlat is a downloadable framework for building self-hosted agentic platforms
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
-### Agent Mesh development track
+### Agent Mesh Alpha 1
 
-Agent Mesh is the planned public layer for distributed capability discovery,
-work allocation, lease-based recovery, evidence fusion and local inference
-control. It is designed as an additive sibling to Sessions and Rooms: peers
-keep bounded local state and can continue accepted work without a global
-scheduler or always-on control plane.
+Agent Mesh Alpha 1 is the public local vertical slice for distributed peer
+coordination. It provides bounded immutable peer state, signed envelopes,
+preprovisioned admission, an explicit in-memory loopback transport and
+deterministic simulation with replay. It is an additive sibling to Sessions and
+Rooms and does not change their defaults.
 
-Milestone 0 defines the architecture, protocol boundaries, threat model,
-compatibility rules and release gates. It does not ship a Mesh runtime yet. See
-the [Agent Mesh glossary](./docs/agent-mesh/glossary.md), [protocol v0
+```sh
+pnpm add @agentplat/mesh@next @agentplat/mesh-crypto@next \
+  @agentplat/mesh-protocol@next @agentplat/mesh-sim@next
+```
+
+Capability discovery, distributed work allocation, lease recovery, inference
+control and production network transports remain assigned to later previews.
+See the [Alpha 1 implementation plan](./docs/agent-mesh/alpha-1-implementation-plan.md),
+[Agent Mesh glossary](./docs/agent-mesh/glossary.md), [protocol v0
 design](./docs/agent-mesh/protocol-v0.md), [compatibility
 policy](./docs/agent-mesh/compatibility.md) and [release
 plan](./docs/agent-mesh/release-plan.md).
@@ -64,6 +70,10 @@ plan](./docs/agent-mesh/release-plan.md).
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
+| `@agentplat/mesh`                    | Immutable peer state, inbound coordination and signed loopback.         |
+| `@agentplat/mesh-crypto`             | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
+| `@agentplat/mesh-protocol`           | Strict bounded wire parsing, validation and conformance fixtures.       |
+| `@agentplat/mesh-sim`                | Seeded event scheduling, invariants, trace digests and replay.          |
 | `@agentplat/tools`                   | Tool contracts and an in-memory tool registry.                          |
 | `@agentplat/mcp`                     | MCP server, tool-binding and registry contracts.                        |
 | `@agentplat/events`                  | Event contracts and an in-memory event bus.                             |
@@ -150,7 +160,7 @@ path does not require DynamoDB or the Agent Rooms schema.
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.2.0-beta.11` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.3.0-alpha.1` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants
