@@ -69,14 +69,20 @@ import {
   type WorkBidPayload,
   type WorkAwardPayload,
   type WorkAcceptPayload,
+  type WorkExecutionAuthorityFields,
   type WorkDeclinePayload,
   type WorkOfferPayload,
+  type WorkProgressPayload,
+  type WorkCheckpointPayload,
+  type WorkResultPayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
 
 // This file is compiled, not executed. It freezes the direct-package Alpha 1
-// surface without re-exporting preview Mesh contracts from Framework.
+// surface without re-exporting preview Mesh contracts from Framework. Progress,
+// Checkpoint and Result type assertions are added with their public payload
+// contracts; their recipient and authority rules remain stateful.
 const helloPayload: PeerHelloPayload = {
   type: 'peer.hello',
   peerCardId: 'card-a',
@@ -273,6 +279,82 @@ const workDeclinePayload: WorkDeclinePayload = {
   fencingToken: 'award-a',
   acceptanceDeadline: '2026-07-30T00:15:00.000Z',
 };
+
+const workProgressPayload: WorkProgressPayload = {
+  type: 'work.progress',
+  progressId: 'progress-a',
+  progressSequence: 1,
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  awardId: 'award-a',
+  acceptanceId: 'acceptance-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+  progressSummary: 'The assigned peer has started the summary.',
+};
+const workExecutionAuthority: WorkExecutionAuthorityFields =
+  workProgressPayload;
+
+const workCheckpointPayload: WorkCheckpointPayload = {
+  type: 'work.checkpoint',
+  checkpointId: 'checkpoint-a',
+  checkpointSequence: 1,
+  checkpointDigest: 'sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  awardId: 'award-a',
+  acceptanceId: 'acceptance-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+  checkpointSummary: 'Source selection is complete.',
+};
+
+const workResultPayload: WorkResultPayload = {
+  type: 'work.result',
+  resultId: 'result-a',
+  resultDigest: 'sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  awardId: 'award-a',
+  acceptanceId: 'acceptance-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+  resultSummary: 'A concise summary was produced.',
+};
+// @ts-expect-error checkpoints carry exactly one content representation
+const invalidWorkCheckpointContent: WorkCheckpointPayload = {
+  ...workCheckpointPayload,
+  checkpointReference: 'reference-a',
+};
+// @ts-expect-error results carry exactly one content representation
+const invalidWorkResultContent: WorkResultPayload = {
+  ...workResultPayload,
+  resultReference: 'reference-a',
+};
 const invalidWorkAwardKind: WorkAwardPayload = {
   ...workAwardPayload,
   // @ts-expect-error award authority has a closed discriminant
@@ -365,6 +447,9 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'work.award':
     case 'work.accept':
     case 'work.decline':
+    case 'work.progress':
+    case 'work.checkpoint':
+    case 'work.result':
       return payload.type;
     default: {
       const exhaustive: never = payload;

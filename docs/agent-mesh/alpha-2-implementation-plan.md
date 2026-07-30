@@ -99,7 +99,7 @@ Alpha 2 introduces bounded identifiers for:
 - Objective document;
 - Work Item and offer attempt;
 - bid, award and assignment authority;
-- checkpoint and result;
+- progress, checkpoint and result;
 - takeover proposal, vote and recovery certificate.
 
 Receivers deduplicate envelopes by `messageId` and logical records by their
@@ -533,6 +533,14 @@ Objective, its limits or its local owner authority.
 - implement award preparation, budget reservation, acceptance and decline;
 - implement progress, checkpoint, result, release and cancellation;
 - add timeout and idempotency component scenarios.
+
+Wire conformance for progress, checkpoint and result covers closed payloads,
+sender self-binding, direct audience, Objective-header equality, mandatory
+causation, summary/reference XOR, checkpoint-parent sequence rules and the
+lesser-of-five-minutes-or-remaining-lease TTL. State-machine tests must
+separately cover owner/observer/witness recipient authorization, accepted
+causal records, current authority/epoch/token/lease, checkpoint head and result
+uniqueness.
 
 Exit criterion: a packed three-peer consumer completes one Work Item and
 duplicate or reordered records produce the same projection.

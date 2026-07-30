@@ -26,6 +26,198 @@ const loadFixtureBytes = (name) => readFile(fixtureUrl(name));
 
 const loadFixture = async (name) => JSON.parse(await loadFixtureText(name));
 
+test('Work Progress, Checkpoint and Result fixtures enforce the wire boundary', async () => {
+  const fixtures = await Promise.all(
+    ['work-progress', 'work-checkpoint', 'work-result'].map(async (name) => [
+      name,
+      await loadFixture(name),
+    ])
+  );
+  for (const [name, fixture] of fixtures) {
+    const parsed = parseSignedMeshEnvelope(await loadFixtureBytes(name));
+    assert.equal(parsed.ok, true, `${name} wire bytes`);
+    assert.equal(Object.isFrozen(parsed.value), true);
+    assert.equal(Object.isFrozen(parsed.value.payload), true);
+    assert.equal(validateSignedMeshEnvelope(fixture).ok, true);
+  }
+  const progress = fixtures.find(([name]) => name === 'work-progress')[1];
+  const checkpoint = fixtures.find(([name]) => name === 'work-checkpoint')[1];
+  const result = fixtures.find(([name]) => name === 'work-result')[1];
+
+  for (const fixture of [progress, checkpoint, result]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        audience: { kind: 'mesh', topic: 'work' },
+      }),
+      'invalid_audience',
+      '$["audience"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, assigneePeerId: 'peer-other' },
+      }),
+      'invalid_payload',
+      '$["payload"]["assigneePeerId"]'
+    );
+    const { causationId: _causationId, ...withoutCausation } = fixture;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        objectiveId: 'objective-other',
+      }),
+      'invalid_payload',
+      '$["objectiveId"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt: new Date(
+          Date.parse(fixture.sentAt) + 5 * 60 * 1000 + 1
+        ).toISOString(),
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: {
+          ...fixture.payload,
+          fencingToken: 'different-authority',
+        },
+      }),
+      'invalid_payload',
+      '$["payload"]["fencingToken"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: {
+          ...fixture.payload,
+          leaseExpiresAt: fixture.sentAt,
+        },
+      }),
+      'invalid_payload',
+      '$["payload"]["leaseExpiresAt"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt: new Date(
+          Date.parse(fixture.sentAt) + 60 * 1000
+        ).toISOString(),
+        payload: {
+          ...fixture.payload,
+          leaseExpiresAt: new Date(
+            Date.parse(fixture.sentAt) + 30 * 1000
+          ).toISOString(),
+        },
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+  }
+
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...progress,
+      payload: { ...progress.payload, progressSummary: 'x'.repeat(4097) },
+    }),
+    'invalid_payload',
+    '$["payload"]["progressSummary"]'
+  );
+  for (const payload of [
+    { checkpointSummary: 'x', checkpointReference: 'reference-a' },
+    { checkpointSequence: 2 },
+    { checkpointSequence: 2, previousCheckpointId: 'checkpoint-a' },
+    { previousCheckpointId: 'checkpoint-earlier' },
+    { checkpointDigest: 'sha256:not-canonical' },
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...checkpoint,
+        payload: { ...checkpoint.payload, ...payload },
+      }),
+      'invalid_payload'
+    );
+  }
+  const { checkpointSummary: _checkpointSummary, ...checkpointWithoutSummary } =
+    checkpoint.payload;
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...checkpoint,
+      payload: checkpointWithoutSummary,
+    }),
+    'invalid_payload',
+    '$["payload"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...checkpoint,
+      payload: {
+        ...checkpointWithoutSummary,
+        checkpointReference: 'https://content.example/checkpoint-a',
+      },
+    }).ok,
+    true
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...result,
+      payload: {
+        ...result.payload,
+        resultSummary: 'x',
+        resultReference: 'reference-a',
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]'
+  );
+  const { resultSummary: _resultSummary, ...resultWithoutContent } =
+    result.payload;
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...result,
+      payload: resultWithoutContent,
+    }),
+    'invalid_payload',
+    '$["payload"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...result,
+      payload: { ...result.payload, resultDigest: 'sha256:not-canonical' },
+    }),
+    'invalid_payload',
+    '$["payload"]["resultDigest"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...result,
+      payload: {
+        ...resultWithoutContent,
+        resultReference: 'https://content.example/result-a',
+      },
+    }).ok,
+    true
+  );
+});
+
 function expectIssue(result, code, path) {
   assert.equal(result.ok, false);
   assert.equal(result.issues.length, 1);

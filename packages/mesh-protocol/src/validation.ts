@@ -37,10 +37,16 @@ import {
   type WorkAcceptPayload,
   type WorkAwardFields,
   type WorkAwardPayload,
+  type WorkCheckpointContent,
+  type WorkCheckpointPayload,
   type WorkDeclinePayload,
+  type WorkExecutionAuthorityFields,
   type WorkOfferFields,
   type WorkOfferInput,
   type WorkOfferPayload,
+  type WorkProgressPayload,
+  type WorkResultContent,
+  type WorkResultPayload,
 } from './contracts.js';
 import {
   parseStrictJsonDocument,
@@ -89,6 +95,7 @@ const maximumWorkListBytes = 16_384;
 const maximumCapacityReservationUnits = 1_000_000;
 const maximumWorkBidWindowMs = 60 * 60 * 1_000;
 const maximumWorkDeadlineMs = 30 * 24 * 60 * 60 * 1_000;
+const maximumWorkExecutionLifetimeMs = 5 * 60 * 1_000;
 const knownMessageTypes = new Set<string>(MESH_MESSAGE_TYPES);
 const knownTopics = new Set<string>(MESH_AUDIENCE_TOPICS);
 const utf8Encoder = new TextEncoder();
@@ -977,6 +984,15 @@ function validatePayload(
   if (type === 'work.decline') {
     return validateWorkDecline(input, limits);
   }
+  if (type === 'work.progress') {
+    return validateWorkProgress(input, limits);
+  }
+  if (type === 'work.checkpoint') {
+    return validateWorkCheckpoint(input, limits);
+  }
+  if (type === 'work.result') {
+    return validateWorkResult(input, limits);
+  }
   return fail('unsupported_message_type', '$["type"]');
 }
 
@@ -1558,6 +1574,333 @@ function validateWorkDecline(
   };
 }
 
+function validateWorkProgress(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkProgressPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'progressId',
+      'progressSequence',
+      'progressSummary',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['checkpointId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.progress');
+  const checkpointId =
+    payload.checkpointId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.checkpointId,
+          '$["payload"]["checkpointId"]',
+          limits
+        );
+  return {
+    type: 'work.progress',
+    ...validateWorkExecutionAuthorityFields(payload, limits),
+    progressId: assertIdentifier(
+      payload.progressId,
+      '$["payload"]["progressId"]',
+      limits
+    ),
+    progressSequence: assertPositiveSafeInteger(
+      payload.progressSequence,
+      '$["payload"]["progressSequence"]',
+      'invalid_payload'
+    ),
+    progressSummary: assertBoundedString(
+      payload.progressSummary,
+      '$["payload"]["progressSummary"]',
+      maximumWorkTextBytes
+    ),
+    ...(checkpointId === undefined ? {} : { checkpointId }),
+  };
+}
+
+function validateWorkCheckpoint(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkCheckpointPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'checkpointDigest',
+      'checkpointId',
+      'checkpointSequence',
+      'fencingToken',
+      'leaseExpiresAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['checkpointReference', 'checkpointSummary', 'previousCheckpointId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.checkpoint');
+  const checkpointId = assertIdentifier(
+    payload.checkpointId,
+    '$["payload"]["checkpointId"]',
+    limits
+  );
+  const checkpointSequence = assertPositiveSafeInteger(
+    payload.checkpointSequence,
+    '$["payload"]["checkpointSequence"]',
+    'invalid_payload'
+  );
+  const previousCheckpointId =
+    payload.previousCheckpointId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.previousCheckpointId,
+          '$["payload"]["previousCheckpointId"]',
+          limits
+        );
+  validateRevisionPredecessor(
+    checkpointSequence,
+    previousCheckpointId,
+    '$["payload"]["previousCheckpointId"]'
+  );
+  if (previousCheckpointId === checkpointId) {
+    fail('invalid_payload', '$["payload"]["previousCheckpointId"]');
+  }
+  return {
+    type: 'work.checkpoint',
+    ...validateWorkExecutionAuthorityFields(payload, limits),
+    ...validateWorkCheckpointContent(payload, limits),
+    checkpointId,
+    checkpointSequence,
+    ...(previousCheckpointId === undefined ? {} : { previousCheckpointId }),
+    checkpointDigest: assertContentDigest(
+      payload.checkpointDigest,
+      '$["payload"]["checkpointDigest"]'
+    ),
+  };
+}
+
+function validateWorkResult(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkResultPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'resultDigest',
+      'resultId',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['checkpointId', 'resultReference', 'resultSummary'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.result');
+  const checkpointId =
+    payload.checkpointId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.checkpointId,
+          '$["payload"]["checkpointId"]',
+          limits
+        );
+  return {
+    type: 'work.result',
+    ...validateWorkExecutionAuthorityFields(payload, limits),
+    ...validateWorkResultContent(payload, limits),
+    resultId: assertIdentifier(
+      payload.resultId,
+      '$["payload"]["resultId"]',
+      limits
+    ),
+    resultDigest: assertContentDigest(
+      payload.resultDigest,
+      '$["payload"]["resultDigest"]'
+    ),
+    ...(checkpointId === undefined ? {} : { checkpointId }),
+  };
+}
+
+function validateWorkExecutionAuthorityFields(
+  payload: Record<string, unknown>,
+  limits: Readonly<MeshProtocolLimits>
+): WorkExecutionAuthorityFields {
+  const ownerEpoch = assertPositiveSafeInteger(
+    payload.ownerEpoch,
+    '$["payload"]["ownerEpoch"]',
+    'invalid_payload'
+  );
+  if (ownerEpoch !== 1) {
+    fail('invalid_payload', '$["payload"]["ownerEpoch"]');
+  }
+  const assignmentAuthorityId = assertIdentifier(
+    payload.assignmentAuthorityId,
+    '$["payload"]["assignmentAuthorityId"]',
+    limits
+  );
+  const fencingToken = assertIdentifier(
+    payload.fencingToken,
+    '$["payload"]["fencingToken"]',
+    limits
+  );
+  if (assignmentAuthorityId !== fencingToken) {
+    fail('invalid_payload', '$["payload"]["fencingToken"]');
+  }
+  return {
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
+    objectiveDocumentId: assertIdentifier(
+      payload.objectiveDocumentId,
+      '$["payload"]["objectiveDocumentId"]',
+      limits
+    ),
+    objectiveRevision: assertPositiveSafeInteger(
+      payload.objectiveRevision,
+      '$["payload"]["objectiveRevision"]',
+      'invalid_payload'
+    ),
+    workItemId: assertIdentifier(
+      payload.workItemId,
+      '$["payload"]["workItemId"]',
+      limits
+    ),
+    workItemRevision: assertPositiveSafeInteger(
+      payload.workItemRevision,
+      '$["payload"]["workItemRevision"]',
+      'invalid_payload'
+    ),
+    ownerPeerId: assertIdentifier(
+      payload.ownerPeerId,
+      '$["payload"]["ownerPeerId"]',
+      limits
+    ),
+    ownerEpoch,
+    assigneePeerId: assertIdentifier(
+      payload.assigneePeerId,
+      '$["payload"]["assigneePeerId"]',
+      limits
+    ),
+    awardId: assertIdentifier(
+      payload.awardId,
+      '$["payload"]["awardId"]',
+      limits
+    ),
+    acceptanceId: assertIdentifier(
+      payload.acceptanceId,
+      '$["payload"]["acceptanceId"]',
+      limits
+    ),
+    assignmentEpoch: assertPositiveSafeInteger(
+      payload.assignmentEpoch,
+      '$["payload"]["assignmentEpoch"]',
+      'invalid_payload'
+    ),
+    assignmentAuthorityId,
+    fencingToken,
+    leaseExpiresAt: assertRfc3339PayloadTimestamp(
+      payload.leaseExpiresAt,
+      '$["payload"]["leaseExpiresAt"]'
+    ).text,
+  };
+}
+
+function validateWorkCheckpointContent(
+  payload: Record<string, unknown>,
+  limits: Readonly<MeshProtocolLimits>
+): WorkCheckpointContent {
+  const hasSummary = payload.checkpointSummary !== undefined;
+  const hasReference = payload.checkpointReference !== undefined;
+  if (hasSummary === hasReference) {
+    fail('invalid_payload', '$["payload"]');
+  }
+  if (hasSummary) {
+    return {
+      checkpointSummary: assertBoundedString(
+        payload.checkpointSummary,
+        '$["payload"]["checkpointSummary"]',
+        maximumWorkTextBytes
+      ),
+    };
+  }
+  return {
+    checkpointReference: assertBoundedString(
+      payload.checkpointReference,
+      '$["payload"]["checkpointReference"]',
+      maximumWorkTextBytes
+    ),
+  };
+}
+
+function validateWorkResultContent(
+  payload: Record<string, unknown>,
+  limits: Readonly<MeshProtocolLimits>
+): WorkResultContent {
+  const hasSummary = payload.resultSummary !== undefined;
+  const hasReference = payload.resultReference !== undefined;
+  if (hasSummary === hasReference) {
+    fail('invalid_payload', '$["payload"]');
+  }
+  if (hasSummary) {
+    return {
+      resultSummary: assertBoundedString(
+        payload.resultSummary,
+        '$["payload"]["resultSummary"]',
+        maximumWorkTextBytes
+      ),
+    };
+  }
+  return {
+    resultReference: assertBoundedString(
+      payload.resultReference,
+      '$["payload"]["resultReference"]',
+      maximumWorkTextBytes
+    ),
+  };
+}
+
 function validateWorkAssignmentResponse(
   input: unknown,
   type: 'work.accept' | 'work.decline',
@@ -2032,7 +2375,11 @@ function validateMessageSpecificEnvelope(
   ) {
     fail('invalid_payload', '$["payload"]["ownerPeerId"]');
   } else if (
-    (payload.type === 'work.accept' || payload.type === 'work.decline') &&
+    (payload.type === 'work.accept' ||
+      payload.type === 'work.decline' ||
+      payload.type === 'work.progress' ||
+      payload.type === 'work.checkpoint' ||
+      payload.type === 'work.result') &&
     payload.assigneePeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["assigneePeerId"]');
@@ -2075,7 +2422,10 @@ function validateMessageSpecificEnvelope(
   } else if (
     type === 'work.award' ||
     type === 'work.accept' ||
-    type === 'work.decline'
+    type === 'work.decline' ||
+    type === 'work.progress' ||
+    type === 'work.checkpoint' ||
+    type === 'work.result'
   ) {
     if (audience.kind !== 'peer') {
       fail('invalid_audience', '$["audience"]');
@@ -2134,7 +2484,10 @@ function validateMessageSpecificEnvelope(
     (type === 'work.bid' ||
       type === 'work.award' ||
       type === 'work.accept' ||
-      type === 'work.decline') &&
+      type === 'work.decline' ||
+      type === 'work.progress' ||
+      type === 'work.checkpoint' ||
+      type === 'work.result') &&
     causationId === undefined
   ) {
     fail('invalid_payload', '$["causationId"]');
@@ -2148,7 +2501,10 @@ function validateMessageSpecificEnvelope(
     type === 'work.bid' ||
     type === 'work.award' ||
     type === 'work.accept' ||
-    type === 'work.decline'
+    type === 'work.decline' ||
+    type === 'work.progress' ||
+    type === 'work.checkpoint' ||
+    type === 'work.result'
   ) {
     if (
       objectiveId === undefined ||
@@ -2163,6 +2519,9 @@ function validateMessageSpecificEnvelope(
             | WorkAwardPayload
             | WorkAcceptPayload
             | WorkDeclinePayload
+            | WorkProgressPayload
+            | WorkCheckpointPayload
+            | WorkResultPayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -2180,6 +2539,12 @@ function validateMessageSpecificEnvelope(
     payload.type === 'work.decline'
   ) {
     validateWorkAssignmentResponseTimes(payload, sentAt, expiresAt);
+  } else if (
+    payload.type === 'work.progress' ||
+    payload.type === 'work.checkpoint' ||
+    payload.type === 'work.result'
+  ) {
+    validateWorkExecutionTimes(payload, sentAt, expiresAt);
   }
 }
 
@@ -2323,6 +2688,23 @@ function validateWorkAssignmentResponseTimes(
     fail('invalid_payload', '$["payload"]["acceptanceDeadline"]');
   }
   if (expiresAt > acceptanceDeadline) {
+    fail('invalid_lifetime', '$["expiresAt"]');
+  }
+}
+
+function validateWorkExecutionTimes(
+  payload: WorkProgressPayload | WorkCheckpointPayload | WorkResultPayload,
+  sentAt: bigint,
+  expiresAt: bigint
+): void {
+  const leaseExpiresAt = parseRfc3339(
+    payload.leaseExpiresAt,
+    '$["payload"]["leaseExpiresAt"]'
+  );
+  if (sentAt >= leaseExpiresAt) {
+    fail('invalid_payload', '$["payload"]["leaseExpiresAt"]');
+  }
+  if (expiresAt > leaseExpiresAt) {
     fail('invalid_lifetime', '$["expiresAt"]');
   }
 }
@@ -2562,7 +2944,11 @@ function validateLifetime(
         ? 60_000
         : type === 'objective.announce' || type === 'objective.revise'
           ? 5 * 60_000
-          : 120_000;
+          : type === 'work.progress' ||
+              type === 'work.checkpoint' ||
+              type === 'work.result'
+            ? maximumWorkExecutionLifetimeMs
+            : 120_000;
   const maximum = Math.min(limits.maximumLifetimeMs, messageMaximum);
   if (expiresAt - sentAt > BigInt(maximum) * 1_000_000n) {
     fail('invalid_lifetime', '$["expiresAt"]');
@@ -2589,6 +2975,17 @@ function assertPayloadHash(input: unknown, path: string): string {
     !isCanonicalBase64Url(value.slice('sha256:'.length), 32)
   ) {
     fail('invalid_payload_hash', path);
+  }
+  return value;
+}
+
+function assertContentDigest(input: unknown, path: string): string {
+  const value = assertString(input, path, 'invalid_payload');
+  if (
+    !value.startsWith('sha256:') ||
+    !isCanonicalBase64Url(value.slice('sha256:'.length), 32)
+  ) {
+    fail('invalid_payload', path);
   }
   return value;
 }
@@ -2804,7 +3201,10 @@ function isImplementedMessageType(
     value === 'work.bid' ||
     value === 'work.award' ||
     value === 'work.accept' ||
-    value === 'work.decline'
+    value === 'work.decline' ||
+    value === 'work.progress' ||
+    value === 'work.checkpoint' ||
+    value === 'work.result'
   );
 }
 

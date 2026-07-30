@@ -354,6 +354,74 @@ export interface WorkDeclinePayload extends WorkAssignmentResponseFields {
   readonly declineId: string;
 }
 
+/** Assignment authority echoed by every assignee execution record. */
+export interface WorkExecutionAuthorityFields {
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assigneePeerId: string;
+  readonly awardId: string;
+  readonly acceptanceId: string;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly leaseExpiresAt: string;
+}
+
+/** Reports bounded incremental progress under one accepted assignment. */
+export interface WorkProgressPayload extends WorkExecutionAuthorityFields {
+  readonly type: 'work.progress';
+  readonly progressId: string;
+  readonly progressSequence: number;
+  readonly progressSummary: string;
+  readonly checkpointId?: string;
+}
+
+/** Exactly one inline checkpoint summary or external content reference. */
+export type WorkCheckpointContent =
+  | {
+      readonly checkpointSummary: string;
+      readonly checkpointReference?: never;
+    }
+  | {
+      readonly checkpointSummary?: never;
+      readonly checkpointReference: string;
+    };
+
+/** Persists a content-addressed checkpoint under one accepted assignment. */
+export type WorkCheckpointPayload = WorkExecutionAuthorityFields &
+  WorkCheckpointContent & {
+    readonly type: 'work.checkpoint';
+    readonly checkpointId: string;
+    readonly checkpointSequence: number;
+    readonly previousCheckpointId?: string;
+    readonly checkpointDigest: string;
+  };
+
+/** Exactly one inline result summary or external content reference. */
+export type WorkResultContent =
+  | {
+      readonly resultSummary: string;
+      readonly resultReference?: never;
+    }
+  | {
+      readonly resultSummary?: never;
+      readonly resultReference: string;
+    };
+
+/** Publishes a content-addressed result under one accepted assignment. */
+export type WorkResultPayload = WorkExecutionAuthorityFields &
+  WorkResultContent & {
+    readonly type: 'work.result';
+    readonly resultId: string;
+    readonly resultDigest: string;
+    readonly checkpointId?: string;
+  };
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -370,7 +438,10 @@ export type MeshMessagePayload =
   | WorkBidPayload
   | WorkAwardPayload
   | WorkAcceptPayload
-  | WorkDeclinePayload;
+  | WorkDeclinePayload
+  | WorkProgressPayload
+  | WorkCheckpointPayload
+  | WorkResultPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<
