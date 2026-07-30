@@ -286,6 +286,74 @@ export interface WorkBidPayload {
   readonly assumptions: readonly string[];
 }
 
+/** Fields common to both fresh awards and recovery-certified assignments. */
+export interface WorkAwardFields {
+  readonly type: 'work.award';
+  readonly awardId: string;
+  readonly offerId: string;
+  readonly bidId: string;
+  readonly bidRevision: number;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly offerAttempt: number;
+  readonly assigneePeerId: string;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly budgetReservationUnits: number;
+  readonly workDeadline: string;
+  readonly leaseStartsAt: string;
+  readonly leaseExpiresAt: string;
+  readonly acceptanceDeadline: string;
+}
+
+/** Assigns work under either the original award or recovery authority. */
+export type WorkAwardPayload =
+  | (WorkAwardFields & {
+      readonly authorityKind: 'award';
+      readonly recoveryCertificateId?: never;
+      readonly resumeCheckpointId?: never;
+    })
+  | (WorkAwardFields & {
+      readonly authorityKind: 'recovery_certificate';
+      readonly recoveryCertificateId: string;
+      readonly resumeCheckpointId?: string;
+    });
+
+/** Fields echoed by an assignee when responding to one assignment. */
+export interface WorkAssignmentResponseFields {
+  readonly awardId: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assigneePeerId: string;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly acceptanceDeadline: string;
+}
+
+/** Accepts one assignment before its bounded response deadline. */
+export interface WorkAcceptPayload extends WorkAssignmentResponseFields {
+  readonly type: 'work.accept';
+  readonly acceptanceId: string;
+}
+
+/** Declines one assignment before its bounded response deadline. */
+export interface WorkDeclinePayload extends WorkAssignmentResponseFields {
+  readonly type: 'work.decline';
+  readonly declineId: string;
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -299,7 +367,10 @@ export type MeshMessagePayload =
   | ObjectiveRevisePayload
   | ObjectiveCancelPayload
   | WorkOfferPayload
-  | WorkBidPayload;
+  | WorkBidPayload
+  | WorkAwardPayload
+  | WorkAcceptPayload
+  | WorkDeclinePayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

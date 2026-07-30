@@ -913,6 +913,286 @@ test('Alpha 2 Work Offer and Bid contracts fail closed at frozen boundaries', as
   );
 });
 
+test('Alpha 2 Work Award and responses are closed, direct and deeply frozen', async () => {
+  const fixtures = await Promise.all(
+    ['work-award', 'work-accept', 'work-decline'].map(async (name) => [
+      name,
+      await loadFixture(name),
+    ])
+  );
+  for (const [name, fixture] of fixtures) {
+    const parsed = parseSignedMeshEnvelope(await loadFixtureBytes(name));
+    assert.equal(parsed.ok, true, `${name} wire bytes`);
+    assert.equal(Object.isFrozen(parsed.value), true);
+    assert.equal(Object.isFrozen(parsed.value.payload), true);
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+  }
+  const award = fixtures.find(([name]) => name === 'work-award')[1];
+  const accept = fixtures.find(([name]) => name === 'work-accept')[1];
+  const decline = fixtures.find(([name]) => name === 'work-decline')[1];
+  for (const fixture of [award, accept, decline]) {
+    assert.equal(validateSignedMeshEnvelope(fixture).ok, true);
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        audience: { kind: 'mesh', topic: 'work' },
+      }),
+      'invalid_audience',
+      '$["audience"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        objectiveId: 'objective-other',
+      }),
+      'invalid_payload',
+      '$["objectiveId"]'
+    );
+  }
+  for (const [fixture, field, value] of [
+    [award, 'ownerPeerId', 'peer-a'],
+    [accept, 'assigneePeerId', 'peer-b'],
+    [decline, 'assigneePeerId', 'peer-b'],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, [field]: value },
+      }),
+      'invalid_payload',
+      `$["payload"]["${field}"]`
+    );
+  }
+  for (const fixture of [accept, decline]) {
+    if (fixture === decline) {
+      expectIssue(
+        validateSignedMeshEnvelope({
+          ...fixture,
+          audience: { kind: 'peer', peerId: 'peer-other' },
+        }),
+        'invalid_audience',
+        '$["audience"]["peerId"]'
+      );
+    }
+    const { causationId: _causationId, ...withoutCausation } = fixture;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+    assert.equal(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        causationId: 'BBBBBBBBBBBBBBBBBBBBBA',
+      }).ok,
+      true,
+      `${fixture.type} defers accepted Award causation to local state`
+    );
+  }
+  for (const fixture of [award, accept]) {
+    assert.equal(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        audience: { kind: 'peer', peerId: 'peer-witness' },
+      }).ok,
+      true,
+      `${fixture.type} permits a direct witness envelope`
+    );
+  }
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...decline,
+      audience: { kind: 'peer', peerId: 'peer-witness' },
+    }),
+    'invalid_audience',
+    '$["audience"]["peerId"]'
+  );
+});
+
+test('Alpha 2 Work Award and response boundaries fail closed', async () => {
+  const award = await loadFixture('work-award');
+  const accept = await loadFixture('work-accept');
+  const decline = await loadFixture('work-decline');
+  const awardIssue = (payload, path) =>
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...award,
+        payload: { ...award.payload, ...payload },
+      }),
+      'invalid_payload',
+      path
+    );
+  for (const [payload, path] of [
+    [{ bidRevision: 0 }, '$["payload"]["bidRevision"]'],
+    [{ ownerEpoch: 2 }, '$["payload"]["ownerEpoch"]'],
+    [{ assignmentEpoch: 0 }, '$["payload"]["assignmentEpoch"]'],
+    [{ budgetReservationUnits: -1 }, '$["payload"]["budgetReservationUnits"]'],
+    [{ authorityKind: 'other' }, '$["payload"]["authorityKind"]'],
+    [
+      { assignmentAuthorityId: 'other', fencingToken: 'other' },
+      '$["payload"]["assignmentAuthorityId"]',
+    ],
+    [{ fencingToken: 'other' }, '$["payload"]["fencingToken"]'],
+    [{ recoveryCertificateId: 'certificate-a' }, '$["payload"]'],
+    [
+      { leaseStartsAt: '2026-07-30T00:00:01.999999999Z' },
+      '$["payload"]["leaseStartsAt"]',
+    ],
+    [
+      { leaseStartsAt: award.payload.acceptanceDeadline },
+      '$["payload"]["acceptanceDeadline"]',
+    ],
+    [
+      { acceptanceDeadline: award.payload.leaseStartsAt },
+      '$["payload"]["acceptanceDeadline"]',
+    ],
+    [
+      { leaseExpiresAt: '2026-07-30T00:14:59.999999999Z' },
+      '$["payload"]["leaseExpiresAt"]',
+    ],
+    [
+      { workDeadline: '2026-07-30T00:29:59.999999999Z' },
+      '$["payload"]["workDeadline"]',
+    ],
+    [
+      {
+        acceptanceDeadline: '2026-07-30T00:15:02.000000001Z',
+      },
+      '$["payload"]["acceptanceDeadline"]',
+    ],
+    [
+      {
+        leaseExpiresAt: '2026-07-31T00:00:02.000000001Z',
+        workDeadline: '2026-07-31T00:00:02.000000001Z',
+      },
+      '$["payload"]["leaseExpiresAt"]',
+    ],
+    [
+      { workDeadline: '2026-08-29T00:00:02.000000001Z' },
+      '$["payload"]["workDeadline"]',
+    ],
+  ])
+    awardIssue(payload, path);
+  for (const payload of [
+    { leaseExpiresAt: award.payload.acceptanceDeadline },
+    { workDeadline: award.payload.leaseExpiresAt },
+  ]) {
+    assert.equal(
+      validateSignedMeshEnvelope({
+        ...award,
+        payload: { ...award.payload, ...payload },
+      }).ok,
+      true
+    );
+  }
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...award,
+      payload: { ...award.payload, awardId: '' },
+    }),
+    'invalid_identifier',
+    '$["payload"]["awardId"]'
+  );
+  {
+    const { causationId: _causationId, ...withoutCausation } = award;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+  }
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...award,
+      expiresAt: award.payload.acceptanceDeadline,
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...award,
+      payload: {
+        ...award.payload,
+        authorityKind: 'recovery_certificate',
+        assignmentEpoch: 2,
+        assignmentAuthorityId: 'certificate-a',
+        fencingToken: 'certificate-a',
+        recoveryCertificateId: 'certificate-a',
+        resumeCheckpointId: 'checkpoint-a',
+      },
+    }).ok,
+    true
+  );
+  awardIssue(
+    {
+      authorityKind: 'recovery_certificate',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'certificate-a',
+      fencingToken: 'certificate-a',
+      recoveryCertificateId: 'certificate-a',
+    },
+    '$["payload"]["assignmentEpoch"]'
+  );
+  {
+    const { recoveryCertificateId: _certificateId, ...withoutCertificate } =
+      award.payload;
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...award,
+        payload: {
+          ...withoutCertificate,
+          authorityKind: 'recovery_certificate',
+          assignmentEpoch: 2,
+          assignmentAuthorityId: 'certificate-a',
+          fencingToken: 'certificate-a',
+        },
+      }),
+      'invalid_identifier',
+      '$["payload"]["recoveryCertificateId"]'
+    );
+  }
+  for (const fixture of [accept, decline]) {
+    const idField =
+      fixture.type === 'work.accept' ? 'acceptanceId' : 'declineId';
+    for (const [payload, path, code = 'invalid_payload'] of [
+      [{ [idField]: '' }, `$["payload"]["${idField}"]`, 'invalid_identifier'],
+      [{ ownerEpoch: 2 }, '$["payload"]["ownerEpoch"]'],
+      [{ assignmentEpoch: 0 }, '$["payload"]["assignmentEpoch"]'],
+      [{ assignmentAuthorityId: 'other' }, '$["payload"]["fencingToken"]'],
+      [{ fencingToken: 'other' }, '$["payload"]["fencingToken"]'],
+      [
+        { acceptanceDeadline: fixture.sentAt },
+        '$["payload"]["acceptanceDeadline"]',
+      ],
+    ]) {
+      expectIssue(
+        validateSignedMeshEnvelope({
+          ...fixture,
+          payload: { ...fixture.payload, ...payload },
+        }),
+        code,
+        path
+      );
+    }
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt: fixture.payload.acceptanceDeadline,
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+  }
+});
+
 test('Alpha 2 discovery and capability boundaries fail closed', async () => {
   const card = await loadFixture('peer-card');
   const advertise = await loadFixture('capability-advertise');

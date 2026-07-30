@@ -14,6 +14,8 @@ The implementation provides:
   `objective.revise` and `objective.cancel`;
 - closed, bounded Alpha 2 Work Offer and Work Bid records for `work.offer` and
   `work.bid`;
+- closed, bounded Alpha 2 award-response records for `work.award`,
+  `work.accept` and `work.decline`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -40,9 +42,9 @@ cryptographic authenticity or local acceptance.
 Work Item messages beyond Offer and Bid, lease, evidence, trust and peer-sync
 message families remain reserved until their closed payload contracts are
 implemented. They fail explicitly rather than entering a generic payload path.
-Objective, Work Offer and Work Bid records parse, sign and verify structurally,
-but remain explicitly unsupported at the Mesh runtime boundary until their
-reducers and state authorization are implemented.
+Objective and Work records parse, sign and verify structurally, but remain
+explicitly unsupported at the Mesh runtime boundary until their reducers and
+state authorization are implemented.
 
 ## Frozen limits
 
@@ -150,6 +152,39 @@ attempt supersedes another offer, a capability advertisement is accepted, a
 bid has capacity or budget authority, or deadlines and reservations are valid
 against accepted local state. Those checks require reducer authorization state
 and remain deferred.
+
+## Work Award, Accept and Decline limits
+
+An Award names one Offer and selected Bid and self-binds the owner sender. Any
+direct peer audience is structurally valid; whether it is the assignee or a
+witness is a local-state check. It carries an assignment epoch,
+assignment-authority ID and fencing token. The normal `authorityKind: "award"`
+branch requires both IDs to equal `awardId` and forbids recovery references. The
+`authorityKind: "recovery_certificate"` branch requires `recoveryCertificateId`
+and requires both IDs to equal that certificate; an optional resume checkpoint
+is structural metadata only.
+
+Accept and Decline each name the Award and self-bind the assignee sender.
+Accept accepts any direct peer audience structurally; owner-or-witness
+authorization is stateful. Decline is structurally directed to the owner. Both
+require an envelope causation ID. Resolving Award causation to the selected Bid
+envelope, and response causation to the accepted Award envelope, requires the
+local causal journal and is stateful. All three records bind the envelope
+Objective ID to the payload Objective ID.
+
+| Field            | Rule                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Owner epoch      | Positive safe integer; frozen at `1` for this protocol slice                               |
+| Assignment epoch | Positive safe integer; recovery authority requires epoch `2` or greater                    |
+| Award time order | `sentAt <= leaseStartsAt < acceptanceDeadline <= leaseExpiresAt <= workDeadline`           |
+| Award windows    | Acceptance window at most 15 minutes; lease at most 24 hours; work horizon at most 30 days |
+| Award expiry     | At most two minutes and no later than `acceptanceDeadline`                                 |
+| Response time    | `sentAt < acceptanceDeadline`; expiry at most two minutes and no later than that deadline  |
+
+These are structural contracts only. Selection of a current bid, current owner
+and revision, budget reservation, acceptance uniqueness, deadline observation,
+causal-reference resolution, and recovery-certificate acceptance all require
+local state and remain deferred.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

@@ -34,6 +34,10 @@ import {
   type PeerPingPayload,
   type SignedMeshEnvelope,
   type WorkBidPayload,
+  type WorkAcceptPayload,
+  type WorkAwardFields,
+  type WorkAwardPayload,
+  type WorkDeclinePayload,
   type WorkOfferFields,
   type WorkOfferInput,
   type WorkOfferPayload,
@@ -961,7 +965,19 @@ function validatePayload(
   if (type === 'work.offer') {
     return validateWorkOffer(input, limits);
   }
-  return validateWorkBid(input, limits);
+  if (type === 'work.bid') {
+    return validateWorkBid(input, limits);
+  }
+  if (type === 'work.award') {
+    return validateWorkAward(input, limits);
+  }
+  if (type === 'work.accept') {
+    return validateWorkAccept(input, limits);
+  }
+  if (type === 'work.decline') {
+    return validateWorkDecline(input, limits);
+  }
+  return fail('unsupported_message_type', '$["type"]');
 }
 
 function validateWorkOffer(
@@ -1307,6 +1323,352 @@ function validateWorkBid(
       maximumWorkTextBytes,
       maximumWorkListBytes
     ),
+  };
+}
+
+function validateWorkAward(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkAwardPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceDeadline',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'authorityKind',
+      'awardId',
+      'bidId',
+      'bidRevision',
+      'budgetReservationUnits',
+      'fencingToken',
+      'leaseExpiresAt',
+      'leaseStartsAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'offerAttempt',
+      'offerId',
+      'ownerEpoch',
+      'ownerPeerId',
+      'type',
+      'workDeadline',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['recoveryCertificateId', 'resumeCheckpointId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.award');
+  const authorityKind = assertString(
+    payload.authorityKind,
+    '$["payload"]["authorityKind"]',
+    'invalid_payload'
+  );
+  if (authorityKind !== 'award' && authorityKind !== 'recovery_certificate') {
+    fail('invalid_payload', '$["payload"]["authorityKind"]');
+  }
+
+  const awardId = assertIdentifier(
+    payload.awardId,
+    '$["payload"]["awardId"]',
+    limits
+  );
+  const assignmentEpoch = assertPositiveSafeInteger(
+    payload.assignmentEpoch,
+    '$["payload"]["assignmentEpoch"]',
+    'invalid_payload'
+  );
+  const assignmentAuthorityId = assertIdentifier(
+    payload.assignmentAuthorityId,
+    '$["payload"]["assignmentAuthorityId"]',
+    limits
+  );
+  const fencingToken = assertIdentifier(
+    payload.fencingToken,
+    '$["payload"]["fencingToken"]',
+    limits
+  );
+  if (assignmentAuthorityId !== fencingToken) {
+    fail('invalid_payload', '$["payload"]["fencingToken"]');
+  }
+
+  const ownerEpoch = assertPositiveSafeInteger(
+    payload.ownerEpoch,
+    '$["payload"]["ownerEpoch"]',
+    'invalid_payload'
+  );
+  if (ownerEpoch !== 1) {
+    fail('invalid_payload', '$["payload"]["ownerEpoch"]');
+  }
+
+  const fields: WorkAwardFields = {
+    type: 'work.award',
+    awardId,
+    offerId: assertIdentifier(
+      payload.offerId,
+      '$["payload"]["offerId"]',
+      limits
+    ),
+    bidId: assertIdentifier(payload.bidId, '$["payload"]["bidId"]', limits),
+    bidRevision: assertPositiveSafeInteger(
+      payload.bidRevision,
+      '$["payload"]["bidRevision"]',
+      'invalid_payload'
+    ),
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
+    objectiveDocumentId: assertIdentifier(
+      payload.objectiveDocumentId,
+      '$["payload"]["objectiveDocumentId"]',
+      limits
+    ),
+    objectiveRevision: assertPositiveSafeInteger(
+      payload.objectiveRevision,
+      '$["payload"]["objectiveRevision"]',
+      'invalid_payload'
+    ),
+    workItemId: assertIdentifier(
+      payload.workItemId,
+      '$["payload"]["workItemId"]',
+      limits
+    ),
+    workItemRevision: assertPositiveSafeInteger(
+      payload.workItemRevision,
+      '$["payload"]["workItemRevision"]',
+      'invalid_payload'
+    ),
+    ownerPeerId: assertIdentifier(
+      payload.ownerPeerId,
+      '$["payload"]["ownerPeerId"]',
+      limits
+    ),
+    ownerEpoch,
+    offerAttempt: assertPositiveSafeInteger(
+      payload.offerAttempt,
+      '$["payload"]["offerAttempt"]',
+      'invalid_payload'
+    ),
+    assigneePeerId: assertIdentifier(
+      payload.assigneePeerId,
+      '$["payload"]["assigneePeerId"]',
+      limits
+    ),
+    assignmentEpoch,
+    assignmentAuthorityId,
+    fencingToken,
+    budgetReservationUnits: assertNonnegativeSafeInteger(
+      payload.budgetReservationUnits,
+      '$["payload"]["budgetReservationUnits"]'
+    ),
+    workDeadline: assertRfc3339PayloadTimestamp(
+      payload.workDeadline,
+      '$["payload"]["workDeadline"]'
+    ).text,
+    leaseStartsAt: assertRfc3339PayloadTimestamp(
+      payload.leaseStartsAt,
+      '$["payload"]["leaseStartsAt"]'
+    ).text,
+    leaseExpiresAt: assertRfc3339PayloadTimestamp(
+      payload.leaseExpiresAt,
+      '$["payload"]["leaseExpiresAt"]'
+    ).text,
+    acceptanceDeadline: assertRfc3339PayloadTimestamp(
+      payload.acceptanceDeadline,
+      '$["payload"]["acceptanceDeadline"]'
+    ).text,
+  };
+
+  if (authorityKind === 'award') {
+    if (
+      payload.recoveryCertificateId !== undefined ||
+      payload.resumeCheckpointId !== undefined
+    ) {
+      fail('invalid_payload', '$["payload"]');
+    }
+    if (assignmentAuthorityId !== awardId) {
+      fail('invalid_payload', '$["payload"]["assignmentAuthorityId"]');
+    }
+    return { ...fields, authorityKind };
+  }
+
+  if (assignmentEpoch < 2) {
+    fail('invalid_payload', '$["payload"]["assignmentEpoch"]');
+  }
+  const recoveryCertificateId = assertIdentifier(
+    payload.recoveryCertificateId,
+    '$["payload"]["recoveryCertificateId"]',
+    limits
+  );
+  if (assignmentAuthorityId !== recoveryCertificateId) {
+    fail('invalid_payload', '$["payload"]["assignmentAuthorityId"]');
+  }
+  const resumeCheckpointId =
+    payload.resumeCheckpointId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.resumeCheckpointId,
+          '$["payload"]["resumeCheckpointId"]',
+          limits
+        );
+  return {
+    ...fields,
+    authorityKind,
+    recoveryCertificateId,
+    ...(resumeCheckpointId === undefined ? {} : { resumeCheckpointId }),
+  };
+}
+
+function validateWorkAccept(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkAcceptPayload {
+  const payload = validateWorkAssignmentResponse(
+    input,
+    'work.accept',
+    'acceptanceId',
+    limits
+  );
+  return {
+    type: 'work.accept',
+    acceptanceId: payload.responseId,
+    ...payload.fields,
+  };
+}
+
+function validateWorkDecline(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkDeclinePayload {
+  const payload = validateWorkAssignmentResponse(
+    input,
+    'work.decline',
+    'declineId',
+    limits
+  );
+  return {
+    type: 'work.decline',
+    declineId: payload.responseId,
+    ...payload.fields,
+  };
+}
+
+function validateWorkAssignmentResponse(
+  input: unknown,
+  type: 'work.accept' | 'work.decline',
+  responseIdKey: 'acceptanceId' | 'declineId',
+  limits: Readonly<MeshProtocolLimits>
+) {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceDeadline',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      responseIdKey,
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, type);
+  const assignmentAuthorityId = assertIdentifier(
+    payload.assignmentAuthorityId,
+    '$["payload"]["assignmentAuthorityId"]',
+    limits
+  );
+  const fencingToken = assertIdentifier(
+    payload.fencingToken,
+    '$["payload"]["fencingToken"]',
+    limits
+  );
+  if (assignmentAuthorityId !== fencingToken) {
+    fail('invalid_payload', '$["payload"]["fencingToken"]');
+  }
+  const ownerEpoch = assertPositiveSafeInteger(
+    payload.ownerEpoch,
+    '$["payload"]["ownerEpoch"]',
+    'invalid_payload'
+  );
+  if (ownerEpoch !== 1) {
+    fail('invalid_payload', '$["payload"]["ownerEpoch"]');
+  }
+  return {
+    responseId: assertIdentifier(
+      payload[responseIdKey],
+      `$["payload"]["${responseIdKey}"]`,
+      limits
+    ),
+    fields: {
+      awardId: assertIdentifier(
+        payload.awardId,
+        '$["payload"]["awardId"]',
+        limits
+      ),
+      objectiveId: assertIdentifier(
+        payload.objectiveId,
+        '$["payload"]["objectiveId"]',
+        limits
+      ),
+      objectiveDocumentId: assertIdentifier(
+        payload.objectiveDocumentId,
+        '$["payload"]["objectiveDocumentId"]',
+        limits
+      ),
+      objectiveRevision: assertPositiveSafeInteger(
+        payload.objectiveRevision,
+        '$["payload"]["objectiveRevision"]',
+        'invalid_payload'
+      ),
+      workItemId: assertIdentifier(
+        payload.workItemId,
+        '$["payload"]["workItemId"]',
+        limits
+      ),
+      workItemRevision: assertPositiveSafeInteger(
+        payload.workItemRevision,
+        '$["payload"]["workItemRevision"]',
+        'invalid_payload'
+      ),
+      ownerPeerId: assertIdentifier(
+        payload.ownerPeerId,
+        '$["payload"]["ownerPeerId"]',
+        limits
+      ),
+      ownerEpoch,
+      assigneePeerId: assertIdentifier(
+        payload.assigneePeerId,
+        '$["payload"]["assigneePeerId"]',
+        limits
+      ),
+      assignmentEpoch: assertPositiveSafeInteger(
+        payload.assignmentEpoch,
+        '$["payload"]["assignmentEpoch"]',
+        'invalid_payload'
+      ),
+      assignmentAuthorityId,
+      fencingToken,
+      acceptanceDeadline: assertRfc3339PayloadTimestamp(
+        payload.acceptanceDeadline,
+        '$["payload"]["acceptanceDeadline"]'
+      ).text,
+    },
   };
 }
 
@@ -1664,6 +2026,16 @@ function validateMessageSpecificEnvelope(
     payload.bidderPeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["bidderPeerId"]');
+  } else if (
+    payload.type === 'work.award' &&
+    payload.ownerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+  } else if (
+    (payload.type === 'work.accept' || payload.type === 'work.decline') &&
+    payload.assigneePeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["assigneePeerId"]');
   }
 
   if (
@@ -1698,6 +2070,20 @@ function validateMessageSpecificEnvelope(
       fail('invalid_audience', '$["audience"]');
     }
     if (audience.peerId !== (payload as WorkBidPayload).ownerPeerId) {
+      fail('invalid_audience', '$["audience"]["peerId"]');
+    }
+  } else if (
+    type === 'work.award' ||
+    type === 'work.accept' ||
+    type === 'work.decline'
+  ) {
+    if (audience.kind !== 'peer') {
+      fail('invalid_audience', '$["audience"]');
+    }
+    if (
+      type === 'work.decline' &&
+      audience.peerId !== (payload as WorkDeclinePayload).ownerPeerId
+    ) {
       fail('invalid_audience', '$["audience"]["peerId"]');
     }
   } else if (audience.kind !== 'peer') {
@@ -1744,7 +2130,13 @@ function validateMessageSpecificEnvelope(
     if (offer.offerAttempt > 1 && causationId === undefined) {
       fail('invalid_payload', '$["causationId"]');
     }
-  } else if (type === 'work.bid' && causationId === undefined) {
+  } else if (
+    (type === 'work.bid' ||
+      type === 'work.award' ||
+      type === 'work.accept' ||
+      type === 'work.decline') &&
+    causationId === undefined
+  ) {
     fail('invalid_payload', '$["causationId"]');
   }
 
@@ -1753,7 +2145,10 @@ function validateMessageSpecificEnvelope(
     type === 'objective.revise' ||
     type === 'objective.cancel' ||
     type === 'work.offer' ||
-    type === 'work.bid'
+    type === 'work.bid' ||
+    type === 'work.award' ||
+    type === 'work.accept' ||
+    type === 'work.decline'
   ) {
     if (
       objectiveId === undefined ||
@@ -1765,6 +2160,9 @@ function validateMessageSpecificEnvelope(
             | ObjectiveCancelPayload
             | WorkOfferPayload
             | WorkBidPayload
+            | WorkAwardPayload
+            | WorkAcceptPayload
+            | WorkDeclinePayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -1775,6 +2173,13 @@ function validateMessageSpecificEnvelope(
     validateWorkOfferTimes(payload, sentAt, expiresAt);
   } else if (payload.type === 'work.bid') {
     validateWorkBidTimes(payload, sentAt, expiresAt);
+  } else if (payload.type === 'work.award') {
+    validateWorkAwardTimes(payload, sentAt, expiresAt);
+  } else if (
+    payload.type === 'work.accept' ||
+    payload.type === 'work.decline'
+  ) {
+    validateWorkAssignmentResponseTimes(payload, sentAt, expiresAt);
   }
 }
 
@@ -1848,6 +2253,76 @@ function validateWorkBidTimes(
     fail('invalid_payload', '$["payload"]["workDeadline"]');
   }
   if (expiresAt > bidExpiresAt) {
+    fail('invalid_lifetime', '$["expiresAt"]');
+  }
+}
+
+function validateWorkAwardTimes(
+  payload: WorkAwardPayload,
+  sentAt: bigint,
+  expiresAt: bigint
+): void {
+  const leaseStartsAt = parseRfc3339(
+    payload.leaseStartsAt,
+    '$["payload"]["leaseStartsAt"]'
+  );
+  const acceptanceDeadline = parseRfc3339(
+    payload.acceptanceDeadline,
+    '$["payload"]["acceptanceDeadline"]'
+  );
+  const leaseExpiresAt = parseRfc3339(
+    payload.leaseExpiresAt,
+    '$["payload"]["leaseExpiresAt"]'
+  );
+  const workDeadline = parseRfc3339(
+    payload.workDeadline,
+    '$["payload"]["workDeadline"]'
+  );
+  if (leaseStartsAt < sentAt) {
+    fail('invalid_payload', '$["payload"]["leaseStartsAt"]');
+  }
+  if (acceptanceDeadline <= leaseStartsAt) {
+    fail('invalid_payload', '$["payload"]["acceptanceDeadline"]');
+  }
+  if (leaseExpiresAt < acceptanceDeadline) {
+    fail('invalid_payload', '$["payload"]["leaseExpiresAt"]');
+  }
+  if (workDeadline < leaseExpiresAt) {
+    fail('invalid_payload', '$["payload"]["workDeadline"]');
+  }
+  if (
+    acceptanceDeadline - sentAt >
+    BigInt(maximumAcceptanceWindowMs) * 1_000_000n
+  ) {
+    fail('invalid_payload', '$["payload"]["acceptanceDeadline"]');
+  }
+  if (
+    leaseExpiresAt - leaseStartsAt >
+    BigInt(maximumLeaseDurationMs) * 1_000_000n
+  ) {
+    fail('invalid_payload', '$["payload"]["leaseExpiresAt"]');
+  }
+  if (workDeadline - sentAt > BigInt(maximumWorkDeadlineMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["workDeadline"]');
+  }
+  if (expiresAt > acceptanceDeadline) {
+    fail('invalid_lifetime', '$["expiresAt"]');
+  }
+}
+
+function validateWorkAssignmentResponseTimes(
+  payload: WorkAcceptPayload | WorkDeclinePayload,
+  sentAt: bigint,
+  expiresAt: bigint
+): void {
+  const acceptanceDeadline = parseRfc3339(
+    payload.acceptanceDeadline,
+    '$["payload"]["acceptanceDeadline"]'
+  );
+  if (sentAt >= acceptanceDeadline) {
+    fail('invalid_payload', '$["payload"]["acceptanceDeadline"]');
+  }
+  if (expiresAt > acceptanceDeadline) {
     fail('invalid_lifetime', '$["expiresAt"]');
   }
 }
@@ -2326,7 +2801,10 @@ function isImplementedMessageType(
     value === 'objective.revise' ||
     value === 'objective.cancel' ||
     value === 'work.offer' ||
-    value === 'work.bid'
+    value === 'work.bid' ||
+    value === 'work.award' ||
+    value === 'work.accept' ||
+    value === 'work.decline'
   );
 }
 

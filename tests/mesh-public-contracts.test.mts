@@ -67,6 +67,9 @@ import {
   type ObjectiveCancelPayload,
   type ObjectiveRevisePayload,
   type WorkBidPayload,
+  type WorkAwardPayload,
+  type WorkAcceptPayload,
+  type WorkDeclinePayload,
   type WorkOfferPayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
@@ -209,6 +212,75 @@ const workBidPayload: WorkBidPayload = {
   assumptions: ['Input is accessible to the assigned peer.'],
 };
 
+const workAwardPayload: WorkAwardPayload = {
+  type: 'work.award',
+  awardId: 'award-a',
+  offerId: 'offer-a',
+  bidId: 'bid-a',
+  bidRevision: 1,
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  offerAttempt: 1,
+  assigneePeerId: 'peer-a',
+  assignmentEpoch: 1,
+  authorityKind: 'award',
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  budgetReservationUnits: 100,
+  workDeadline: '2026-07-30T01:00:00.000Z',
+  leaseStartsAt: '2026-07-30T00:00:00.000Z',
+  leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+  acceptanceDeadline: '2026-07-30T00:15:00.000Z',
+};
+
+const workAcceptPayload: WorkAcceptPayload = {
+  type: 'work.accept',
+  acceptanceId: 'acceptance-a',
+  awardId: 'award-a',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  acceptanceDeadline: '2026-07-30T00:15:00.000Z',
+};
+
+const workDeclinePayload: WorkDeclinePayload = {
+  type: 'work.decline',
+  declineId: 'decline-a',
+  awardId: 'award-a',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  acceptanceDeadline: '2026-07-30T00:15:00.000Z',
+};
+const invalidWorkAwardKind: WorkAwardPayload = {
+  ...workAwardPayload,
+  // @ts-expect-error award authority has a closed discriminant
+  authorityKind: 'certificate',
+};
+// @ts-expect-error Accept requires its stable response ID
+const incompleteWorkAccept: WorkAcceptPayload = { type: 'work.accept' };
+
 const invalidPeerCardType: PeerCardPayload = {
   ...peerCardPayload,
   // @ts-expect-error closed discriminant rejects another payload family
@@ -290,6 +362,9 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'objective.cancel':
     case 'work.offer':
     case 'work.bid':
+    case 'work.award':
+    case 'work.accept':
+    case 'work.decline':
       return payload.type;
     default: {
       const exhaustive: never = payload;

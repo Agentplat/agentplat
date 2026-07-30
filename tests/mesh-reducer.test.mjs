@@ -813,7 +813,7 @@ test('signed-valid Alpha 2 Objective records stop before the reducer', async () 
   }
 });
 
-test('signed-valid Alpha 2 Work Offer and Bid records stop before the reducer', async () => {
+test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
   const state = runningState();
   const payloads = [
     {
@@ -860,6 +860,65 @@ test('signed-valid Alpha 2 Work Offer and Bid records stop before the reducer', 
       bidExpiresAt: '2026-07-30T00:00:30Z',
       assumptions: [],
     },
+    {
+      type: 'work.award',
+      awardId: 'award-a',
+      offerId: 'offer-a',
+      bidId: 'bid-a',
+      bidRevision: 1,
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-a',
+      ownerEpoch: 1,
+      offerAttempt: 1,
+      assigneePeerId: 'peer-b',
+      assignmentEpoch: 1,
+      authorityKind: 'award',
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      budgetReservationUnits: 100,
+      workDeadline: '2026-07-30T01:00:00Z',
+      leaseStartsAt: '2026-07-30T00:00:00Z',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+      acceptanceDeadline: '2026-07-30T00:15:00Z',
+    },
+    {
+      type: 'work.accept',
+      acceptanceId: 'acceptance-a',
+      awardId: 'award-a',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      acceptanceDeadline: '2026-07-30T00:15:00Z',
+    },
+    {
+      type: 'work.decline',
+      declineId: 'decline-a',
+      awardId: 'award-a',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      acceptanceDeadline: '2026-07-30T00:15:00Z',
+    },
   ];
   for (const [index, payload] of payloads.entries()) {
     const envelope = await signedEnvelope(
@@ -870,7 +929,10 @@ test('signed-valid Alpha 2 Work Offer and Bid records stop before the reducer', 
         objectiveId: 'objective-a',
         audience: { kind: 'peer', peerId: 'peer-b' },
         expiresAt: '2026-07-30T00:00:30Z',
-        ...(payload.type === 'work.bid' ? { causationId: messageId(139) } : {}),
+        ...(payload.type === 'work.bid' ||
+        (payload.type.startsWith('work.') && payload.type !== 'work.offer')
+          ? { causationId: messageId(139) }
+          : {}),
         payload,
       }
     );
