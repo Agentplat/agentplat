@@ -671,6 +671,248 @@ test('Alpha 2 Objective contracts fail closed at frozen boundaries', async () =>
   );
 });
 
+test('Alpha 2 Work Offer and Bid fixtures are closed, bounded and deeply frozen wire records', async () => {
+  const fixtures = await Promise.all(
+    ['work-offer', 'work-bid'].map(async (name) => [
+      name,
+      await loadFixture(name),
+    ])
+  );
+  for (const [name, fixture] of fixtures) {
+    const parsed = parseSignedMeshEnvelope(await loadFixtureBytes(name));
+    assert.equal(parsed.ok, true, `${name} wire bytes`);
+    assert.equal(Object.isFrozen(parsed.value), true);
+    assert.equal(Object.isFrozen(parsed.value.payload), true);
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+  }
+
+  const offer = fixtures.find(([name]) => name === 'work-offer')[1];
+  const bid = fixtures.find(([name]) => name === 'work-bid')[1];
+  assert.equal(validateSignedMeshEnvelope(offer).ok, true);
+  assert.equal(validateSignedMeshEnvelope(bid).ok, true);
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...offer,
+      audience: { kind: 'mesh', topic: 'work' },
+    }).ok,
+    true
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...offer,
+      audience: { kind: 'mesh', topic: 'objective' },
+    }),
+    'invalid_audience',
+    '$["audience"]["topic"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...bid,
+      audience: { kind: 'mesh', topic: 'work' },
+    }),
+    'invalid_audience',
+    '$["audience"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...bid,
+      audience: { kind: 'peer', peerId: 'peer-other' },
+    }),
+    'invalid_audience',
+    '$["audience"]["peerId"]'
+  );
+  for (const [fixture, boundPeer, path] of [
+    [offer, 'ownerPeerId', '$["payload"]["ownerPeerId"]'],
+    [bid, 'bidderPeerId', '$["payload"]["bidderPeerId"]'],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, [boundPeer]: 'peer-other' },
+      }),
+      'invalid_payload',
+      path
+    );
+  }
+});
+
+test('Alpha 2 Work Offer and Bid contracts fail closed at frozen boundaries', async () => {
+  const offer = await loadFixture('work-offer');
+  const bid = await loadFixture('work-bid');
+  const offerIssue = (payload, path) =>
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...offer,
+        payload: { ...offer.payload, ...payload },
+      }),
+      'invalid_payload',
+      path
+    );
+  const bidIssue = (payload, path) =>
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...bid,
+        payload: { ...bid.payload, ...payload },
+      }),
+      'invalid_payload',
+      path
+    );
+
+  for (const [payload, path] of [
+    [{ requiredCapabilityKeys: [] }, '$["payload"]["requiredCapabilityKeys"]'],
+    [
+      { requiredCapabilityKeys: ['z', 'a'] },
+      '$["payload"]["requiredCapabilityKeys"][1]',
+    ],
+    [
+      { matchingAttributes: { empty: '' } },
+      '$["payload"]["matchingAttributes"]["empty"]',
+    ],
+    [{ inputSummary: 'x'.repeat(4097) }, '$["payload"]["inputSummary"]'],
+    [
+      { completionCriteria: Array.from({ length: 33 }, () => 'criterion') },
+      '$["payload"]["completionCriteria"]',
+    ],
+    [{ budgetReservationUnits: -1 }, '$["payload"]["budgetReservationUnits"]'],
+    [{ ownerEpoch: 2 }, '$["payload"]["ownerEpoch"]'],
+    [{ offerAttempt: 2 }, '$["payload"]["previousOfferId"]'],
+    [{ previousOfferId: 'offer-prior' }, '$["payload"]["previousOfferId"]'],
+    [
+      { previousOfferId: 'offer-a', offerAttempt: 2 },
+      '$["payload"]["previousOfferId"]',
+    ],
+    [
+      { bidDeadline: '2026-07-30T00:00:00.000Z' },
+      '$["payload"]["bidDeadline"]',
+    ],
+    [
+      { workDeadline: '2026-07-30T00:01:00.000Z' },
+      '$["payload"]["workDeadline"]',
+    ],
+    [
+      {
+        bidDeadline: '2026-07-30T01:00:00.000000001Z',
+        workDeadline: '2026-08-29T00:00:00.000Z',
+      },
+      '$["payload"]["bidDeadline"]',
+    ],
+    [
+      { workDeadline: '2026-08-29T00:00:00.000000001Z' },
+      '$["payload"]["workDeadline"]',
+    ],
+  ])
+    offerIssue(payload, path);
+
+  const { inputSummary: _summary, ...offerWithoutInput } = offer.payload;
+  expectIssue(
+    validateSignedMeshEnvelope({ ...offer, payload: offerWithoutInput }),
+    'invalid_payload',
+    '$["payload"]'
+  );
+  offerIssue({ inputReference: 'input-a' }, '$["payload"]');
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...offer,
+      expiresAt: '2026-07-30T00:01:00.000000001Z',
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({ ...offer, objectiveId: 'objective-other' }),
+    'invalid_payload',
+    '$["objectiveId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...offer,
+      causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+    }),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...offer,
+      causationId: 'PPPPPPPPPPPPPPPPPPPPPA',
+      payload: {
+        ...offer.payload,
+        offerId: 'offer-b',
+        offerAttempt: 2,
+        previousOfferId: 'offer-a',
+      },
+    }).ok,
+    true
+  );
+
+  for (const [payload, path] of [
+    [{ bidRevision: 2 }, '$["payload"]["previousBidId"]'],
+    [{ previousBidId: 'bid-prior' }, '$["payload"]["previousBidId"]'],
+    [
+      { bidRevision: 2, previousBidId: 'bid-a' },
+      '$["payload"]["previousBidId"]',
+    ],
+    [
+      { capacityReservationUnits: 0 },
+      '$["payload"]["capacityReservationUnits"]',
+    ],
+    [
+      { capacityReservationUnits: 1_000_001 },
+      '$["payload"]["capacityReservationUnits"]',
+    ],
+    [{ budgetUnits: -1 }, '$["payload"]["budgetUnits"]'],
+    [
+      { assumptions: Array.from({ length: 33 }, () => 'assumption') },
+      '$["payload"]["assumptions"]',
+    ],
+    [
+      { bidExpiresAt: '2026-07-30T00:00:01.000Z' },
+      '$["payload"]["bidExpiresAt"]',
+    ],
+    [
+      { expectedCompletionAt: '2026-07-30T00:01:00.000Z' },
+      '$["payload"]["expectedCompletionAt"]',
+    ],
+    [
+      { expectedCompletionAt: '2026-07-30T01:00:00.000000001Z' },
+      '$["payload"]["expectedCompletionAt"]',
+    ],
+  ])
+    bidIssue(payload, path);
+  {
+    const { causationId: _causation, ...withoutCausation } = bid;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+  }
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...bid,
+      expiresAt: '2026-07-30T00:00:30.000000001Z',
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...bid,
+      messageId: 'CCCCCCCCCCCCCCCCCCCCCA',
+      payload: { ...bid.payload },
+    }).ok,
+    true,
+    'distinct recipient envelopes can name one stable offer ID'
+  );
+});
+
 test('Alpha 2 discovery and capability boundaries fail closed', async () => {
   const card = await loadFixture('peer-card');
   const advertise = await loadFixture('capability-advertise');

@@ -813,6 +813,75 @@ test('signed-valid Alpha 2 Objective records stop before the reducer', async () 
   }
 });
 
+test('signed-valid Alpha 2 Work Offer and Bid records stop before the reducer', async () => {
+  const state = runningState();
+  const payloads = [
+    {
+      type: 'work.offer',
+      offerId: 'offer-a',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-a',
+      ownerEpoch: 1,
+      offerAttempt: 1,
+      requiredCapabilityKeys: ['summarize'],
+      matchingAttributes: { language: 'en' },
+      inputSummary: 'Summarize the approved material.',
+      completionCriteria: ['Return a concise summary.'],
+      budgetReservationUnits: 100,
+      bidDeadline: '2026-07-30T00:01:00Z',
+      workDeadline: '2026-07-30T01:00:00Z',
+    },
+    {
+      type: 'work.bid',
+      bidId: 'bid-a',
+      bidRevision: 1,
+      offerId: 'offer-a',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      offerAttempt: 1,
+      bidderPeerId: 'peer-a',
+      advertisementId: 'advertisement-a',
+      capabilityId: 'capability-a',
+      capabilityRevision: 1,
+      capacityReservationUnits: 1,
+      budgetUnits: 100,
+      bidDeadline: '2026-07-30T00:01:00Z',
+      workDeadline: '2026-07-30T01:00:00Z',
+      expectedCompletionAt: '2026-07-30T00:30:00Z',
+      bidExpiresAt: '2026-07-30T00:00:30Z',
+      assumptions: [],
+    },
+  ];
+  for (const [index, payload] of payloads.entries()) {
+    const envelope = await signedEnvelope(
+      payload.type,
+      1,
+      messageId(140 + index),
+      {
+        objectiveId: 'objective-a',
+        audience: { kind: 'peer', peerId: 'peer-b' },
+        expiresAt: '2026-07-30T00:00:30Z',
+        ...(payload.type === 'work.bid' ? { causationId: messageId(139) } : {}),
+        payload,
+      }
+    );
+    expectRejected(
+      await process(state, envelope),
+      'unsupported_message_type',
+      state
+    );
+  }
+});
+
 test('admission and authority failures preserve the original state', async () => {
   const cases = [
     {
