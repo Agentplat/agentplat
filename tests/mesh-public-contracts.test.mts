@@ -58,6 +58,7 @@ import {
   type LeaseRenewPayload,
   type LeaseTakeoverProposalPayload,
   type LeaseVotePayload,
+  type LeaseCertificatePayload,
   type MeshEnvelopeContext,
   type MeshMessagePayload,
   type MeshProtocolResult,
@@ -383,6 +384,24 @@ const invalidLeaseVoteType: LeaseVotePayload = {
   // @ts-expect-error lease votes have one closed message type
   type: 'lease.certificate',
 };
+const leaseCertificatePayload: LeaseCertificatePayload = {
+  type: 'lease.certificate',
+  certificateId: 'certificate-a',
+  certificateAssemblerPeerId: 'peer-b',
+  takeoverProposalId: 'takeover-proposal-a',
+  leaseVoteIds: ['lease-vote-a', 'lease-vote-b'],
+  objectiveId: 'objective-a',
+};
+const invalidLeaseCertificateId: LeaseCertificatePayload = {
+  ...leaseCertificatePayload,
+  // @ts-expect-error lease certificate identifiers are strings
+  certificateId: 1,
+};
+const invalidLeaseCertificateType: LeaseCertificatePayload = {
+  ...leaseCertificatePayload,
+  // @ts-expect-error lease certificates have one closed message type
+  type: 'lease.vote',
+};
 // @ts-expect-error pending cancellation cannot name an acceptance
 const invalidWorkCancelPending: WorkCancelPayload = {
   ...workCancelPendingPayload,
@@ -576,6 +595,7 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'lease.renew':
     case 'lease.takeover_proposal':
     case 'lease.vote':
+    case 'lease.certificate':
       return payload.type;
     default: {
       const exhaustive: never = payload;

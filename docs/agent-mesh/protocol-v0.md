@@ -332,7 +332,7 @@ deduplicate the logical state transition.
 | `lease.renew`             | current lease holder                        | one direct envelope per owner or witness             | required                         | Lease, epoch and fencing token are current                      |
 | `lease.takeover_proposal` | eligible recovery candidate or witness      | one direct envelope per witness                      | required                         | Current lease has expired under local policy                    |
 | `lease.vote`              | configured witness self                     | one direct envelope per recovery participant         | required                         | One vote per witness, Work Item and proposed epoch              |
-| `lease.certificate`       | certificate assembler                       | one direct envelope per affected peer                | required                         | Contains the required valid witness votes                       |
+| `lease.certificate`       | certificate assembler                       | one direct envelope per affected peer                | required                         | Names one proposal and required distinct witness votes          |
 | `evidence.claim`          | claim source self                           | direct or `evidence` topic                           | required for work-derived claims | Provenance is in an authorized scope                            |
 | `evidence.attest`         | attester self                               | direct or `evidence` topic                           | same scope as claim              | References an accepted claim                                    |
 | `evidence.challenge`      | admitted participant in claim scope         | direct or `evidence` topic                           | same scope as claim              | References an accepted claim or attestation                     |
@@ -380,7 +380,7 @@ immediately preceding domain record where the matrix requires causation.
 | `lease.renew`                 | current Work Item revision and assignment epoch                          | accepted `work.accept` or preceding renewal envelope |    lesser of 30 seconds or remaining lease | Appends a bounded lease extension under Objective policy                                                  |
 | `lease.takeover_proposal`     | proposed epoch exactly one above the declared current epoch              | accepted `work.accept` or latest renewal envelope    |                                   1 minute | Immutable proposal; it grants no execution authority                                                      |
 | `lease.vote`                  | proposed epoch from takeover proposal                                    | accepted takeover proposal ID                        |                                   1 minute | One immutable vote per witness, Work Item and proposed epoch; conflicting votes are equivocation evidence |
-| `lease.certificate`           | certified epoch strictly greater than current epoch                      | takeover proposal and required vote IDs              |                                   1 minute | Immutable certificate; only a later valid certificate can supersede its epoch                             |
+| `lease.certificate`           | exact next epoch resolved from the accepted takeover proposal            | takeover proposal and required vote IDs              |                                   1 minute | Immutable certificate; acceptance fences the preceding epoch before replacement activation                |
 | `evidence.claim`              | work-derived claims carry Work Item revision and epoch                   | producing result/checkpoint IDs when work-derived    |                                  5 minutes | Immutable claim; only its original author may issue a separate retraction                                 |
 | `evidence.attest`             | claim scope revision; work scope includes revision and epoch             | accepted claim ID                                    |                                  5 minutes | Immutable attestation; only its author may retract it                                                     |
 | `evidence.challenge`          | target scope revision; work scope includes revision and epoch            | accepted claim or attestation ID                     |                                  5 minutes | Immutable challenge; responses are new evidence events                                                    |
@@ -482,6 +482,26 @@ duplicate identical vote is idempotent; endorsing another proposal in that
 scope is conflicting vote evidence and cannot count toward a certificate. A
 vote alone never advances an epoch, changes fencing, grants execution authority
 or modifies budget.
+
+`lease.certificate` names one accepted takeover proposal and the bounded witness
+votes that certify it. Its closed payload carries a stable `certificateId`, the
+self-bound `certificateAssemblerPeerId`, `takeoverProposalId`, between two and
+32 sorted unique `leaseVoteIds`, and `objectiveId`. It does not repeat the
+candidate, Work Item, assignment, lease, epoch, witness policy or fencing
+snapshot; those remain canonical in the accepted proposal and Objective.
+
+Delivery is direct to one affected peer, the Objective header must match,
+causation names the proposal envelope and TTL is at most one minute. Proposal
+and vote resolution, distinct configured witness authors, the accepted
+Objective threshold, assembler and recipient authorization, terminality and
+certificate conflicts are stateful checks. Sender timestamps do not establish
+lease expiry or recovery-grace eligibility.
+
+Stateful acceptance advances only the exact epoch proposed by the accepted
+proposal, sets `certificateId` as both assignment authority ID and fencing
+token, and moves the Work Item to `recovering`. It does not activate the
+candidate or grant execution authority; the owner must still issue a matching
+recovery award that the candidate accepts.
 
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown

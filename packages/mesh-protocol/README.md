@@ -46,10 +46,10 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Lease certification, evidence, trust and peer-sync message families remain
-reserved until their closed payload contracts are implemented. They fail
-explicitly rather than entering a generic payload path. Implemented Objective,
-Work, Lease Renewal, Lease Takeover Proposal and Lease Vote records parse, sign
+Evidence, trust and peer-sync message families remain reserved until their
+closed payload contracts are implemented. They fail explicitly rather than
+entering a generic payload path. Implemented Objective, Work, Lease Renewal,
+Lease Takeover Proposal, Lease Vote and Lease Certificate records parse, sign
 and verify structurally, but remain explicitly unsupported at the Mesh runtime
 boundary until their reducers and state authorization are implemented.
 
@@ -117,6 +117,11 @@ Lease Vote envelopes also have a one-minute TTL. They self-bind the witness,
 require direct delivery and Objective-header equality, and causally name the
 accepted takeover proposal they endorse. Witness membership and vote
 uniqueness require accepted local state.
+
+Lease Certificate envelopes have a one-minute TTL and self-bind their
+assembler. They carry between two and 32 sorted unique vote IDs, require direct
+delivery, Objective-header equality and proposal causation. The accepted
+Objective determines the actual threshold.
 
 Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return
@@ -296,6 +301,28 @@ participant, or the witness has not already endorsed another proposal for the
 same Work Item revision and proposed epoch. Those are stateful reducer checks.
 A vote alone does not advance an epoch, change fencing, grant execution
 authority, activate a candidate or mutate budget.
+
+## Lease Certificate limits
+
+Lease Certificate references one accepted takeover proposal and the witness
+votes that certify it. Its closed payload contains a stable `certificateId`,
+the self-bound `certificateAssemblerPeerId`, `takeoverProposalId`, between two
+and 32 sorted unique `leaseVoteIds`, and the Objective ID. It does not repeat
+candidate, Work Item, assignment, lease, epoch or fencing fields; the accepted
+proposal is their canonical source.
+
+The audience is one direct peer, the envelope Objective ID equals the payload
+Objective ID, causation names the proposal envelope and TTL is at most one
+minute. The parser does not prove that the proposal or votes are accepted, that
+the votes endorse the same proposal, come from distinct configured witnesses
+or satisfy the Objective threshold, or that the assembler and recipient are
+authorized. Those are stateful reducer checks.
+
+After stateful acceptance, `certificateId` becomes the next assignment
+authority ID and fencing token, and the Work Item enters recovery. The
+certificate does not itself grant execution authority or activate the
+candidate; that requires the existing owner-issued recovery award and
+acceptance flow.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

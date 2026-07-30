@@ -592,6 +592,16 @@ witness-set and recipient authorization, idempotency, one vote per witness and
 proposed epoch, conflicting proposal evidence, terminality and the invariant
 that a vote grants no authority.
 
+Wire conformance for recovery certificates covers a closed record with a stable
+certificate ID, self-bound assembler, logical takeover proposal ID, two to 32
+sorted unique vote IDs, direct audience, Objective-header equality, mandatory
+proposal causation and a one-minute TTL. Candidate, assignment, lease, epoch,
+witness policy and fencing snapshots remain canonical in the accepted proposal
+and Objective. Stateful tests must separately resolve every vote to the same
+proposal and distinct configured witness, enforce the accepted threshold,
+authorize assembler and recipients, reject stale or conflicting certificates,
+and prove fencing occurs before any replacement activation.
+
 Exit criterion: a threshold can fence and reassign exactly the next epoch, while
 a minority cannot create execution authority.
 
