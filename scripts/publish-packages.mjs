@@ -16,6 +16,10 @@ export const PUBLIC_NPM_REGISTRY_ARGUMENTS = Object.freeze([
   '--registry=https://registry.npmjs.org/',
   '--@agentplat:registry=https://registry.npmjs.org/',
 ]);
+export const PUBLIC_NPM_READ_ARGUMENTS = Object.freeze([
+  ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+  '--prefer-online',
+]);
 
 export async function publishPackages({
   root = process.cwd(),
@@ -239,20 +243,6 @@ export async function publishPackages({
         cwd: root,
         stdio: 'inherit',
       });
-
-      if (!dryRun) {
-        const publishedIntegrity = await waitForRegistryIntegrity({
-          environment,
-          packageName: name,
-          root,
-          version,
-        });
-        assert.equal(
-          publishedIntegrity,
-          artifact.integrity,
-          `${name}@${version} registry integrity differs after publishing`
-        );
-      }
     }
 
     if (dryRun) {
@@ -267,21 +257,22 @@ export async function publishPackages({
       return;
     }
 
+    await waitForRegistryBatch({
+      packages: artifacts.map((artifact) => ({
+        name: artifact.manifest.name,
+        version: artifact.manifest.version,
+        expectedIntegrity: registryState.get(artifact.manifest.name)
+          .expectedRegistryIntegrity,
+      })),
+      lookupIntegrity: ({ name, version }) =>
+        registryIntegrity({
+          environment,
+          packageName: name,
+          root,
+          version,
+        }),
+    });
     const stagingCleanupFailures = [];
-    for (const artifact of artifacts) {
-      const { name, version } = artifact.manifest;
-      const verifiedIntegrity = await waitForRegistryIntegrity({
-        environment,
-        packageName: name,
-        root,
-        version,
-      });
-      assert.equal(
-        verifiedIntegrity,
-        registryState.get(name).expectedRegistryIntegrity,
-        `${name}@${version} failed final integrity verification`
-      );
-    }
     for (const artifact of artifacts) {
       addDistributionTag({
         environment,
@@ -493,6 +484,65 @@ export function extractPackageTarball({
   run(root, environment, 'tar', ['-xzpf', tarballPath, '-C', destination], {
     stdio: 'pipe',
   });
+}
+
+export async function waitForRegistryBatch({
+  delays = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000],
+  lookupIntegrity,
+  maximumWaitMs = 600_000,
+  now = () => Date.now(),
+  packages,
+  sleep = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
+}) {
+  assert.ok(
+    Number.isSafeInteger(maximumWaitMs) && maximumWaitMs > 0,
+    'maximumWaitMs must be a positive safe integer'
+  );
+  assert.ok(
+    delays.length > 0,
+    'At least one registry polling delay is required'
+  );
+  for (const delay of delays) {
+    assert.ok(
+      Number.isSafeInteger(delay) && delay > 0,
+      'Registry polling delays must be positive safe integers'
+    );
+  }
+  const pending = new Map(
+    packages.map((packageEntry) => [packageEntry.name, packageEntry])
+  );
+  assert.equal(
+    pending.size,
+    packages.length,
+    'Registry verification package names must be unique'
+  );
+  const deadline = now() + maximumWaitMs;
+  let attempt = 0;
+
+  while (pending.size > 0) {
+    for (const packageEntry of [...pending.values()]) {
+      const integrity = lookupIntegrity(packageEntry);
+      if (integrity === undefined) continue;
+      assert.equal(
+        integrity,
+        packageEntry.expectedIntegrity,
+        `${packageEntry.name}@${packageEntry.version} failed final integrity verification`
+      );
+      pending.delete(packageEntry.name);
+    }
+    if (pending.size === 0) return;
+
+    const remaining = deadline - now();
+    if (remaining <= 0) {
+      throw new Error(
+        `Packages did not become visible in the registry within ${maximumWaitMs}ms: ${[...pending.keys()].sort().join(', ')}`
+      );
+    }
+    const delay = delays[Math.min(attempt, delays.length - 1)];
+    await sleep(Math.min(delay, remaining));
+    attempt += 1;
+  }
 }
 
 function runtimeDependencyNames(manifest) {
@@ -804,7 +854,7 @@ async function verifyExistingRegistryArtifactEquivalent({
       '--pack-destination',
       tarballRoot,
       '--ignore-scripts',
-      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+      ...PUBLIC_NPM_READ_ARGUMENTS,
     ],
     { stdio: 'pipe' }
   );
@@ -853,7 +903,7 @@ function registryIntegrity({ environment, packageName, root, version }) {
       `${packageName}@${version}`,
       'dist.integrity',
       '--json',
-      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+      ...PUBLIC_NPM_READ_ARGUMENTS,
     ],
     {
       cwd: root,
@@ -867,13 +917,7 @@ function registryIntegrity({ environment, packageName, root, version }) {
 function registryDistributionTags({ environment, packageName, root }) {
   const result = spawnSync(
     'npm',
-    [
-      'view',
-      packageName,
-      'dist-tags',
-      '--json',
-      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
-    ],
+    ['view', packageName, 'dist-tags', '--json', ...PUBLIC_NPM_READ_ARGUMENTS],
     {
       cwd: root,
       encoding: 'utf8',
@@ -881,30 +925,6 @@ function registryDistributionTags({ environment, packageName, root }) {
     }
   );
   return parseRegistryDistributionTags(result, packageName);
-}
-
-async function waitForRegistryIntegrity({
-  environment,
-  packageName,
-  root,
-  version,
-}) {
-  const delays = [0, 1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
-  for (const delay of delays) {
-    if (delay > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-    const integrity = registryIntegrity({
-      environment,
-      packageName,
-      root,
-      version,
-    });
-    if (integrity !== undefined) return integrity;
-  }
-  throw new Error(
-    `${packageName}@${version} did not become visible in the registry`
-  );
 }
 
 function addDistributionTag({ environment, packageName, root, tag, version }) {

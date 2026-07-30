@@ -30,6 +30,9 @@
 - Hardened interrupted-release recovery with authenticated registry downloads,
   pinned public-registry operations, strict extracted-tree and package metadata
   comparison, and fail-closed cleanup of stale staging tags.
+- Batched missing-package uploads ahead of bounded online registry verification
+  under one shared deadline so first-publication visibility converges in
+  parallel before promotion.
 
 ## 0.2.0-beta.11 - 2026-07-16
 

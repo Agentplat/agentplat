@@ -19,9 +19,11 @@ import {
   extractPackageTarball,
   parseRegistryDistributionTags,
   parseRegistryIntegrityResult,
+  PUBLIC_NPM_READ_ARGUMENTS,
   PUBLIC_NPM_REGISTRY_ARGUMENTS,
   stagingTagsForVersion,
   topologicalPackages,
+  waitForRegistryBatch,
 } from '../scripts/publish-packages.mjs';
 
 test('publisher orders packages by runtime dependencies and rejects cycles', () => {
@@ -302,6 +304,11 @@ test('publisher pins both global and scoped operations to the public registry', 
     '--@agentplat:registry=https://registry.npmjs.org/',
   ]);
   assert.equal(Object.isFrozen(PUBLIC_NPM_REGISTRY_ARGUMENTS), true);
+  assert.deepEqual(PUBLIC_NPM_READ_ARGUMENTS, [
+    ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+    '--prefer-online',
+  ]);
+  assert.equal(Object.isFrozen(PUBLIC_NPM_READ_ARGUMENTS), true);
 });
 
 test('publisher preserves tarball permission modes independently of the process umask', async () => {
@@ -352,4 +359,52 @@ test('publisher preserves tarball permission modes independently of the process 
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
+});
+
+test('publisher verifies registry visibility against one shared batch deadline', async () => {
+  const packages = [
+    {
+      name: '@agentplat/a',
+      version: '1.0.0',
+      expectedIntegrity: 'sha512-YQ==',
+    },
+    {
+      name: '@agentplat/b',
+      version: '1.0.0',
+      expectedIntegrity: 'sha512-Yg==',
+    },
+  ];
+  let clock = 0;
+  await waitForRegistryBatch({
+    packages,
+    maximumWaitMs: 10,
+    delays: [2],
+    now: () => clock,
+    sleep: async (milliseconds) => {
+      clock += milliseconds;
+    },
+    lookupIntegrity: ({ name }) =>
+      name === '@agentplat/a'
+        ? 'sha512-YQ=='
+        : clock >= 4
+          ? 'sha512-Yg=='
+          : undefined,
+  });
+  assert.equal(clock, 4);
+
+  clock = 0;
+  await assert.rejects(
+    waitForRegistryBatch({
+      packages,
+      maximumWaitMs: 5,
+      delays: [2],
+      now: () => clock,
+      sleep: async (milliseconds) => {
+        clock += milliseconds;
+      },
+      lookupIntegrity: () => undefined,
+    }),
+    /within 5ms: @agentplat\/a, @agentplat\/b/
+  );
+  assert.equal(clock, 5);
 });

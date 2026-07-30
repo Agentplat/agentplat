@@ -19,7 +19,7 @@ or Git tag has occurred.
 
 ## Public preparation evidence
 
-Verified on 2026-07-30: the complete `check` pipeline passed with 163 unit
+Verified on 2026-07-30: the complete `check` pipeline passed with 164 unit
 tests, adapter regressions, 28 audited tarballs and 31 isolated public exports.
 
 - [x] all 28 public manifests use the fixed candidate version;

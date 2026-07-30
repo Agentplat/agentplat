@@ -86,6 +86,12 @@ final tag promotion or staging cleanup is safe to retry. All staging tags that
 point at the promoted version are removed afterward, and cleanup failure keeps
 the release workflow red.
 
+Missing packages are uploaded in dependency order without waiting for each
+individual name to propagate. The final verification polls the public registry
+with online-preferred reads and one shared ten-minute deadline for the batch,
+allowing independent package visibility to converge in parallel before any
+final tag is promoted.
+
 Exercise the same packing, ordering and registry-integrity preflight without
 uploading or changing tags:
 
