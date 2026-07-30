@@ -56,6 +56,7 @@ import {
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
   type LeaseRenewPayload,
+  type LeaseTakeoverProposalPayload,
   type MeshEnvelopeContext,
   type MeshMessagePayload,
   type MeshProtocolResult,
@@ -343,6 +344,27 @@ const invalidLeaseRenewType: LeaseRenewPayload = {
   // @ts-expect-error lease renewal has one closed message type
   type: 'work.release',
 };
+const leaseTakeoverProposalPayload: LeaseTakeoverProposalPayload = {
+  type: 'lease.takeover_proposal',
+  takeoverProposalId: 'takeover-proposal-a',
+  proposalAuthority: 'witness',
+  proposerPeerId: 'peer-b',
+  proposedAssigneePeerId: 'peer-c',
+  proposedAssignmentEpoch: 2,
+  leaseRenewalSequence: 1,
+  latestLeaseRenewalId: 'lease-renewal-a',
+  ...workExecutionAuthorityFields,
+};
+const invalidTakeoverProposalAuthority: LeaseTakeoverProposalPayload = {
+  ...leaseTakeoverProposalPayload,
+  // @ts-expect-error proposal authority is a closed discriminant
+  proposalAuthority: 'owner',
+};
+const invalidTakeoverProposalEpoch: LeaseTakeoverProposalPayload = {
+  ...leaseTakeoverProposalPayload,
+  // @ts-expect-error proposed epoch is a numeric scalar
+  proposedAssignmentEpoch: '2',
+};
 // @ts-expect-error pending cancellation cannot name an acceptance
 const invalidWorkCancelPending: WorkCancelPayload = {
   ...workCancelPendingPayload,
@@ -534,6 +556,7 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'work.release':
     case 'work.cancel':
     case 'lease.renew':
+    case 'lease.takeover_proposal':
       return payload.type;
     default: {
       const exhaustive: never = payload;

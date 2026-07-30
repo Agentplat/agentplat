@@ -21,6 +21,8 @@ The implementation provides:
 - closed, bounded Alpha 2 Work Release and Work Cancel records for
   `work.release` and `work.cancel`;
 - a closed, bounded Alpha 2 Lease Renewal record for `lease.renew`;
+- a closed, bounded Alpha 2 Lease Takeover Proposal record for
+  `lease.takeover_proposal`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -44,12 +46,12 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Lease recovery, evidence, trust and peer-sync message families remain reserved
-until their closed payload contracts are implemented. They fail explicitly
-rather than entering a generic payload path. Implemented Objective, Work and
-Lease Renewal records parse, sign and verify structurally, but remain explicitly
-unsupported at the Mesh runtime boundary until their reducers and state
-authorization are implemented.
+Lease voting and certification, evidence, trust and peer-sync message families
+remain reserved until their closed payload contracts are implemented. They fail
+explicitly rather than entering a generic payload path. Implemented Objective,
+Work, Lease Renewal and Lease Takeover Proposal records parse, sign and verify
+structurally, but remain explicitly unsupported at the Mesh runtime boundary
+until their reducers and state authorization are implemented.
 
 ## Frozen limits
 
@@ -105,6 +107,11 @@ Lease Renewal envelopes have a 30-second TTL and must expire no later than the
 currently declared lease. A renewal self-binds the assignee, requires direct
 delivery and extends the declared expiry by a positive duration of at most 24
 hours. The accepted Objective may impose a lower duration and renewal count.
+
+Lease Takeover Proposal envelopes have a one-minute TTL. They require one direct
+peer audience, mandatory causation and Objective-header equality. The trusted
+receiver clock and accepted Objective policy—not sender-declared time—determine
+whether lease expiry plus recovery grace has elapsed.
 
 Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return
@@ -243,6 +250,29 @@ renewals resolve it to the immediately preceding `lease.renew` envelope for
 that recipient. Recipient authorization, exact predecessor and sequence,
 current assignment and lease, Work deadline, Objective duration/count policy,
 terminal state and idempotency remain stateful reducer checks.
+
+## Lease Takeover Proposal limits
+
+Lease Takeover Proposal carries the accepted assignment authority and current
+lease expiry plus a stable `takeoverProposalId`. It identifies the self-bound
+`proposerPeerId`, a closed `candidate` or `witness` `proposalAuthority`, the
+different `proposedAssigneePeerId`, and exactly the next declared assignment
+epoch. It does not propose a fencing token; an accepted recovery certificate's
+stable ID becomes that token later.
+
+`leaseRenewalSequence` is `0` for the initial accepted lease and omits
+`latestLeaseRenewalId`. Values `1` through `100` require that stable renewal ID.
+Causation resolves to the accepted `work.accept` for sequence `0`, or to the
+latest accepted `lease.renew` envelope for the receiving witness.
+
+The parser enforces closed fields, role consistency, direct delivery, mandatory
+causation, Objective equality and the one-minute TTL. It does not establish that
+the lease head is accepted or expired, recovery grace elapsed, the proposer and
+candidate are eligible, the recipient is a configured witness, or the Work Item
+is current and non-terminal. Those checks require accepted local state and a
+trusted receiver clock. A valid proposal records recovery intent only; it does
+not advance the epoch, grant execution authority, change fencing or reserve
+budget.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

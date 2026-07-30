@@ -628,6 +628,207 @@ test('Alpha 2 Lease Renewal fixture extends one current lease fail-closed', asyn
   );
 });
 
+test('Alpha 2 Lease Takeover Proposal fixture freezes recovery intent', async () => {
+  const proposal = await loadFixture('lease-takeover-proposal');
+  const parsed = parseSignedMeshEnvelope(
+    await loadFixtureBytes('lease-takeover-proposal')
+  );
+  assert.equal(parsed.ok, true);
+  assert.equal(Object.isFrozen(parsed.value), true);
+  assert.equal(Object.isFrozen(parsed.value.payload), true);
+  assert.equal(validateSignedMeshEnvelope(proposal).ok, true);
+
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      sender: { peerId: 'peer-c', instanceId: 'instance-c' },
+      audience: { kind: 'peer', peerId: 'peer-b' },
+      payload: {
+        ...proposal.payload,
+        proposalAuthority: 'candidate',
+        proposerPeerId: 'peer-c',
+      },
+    }).ok,
+    true,
+    'the proposed candidate may self-author the same recovery intent'
+  );
+  const {
+    latestLeaseRenewalId: _latestLeaseRenewalId,
+    ...initialLeaseProposal
+  } = proposal.payload;
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      causationId: 'AAAAAAAAAAAAAAAAAAAAAg',
+      payload: {
+        ...initialLeaseProposal,
+        leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+        leaseRenewalSequence: 0,
+      },
+    }).ok,
+    true,
+    'an initial accepted lease has no renewal-domain predecessor'
+  );
+
+  for (const [envelope, code, path] of [
+    [
+      {
+        ...proposal,
+        audience: { kind: 'mesh', topic: 'work' },
+      },
+      'invalid_audience',
+      '$["audience"]',
+    ],
+    [
+      {
+        ...proposal,
+        sender: { peerId: 'peer-other', instanceId: 'instance-other' },
+      },
+      'invalid_payload',
+      '$["payload"]["proposerPeerId"]',
+    ],
+    [
+      {
+        ...proposal,
+        objectiveId: 'objective-other',
+      },
+      'invalid_payload',
+      '$["objectiveId"]',
+    ],
+    [
+      {
+        ...proposal,
+        payload: { ...proposal.payload, unexpected: true },
+      },
+      'invalid_payload',
+      '$["payload"]["unexpected"]',
+    ],
+    [
+      {
+        ...proposal,
+        payload: {
+          ...proposal.payload,
+          fencingToken: 'different-authority',
+        },
+      },
+      'invalid_payload',
+      '$["payload"]["fencingToken"]',
+    ],
+  ]) {
+    expectIssue(validateSignedMeshEnvelope(envelope), code, path);
+  }
+
+  const { causationId: _causationId, ...withoutCausation } = proposal;
+  expectIssue(
+    validateSignedMeshEnvelope(withoutCausation),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      expiresAt: new Date(
+        Date.parse(proposal.sentAt) + 60_000 + 1
+      ).toISOString(),
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      sentAt: '2026-07-30T00:59:59.000Z',
+      expiresAt: '2026-07-30T01:00:59.000Z',
+    }).ok,
+    true,
+    'trusted receiver time, not sender-declared time, decides recovery eligibility'
+  );
+
+  for (const [payload, code, path] of [
+    [
+      { takeoverProposalId: '' },
+      'invalid_identifier',
+      '$["payload"]["takeoverProposalId"]',
+    ],
+    [
+      { proposalAuthority: 'other' },
+      'invalid_payload',
+      '$["payload"]["proposalAuthority"]',
+    ],
+    [
+      {
+        proposalAuthority: 'candidate',
+      },
+      'invalid_payload',
+      '$["payload"]["proposedAssigneePeerId"]',
+    ],
+    [
+      {
+        proposedAssigneePeerId: proposal.payload.proposerPeerId,
+      },
+      'invalid_payload',
+      '$["payload"]["proposalAuthority"]',
+    ],
+    [
+      {
+        proposedAssigneePeerId: proposal.payload.assigneePeerId,
+      },
+      'invalid_payload',
+      '$["payload"]["proposedAssigneePeerId"]',
+    ],
+    [
+      { proposedAssignmentEpoch: 1 },
+      'invalid_payload',
+      '$["payload"]["proposedAssignmentEpoch"]',
+    ],
+    [
+      { proposedAssignmentEpoch: 3 },
+      'invalid_payload',
+      '$["payload"]["proposedAssignmentEpoch"]',
+    ],
+    [
+      { leaseRenewalSequence: -1 },
+      'invalid_payload',
+      '$["payload"]["leaseRenewalSequence"]',
+    ],
+    [
+      { leaseRenewalSequence: 101 },
+      'invalid_payload',
+      '$["payload"]["leaseRenewalSequence"]',
+    ],
+    [
+      { leaseRenewalSequence: 0 },
+      'invalid_payload',
+      '$["payload"]["latestLeaseRenewalId"]',
+    ],
+    [
+      { latestLeaseRenewalId: '' },
+      'invalid_identifier',
+      '$["payload"]["latestLeaseRenewalId"]',
+    ],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...proposal,
+        payload: { ...proposal.payload, ...payload },
+      }),
+      code,
+      path
+    );
+  }
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      payload: {
+        ...initialLeaseProposal,
+        leaseRenewalSequence: 1,
+      },
+    }),
+    'invalid_identifier',
+    '$["payload"]["latestLeaseRenewalId"]'
+  );
+});
+
 test('strict JSON parsing rejects ambiguous and malformed documents', () => {
   for (const input of [
     '',
