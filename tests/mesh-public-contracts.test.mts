@@ -16,10 +16,21 @@ import type {
 } from '@agentplat/mesh-sim';
 import { THREE_PEER_SCENARIO_IDS } from '@agentplat/mesh-sim';
 import {
+  canonicalizeMeshJson,
+  canonicalizeMeshJsonBytes,
+  canonicalizeMeshPayload,
+  canonicalizeMeshSigningDocument,
+  createMeshSigningDocument,
   DEFAULT_MESH_PROTOCOL_LIMITS,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
+  parseMeshJson,
+  parseSignedMeshEnvelope,
+  validateMeshEnvelopeContext,
+  validateSignedMeshEnvelope,
+  type MeshEnvelopeContext,
+  type MeshProtocolResult,
   type PeerHelloPayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
@@ -113,6 +124,28 @@ const signer: MeshEnvelopeSigner | undefined = undefined;
 const resolver: MeshKeyResolver | undefined = undefined;
 const verifierInput: MeshVerifyRequest | undefined = undefined;
 const signedEnvelope: SignedMeshEnvelope | undefined = undefined;
+const envelopeContext: MeshEnvelopeContext = {
+  tenantId: 'tenant-a',
+  meshId: 'mesh-a',
+  peerId: 'peer-b',
+  receivedAt: '2026-07-29T00:00:01.000Z',
+};
+const parsedJson = parseMeshJson('{"bounded":true}');
+const canonicalJson = canonicalizeMeshJson({ bounded: true });
+const canonicalBytes = canonicalizeMeshJsonBytes({ bounded: true });
+const parsedEnvelope = parseSignedMeshEnvelope(new Uint8Array());
+// @ts-expect-error wire parsing requires bytes so UTF-8 failures stay visible
+parseSignedMeshEnvelope('{}');
+const validatedEnvelope = validateSignedMeshEnvelope({});
+const canonicalPayload = canonicalizeMeshPayload(helloPayload);
+const expectedResult: MeshProtocolResult<unknown> = parsedJson;
+const signedForContract = {} as SignedMeshEnvelope<PeerHelloPayload>;
+const signingDocument = createMeshSigningDocument(signedForContract);
+const signingBytes = canonicalizeMeshSigningDocument(signedForContract);
+const contextValidation = validateMeshEnvelopeContext(
+  signedForContract,
+  envelopeContext
+);
 const loopback: MeshLoopbackTransport | undefined = undefined;
 const kernel: MeshSimulationKernel | undefined = undefined;
 
@@ -125,5 +158,15 @@ void signer;
 void resolver;
 void verifierInput;
 void signedEnvelope;
+void envelopeContext;
+void canonicalJson;
+void canonicalBytes;
+void parsedEnvelope;
+void validatedEnvelope;
+void canonicalPayload;
+void expectedResult;
+void signingDocument;
+void signingBytes;
+void contextValidation;
 void loopback;
 void kernel;

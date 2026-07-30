@@ -185,6 +185,14 @@ sequences, invalid RFC 3339 timestamps and content above any applicable limit.
 allowance into the future, and the signed lifetime cannot exceed ten minutes.
 Large results use authorized content references.
 
+Protocol v0 uses a closed RFC 3339 timestamp profile: four-digit years from
+1970 through 9999, uppercase `T` and `Z`, valid calendar components, an
+optional fractional-second component containing one to nine digits, and
+numeric offsets from `00:00` through `23:59`. Leap seconds, lowercase
+separators and greater-than-nanosecond precision are rejected. Receivers
+preserve the signed timestamp text and use its represented instant for
+lifetime and freshness comparisons.
+
 ## Inbound order
 
 1. Apply connection, compressed-size and decompression-ratio limits.

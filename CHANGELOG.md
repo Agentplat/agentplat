@@ -6,6 +6,9 @@
   versioning, package smoke tests and publishing.
 - Added Agent Mesh architecture decisions, glossary, protocol v0 design, threat
   model, compatibility policy and staged release plan.
+- Added strict bounded parsing, deterministic JSON canonicalization,
+  closed-schema validation and structural conformance fixtures to
+  `@agentplat/mesh-protocol`.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.
