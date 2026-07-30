@@ -35,8 +35,10 @@ import {
   type SignedMeshEnvelope,
   type WorkBidPayload,
   type WorkAcceptPayload,
+  type WorkAssignmentAuthorityFields,
   type WorkAwardFields,
   type WorkAwardPayload,
+  type WorkCancelPayload,
   type WorkCheckpointContent,
   type WorkCheckpointPayload,
   type WorkDeclinePayload,
@@ -45,6 +47,7 @@ import {
   type WorkOfferInput,
   type WorkOfferPayload,
   type WorkProgressPayload,
+  type WorkReleasePayload,
   type WorkResultContent,
   type WorkResultPayload,
 } from './contracts.js';
@@ -993,6 +996,12 @@ function validatePayload(
   if (type === 'work.result') {
     return validateWorkResult(input, limits);
   }
+  if (type === 'work.release') {
+    return validateWorkRelease(input, limits);
+  }
+  if (type === 'work.cancel') {
+    return validateWorkCancel(input, limits);
+  }
   return fail('unsupported_message_type', '$["type"]');
 }
 
@@ -1761,10 +1770,151 @@ function validateWorkResult(
   };
 }
 
+function validateWorkRelease(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkReleasePayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'releaseAuthority',
+      'releaseDisposition',
+      'releaseId',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.release');
+  const releaseAuthority = assertString(
+    payload.releaseAuthority,
+    '$["payload"]["releaseAuthority"]',
+    'invalid_payload'
+  );
+  if (releaseAuthority !== 'owner' && releaseAuthority !== 'assignee') {
+    fail('invalid_payload', '$["payload"]["releaseAuthority"]');
+  }
+  const releaseDisposition = assertString(
+    payload.releaseDisposition,
+    '$["payload"]["releaseDisposition"]',
+    'invalid_payload'
+  );
+  if (releaseDisposition !== 'reoffer' && releaseDisposition !== 'close') {
+    fail('invalid_payload', '$["payload"]["releaseDisposition"]');
+  }
+  return {
+    type: 'work.release',
+    ...validateWorkExecutionAuthorityFields(payload, limits),
+    releaseId: assertIdentifier(
+      payload.releaseId,
+      '$["payload"]["releaseId"]',
+      limits
+    ),
+    releaseAuthority,
+    releaseDisposition,
+  };
+}
+
+function validateWorkCancel(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkCancelPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'assignmentState',
+      'awardId',
+      'cancellationId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['acceptanceId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'work.cancel');
+  const fields = validateWorkAssignmentAuthorityFields(payload, limits);
+  const cancellationId = assertIdentifier(
+    payload.cancellationId,
+    '$["payload"]["cancellationId"]',
+    limits
+  );
+  const assignmentState = assertString(
+    payload.assignmentState,
+    '$["payload"]["assignmentState"]',
+    'invalid_payload'
+  );
+  if (assignmentState === 'award_pending') {
+    if (Object.hasOwn(payload, 'acceptanceId')) {
+      fail('invalid_payload', '$["payload"]["acceptanceId"]');
+    }
+    return {
+      type: 'work.cancel',
+      ...fields,
+      cancellationId,
+      assignmentState,
+    };
+  }
+  if (assignmentState === 'active') {
+    return {
+      type: 'work.cancel',
+      ...fields,
+      cancellationId,
+      assignmentState,
+      acceptanceId: assertIdentifier(
+        payload.acceptanceId,
+        '$["payload"]["acceptanceId"]',
+        limits
+      ),
+    };
+  }
+  return fail('invalid_payload', '$["payload"]["assignmentState"]');
+}
+
 function validateWorkExecutionAuthorityFields(
   payload: Record<string, unknown>,
   limits: Readonly<MeshProtocolLimits>
 ): WorkExecutionAuthorityFields {
+  return {
+    ...validateWorkAssignmentAuthorityFields(payload, limits),
+    acceptanceId: assertIdentifier(
+      payload.acceptanceId,
+      '$["payload"]["acceptanceId"]',
+      limits
+    ),
+  };
+}
+
+function validateWorkAssignmentAuthorityFields(
+  payload: Record<string, unknown>,
+  limits: Readonly<MeshProtocolLimits>
+): WorkAssignmentAuthorityFields {
   const ownerEpoch = assertPositiveSafeInteger(
     payload.ownerEpoch,
     '$["payload"]["ownerEpoch"]',
@@ -1826,11 +1976,6 @@ function validateWorkExecutionAuthorityFields(
     awardId: assertIdentifier(
       payload.awardId,
       '$["payload"]["awardId"]',
-      limits
-    ),
-    acceptanceId: assertIdentifier(
-      payload.acceptanceId,
-      '$["payload"]["acceptanceId"]',
       limits
     ),
     assignmentEpoch: assertPositiveSafeInteger(
@@ -2383,6 +2528,24 @@ function validateMessageSpecificEnvelope(
     payload.assigneePeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["assigneePeerId"]');
+  } else if (payload.type === 'work.release') {
+    if (
+      payload.releaseAuthority === 'owner' &&
+      payload.ownerPeerId !== sender.peerId
+    ) {
+      fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+    }
+    if (
+      payload.releaseAuthority === 'assignee' &&
+      payload.assigneePeerId !== sender.peerId
+    ) {
+      fail('invalid_payload', '$["payload"]["assigneePeerId"]');
+    }
+  } else if (
+    payload.type === 'work.cancel' &&
+    payload.ownerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["ownerPeerId"]');
   }
 
   if (
@@ -2425,7 +2588,9 @@ function validateMessageSpecificEnvelope(
     type === 'work.decline' ||
     type === 'work.progress' ||
     type === 'work.checkpoint' ||
-    type === 'work.result'
+    type === 'work.result' ||
+    type === 'work.release' ||
+    type === 'work.cancel'
   ) {
     if (audience.kind !== 'peer') {
       fail('invalid_audience', '$["audience"]');
@@ -2487,7 +2652,9 @@ function validateMessageSpecificEnvelope(
       type === 'work.decline' ||
       type === 'work.progress' ||
       type === 'work.checkpoint' ||
-      type === 'work.result') &&
+      type === 'work.result' ||
+      type === 'work.release' ||
+      type === 'work.cancel') &&
     causationId === undefined
   ) {
     fail('invalid_payload', '$["causationId"]');
@@ -2504,7 +2671,9 @@ function validateMessageSpecificEnvelope(
     type === 'work.decline' ||
     type === 'work.progress' ||
     type === 'work.checkpoint' ||
-    type === 'work.result'
+    type === 'work.result' ||
+    type === 'work.release' ||
+    type === 'work.cancel'
   ) {
     if (
       objectiveId === undefined ||
@@ -2522,6 +2691,8 @@ function validateMessageSpecificEnvelope(
             | WorkProgressPayload
             | WorkCheckpointPayload
             | WorkResultPayload
+            | WorkReleasePayload
+            | WorkCancelPayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -2543,6 +2714,11 @@ function validateMessageSpecificEnvelope(
     payload.type === 'work.progress' ||
     payload.type === 'work.checkpoint' ||
     payload.type === 'work.result'
+  ) {
+    validateWorkExecutionTimes(payload, sentAt, expiresAt);
+  } else if (
+    payload.type === 'work.release' &&
+    payload.releaseAuthority === 'assignee'
   ) {
     validateWorkExecutionTimes(payload, sentAt, expiresAt);
   }
@@ -2693,7 +2869,11 @@ function validateWorkAssignmentResponseTimes(
 }
 
 function validateWorkExecutionTimes(
-  payload: WorkProgressPayload | WorkCheckpointPayload | WorkResultPayload,
+  payload:
+    | WorkProgressPayload
+    | WorkCheckpointPayload
+    | WorkResultPayload
+    | WorkReleasePayload,
   sentAt: bigint,
   expiresAt: bigint
 ): void {
@@ -3204,7 +3384,9 @@ function isImplementedMessageType(
     value === 'work.decline' ||
     value === 'work.progress' ||
     value === 'work.checkpoint' ||
-    value === 'work.result'
+    value === 'work.result' ||
+    value === 'work.release' ||
+    value === 'work.cancel'
   );
 }
 

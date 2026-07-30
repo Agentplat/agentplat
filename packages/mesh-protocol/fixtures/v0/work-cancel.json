@@ -1,0 +1,40 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "GGGGGGGGGGGGGGGGGGGGGA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "work.cancel",
+  "sender": { "peerId": "peer-b", "instanceId": "instance-b" },
+  "audience": { "kind": "peer", "peerId": "peer-a" },
+  "sequence": 18,
+  "sentAt": "2026-07-30T00:10:04.000Z",
+  "expiresAt": "2026-07-30T00:12:04.000Z",
+  "causationId": "AAAAAAAAAAAAAAAAAAAAAg",
+  "payloadHash": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "payload": {
+    "type": "work.cancel",
+    "cancellationId": "work-cancellation-a",
+    "assignmentState": "active",
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-b",
+    "ownerEpoch": 1,
+    "assigneePeerId": "peer-a",
+    "awardId": "award-a",
+    "assignmentEpoch": 1,
+    "assignmentAuthorityId": "award-a",
+    "fencingToken": "award-a",
+    "leaseExpiresAt": "2026-07-30T00:30:00.000Z",
+    "acceptanceId": "acceptance-a"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "key-b",
+    "value": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSA"
+  }
+}
