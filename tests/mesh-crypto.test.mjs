@@ -272,6 +272,81 @@ test('reference signer and verifier cover every Alpha 1 message type', async () 
   }
 });
 
+test('reference signer and verifier cover Alpha 2 payload shapes and tampering', async () => {
+  const keys = await keyPair();
+  const resolver = createStaticMeshKeyResolver([keyRecord(keys.publicKey)]);
+
+  for (const [fixtureName, payloadField] of [
+    ['peer-card', 'peerCardId'],
+    ['peer-goodbye', 'peerCardId'],
+    ['capability-advertise', 'advertisementId'],
+    ['capability-withdraw', 'advertisementId'],
+  ]) {
+    const envelope = JSON.parse(
+      await readFile(
+        new URL(
+          `../packages/mesh-protocol/fixtures/v0/${fixtureName}.json`,
+          import.meta.url
+        ),
+        'utf8'
+      )
+    );
+    const signed = await signMeshEnvelope({
+      envelope,
+      privateKey: keys.privateKey,
+    });
+
+    assert.equal(validateSignedMeshEnvelope(signed).ok, true);
+    assert.equal(
+      (
+        await verifyMeshEnvelope({
+          envelope: signed,
+          resolver,
+          policy: DEFAULT_MESH_CRYPTO_POLICY,
+          verifiedAt,
+        })
+      ).verified,
+      true
+    );
+
+    const payloadTampered = validateSignedMeshEnvelope({
+      ...signed,
+      payload: {
+        ...signed.payload,
+        [payloadField]: `${signed.payload[payloadField]}-tampered`,
+      },
+    });
+    assert.equal(payloadTampered.ok, true);
+    expectRejection(
+      await verifyMeshEnvelope({
+        envelope: payloadTampered.value,
+        resolver,
+        policy: DEFAULT_MESH_CRYPTO_POLICY,
+        verifiedAt,
+      }),
+      'payload_hash_mismatch'
+    );
+
+    const signatureTampered = validateSignedMeshEnvelope({
+      ...signed,
+      proof: {
+        ...signed.proof,
+        value: `${signed.proof.value[0] === 'A' ? 'B' : 'A'}${signed.proof.value.slice(1)}`,
+      },
+    });
+    assert.equal(signatureTampered.ok, true);
+    expectRejection(
+      await verifyMeshEnvelope({
+        envelope: signatureTampered.value,
+        resolver,
+        policy: DEFAULT_MESH_CRYPTO_POLICY,
+        verifiedAt,
+      }),
+      'signature_invalid'
+    );
+  }
+});
+
 test('reference verifier authenticates digest, signature and key state', async () => {
   const { envelope, resolver } = await signAndContext();
   const result = await verifyMeshEnvelope({
@@ -621,6 +696,47 @@ test('verification performs one scoped synchronous lookup and snapshots it', asy
     }),
     'invalid_key_record'
   );
+});
+
+test('signing and verification preserve own prototype-named attributes', async () => {
+  const keys = await keyPair();
+  const attributes = JSON.parse('{"__proto__":"preserved"}');
+  const envelope = await signMeshEnvelope({
+    envelope: unsignedHello({
+      type: 'capability.advertise',
+      audience: { kind: 'mesh', topic: 'capability' },
+      payload: {
+        type: 'capability.advertise',
+        advertisementId: 'advertisement-a',
+        capabilityId: 'capability-a',
+        capabilityRevision: 1,
+        ownerPeerId: 'peer-a',
+        capabilityKey: 'summarize',
+        version: 'v1',
+        inputMediaTypes: ['text/plain'],
+        outputMediaTypes: ['text/plain'],
+        attributes,
+        validFrom: '2026-07-30T00:00:00Z',
+        validUntil: '2026-07-31T00:00:00Z',
+      },
+    }),
+    privateKey: keys.privateKey,
+  });
+  assert.equal(Object.hasOwn(envelope.payload.attributes, '__proto__'), true);
+  assert.equal(envelope.payload.attributes.__proto__, 'preserved');
+
+  const result = await verifyMeshEnvelope({
+    envelope,
+    resolver: createStaticMeshKeyResolver([keyRecord(keys.publicKey)]),
+    policy: DEFAULT_MESH_CRYPTO_POLICY,
+    verifiedAt,
+  });
+  assert.equal(result.verified, true);
+  assert.equal(
+    Object.hasOwn(result.envelope.payload.attributes, '__proto__'),
+    true
+  );
+  assert.equal(result.envelope.payload.attributes.__proto__, 'preserved');
 });
 
 test('verification enforces inclusive start, exclusive expiry and revocation', async () => {

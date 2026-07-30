@@ -6,6 +6,8 @@ import {
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
+  type CapabilityAdvertisePayload,
+  type CapabilityWithdrawPayload,
   type MeshAudience,
   type MeshAudienceTopic,
   type MeshEnvelope,
@@ -17,8 +19,11 @@ import {
   type MeshProtocolLimits,
   type MeshProtocolOptions,
   type MeshProtocolResult,
+  type MeshSender,
   type MeshSigningDocument,
   type MeshTimestampOrder,
+  type PeerCardPayload,
+  type PeerGoodbyePayload,
   type PeerHelloPayload,
   type PeerPingAckPayload,
   type PeerPingPayload,
@@ -36,6 +41,20 @@ const rfc3339Pattern =
 const base64UrlAlphabet =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const maximumIssuePathLength = 256;
+const maximumDomainStringBytes = 4_096;
+const maximumProtocolVersions = 8;
+const maximumTransportHints = 8;
+const maximumTransportHintBytes = 2_048;
+const maximumTransportHintsBytes = 8_192;
+const maximumCapabilityIds = 32;
+const maximumMediaTypes = 16;
+const maximumMediaTypeBytes = 128;
+const maximumAttributes = 32;
+const maximumAttributeKeyBytes = 128;
+const maximumAttributeValueBytes = 1_024;
+const maximumAttributesBytes = 16_384;
+const maximumVersionBytes = 128;
+const maximumAdvertisementValidityMs = 24 * 60 * 60 * 1_000;
 const knownMessageTypes = new Set<string>(MESH_MESSAGE_TYPES);
 const knownTopics = new Set<string>(MESH_AUDIENCE_TOPICS);
 const utf8Encoder = new TextEncoder();
@@ -125,7 +144,7 @@ export function compareMeshTimestamps(
 }
 
 /**
- * Parses and statically validates one complete Alpha 1 envelope.
+ * Parses and statically validates one complete implemented Mesh envelope.
  * This stage does not verify the payload digest or proof.
  */
 export function parseSignedMeshEnvelope(
@@ -355,7 +374,7 @@ function validateEnvelope(
   if (!knownMessageTypes.has(type)) {
     fail('unsupported_message_type', '$["type"]');
   }
-  if (!isAlphaOneMessageType(type)) {
+  if (!isImplementedMessageType(type)) {
     fail('unsupported_message_type', '$["type"]');
   }
 
@@ -409,7 +428,14 @@ function validateEnvelope(
   if (payload.type !== type) {
     fail('type_payload_mismatch', '$["payload"]["type"]');
   }
-  validateMessageSpecificEnvelope(type, audience, objectiveId, causationId);
+  validateMessageSpecificEnvelope(
+    type,
+    sender,
+    audience,
+    objectiveId,
+    causationId,
+    payload
+  );
 
   return {
     protocol: MESH_PROTOCOL,
@@ -521,6 +547,95 @@ function validatePayload(
     };
     return result;
   }
+  if (type === 'peer.card') {
+    const payload = assertClosedRecord(
+      input,
+      [
+        'capabilityIds',
+        'cardRevision',
+        'instanceId',
+        'peerCardId',
+        'protocolVersions',
+        'subjectPeerId',
+        'transportHints',
+        'type',
+        'validFrom',
+        'validUntil',
+      ],
+      ['previousPeerCardId'],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const peerCardId = assertIdentifier(
+      payload.peerCardId,
+      '$["payload"]["peerCardId"]',
+      limits
+    );
+    const cardRevision = assertPositiveSafeInteger(
+      payload.cardRevision,
+      '$["payload"]["cardRevision"]',
+      'invalid_payload'
+    );
+    const previousPeerCardId =
+      payload.previousPeerCardId === undefined
+        ? undefined
+        : assertIdentifier(
+            payload.previousPeerCardId,
+            '$["payload"]["previousPeerCardId"]',
+            limits
+          );
+    validateRevisionPredecessor(
+      cardRevision,
+      previousPeerCardId,
+      '$["payload"]["previousPeerCardId"]'
+    );
+    if (previousPeerCardId === peerCardId) {
+      fail('invalid_payload', '$["payload"]["previousPeerCardId"]');
+    }
+    const validFrom = assertRfc3339PayloadTimestamp(
+      payload.validFrom,
+      '$["payload"]["validFrom"]'
+    );
+    const validUntil = assertRfc3339PayloadTimestamp(
+      payload.validUntil,
+      '$["payload"]["validUntil"]'
+    );
+    assertBoundedValidity(validFrom.instant, validUntil.instant);
+    const result: PeerCardPayload = {
+      type: assertPayloadType(payload.type, type),
+      peerCardId,
+      cardRevision,
+      subjectPeerId: assertIdentifier(
+        payload.subjectPeerId,
+        '$["payload"]["subjectPeerId"]',
+        limits
+      ),
+      instanceId: assertIdentifier(
+        payload.instanceId,
+        '$["payload"]["instanceId"]',
+        limits
+      ),
+      protocolVersions: validateProtocolVersions(payload.protocolVersions),
+      transportHints: validateBoundedStringArray(
+        payload.transportHints,
+        '$["payload"]["transportHints"]',
+        maximumTransportHints,
+        maximumTransportHintBytes,
+        maximumTransportHintsBytes,
+        true
+      ),
+      capabilityIds: validateIdentifierArray(
+        payload.capabilityIds,
+        '$["payload"]["capabilityIds"]',
+        maximumCapabilityIds,
+        limits
+      ),
+      validFrom: validFrom.text,
+      validUntil: validUntil.text,
+      ...(previousPeerCardId === undefined ? {} : { previousPeerCardId }),
+    };
+    return result;
+  }
   if (type === 'peer.ping') {
     const payload = assertClosedRecord(
       input,
@@ -534,15 +649,208 @@ function validatePayload(
     };
     return result;
   }
+  if (type === 'peer.ping_ack') {
+    const payload = assertClosedRecord(
+      input,
+      ['type'],
+      [],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const result: PeerPingAckPayload = {
+      type: assertPayloadType(payload.type, type),
+    };
+    return result;
+  }
+  if (type === 'peer.goodbye') {
+    const payload = assertClosedRecord(
+      input,
+      ['cardRevision', 'instanceId', 'peerCardId', 'type'],
+      [],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const result: PeerGoodbyePayload = {
+      type: assertPayloadType(payload.type, type),
+      peerCardId: assertIdentifier(
+        payload.peerCardId,
+        '$["payload"]["peerCardId"]',
+        limits
+      ),
+      cardRevision: assertPositiveSafeInteger(
+        payload.cardRevision,
+        '$["payload"]["cardRevision"]',
+        'invalid_payload'
+      ),
+      instanceId: assertIdentifier(
+        payload.instanceId,
+        '$["payload"]["instanceId"]',
+        limits
+      ),
+    };
+    return result;
+  }
+  if (type === 'capability.advertise') {
+    const payload = assertClosedRecord(
+      input,
+      [
+        'advertisementId',
+        'attributes',
+        'capabilityId',
+        'capabilityKey',
+        'capabilityRevision',
+        'inputMediaTypes',
+        'outputMediaTypes',
+        'ownerPeerId',
+        'type',
+        'validFrom',
+        'validUntil',
+        'version',
+      ],
+      [
+        'maximumConcurrency',
+        'maximumPayloadBytes',
+        'previousAdvertisementId',
+        'variant',
+      ],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const advertisementId = assertIdentifier(
+      payload.advertisementId,
+      '$["payload"]["advertisementId"]',
+      limits
+    );
+    const capabilityRevision = assertPositiveSafeInteger(
+      payload.capabilityRevision,
+      '$["payload"]["capabilityRevision"]',
+      'invalid_payload'
+    );
+    const previousAdvertisementId =
+      payload.previousAdvertisementId === undefined
+        ? undefined
+        : assertIdentifier(
+            payload.previousAdvertisementId,
+            '$["payload"]["previousAdvertisementId"]',
+            limits
+          );
+    validateRevisionPredecessor(
+      capabilityRevision,
+      previousAdvertisementId,
+      '$["payload"]["previousAdvertisementId"]'
+    );
+    if (previousAdvertisementId === advertisementId) {
+      fail('invalid_payload', '$["payload"]["previousAdvertisementId"]');
+    }
+    const validFrom = assertRfc3339PayloadTimestamp(
+      payload.validFrom,
+      '$["payload"]["validFrom"]'
+    );
+    const validUntil = assertRfc3339PayloadTimestamp(
+      payload.validUntil,
+      '$["payload"]["validUntil"]'
+    );
+    assertBoundedValidity(validFrom.instant, validUntil.instant);
+    const result: CapabilityAdvertisePayload = {
+      type: assertPayloadType(payload.type, type),
+      advertisementId,
+      capabilityId: assertIdentifier(
+        payload.capabilityId,
+        '$["payload"]["capabilityId"]',
+        limits
+      ),
+      capabilityRevision,
+      ownerPeerId: assertIdentifier(
+        payload.ownerPeerId,
+        '$["payload"]["ownerPeerId"]',
+        limits
+      ),
+      capabilityKey: assertBoundedString(
+        payload.capabilityKey,
+        '$["payload"]["capabilityKey"]',
+        maximumDomainStringBytes
+      ),
+      version: assertBoundedString(
+        payload.version,
+        '$["payload"]["version"]',
+        maximumVersionBytes
+      ),
+      ...(payload.variant === undefined
+        ? {}
+        : {
+            variant: assertBoundedString(
+              payload.variant,
+              '$["payload"]["variant"]',
+              maximumVersionBytes
+            ),
+          }),
+      inputMediaTypes: validateBoundedStringArray(
+        payload.inputMediaTypes,
+        '$["payload"]["inputMediaTypes"]',
+        maximumMediaTypes,
+        maximumMediaTypeBytes,
+        undefined,
+        true
+      ),
+      outputMediaTypes: validateBoundedStringArray(
+        payload.outputMediaTypes,
+        '$["payload"]["outputMediaTypes"]',
+        maximumMediaTypes,
+        maximumMediaTypeBytes,
+        undefined,
+        true
+      ),
+      attributes: validateAttributes(payload.attributes),
+      validFrom: validFrom.text,
+      validUntil: validUntil.text,
+      ...(payload.maximumConcurrency === undefined
+        ? {}
+        : {
+            maximumConcurrency: assertPositiveSafeInteger(
+              payload.maximumConcurrency,
+              '$["payload"]["maximumConcurrency"]',
+              'invalid_payload'
+            ),
+          }),
+      ...(payload.maximumPayloadBytes === undefined
+        ? {}
+        : {
+            maximumPayloadBytes: assertPositiveSafeInteger(
+              payload.maximumPayloadBytes,
+              '$["payload"]["maximumPayloadBytes"]',
+              'invalid_payload'
+            ),
+          }),
+      ...(previousAdvertisementId === undefined
+        ? {}
+        : { previousAdvertisementId }),
+    };
+    return result;
+  }
   const payload = assertClosedRecord(
     input,
-    ['type'],
+    ['advertisementId', 'capabilityId', 'capabilityRevision', 'type'],
     [],
     '$["payload"]',
     'invalid_payload'
   );
-  const result: PeerPingAckPayload = {
-    type: assertPayloadType(payload.type, 'peer.ping_ack'),
+  const result: CapabilityWithdrawPayload = {
+    type: assertPayloadType(payload.type, 'capability.withdraw'),
+    capabilityId: assertIdentifier(
+      payload.capabilityId,
+      '$["payload"]["capabilityId"]',
+      limits
+    ),
+    capabilityRevision: assertPositiveSafeInteger(
+      payload.capabilityRevision,
+      '$["payload"]["capabilityRevision"]',
+      'invalid_payload'
+    ),
+    advertisementId: assertIdentifier(
+      payload.advertisementId,
+      '$["payload"]["advertisementId"]',
+      limits
+    ),
   };
   return result;
 }
@@ -631,25 +939,281 @@ function validateCriticalExtensions(
 
 function validateMessageSpecificEnvelope(
   type: MeshMessagePayload['type'],
+  sender: MeshSender,
   audience: MeshAudience,
   objectiveId: string | undefined,
-  causationId: string | undefined
+  causationId: string | undefined,
+  payload: MeshMessagePayload
 ): void {
-  if (type === 'peer.hello') {
+  if (payload.type === 'peer.card') {
+    if (payload.subjectPeerId !== sender.peerId) {
+      fail('invalid_payload', '$["payload"]["subjectPeerId"]');
+    }
+    if (payload.instanceId !== sender.instanceId) {
+      fail('invalid_payload', '$["payload"]["instanceId"]');
+    }
+  } else if (
+    payload.type === 'peer.goodbye' &&
+    payload.instanceId !== sender.instanceId
+  ) {
+    fail('invalid_payload', '$["payload"]["instanceId"]');
+  } else if (
+    payload.type === 'capability.advertise' &&
+    payload.ownerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+  }
+
+  if (
+    type === 'peer.hello' ||
+    type === 'peer.card' ||
+    type === 'peer.goodbye'
+  ) {
     if (audience.kind === 'mesh' && audience.topic !== 'membership') {
       fail('invalid_audience', '$["audience"]["topic"]');
     }
-    return;
-  }
-  if (audience.kind !== 'peer') {
+  } else if (
+    type === 'capability.advertise' ||
+    type === 'capability.withdraw'
+  ) {
+    if (audience.kind === 'mesh' && audience.topic !== 'capability') {
+      fail('invalid_audience', '$["audience"]["topic"]');
+    }
+  } else if (audience.kind !== 'peer') {
     fail('invalid_audience', '$["audience"]');
   }
-  if (objectiveId !== undefined) {
+  if (
+    type !== 'peer.hello' &&
+    type.startsWith('peer.') &&
+    objectiveId !== undefined
+  ) {
     fail('invalid_payload', '$["objectiveId"]');
   }
-  if (type === 'peer.ping_ack' && causationId === undefined) {
-    fail('invalid_payload', '$["causationId"]');
+  if (
+    type === 'peer.ping_ack' ||
+    type === 'peer.goodbye' ||
+    type === 'capability.withdraw'
+  ) {
+    if (causationId === undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+    return;
   }
+  if (type === 'peer.card' || type === 'capability.advertise') {
+    const revision =
+      payload.type === 'peer.card'
+        ? payload.cardRevision
+        : (payload as CapabilityAdvertisePayload).capabilityRevision;
+    if (revision === 1 && causationId !== undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+    if (revision > 1 && causationId === undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+  }
+}
+
+function validateRevisionPredecessor(
+  revision: number,
+  predecessor: string | undefined,
+  path: string
+): void {
+  if (revision === 1 && predecessor !== undefined) {
+    fail('invalid_payload', path);
+  }
+  if (revision > 1 && predecessor === undefined) {
+    fail('invalid_payload', path);
+  }
+}
+
+function assertBoundedValidity(validFrom: bigint, validUntil: bigint): void {
+  if (validUntil <= validFrom) {
+    fail('invalid_payload', '$["payload"]["validUntil"]');
+  }
+  if (
+    validUntil - validFrom >
+    BigInt(maximumAdvertisementValidityMs) * 1_000_000n
+  ) {
+    fail('invalid_payload', '$["payload"]["validUntil"]');
+  }
+}
+
+function assertRfc3339PayloadTimestamp(
+  input: unknown,
+  path: string
+): { readonly text: string; readonly instant: bigint } {
+  const text = assertString(input, path, 'invalid_payload');
+  try {
+    return { text, instant: parseRfc3339(text, path) };
+  } catch (error) {
+    if (error instanceof ValidationFailure) {
+      fail('invalid_payload', path);
+    }
+    throw error;
+  }
+}
+
+function validateProtocolVersions(input: unknown): readonly number[] {
+  const path = '$["payload"]["protocolVersions"]';
+  if (
+    !Array.isArray(input) ||
+    input.length === 0 ||
+    input.length > maximumProtocolVersions
+  ) {
+    fail('invalid_payload', path);
+  }
+  let previous: number | undefined;
+  let includesCurrentWireVersion = false;
+  const result: number[] = [];
+  for (const [index, value] of input.entries()) {
+    if (
+      typeof value !== 'number' ||
+      !Number.isSafeInteger(value) ||
+      value < 0 ||
+      (previous !== undefined && value <= previous)
+    ) {
+      fail('invalid_payload', `${path}[${index}]`);
+    }
+    if (value === MESH_WIRE_VERSION) includesCurrentWireVersion = true;
+    previous = value;
+    result.push(value);
+  }
+  if (!includesCurrentWireVersion) {
+    fail('invalid_payload', path);
+  }
+  return result;
+}
+
+function validateIdentifierArray(
+  input: unknown,
+  path: string,
+  maximumItems: number,
+  limits: Readonly<MeshProtocolLimits>
+): readonly string[] {
+  if (!Array.isArray(input) || input.length > maximumItems) {
+    fail('invalid_payload', path);
+  }
+  let previous: string | undefined;
+  const result: string[] = [];
+  for (const [index, value] of input.entries()) {
+    const itemPath = `${path}[${index}]`;
+    const identifier = assertIdentifier(value, itemPath, limits);
+    if (
+      previous !== undefined &&
+      compareUtf16CodeUnits(identifier, previous) !== 1
+    ) {
+      fail('invalid_payload', itemPath);
+    }
+    previous = identifier;
+    result.push(identifier);
+  }
+  return result;
+}
+
+function validateBoundedStringArray(
+  input: unknown,
+  path: string,
+  maximumItems: number,
+  maximumItemBytes: number,
+  maximumAggregateBytes?: number,
+  sortedUnique = false
+): readonly string[] {
+  if (!Array.isArray(input) || input.length > maximumItems) {
+    fail('invalid_payload', path);
+  }
+  let aggregateBytes = 0;
+  let previous: string | undefined;
+  const result: string[] = [];
+  for (const [index, value] of input.entries()) {
+    const itemPath = `${path}[${index}]`;
+    const item = assertBoundedString(value, itemPath, maximumItemBytes);
+    if (
+      sortedUnique &&
+      previous !== undefined &&
+      compareUtf16CodeUnits(item, previous) !== 1
+    ) {
+      fail('invalid_payload', itemPath);
+    }
+    aggregateBytes += utf8Encoder.encode(item).byteLength;
+    if (
+      maximumAggregateBytes !== undefined &&
+      aggregateBytes > maximumAggregateBytes
+    ) {
+      fail('invalid_payload', path);
+    }
+    previous = item;
+    result.push(item);
+  }
+  return result;
+}
+
+/**
+ * Compares raw UTF-16 code units lexicographically, matching JavaScript string
+ * relational ordering and the property-name ordering used by JCS/RFC 8785.
+ */
+function compareUtf16CodeUnits(left: string, right: string): -1 | 0 | 1 {
+  const sharedLength = Math.min(left.length, right.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const leftCodeUnit = left.charCodeAt(index);
+    const rightCodeUnit = right.charCodeAt(index);
+    if (leftCodeUnit < rightCodeUnit) return -1;
+    if (leftCodeUnit > rightCodeUnit) return 1;
+  }
+  if (left.length < right.length) return -1;
+  if (left.length > right.length) return 1;
+  return 0;
+}
+
+function validateAttributes(input: unknown): Readonly<Record<string, string>> {
+  const path = '$["payload"]["attributes"]';
+  const attributes = assertRecord(input, path, 'invalid_payload');
+  const keys = Object.keys(attributes);
+  if (keys.length > maximumAttributes) {
+    fail('invalid_payload', path);
+  }
+  let aggregateBytes = 0;
+  const result: Record<string, string> = {};
+  for (const key of keys) {
+    const keyPath = `${path}[${JSON.stringify(key)}]`;
+    if (
+      key.length === 0 ||
+      utf8Encoder.encode(key).byteLength > maximumAttributeKeyBytes
+    ) {
+      fail('invalid_payload', keyPath);
+    }
+    const value = assertBoundedString(
+      attributes[key],
+      keyPath,
+      maximumAttributeValueBytes
+    );
+    aggregateBytes +=
+      utf8Encoder.encode(key).byteLength + utf8Encoder.encode(value).byteLength;
+    if (aggregateBytes > maximumAttributesBytes) {
+      fail('invalid_payload', path);
+    }
+    Object.defineProperty(result, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return result;
+}
+
+function assertBoundedString(
+  input: unknown,
+  path: string,
+  maximumBytes: number
+): string {
+  const value = assertString(input, path, 'invalid_payload');
+  if (
+    value.length === 0 ||
+    utf8Encoder.encode(value).byteLength > maximumBytes
+  ) {
+    fail('invalid_payload', path);
+  }
+  return value;
 }
 
 function validateLifetime(
@@ -661,7 +1225,12 @@ function validateLifetime(
   if (expiresAt <= sentAt) {
     fail('invalid_lifetime', '$["expiresAt"]');
   }
-  const messageMaximum = type === 'peer.hello' ? 120_000 : 30_000;
+  const messageMaximum =
+    type === 'peer.ping' || type === 'peer.ping_ack'
+      ? 30_000
+      : type === 'peer.goodbye'
+        ? 60_000
+        : 120_000;
   const maximum = Math.min(limits.maximumLifetimeMs, messageMaximum);
   if (expiresAt - sentAt > BigInt(maximum) * 1_000_000n) {
     fail('invalid_lifetime', '$["expiresAt"]');
@@ -866,11 +1435,17 @@ function isCanonicalBase64Url(value: string, expectedBytes: number): boolean {
   return (finalIndex & ((1 << unusedBits) - 1)) === 0;
 }
 
-function isAlphaOneMessageType(
+function isImplementedMessageType(
   value: string
 ): value is MeshMessagePayload['type'] {
   return (
-    value === 'peer.hello' || value === 'peer.ping' || value === 'peer.ping_ack'
+    value === 'peer.hello' ||
+    value === 'peer.card' ||
+    value === 'peer.ping' ||
+    value === 'peer.ping_ack' ||
+    value === 'peer.goodbye' ||
+    value === 'capability.advertise' ||
+    value === 'capability.withdraw'
   );
 }
 

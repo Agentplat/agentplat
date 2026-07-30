@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
-Status: planning baseline; implementation not started.
+Status: implementation in progress; Increment 0 contracts are being frozen.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
