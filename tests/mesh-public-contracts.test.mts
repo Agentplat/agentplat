@@ -17,10 +17,14 @@ import {
   type MeshKeyResolver,
   type MeshVerifyRequest,
 } from '@agentplat/mesh-crypto';
-import type {
-  MeshAdmissionPolicy,
-  MeshPeerReducer,
-  MeshPeerState,
+import {
+  ALLOW_PREPROVISIONED_MESH_ADMISSION,
+  createMeshPeerState,
+  processMeshEnvelope,
+  reduceMeshPeer,
+  type MeshAdmissionPolicy,
+  type MeshPeerReducer,
+  type MeshPeerState,
 } from '@agentplat/mesh';
 import type { MeshLoopbackTransport } from '@agentplat/mesh/loopback';
 import type {
@@ -84,7 +88,7 @@ const unsignedHello: UnsignedMeshEnvelope<PeerHelloPayload> = {
   },
 };
 
-const peerState: MeshPeerState = {
+const peerState: MeshPeerState = createMeshPeerState({
   identity: {
     tenantId: 'tenant-a',
     meshId: 'mesh-a',
@@ -92,13 +96,19 @@ const peerState: MeshPeerState = {
     instanceId: 'instance-a',
     keyId: 'key-a',
   },
-  status: 'created',
-  peers: {},
-  replay: {},
-  localEventSequence: 0,
-};
+  admittedPeers: [
+    {
+      peerId: 'peer-b',
+      instanceIds: ['instance-b'],
+      peerCardId: 'card-b',
+      acceptedCardMessageId: 'BBBBBBBBBBBBBBBBBBBBBA',
+      cardRevision: 1,
+      validUntil: '2027-01-01T00:00:00Z',
+    },
+  ],
+});
 
-const reducer: MeshPeerReducer = (state) => ({
+const contractReducer: MeshPeerReducer = (state) => ({
   state,
   effects: [],
 });
@@ -115,7 +125,7 @@ const simulationConfig: MeshSimulationConfig = {
     {
       peerId: 'peer-a',
       state: peerState,
-      reducer,
+      reducer: contractReducer,
     },
   ],
   links: [],
@@ -202,6 +212,16 @@ const verificationPromise = verifyMeshEnvelope({
   policy: cryptoPolicy,
   verifiedAt: '2026-07-29T00:00:01Z',
 });
+const reducerTransition = reduceMeshPeer(peerState, { kind: 'peer.start' }, 0);
+const inboundPromise = processMeshEnvelope(peerState, {
+  envelope: signedForContract,
+  verifiedAt: '2026-07-29T00:00:01Z',
+  receivedAt: 1,
+  verifier: referenceVerifier,
+  resolver: staticResolver,
+  cryptoPolicy,
+  admissionPolicy: ALLOW_PREPROVISIONED_MESH_ADMISSION,
+});
 const signingDocument = createMeshSigningDocument(signedForContract);
 const signingBytes = canonicalizeMeshSigningDocument(signedForContract);
 const contextValidation = validateMeshEnvelopeContext(
@@ -233,6 +253,8 @@ void importedPublicKey;
 void exportedPublicKey;
 void signedPromise;
 void verificationPromise;
+void reducerTransition;
+void inboundPromise;
 void signedEnvelope;
 void envelopeContext;
 void canonicalJson;

@@ -12,6 +12,10 @@
 - Added canonical SHA-256 digests, Ed25519 signing and verification, bounded
   static key resolution and public verification fixtures to
   `@agentplat/mesh-crypto`.
+- Added the immutable Alpha 1 peer reducer and inbound coordinator with
+  preprovisioned admission, bounded replay, message idempotency and causal
+  liveness effects to `@agentplat/mesh`, including prepare-before-deliver
+  outbound handling and monotonic logical time.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.
