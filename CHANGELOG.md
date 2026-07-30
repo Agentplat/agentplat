@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added the detailed Agent Mesh Alpha 2 allocation and recovery implementation
+  plan, evidence-based acceptance checklist and supporting industry glossary.
+
 ## 0.3.0-alpha.1 - 2026-07-30
 
 - Added a canonical public package catalog shared by release verification,
