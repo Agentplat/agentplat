@@ -66,6 +66,8 @@ import {
   type ObjectiveAnnouncePayload,
   type ObjectiveCancelPayload,
   type ObjectiveRevisePayload,
+  type WorkBidPayload,
+  type WorkOfferPayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -161,6 +163,52 @@ const objectiveCancelPayload: ObjectiveCancelPayload = {
   objectiveDocumentId: 'objective-document-b',
 };
 
+const workOfferPayload: WorkOfferPayload = {
+  type: 'work.offer',
+  offerId: 'offer-a',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-a',
+  ownerEpoch: 1,
+  offerAttempt: 1,
+  requiredCapabilityKeys: ['summarize'],
+  matchingAttributes: { language: 'en' },
+  inputSummary: 'Summarize the approved material.',
+  completionCriteria: ['Return a concise summary.'],
+  budgetReservationUnits: 100,
+  bidDeadline: '2026-07-30T00:01:00.000Z',
+  workDeadline: '2026-07-30T01:00:00.000Z',
+};
+
+const workBidPayload: WorkBidPayload = {
+  type: 'work.bid',
+  bidId: 'bid-a',
+  bidRevision: 1,
+  offerId: 'offer-a',
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  offerAttempt: 1,
+  bidderPeerId: 'peer-a',
+  advertisementId: 'advertisement-a',
+  capabilityId: 'capability-a',
+  capabilityRevision: 1,
+  capacityReservationUnits: 1,
+  budgetUnits: 100,
+  bidDeadline: '2026-07-30T00:01:00.000Z',
+  workDeadline: '2026-07-30T01:00:00.000Z',
+  expectedCompletionAt: '2026-07-30T00:30:00.000Z',
+  bidExpiresAt: '2026-07-30T00:00:30.000Z',
+  assumptions: ['Input is accessible to the assigned peer.'],
+};
+
 const invalidPeerCardType: PeerCardPayload = {
   ...peerCardPayload,
   // @ts-expect-error closed discriminant rejects another payload family
@@ -181,6 +229,20 @@ const invalidObjectiveRevision: ObjectiveAnnouncePayload = {
   ...objectiveAnnouncePayload,
   // @ts-expect-error objective revisions are numeric scalars
   objectiveRevision: '1',
+};
+// @ts-expect-error Work Offers carry exactly one input representation
+const invalidWorkOfferBothInput: WorkOfferPayload = {
+  ...workOfferPayload,
+  inputReference: 'content-a',
+};
+const { inputSummary: _offerInputSummary, ...workOfferWithoutInput } =
+  workOfferPayload;
+// @ts-expect-error Work Offers require one input representation
+const invalidWorkOfferWithoutInput: WorkOfferPayload = workOfferWithoutInput;
+const invalidBidRevision: WorkBidPayload = {
+  ...workBidPayload,
+  // @ts-expect-error bid revisions are numeric scalars
+  bidRevision: '1',
 };
 // @ts-expect-error revisions require their predecessor document ID
 const incompleteObjectiveRevise: ObjectiveRevisePayload = {
@@ -226,6 +288,8 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'objective.announce':
     case 'objective.revise':
     case 'objective.cancel':
+    case 'work.offer':
+    case 'work.bid':
       return payload.type;
     default: {
       const exhaustive: never = payload;

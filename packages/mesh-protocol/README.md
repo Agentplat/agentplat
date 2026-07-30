@@ -12,6 +12,8 @@ The implementation provides:
   `peer.goodbye`, `capability.advertise` and `capability.withdraw`;
 - closed, bounded Alpha 2 Objective records for `objective.announce`,
   `objective.revise` and `objective.cancel`;
+- closed, bounded Alpha 2 Work Offer and Work Bid records for `work.offer` and
+  `work.bid`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -35,11 +37,12 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Work Item, lease, evidence, trust and peer-sync message families remain
-reserved until their closed payload contracts are implemented. They fail
-explicitly rather than entering a generic payload path. Objective records parse,
-sign and verify structurally, but remain explicitly unsupported at the Mesh
-runtime boundary until their reducers and state authorization are implemented.
+Work Item messages beyond Offer and Bid, lease, evidence, trust and peer-sync
+message families remain reserved until their closed payload contracts are
+implemented. They fail explicitly rather than entering a generic payload path.
+Objective, Work Offer and Work Bid records parse, sign and verify structurally,
+but remain explicitly unsupported at the Mesh runtime boundary until their
+reducers and state authorization are implemented.
 
 ## Frozen limits
 
@@ -119,6 +122,34 @@ Objective announce and revise have a five-minute envelope TTL; cancel has a
 two-minute TTL. Objective scope, binding, closure, ordering, revision,
 causation, timer and limit violations reject with `invalid_payload`; their TTL
 violations reject with `invalid_lifetime`.
+
+## Work Offer and Bid limits
+
+Work Offers name an immutable Objective document and work-item revision. The
+first attempt has no predecessor or envelope causation; later attempts require
+both and must name a different `previousOfferId`. Offers self-bind their owner
+to the envelope sender and may target one peer or the `work` topic. Work Bids
+name one Offer, self-bind their bidder to the sender, require causation, and
+must be addressed directly to the named owner. Bid revision 1 has no predecessor;
+later revisions require a different `previousBidId`.
+
+| Field                        | Rule                                                                                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Required capability keys     | 1–32 sorted unique non-empty strings, at most 4,096 UTF-8 bytes each                                                                                                                |
+| Matching attributes          | At most 32 entries; non-empty keys up to 128 UTF-8 bytes, non-empty values up to 1,024 bytes, and 16,384 bytes in aggregate                                                         |
+| Input summary or reference   | Exactly one non-empty representation; each at most 4,096 UTF-8 bytes                                                                                                                |
+| Completion criteria          | 1–32 non-empty strings, at most 4,096 UTF-8 bytes each and 16,384 bytes in aggregate                                                                                                |
+| Bid assumptions              | 0–32 non-empty strings, at most 4,096 UTF-8 bytes each and 16,384 bytes in aggregate                                                                                                |
+| Reservation and budget units | Budget values are non-negative safe integers; capacity reservation is a safe integer from 1 through 1,000,000                                                                       |
+| Offer deadlines              | `sentAt < bidDeadline < workDeadline`; bid deadline is at most 1 hour after send, work deadline at most 30 days after send, and envelope expiry must not exceed bid deadline        |
+| Bid deadlines                | `sentAt < bidExpiresAt <= bidDeadline < expectedCompletionAt <= workDeadline`; the same one-hour bid and 30-day work horizons apply, and envelope expiry must not exceed bid expiry |
+
+Offer and Bid envelope TTL is two minutes. Structural validation does not decide
+whether an Objective revision is current, a Work Item is current, an offer
+attempt supersedes another offer, a capability advertisement is accepted, a
+bid has capacity or budget authority, or deadlines and reservations are valid
+against accepted local state. Those checks require reducer authorization state
+and remain deferred.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

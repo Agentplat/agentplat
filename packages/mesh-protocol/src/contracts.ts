@@ -221,6 +221,71 @@ export interface ObjectiveCancelPayload {
   readonly objectiveDocumentId: string;
 }
 
+/** Fields shared by every complete work offer. */
+export interface WorkOfferFields {
+  readonly offerId: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly offerAttempt: number;
+  readonly previousOfferId?: string;
+  readonly requiredCapabilityKeys: readonly string[];
+  readonly matchingAttributes: Readonly<Record<string, string>>;
+  readonly completionCriteria: readonly string[];
+  readonly budgetReservationUnits: number;
+  readonly bidDeadline: string;
+  readonly workDeadline: string;
+}
+
+/** Exactly one inline work input summary or external content reference. */
+export type WorkOfferInput =
+  | {
+      readonly inputSummary: string;
+      readonly inputReference?: never;
+    }
+  | {
+      readonly inputSummary?: never;
+      readonly inputReference: string;
+    };
+
+/** Offers one bounded work item for capability-based bidding. */
+export type WorkOfferPayload = WorkOfferFields &
+  WorkOfferInput & {
+    readonly type: 'work.offer';
+  };
+
+/** Proposes one capacity and budget reservation for an accepted work offer. */
+export interface WorkBidPayload {
+  readonly type: 'work.bid';
+  readonly bidId: string;
+  readonly bidRevision: number;
+  readonly previousBidId?: string;
+  readonly offerId: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly offerAttempt: number;
+  readonly bidderPeerId: string;
+  readonly advertisementId: string;
+  readonly capabilityId: string;
+  readonly capabilityRevision: number;
+  readonly capacityReservationUnits: number;
+  readonly budgetUnits: number;
+  readonly bidDeadline: string;
+  readonly workDeadline: string;
+  readonly expectedCompletionAt: string;
+  readonly bidExpiresAt: string;
+  readonly assumptions: readonly string[];
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -232,7 +297,9 @@ export type MeshMessagePayload =
   | CapabilityWithdrawPayload
   | ObjectiveAnnouncePayload
   | ObjectiveRevisePayload
-  | ObjectiveCancelPayload;
+  | ObjectiveCancelPayload
+  | WorkOfferPayload
+  | WorkBidPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

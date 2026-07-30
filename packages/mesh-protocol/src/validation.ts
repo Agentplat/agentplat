@@ -33,6 +33,10 @@ import {
   type PeerPingAckPayload,
   type PeerPingPayload,
   type SignedMeshEnvelope,
+  type WorkBidPayload,
+  type WorkOfferFields,
+  type WorkOfferInput,
+  type WorkOfferPayload,
 } from './contracts.js';
 import {
   parseStrictJsonDocument,
@@ -74,6 +78,13 @@ const maximumAcceptanceWindowMs = 15 * 60 * 1_000;
 const maximumLeaseDurationMs = 24 * 60 * 60 * 1_000;
 const maximumRecoveryGraceMs = 60 * 60 * 1_000;
 const maximumLeaseRenewals = 100;
+const maximumWorkCapabilityKeys = 32;
+const maximumWorkTextBytes = 4_096;
+const maximumWorkListItems = 32;
+const maximumWorkListBytes = 16_384;
+const maximumCapacityReservationUnits = 1_000_000;
+const maximumWorkBidWindowMs = 60 * 60 * 1_000;
+const maximumWorkDeadlineMs = 30 * 24 * 60 * 60 * 1_000;
 const knownMessageTypes = new Set<string>(MESH_MESSAGE_TYPES);
 const knownTopics = new Set<string>(MESH_AUDIENCE_TOPICS);
 const utf8Encoder = new TextEncoder();
@@ -453,7 +464,9 @@ function validateEnvelope(
     audience,
     objectiveId,
     causationId,
-    payload
+    payload,
+    sentAt,
+    expiresAt
   );
 
   return {
@@ -906,29 +919,177 @@ function validatePayload(
     };
     return result;
   }
+  if (type === 'objective.cancel') {
+    const payload = assertClosedRecord(
+      input,
+      [
+        'cancellationId',
+        'objectiveDocumentId',
+        'objectiveId',
+        'objectiveRevision',
+        'type',
+      ],
+      [],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const result: ObjectiveCancelPayload = {
+      type: assertPayloadType(payload.type, type),
+      cancellationId: assertIdentifier(
+        payload.cancellationId,
+        '$["payload"]["cancellationId"]',
+        limits
+      ),
+      objectiveId: assertIdentifier(
+        payload.objectiveId,
+        '$["payload"]["objectiveId"]',
+        limits
+      ),
+      objectiveRevision: assertPositiveSafeInteger(
+        payload.objectiveRevision,
+        '$["payload"]["objectiveRevision"]',
+        'invalid_payload'
+      ),
+      objectiveDocumentId: assertIdentifier(
+        payload.objectiveDocumentId,
+        '$["payload"]["objectiveDocumentId"]',
+        limits
+      ),
+    };
+    return result;
+  }
+  if (type === 'work.offer') {
+    return validateWorkOffer(input, limits);
+  }
+  return validateWorkBid(input, limits);
+}
+
+function validateWorkOffer(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkOfferPayload {
   const payload = assertClosedRecord(
     input,
     [
-      'cancellationId',
+      'bidDeadline',
+      'budgetReservationUnits',
+      'completionCriteria',
+      'matchingAttributes',
       'objectiveDocumentId',
       'objectiveId',
       'objectiveRevision',
+      'offerAttempt',
+      'offerId',
+      'ownerEpoch',
+      'ownerPeerId',
+      'requiredCapabilityKeys',
       'type',
+      'workDeadline',
+      'workItemId',
+      'workItemRevision',
     ],
-    [],
+    ['inputReference', 'inputSummary', 'previousOfferId'],
     '$["payload"]',
     'invalid_payload'
   );
-  const result: ObjectiveCancelPayload = {
-    type: assertPayloadType(payload.type, 'objective.cancel'),
-    cancellationId: assertIdentifier(
-      payload.cancellationId,
-      '$["payload"]["cancellationId"]',
-      limits
-    ),
+  assertPayloadType(payload.type, 'work.offer');
+
+  const hasInputSummary = payload.inputSummary !== undefined;
+  const hasInputReference = payload.inputReference !== undefined;
+  if (hasInputSummary === hasInputReference) {
+    fail('invalid_payload', '$["payload"]');
+  }
+  const inputSummary = hasInputSummary
+    ? assertBoundedString(
+        payload.inputSummary,
+        '$["payload"]["inputSummary"]',
+        maximumWorkTextBytes
+      )
+    : undefined;
+  const inputReference = hasInputReference
+    ? assertBoundedString(
+        payload.inputReference,
+        '$["payload"]["inputReference"]',
+        maximumWorkTextBytes
+      )
+    : undefined;
+
+  const offerId = assertIdentifier(
+    payload.offerId,
+    '$["payload"]["offerId"]',
+    limits
+  );
+  const offerAttempt = assertPositiveSafeInteger(
+    payload.offerAttempt,
+    '$["payload"]["offerAttempt"]',
+    'invalid_payload'
+  );
+  const previousOfferId =
+    payload.previousOfferId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.previousOfferId,
+          '$["payload"]["previousOfferId"]',
+          limits
+        );
+  validateRevisionPredecessor(
+    offerAttempt,
+    previousOfferId,
+    '$["payload"]["previousOfferId"]'
+  );
+  if (previousOfferId === offerId) {
+    fail('invalid_payload', '$["payload"]["previousOfferId"]');
+  }
+
+  const requiredCapabilityKeys = validateBoundedStringArray(
+    payload.requiredCapabilityKeys,
+    '$["payload"]["requiredCapabilityKeys"]',
+    maximumWorkCapabilityKeys,
+    maximumWorkTextBytes,
+    undefined,
+    true
+  );
+  if (requiredCapabilityKeys.length === 0) {
+    fail('invalid_payload', '$["payload"]["requiredCapabilityKeys"]');
+  }
+  const completionCriteria = validateBoundedStringArray(
+    payload.completionCriteria,
+    '$["payload"]["completionCriteria"]',
+    maximumWorkListItems,
+    maximumWorkTextBytes,
+    maximumWorkListBytes
+  );
+  if (completionCriteria.length === 0) {
+    fail('invalid_payload', '$["payload"]["completionCriteria"]');
+  }
+
+  const ownerEpoch = assertPositiveSafeInteger(
+    payload.ownerEpoch,
+    '$["payload"]["ownerEpoch"]',
+    'invalid_payload'
+  );
+  if (ownerEpoch !== 1) {
+    fail('invalid_payload', '$["payload"]["ownerEpoch"]');
+  }
+  const bidDeadline = assertRfc3339PayloadTimestamp(
+    payload.bidDeadline,
+    '$["payload"]["bidDeadline"]'
+  ).text;
+  const workDeadline = assertRfc3339PayloadTimestamp(
+    payload.workDeadline,
+    '$["payload"]["workDeadline"]'
+  ).text;
+
+  const fields: WorkOfferFields = {
+    offerId,
     objectiveId: assertIdentifier(
       payload.objectiveId,
       '$["payload"]["objectiveId"]',
+      limits
+    ),
+    objectiveDocumentId: assertIdentifier(
+      payload.objectiveDocumentId,
+      '$["payload"]["objectiveDocumentId"]',
       limits
     ),
     objectiveRevision: assertPositiveSafeInteger(
@@ -936,13 +1097,217 @@ function validatePayload(
       '$["payload"]["objectiveRevision"]',
       'invalid_payload'
     ),
+    workItemId: assertIdentifier(
+      payload.workItemId,
+      '$["payload"]["workItemId"]',
+      limits
+    ),
+    workItemRevision: assertPositiveSafeInteger(
+      payload.workItemRevision,
+      '$["payload"]["workItemRevision"]',
+      'invalid_payload'
+    ),
+    ownerPeerId: assertIdentifier(
+      payload.ownerPeerId,
+      '$["payload"]["ownerPeerId"]',
+      limits
+    ),
+    ownerEpoch,
+    offerAttempt,
+    ...(previousOfferId === undefined ? {} : { previousOfferId }),
+    requiredCapabilityKeys,
+    matchingAttributes: validateAttributes(
+      payload.matchingAttributes,
+      '$["payload"]["matchingAttributes"]'
+    ),
+    completionCriteria,
+    budgetReservationUnits: assertNonnegativeSafeInteger(
+      payload.budgetReservationUnits,
+      '$["payload"]["budgetReservationUnits"]'
+    ),
+    bidDeadline,
+    workDeadline,
+  };
+  if (inputSummary !== undefined) {
+    const offerInput: WorkOfferInput = { inputSummary };
+    return { type: 'work.offer', ...fields, ...offerInput };
+  }
+  if (inputReference === undefined) {
+    return fail('invalid_payload', '$["payload"]');
+  }
+  const offerInput: WorkOfferInput = { inputReference };
+  return { type: 'work.offer', ...fields, ...offerInput };
+}
+
+function validateWorkBid(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): WorkBidPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'advertisementId',
+      'assumptions',
+      'bidDeadline',
+      'bidExpiresAt',
+      'bidId',
+      'bidRevision',
+      'bidderPeerId',
+      'budgetUnits',
+      'capabilityId',
+      'capabilityRevision',
+      'capacityReservationUnits',
+      'expectedCompletionAt',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'offerAttempt',
+      'offerId',
+      'ownerEpoch',
+      'ownerPeerId',
+      'type',
+      'workDeadline',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['previousBidId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  const bidId = assertIdentifier(
+    payload.bidId,
+    '$["payload"]["bidId"]',
+    limits
+  );
+  const bidRevision = assertPositiveSafeInteger(
+    payload.bidRevision,
+    '$["payload"]["bidRevision"]',
+    'invalid_payload'
+  );
+  const previousBidId =
+    payload.previousBidId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.previousBidId,
+          '$["payload"]["previousBidId"]',
+          limits
+        );
+  validateRevisionPredecessor(
+    bidRevision,
+    previousBidId,
+    '$["payload"]["previousBidId"]'
+  );
+  if (previousBidId === bidId) {
+    fail('invalid_payload', '$["payload"]["previousBidId"]');
+  }
+  const ownerEpoch = assertPositiveSafeInteger(
+    payload.ownerEpoch,
+    '$["payload"]["ownerEpoch"]',
+    'invalid_payload'
+  );
+  if (ownerEpoch !== 1) {
+    fail('invalid_payload', '$["payload"]["ownerEpoch"]');
+  }
+
+  return {
+    type: assertPayloadType(payload.type, 'work.bid'),
+    bidId,
+    bidRevision,
+    ...(previousBidId === undefined ? {} : { previousBidId }),
+    offerId: assertIdentifier(
+      payload.offerId,
+      '$["payload"]["offerId"]',
+      limits
+    ),
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
     objectiveDocumentId: assertIdentifier(
       payload.objectiveDocumentId,
       '$["payload"]["objectiveDocumentId"]',
       limits
     ),
+    objectiveRevision: assertPositiveSafeInteger(
+      payload.objectiveRevision,
+      '$["payload"]["objectiveRevision"]',
+      'invalid_payload'
+    ),
+    workItemId: assertIdentifier(
+      payload.workItemId,
+      '$["payload"]["workItemId"]',
+      limits
+    ),
+    workItemRevision: assertPositiveSafeInteger(
+      payload.workItemRevision,
+      '$["payload"]["workItemRevision"]',
+      'invalid_payload'
+    ),
+    ownerPeerId: assertIdentifier(
+      payload.ownerPeerId,
+      '$["payload"]["ownerPeerId"]',
+      limits
+    ),
+    ownerEpoch,
+    offerAttempt: assertPositiveSafeInteger(
+      payload.offerAttempt,
+      '$["payload"]["offerAttempt"]',
+      'invalid_payload'
+    ),
+    bidderPeerId: assertIdentifier(
+      payload.bidderPeerId,
+      '$["payload"]["bidderPeerId"]',
+      limits
+    ),
+    advertisementId: assertIdentifier(
+      payload.advertisementId,
+      '$["payload"]["advertisementId"]',
+      limits
+    ),
+    capabilityId: assertIdentifier(
+      payload.capabilityId,
+      '$["payload"]["capabilityId"]',
+      limits
+    ),
+    capabilityRevision: assertPositiveSafeInteger(
+      payload.capabilityRevision,
+      '$["payload"]["capabilityRevision"]',
+      'invalid_payload'
+    ),
+    capacityReservationUnits: assertBoundedPositiveSafeInteger(
+      payload.capacityReservationUnits,
+      '$["payload"]["capacityReservationUnits"]',
+      maximumCapacityReservationUnits
+    ),
+    budgetUnits: assertNonnegativeSafeInteger(
+      payload.budgetUnits,
+      '$["payload"]["budgetUnits"]'
+    ),
+    bidDeadline: assertRfc3339PayloadTimestamp(
+      payload.bidDeadline,
+      '$["payload"]["bidDeadline"]'
+    ).text,
+    workDeadline: assertRfc3339PayloadTimestamp(
+      payload.workDeadline,
+      '$["payload"]["workDeadline"]'
+    ).text,
+    expectedCompletionAt: assertRfc3339PayloadTimestamp(
+      payload.expectedCompletionAt,
+      '$["payload"]["expectedCompletionAt"]'
+    ).text,
+    bidExpiresAt: assertRfc3339PayloadTimestamp(
+      payload.bidExpiresAt,
+      '$["payload"]["bidExpiresAt"]'
+    ).text,
+    assumptions: validateBoundedStringArray(
+      payload.assumptions,
+      '$["payload"]["assumptions"]',
+      maximumWorkListItems,
+      maximumWorkTextBytes,
+      maximumWorkListBytes
+    ),
   };
-  return result;
 }
 
 function validateObjectiveDocument(
@@ -1262,7 +1627,9 @@ function validateMessageSpecificEnvelope(
   audience: MeshAudience,
   objectiveId: string | undefined,
   causationId: string | undefined,
-  payload: MeshMessagePayload
+  payload: MeshMessagePayload,
+  sentAt: bigint,
+  expiresAt: bigint
 ): void {
   if (payload.type === 'peer.card') {
     if (payload.subjectPeerId !== sender.peerId) {
@@ -1287,6 +1654,16 @@ function validateMessageSpecificEnvelope(
     payload.issuerPeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["issuerPeerId"]');
+  } else if (
+    payload.type === 'work.offer' &&
+    payload.ownerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+  } else if (
+    payload.type === 'work.bid' &&
+    payload.bidderPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["bidderPeerId"]');
   }
 
   if (
@@ -1311,6 +1688,17 @@ function validateMessageSpecificEnvelope(
   ) {
     if (audience.kind === 'mesh' && audience.topic !== 'objective') {
       fail('invalid_audience', '$["audience"]["topic"]');
+    }
+  } else if (type === 'work.offer') {
+    if (audience.kind === 'mesh' && audience.topic !== 'work') {
+      fail('invalid_audience', '$["audience"]["topic"]');
+    }
+  } else if (type === 'work.bid') {
+    if (audience.kind !== 'peer') {
+      fail('invalid_audience', '$["audience"]');
+    }
+    if (audience.peerId !== (payload as WorkBidPayload).ownerPeerId) {
+      fail('invalid_audience', '$["audience"]["peerId"]');
     }
   } else if (audience.kind !== 'peer') {
     fail('invalid_audience', '$["audience"]');
@@ -1348,12 +1736,24 @@ function validateMessageSpecificEnvelope(
     }
   } else if (type === 'objective.revise' && causationId === undefined) {
     fail('invalid_payload', '$["causationId"]');
+  } else if (type === 'work.offer') {
+    const offer = payload as WorkOfferPayload;
+    if (offer.offerAttempt === 1 && causationId !== undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+    if (offer.offerAttempt > 1 && causationId === undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+  } else if (type === 'work.bid' && causationId === undefined) {
+    fail('invalid_payload', '$["causationId"]');
   }
 
   if (
     type === 'objective.announce' ||
     type === 'objective.revise' ||
-    type === 'objective.cancel'
+    type === 'objective.cancel' ||
+    type === 'work.offer' ||
+    type === 'work.bid'
   ) {
     if (
       objectiveId === undefined ||
@@ -1363,10 +1763,92 @@ function validateMessageSpecificEnvelope(
             | ObjectiveAnnouncePayload
             | ObjectiveRevisePayload
             | ObjectiveCancelPayload
+            | WorkOfferPayload
+            | WorkBidPayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
     }
+  }
+
+  if (payload.type === 'work.offer') {
+    validateWorkOfferTimes(payload, sentAt, expiresAt);
+  } else if (payload.type === 'work.bid') {
+    validateWorkBidTimes(payload, sentAt, expiresAt);
+  }
+}
+
+function validateWorkOfferTimes(
+  payload: WorkOfferPayload,
+  sentAt: bigint,
+  expiresAt: bigint
+): void {
+  const bidDeadline = parseRfc3339(
+    payload.bidDeadline,
+    '$["payload"]["bidDeadline"]'
+  );
+  const workDeadline = parseRfc3339(
+    payload.workDeadline,
+    '$["payload"]["workDeadline"]'
+  );
+  if (bidDeadline <= sentAt) {
+    fail('invalid_payload', '$["payload"]["bidDeadline"]');
+  }
+  if (workDeadline <= bidDeadline) {
+    fail('invalid_payload', '$["payload"]["workDeadline"]');
+  }
+  if (bidDeadline - sentAt > BigInt(maximumWorkBidWindowMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["bidDeadline"]');
+  }
+  if (workDeadline - sentAt > BigInt(maximumWorkDeadlineMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["workDeadline"]');
+  }
+  if (expiresAt > bidDeadline) {
+    fail('invalid_lifetime', '$["expiresAt"]');
+  }
+}
+
+function validateWorkBidTimes(
+  payload: WorkBidPayload,
+  sentAt: bigint,
+  expiresAt: bigint
+): void {
+  const bidExpiresAt = parseRfc3339(
+    payload.bidExpiresAt,
+    '$["payload"]["bidExpiresAt"]'
+  );
+  const bidDeadline = parseRfc3339(
+    payload.bidDeadline,
+    '$["payload"]["bidDeadline"]'
+  );
+  const expectedCompletionAt = parseRfc3339(
+    payload.expectedCompletionAt,
+    '$["payload"]["expectedCompletionAt"]'
+  );
+  const workDeadline = parseRfc3339(
+    payload.workDeadline,
+    '$["payload"]["workDeadline"]'
+  );
+  if (bidExpiresAt <= sentAt) {
+    fail('invalid_payload', '$["payload"]["bidExpiresAt"]');
+  }
+  if (bidExpiresAt > bidDeadline) {
+    fail('invalid_payload', '$["payload"]["bidExpiresAt"]');
+  }
+  if (bidDeadline >= expectedCompletionAt) {
+    fail('invalid_payload', '$["payload"]["expectedCompletionAt"]');
+  }
+  if (expectedCompletionAt > workDeadline) {
+    fail('invalid_payload', '$["payload"]["expectedCompletionAt"]');
+  }
+  if (bidDeadline - sentAt > BigInt(maximumWorkBidWindowMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["bidDeadline"]');
+  }
+  if (workDeadline - sentAt > BigInt(maximumWorkDeadlineMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["workDeadline"]');
+  }
+  if (expiresAt > bidExpiresAt) {
+    fail('invalid_lifetime', '$["expiresAt"]');
   }
 }
 
@@ -1535,8 +2017,10 @@ function compareUtf16CodeUnits(left: string, right: string): -1 | 0 | 1 {
   return 0;
 }
 
-function validateAttributes(input: unknown): Readonly<Record<string, string>> {
-  const path = '$["payload"]["attributes"]';
+function validateAttributes(
+  input: unknown,
+  path = '$["payload"]["attributes"]'
+): Readonly<Record<string, string>> {
   const attributes = assertRecord(input, path, 'invalid_payload');
   const keys = Object.keys(attributes);
   if (keys.length > maximumAttributes) {
@@ -1840,7 +2324,9 @@ function isImplementedMessageType(
     value === 'capability.withdraw' ||
     value === 'objective.announce' ||
     value === 'objective.revise' ||
-    value === 'objective.cancel'
+    value === 'objective.cancel' ||
+    value === 'work.offer' ||
+    value === 'work.bid'
   );
 }
 
