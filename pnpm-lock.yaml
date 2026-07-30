@@ -32,6 +32,18 @@ importers:
       '@agentplat/memory':
         specifier: workspace:*
         version: link:packages/memory
+      '@agentplat/mesh':
+        specifier: workspace:*
+        version: link:packages/mesh
+      '@agentplat/mesh-crypto':
+        specifier: workspace:*
+        version: link:packages/mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:*
+        version: link:packages/mesh-protocol
+      '@agentplat/mesh-sim':
+        specifier: workspace:*
+        version: link:packages/mesh-sim
       '@agentplat/model':
         specifier: workspace:*
         version: link:packages/model
@@ -167,6 +179,32 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+
+  packages/mesh:
+    dependencies:
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/mesh-crypto:
+    dependencies:
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/mesh-protocol: {}
+
+  packages/mesh-sim:
+    dependencies:
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
 
   packages/model:
     dependencies:
