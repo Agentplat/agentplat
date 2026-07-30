@@ -1,0 +1,43 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "OOOOOOOOOOOOOOOOOOOOOA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "objective.announce",
+  "sender": { "peerId": "peer-a", "instanceId": "instance-a" },
+  "audience": { "kind": "mesh", "topic": "objective" },
+  "sequence": 6,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:05:00.000Z",
+  "payloadHash": "sha256:OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA",
+  "payload": {
+    "type": "objective.announce",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveId": "objective-a",
+    "objectiveRevision": 1,
+    "issuerPeerId": "peer-a",
+    "summary": "Summarize the approved material.",
+    "successCriteria": ["A concise summary is produced."],
+    "permittedCapabilityKeys": ["summarize"],
+    "maximumWorkItems": 10,
+    "maximumConcurrentAssignments": 2,
+    "maximumBudgetUnits": 1000,
+    "bidWindowMs": 60000,
+    "acceptanceWindowMs": 30000,
+    "maximumLeaseDurationMs": 3600000,
+    "recoveryGraceMs": 60000,
+    "maximumLeaseRenewals": 3,
+    "recoveryWitnessPeerIds": ["peer-b", "peer-c", "peer-d"],
+    "recoveryWitnessThreshold": 2,
+    "validFrom": "2026-07-30T00:00:00.000Z",
+    "validUntil": "2026-08-29T00:00:00.000Z",
+    "authorizedObserverPeerIds": ["peer-observer"]
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "key-a",
+    "value": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSA"
+  }
+}

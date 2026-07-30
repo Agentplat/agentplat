@@ -63,6 +63,9 @@ import {
   type PeerHelloPayload,
   type CapabilityAdvertisePayload,
   type CapabilityWithdrawPayload,
+  type ObjectiveAnnouncePayload,
+  type ObjectiveCancelPayload,
+  type ObjectiveRevisePayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -119,6 +122,45 @@ const capabilityWithdrawPayload: CapabilityWithdrawPayload = {
   advertisementId: 'advertisement-a',
 };
 
+const objectiveAnnouncePayload: ObjectiveAnnouncePayload = {
+  type: 'objective.announce',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveId: 'objective-a',
+  objectiveRevision: 1,
+  issuerPeerId: 'peer-a',
+  summary: 'Summarize the approved material.',
+  successCriteria: ['A concise summary is produced.'],
+  permittedCapabilityKeys: ['summarize'],
+  maximumWorkItems: 10,
+  maximumConcurrentAssignments: 2,
+  maximumBudgetUnits: 1000,
+  bidWindowMs: 60_000,
+  acceptanceWindowMs: 30_000,
+  maximumLeaseDurationMs: 3_600_000,
+  recoveryGraceMs: 60_000,
+  maximumLeaseRenewals: 3,
+  recoveryWitnessPeerIds: ['peer-b', 'peer-c', 'peer-d'],
+  recoveryWitnessThreshold: 2,
+  validFrom: '2026-07-30T00:00:00.000Z',
+  validUntil: '2026-08-29T00:00:00.000Z',
+};
+
+const objectiveRevisePayload: ObjectiveRevisePayload = {
+  ...objectiveAnnouncePayload,
+  type: 'objective.revise',
+  objectiveDocumentId: 'objective-document-b',
+  objectiveRevision: 2,
+  previousObjectiveDocumentId: 'objective-document-a',
+};
+
+const objectiveCancelPayload: ObjectiveCancelPayload = {
+  type: 'objective.cancel',
+  cancellationId: 'cancellation-a',
+  objectiveId: 'objective-a',
+  objectiveRevision: 2,
+  objectiveDocumentId: 'objective-document-b',
+};
+
 const invalidPeerCardType: PeerCardPayload = {
   ...peerCardPayload,
   // @ts-expect-error closed discriminant rejects another payload family
@@ -135,6 +177,36 @@ const invalidCapabilityRevision: CapabilityAdvertisePayload = {
   // @ts-expect-error capability revisions are numeric scalars
   capabilityRevision: '1',
 };
+const invalidObjectiveRevision: ObjectiveAnnouncePayload = {
+  ...objectiveAnnouncePayload,
+  // @ts-expect-error objective revisions are numeric scalars
+  objectiveRevision: '1',
+};
+// @ts-expect-error revisions require their predecessor document ID
+const incompleteObjectiveRevise: ObjectiveRevisePayload = {
+  ...objectiveAnnouncePayload,
+  type: 'objective.revise',
+};
+// @ts-expect-error Objective documents carry exactly one content representation
+const invalidObjectiveAnnounceBothContent: ObjectiveAnnouncePayload = {
+  ...objectiveAnnouncePayload,
+  contentReference: 'content-a',
+};
+const { summary: _announceSummary, ...objectiveAnnounceWithoutContent } =
+  objectiveAnnouncePayload;
+// @ts-expect-error Objective documents require one content representation
+const invalidObjectiveAnnounceWithoutContent: ObjectiveAnnouncePayload =
+  objectiveAnnounceWithoutContent;
+// @ts-expect-error Objective documents carry exactly one content representation
+const invalidObjectiveReviseBothContent: ObjectiveRevisePayload = {
+  ...objectiveRevisePayload,
+  contentReference: 'content-b',
+};
+const { summary: _reviseSummary, ...objectiveReviseWithoutContent } =
+  objectiveRevisePayload;
+// @ts-expect-error Objective documents require one content representation
+const invalidObjectiveReviseWithoutContent: ObjectiveRevisePayload =
+  objectiveReviseWithoutContent;
 // @ts-expect-error withdrawal requires the accepted advertisement identifier
 const incompleteCapabilityWithdraw: CapabilityWithdrawPayload = {
   type: 'capability.withdraw',
@@ -151,6 +223,9 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'peer.goodbye':
     case 'capability.advertise':
     case 'capability.withdraw':
+    case 'objective.announce':
+    case 'objective.revise':
+    case 'objective.cancel':
       return payload.type;
     default: {
       const exhaustive: never = payload;

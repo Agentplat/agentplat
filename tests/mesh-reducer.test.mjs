@@ -735,6 +735,84 @@ test('Alpha 2 protocol records stop at the runtime boundary until enabled', asyn
   );
 });
 
+test('signed-valid Alpha 2 Objective records stop before the reducer', async () => {
+  const state = runningState();
+  const payloads = [
+    {
+      type: 'objective.announce',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveId: 'objective-a',
+      objectiveRevision: 1,
+      issuerPeerId: 'peer-a',
+      summary: 'Summarize the approved material.',
+      successCriteria: ['A concise summary is produced.'],
+      permittedCapabilityKeys: ['summarize'],
+      maximumWorkItems: 10,
+      maximumConcurrentAssignments: 2,
+      maximumBudgetUnits: 1000,
+      bidWindowMs: 60_000,
+      acceptanceWindowMs: 30_000,
+      maximumLeaseDurationMs: 3_600_000,
+      recoveryGraceMs: 60_000,
+      maximumLeaseRenewals: 3,
+      recoveryWitnessPeerIds: ['peer-b', 'peer-c', 'peer-d'],
+      recoveryWitnessThreshold: 2,
+      validFrom: '2026-07-30T00:00:00Z',
+      validUntil: '2026-08-29T00:00:00Z',
+    },
+    {
+      type: 'objective.revise',
+      objectiveDocumentId: 'objective-document-b',
+      objectiveId: 'objective-a',
+      objectiveRevision: 2,
+      issuerPeerId: 'peer-a',
+      summary: 'Summarize the approved material with sources.',
+      successCriteria: ['A concise summary includes sources.'],
+      permittedCapabilityKeys: ['summarize'],
+      maximumWorkItems: 10,
+      maximumConcurrentAssignments: 2,
+      maximumBudgetUnits: 1000,
+      bidWindowMs: 60_000,
+      acceptanceWindowMs: 30_000,
+      maximumLeaseDurationMs: 3_600_000,
+      recoveryGraceMs: 60_000,
+      maximumLeaseRenewals: 3,
+      recoveryWitnessPeerIds: ['peer-b', 'peer-c', 'peer-d'],
+      recoveryWitnessThreshold: 2,
+      validFrom: '2026-07-30T00:00:00Z',
+      validUntil: '2026-08-29T00:00:00Z',
+      previousObjectiveDocumentId: 'objective-document-a',
+    },
+    {
+      type: 'objective.cancel',
+      cancellationId: 'cancellation-a',
+      objectiveId: 'objective-a',
+      objectiveRevision: 2,
+      objectiveDocumentId: 'objective-document-b',
+    },
+  ];
+  for (const [index, payload] of payloads.entries()) {
+    const envelope = await signedEnvelope(
+      payload.type,
+      1,
+      messageId(130 + index),
+      {
+        objectiveId: 'objective-a',
+        audience: { kind: 'peer', peerId: 'peer-b' },
+        expiresAt:
+          index === 2 ? '2026-07-30T00:02:00Z' : '2026-07-30T00:05:00Z',
+        ...(index === 0 ? {} : { causationId: messageId(120 + index) }),
+        payload,
+      }
+    );
+    expectRejected(
+      await process(state, envelope),
+      'unsupported_message_type',
+      state
+    );
+  }
+});
+
 test('admission and authority failures preserve the original state', async () => {
   const cases = [
     {

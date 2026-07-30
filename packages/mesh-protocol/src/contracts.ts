@@ -165,6 +165,62 @@ export interface CapabilityWithdrawPayload {
   readonly advertisementId: string;
 }
 
+/** Fields shared by complete Objective announcement and revision documents. */
+export interface ObjectiveDocumentFields {
+  readonly objectiveDocumentId: string;
+  readonly objectiveId: string;
+  readonly objectiveRevision: number;
+  readonly issuerPeerId: string;
+  readonly successCriteria: readonly string[];
+  readonly permittedCapabilityKeys: readonly string[];
+  readonly maximumWorkItems: number;
+  readonly maximumConcurrentAssignments: number;
+  readonly maximumBudgetUnits: number;
+  readonly bidWindowMs: number;
+  readonly acceptanceWindowMs: number;
+  readonly maximumLeaseDurationMs: number;
+  readonly recoveryGraceMs: number;
+  readonly maximumLeaseRenewals: number;
+  readonly recoveryWitnessPeerIds: readonly string[];
+  readonly recoveryWitnessThreshold: number;
+  readonly validFrom: string;
+  readonly validUntil: string;
+  readonly authorizedObserverPeerIds?: readonly string[];
+}
+
+/** Exactly one inline summary or external content reference. */
+export type ObjectiveDocumentContent =
+  | {
+      readonly summary: string;
+      readonly contentReference?: never;
+    }
+  | {
+      readonly summary?: never;
+      readonly contentReference: string;
+    };
+
+/** Complete first revision of an objective issued to the mesh. */
+export type ObjectiveAnnouncePayload = ObjectiveDocumentFields &
+  ObjectiveDocumentContent & {
+    readonly type: 'objective.announce';
+  };
+
+/** Complete replacement revision of an existing objective document. */
+export type ObjectiveRevisePayload = ObjectiveDocumentFields &
+  ObjectiveDocumentContent & {
+    readonly type: 'objective.revise';
+    readonly previousObjectiveDocumentId: string;
+  };
+
+/** Cancels one specific objective document revision. */
+export interface ObjectiveCancelPayload {
+  readonly type: 'objective.cancel';
+  readonly cancellationId: string;
+  readonly objectiveId: string;
+  readonly objectiveRevision: number;
+  readonly objectiveDocumentId: string;
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -173,7 +229,10 @@ export type MeshMessagePayload =
   | PeerPingAckPayload
   | PeerGoodbyePayload
   | CapabilityAdvertisePayload
-  | CapabilityWithdrawPayload;
+  | CapabilityWithdrawPayload
+  | ObjectiveAnnouncePayload
+  | ObjectiveRevisePayload
+  | ObjectiveCancelPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<
