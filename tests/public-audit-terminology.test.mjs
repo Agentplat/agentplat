@@ -151,6 +151,7 @@ test('public audit preserves comma-separated inline policy compatibility', async
     await assert.rejects(
       runPublicAudit({
         root: fixture.root,
+        terminologyDenylistFile: '',
         inlineTerminologyDenylist:
           'legacy restricted phrase,another restricted phrase',
       }),
@@ -159,6 +160,7 @@ test('public audit preserves comma-separated inline policy compatibility', async
     await assert.rejects(
       runPublicAudit({
         root: fixture.root,
+        terminologyDenylistFile: '',
         inlineTerminologyDenylist: 'legacy restricted phrase',
         requireTerminologyDenylist: true,
       }),
