@@ -37,6 +37,9 @@ test.todo(
 test.todo(
   'rejects lease renewals statefully for unauthorized recipients, unresolved predecessors, stale authority, expired leases, terminal work, sequence forks, and Objective policy limits'
 );
+test.todo(
+  'rejects takeover proposals statefully before recovery grace, from ineligible proposers, to non-witnesses, or against stale lease heads and non-next epochs'
+);
 
 test.before(async () => {
   keys = await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
@@ -1050,6 +1053,29 @@ test('signed-valid Alpha 2 Work and Lease records stop before the reducer', asyn
       leaseExpiresAt: '2026-07-30T00:30:00Z',
       renewedLeaseExpiresAt: '2026-07-30T01:00:00Z',
     },
+    {
+      type: 'lease.takeover_proposal',
+      takeoverProposalId: 'takeover-proposal-a',
+      proposalAuthority: 'witness',
+      proposerPeerId: 'peer-a',
+      proposedAssigneePeerId: 'peer-c',
+      proposedAssignmentEpoch: 2,
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-a',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-b',
+      awardId: 'award-a',
+      acceptanceId: 'acceptance-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+      leaseRenewalSequence: 0,
+    },
   ];
   for (const [index, payload] of payloads.entries()) {
     const envelope = await signedEnvelope(
@@ -1062,7 +1088,8 @@ test('signed-valid Alpha 2 Work and Lease records stop before the reducer', asyn
         expiresAt: '2026-07-30T00:00:30Z',
         ...(payload.type === 'work.bid' ||
         (payload.type.startsWith('work.') && payload.type !== 'work.offer') ||
-        payload.type === 'lease.renew'
+        payload.type === 'lease.renew' ||
+        payload.type === 'lease.takeover_proposal'
           ? { causationId: messageId(139) }
           : {}),
         payload,

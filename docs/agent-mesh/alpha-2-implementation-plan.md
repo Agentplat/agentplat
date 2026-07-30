@@ -574,6 +574,14 @@ or budget state.
 - implement recovery award, acceptance and checkpoint resume metadata;
 - document owner-unavailable behavior.
 
+Wire conformance for takeover proposals covers a closed accepted-assignment
+payload, stable proposal identity, candidate/witness role consistency, exact
+next declared epoch, current renewal-head representation, direct audience,
+Objective-header equality, mandatory causation and a one-minute TTL. Stateful
+tests must separately cover trusted expiry-plus-grace time, current lease head,
+proposer/candidate eligibility, witness recipients, proposal conflicts,
+terminality and the invariant that a proposal grants no execution authority.
+
 Exit criterion: a threshold can fence and reassign exactly the next epoch, while
 a minority cannot create execution authority.
 

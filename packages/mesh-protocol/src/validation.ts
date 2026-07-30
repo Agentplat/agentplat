@@ -9,6 +9,7 @@ import {
   type CapabilityAdvertisePayload,
   type CapabilityWithdrawPayload,
   type LeaseRenewPayload,
+  type LeaseTakeoverProposalPayload,
   type MeshAudience,
   type MeshAudienceTopic,
   type MeshEnvelope,
@@ -1006,6 +1007,9 @@ function validatePayload(
   if (type === 'lease.renew') {
     return validateLeaseRenew(input, limits);
   }
+  if (type === 'lease.takeover_proposal') {
+    return validateLeaseTakeoverProposal(input, limits);
+  }
   return fail('unsupported_message_type', '$["type"]');
 }
 
@@ -1989,6 +1993,126 @@ function validateLeaseRenew(
   };
 }
 
+function validateLeaseTakeoverProposal(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): LeaseTakeoverProposalPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'leaseRenewalSequence',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'proposalAuthority',
+      'proposedAssigneePeerId',
+      'proposedAssignmentEpoch',
+      'proposerPeerId',
+      'takeoverProposalId',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['latestLeaseRenewalId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'lease.takeover_proposal');
+  const fields = validateWorkExecutionAuthorityFields(payload, limits);
+  const takeoverProposalId = assertIdentifier(
+    payload.takeoverProposalId,
+    '$["payload"]["takeoverProposalId"]',
+    limits
+  );
+  const proposerPeerId = assertIdentifier(
+    payload.proposerPeerId,
+    '$["payload"]["proposerPeerId"]',
+    limits
+  );
+  const proposedAssigneePeerId = assertIdentifier(
+    payload.proposedAssigneePeerId,
+    '$["payload"]["proposedAssigneePeerId"]',
+    limits
+  );
+  if (proposedAssigneePeerId === fields.assigneePeerId) {
+    fail('invalid_payload', '$["payload"]["proposedAssigneePeerId"]');
+  }
+  const proposalAuthority = assertString(
+    payload.proposalAuthority,
+    '$["payload"]["proposalAuthority"]',
+    'invalid_payload'
+  );
+  if (proposalAuthority !== 'candidate' && proposalAuthority !== 'witness') {
+    fail('invalid_payload', '$["payload"]["proposalAuthority"]');
+  }
+  if (
+    proposalAuthority === 'candidate' &&
+    proposerPeerId !== proposedAssigneePeerId
+  ) {
+    fail('invalid_payload', '$["payload"]["proposedAssigneePeerId"]');
+  }
+  if (
+    proposalAuthority === 'witness' &&
+    proposerPeerId === proposedAssigneePeerId
+  ) {
+    fail('invalid_payload', '$["payload"]["proposalAuthority"]');
+  }
+  const proposedAssignmentEpoch = assertPositiveSafeInteger(
+    payload.proposedAssignmentEpoch,
+    '$["payload"]["proposedAssignmentEpoch"]',
+    'invalid_payload'
+  );
+  if (proposedAssignmentEpoch !== fields.assignmentEpoch + 1) {
+    fail('invalid_payload', '$["payload"]["proposedAssignmentEpoch"]');
+  }
+  const leaseRenewalSequence = assertNonnegativeSafeInteger(
+    payload.leaseRenewalSequence,
+    '$["payload"]["leaseRenewalSequence"]'
+  );
+  if (leaseRenewalSequence > maximumLeaseRenewals) {
+    fail('invalid_payload', '$["payload"]["leaseRenewalSequence"]');
+  }
+  if (leaseRenewalSequence === 0) {
+    if (Object.hasOwn(payload, 'latestLeaseRenewalId')) {
+      fail('invalid_payload', '$["payload"]["latestLeaseRenewalId"]');
+    }
+    return {
+      type: 'lease.takeover_proposal',
+      ...fields,
+      takeoverProposalId,
+      proposalAuthority,
+      proposerPeerId,
+      proposedAssigneePeerId,
+      proposedAssignmentEpoch,
+      leaseRenewalSequence,
+    };
+  }
+  return {
+    type: 'lease.takeover_proposal',
+    ...fields,
+    takeoverProposalId,
+    proposalAuthority,
+    proposerPeerId,
+    proposedAssigneePeerId,
+    proposedAssignmentEpoch,
+    leaseRenewalSequence,
+    latestLeaseRenewalId: assertIdentifier(
+      payload.latestLeaseRenewalId,
+      '$["payload"]["latestLeaseRenewalId"]',
+      limits
+    ),
+  };
+}
+
 function validateWorkExecutionAuthorityFields(
   payload: Record<string, unknown>,
   limits: Readonly<MeshProtocolLimits>
@@ -2639,6 +2763,11 @@ function validateMessageSpecificEnvelope(
     payload.ownerPeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+  } else if (
+    payload.type === 'lease.takeover_proposal' &&
+    payload.proposerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["proposerPeerId"]');
   }
 
   if (
@@ -2684,7 +2813,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.result' ||
     type === 'work.release' ||
     type === 'work.cancel' ||
-    type === 'lease.renew'
+    type === 'lease.renew' ||
+    type === 'lease.takeover_proposal'
   ) {
     if (audience.kind !== 'peer') {
       fail('invalid_audience', '$["audience"]');
@@ -2749,7 +2879,8 @@ function validateMessageSpecificEnvelope(
       type === 'work.result' ||
       type === 'work.release' ||
       type === 'work.cancel' ||
-      type === 'lease.renew') &&
+      type === 'lease.renew' ||
+      type === 'lease.takeover_proposal') &&
     causationId === undefined
   ) {
     fail('invalid_payload', '$["causationId"]');
@@ -2769,7 +2900,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.result' ||
     type === 'work.release' ||
     type === 'work.cancel' ||
-    type === 'lease.renew'
+    type === 'lease.renew' ||
+    type === 'lease.takeover_proposal'
   ) {
     if (
       objectiveId === undefined ||
@@ -2790,6 +2922,7 @@ function validateMessageSpecificEnvelope(
             | WorkReleasePayload
             | WorkCancelPayload
             | LeaseRenewPayload
+            | LeaseTakeoverProposalPayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -3219,7 +3352,7 @@ function validateLifetime(
   const messageMaximum =
     type === 'peer.ping' || type === 'peer.ping_ack'
       ? 30_000
-      : type === 'peer.goodbye'
+      : type === 'peer.goodbye' || type === 'lease.takeover_proposal'
         ? 60_000
         : type === 'objective.announce' || type === 'objective.revise'
           ? 5 * 60_000
@@ -3488,7 +3621,8 @@ function isImplementedMessageType(
     value === 'work.result' ||
     value === 'work.release' ||
     value === 'work.cancel' ||
-    value === 'lease.renew'
+    value === 'lease.renew' ||
+    value === 'lease.takeover_proposal'
   );
 }
 

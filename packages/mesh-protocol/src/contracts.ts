@@ -458,6 +458,18 @@ export interface LeaseRenewPayload extends WorkExecutionAuthorityFields {
   readonly renewedLeaseExpiresAt: string;
 }
 
+/** Proposes the next assignment epoch after one accepted lease expires. */
+export interface LeaseTakeoverProposalPayload extends WorkExecutionAuthorityFields {
+  readonly type: 'lease.takeover_proposal';
+  readonly takeoverProposalId: string;
+  readonly proposalAuthority: 'candidate' | 'witness';
+  readonly proposerPeerId: string;
+  readonly proposedAssigneePeerId: string;
+  readonly proposedAssignmentEpoch: number;
+  readonly leaseRenewalSequence: number;
+  readonly latestLeaseRenewalId?: string;
+}
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -480,7 +492,8 @@ export type MeshMessagePayload =
   | WorkResultPayload
   | WorkReleasePayload
   | WorkCancelPayload
-  | LeaseRenewPayload;
+  | LeaseRenewPayload
+  | LeaseTakeoverProposalPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

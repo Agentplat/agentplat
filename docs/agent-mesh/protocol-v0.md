@@ -378,7 +378,7 @@ immediately preceding domain record where the matrix requires causation.
 | `work.release`                | current Work Item revision and assignment epoch                          | accepted `work.accept` or latest `lease.renew` ID    |                                  2 minutes | Appends release; a new assignment requires a higher epoch                                                 |
 | `work.cancel`                 | current Work Item revision and assignment epoch                          | current `work.award`, `work.accept` or lease ID      |                                  2 minutes | Appends cancellation; it does not erase completed effects or evidence                                     |
 | `lease.renew`                 | current Work Item revision and assignment epoch                          | accepted `work.accept` or preceding renewal envelope |    lesser of 30 seconds or remaining lease | Appends a bounded lease extension under Objective policy                                                  |
-| `lease.takeover_proposal`     | proposed epoch strictly greater than current epoch                       | expired lease or latest lease certificate ID         |                                   1 minute | Immutable proposal                                                                                        |
+| `lease.takeover_proposal`     | proposed epoch exactly one above the declared current epoch              | accepted `work.accept` or latest renewal envelope    |                                   1 minute | Immutable proposal; it grants no execution authority                                                      |
 | `lease.vote`                  | proposed epoch from takeover proposal                                    | accepted takeover proposal ID                        |                                   1 minute | One immutable vote per witness, Work Item and proposed epoch; conflicting votes are equivocation evidence |
 | `lease.certificate`           | certified epoch strictly greater than current epoch                      | takeover proposal and required vote IDs              |                                   1 minute | Immutable certificate; only a later valid certificate can supersede its epoch                             |
 | `evidence.claim`              | work-derived claims carry Work Item revision and epoch                   | producing result/checkpoint IDs when work-derived    |                                  5 minutes | Immutable claim; only its original author may issue a separate retraction                                 |
@@ -445,6 +445,27 @@ The wire validator does not authorize recipients or prove that the declared
 current expiry, predecessor, sequence, assignment authority or lease is current.
 It also does not enforce the Work deadline, the accepted Objective's lower
 duration/count limits, terminality or idempotency; those are reducer rules.
+
+`lease.takeover_proposal` carries the accepted assignment authority, current
+lease expiry and a stable `takeoverProposalId`. It identifies a self-bound
+`proposerPeerId`, a closed `candidate` or `witness` `proposalAuthority`, a
+different `proposedAssigneePeerId`, and exactly the next declared assignment
+epoch. It carries no proposed fencing token: only an accepted
+`lease.certificate` supplies the new authority ID and token.
+
+`leaseRenewalSequence` is zero for the initial accepted lease and then requires
+`latestLeaseRenewalId` for values one through 100. Causation resolves to the
+accepted `work.accept` at zero or the latest accepted renewal envelope for that
+recipient. Delivery is direct, the Objective header must match, causation is
+required and TTL is at most one minute.
+
+Structural acceptance does not prove that the declared assignment and lease head
+are current, or that lease expiry plus Objective recovery grace has elapsed.
+Those checks use accepted local state and trusted receiver time, not the
+sender-declared timestamp. Proposer/candidate eligibility, witness recipient
+authorization, terminality, idempotency and proposal conflicts also remain
+stateful. A proposal alone never advances an epoch, changes fencing, grants
+execution authority or modifies budget.
 
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown
