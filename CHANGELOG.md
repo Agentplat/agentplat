@@ -19,6 +19,9 @@
 - Added the signed in-memory loopback driver and deterministic Mesh simulation
   kernel with composite routing, bounded queues, serialized peer transitions,
   seeded scheduling, chained trace digests and replay divergence reporting.
+- Extended tarball verification with registry-compatible internal dependency
+  ranges, packed TypeScript declaration compilation and a signed three-peer
+  loopback and replay consumer installed exclusively from local tarballs.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.

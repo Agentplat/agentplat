@@ -199,8 +199,9 @@ corepack pnpm run check
 `check` audits the checkout, removes stale build output, rebuilds every package,
 audits the built tree, type-checks the workspace, runs unit tests and validates
 release metadata. It then audits every package tarball, imports every declared
-export from a package-isolated consumer and runs an aggregate functional smoke
-test.
+export from a package-isolated consumer, compiles packed TypeScript
+declarations, runs the signed three-peer Mesh scenario and preserves the
+aggregate functional smoke test.
 
 The intentional publication allowlist is
 [`config/public-packages.json`](./config/public-packages.json). Release,

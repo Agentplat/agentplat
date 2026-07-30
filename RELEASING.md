@@ -20,8 +20,11 @@ corepack pnpm run check
 Commit the version and release notes before publishing. `verify:release` rejects
 mixed package versions and `verify:pack` installs the exact tarballs in clean,
 isolated, non-hoisted package consumers. Pack verification audits the extracted
-contents of every tarball, imports every declared package export independently
-and then runs the aggregate functional consumer smoke test.
+contents of every tarball, requires internal SemVer ranges that include the
+coordinated packed version, imports every declared package export independently,
+compiles a TypeScript consumer against the packed declarations and runs both the
+signed three-peer Mesh scenario and the unchanged aggregate functional consumer
+smoke test.
 
 Every release also requires a non-empty terminology denylist stored outside the
 checkout:
