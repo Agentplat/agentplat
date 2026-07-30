@@ -20,6 +20,7 @@ The implementation provides:
   `work.checkpoint` and `work.result`;
 - closed, bounded Alpha 2 Work Release and Work Cancel records for
   `work.release` and `work.cancel`;
+- a closed, bounded Alpha 2 Lease Renewal record for `lease.renew`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -43,12 +44,12 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Lease, evidence, trust and peer-sync message families remain reserved until
-their closed payload contracts are implemented. They fail explicitly rather
-than entering a generic payload path. Implemented Objective and Work records
-parse, sign and verify structurally, but remain explicitly unsupported at the
-Mesh runtime boundary until their reducers and state authorization are
-implemented.
+Lease recovery, evidence, trust and peer-sync message families remain reserved
+until their closed payload contracts are implemented. They fail explicitly
+rather than entering a generic payload path. Implemented Objective, Work and
+Lease Renewal records parse, sign and verify structurally, but remain explicitly
+unsupported at the Mesh runtime boundary until their reducers and state
+authorization are implemented.
 
 ## Frozen limits
 
@@ -99,6 +100,11 @@ assignee release must be sent before its declared lease expiry. Cancel is a
 closed `award_pending` branch without `acceptanceId` or `active` branch with
 one. These are structural limits only; local state determines recipients,
 authority, terminality, idempotency and accounting.
+
+Lease Renewal envelopes have a 30-second TTL and must expire no later than the
+currently declared lease. A renewal self-binds the assignee, requires direct
+delivery and extends the declared expiry by a positive duration of at most 24
+hours. The accepted Objective may impose a lower duration and renewal count.
 
 Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return
@@ -221,6 +227,22 @@ witness, or that the assignment, epoch, authority, token, lease and checkpoint
 head are current. It also does not enforce progress ordering or result
 uniqueness. Those checks require accepted local state and remain deferred to
 the Mesh runtime reducer boundary.
+
+## Lease Renewal limits
+
+Lease Renewal carries the accepted assignment authority plus
+`leaseRenewalId`, `leaseRenewalSequence` and `renewedLeaseExpiresAt`. The
+existing `leaseExpiresAt` is the current lease that limits delivery; the renewed
+timestamp is the proposed successor. Sequence `1` omits
+`previousLeaseRenewalId`; later sequences require a different predecessor ID.
+
+The sender self-binds to `assigneePeerId`, the audience is one direct peer, the
+envelope Objective ID equals the payload Objective ID, and causation is
+required. The first accepted renewal resolves causation to `work.accept`; later
+renewals resolve it to the immediately preceding `lease.renew` envelope for
+that recipient. Recipient authorization, exact predecessor and sequence,
+current assignment and lease, Work deadline, Objective duration/count policy,
+terminal state and idempotency remain stateful reducer checks.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

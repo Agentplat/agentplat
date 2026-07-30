@@ -8,6 +8,7 @@ import {
   MESH_WIRE_VERSION,
   type CapabilityAdvertisePayload,
   type CapabilityWithdrawPayload,
+  type LeaseRenewPayload,
   type MeshAudience,
   type MeshAudienceTopic,
   type MeshEnvelope,
@@ -1002,6 +1003,9 @@ function validatePayload(
   if (type === 'work.cancel') {
     return validateWorkCancel(input, limits);
   }
+  if (type === 'lease.renew') {
+    return validateLeaseRenew(input, limits);
+  }
   return fail('unsupported_message_type', '$["type"]');
 }
 
@@ -1897,6 +1901,94 @@ function validateWorkCancel(
   return fail('invalid_payload', '$["payload"]["assignmentState"]');
 }
 
+function validateLeaseRenew(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): LeaseRenewPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'acceptanceId',
+      'assigneePeerId',
+      'assignmentAuthorityId',
+      'assignmentEpoch',
+      'awardId',
+      'fencingToken',
+      'leaseExpiresAt',
+      'leaseRenewalId',
+      'leaseRenewalSequence',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'ownerEpoch',
+      'ownerPeerId',
+      'renewedLeaseExpiresAt',
+      'type',
+      'workItemId',
+      'workItemRevision',
+    ],
+    ['previousLeaseRenewalId'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, 'lease.renew');
+  const fields = validateWorkExecutionAuthorityFields(payload, limits);
+  const leaseRenewalId = assertIdentifier(
+    payload.leaseRenewalId,
+    '$["payload"]["leaseRenewalId"]',
+    limits
+  );
+  const leaseRenewalSequence = assertPositiveSafeInteger(
+    payload.leaseRenewalSequence,
+    '$["payload"]["leaseRenewalSequence"]',
+    'invalid_payload'
+  );
+  if (leaseRenewalSequence > maximumLeaseRenewals) {
+    fail('invalid_payload', '$["payload"]["leaseRenewalSequence"]');
+  }
+  const previousLeaseRenewalId =
+    payload.previousLeaseRenewalId === undefined
+      ? undefined
+      : assertIdentifier(
+          payload.previousLeaseRenewalId,
+          '$["payload"]["previousLeaseRenewalId"]',
+          limits
+        );
+  validateRevisionPredecessor(
+    leaseRenewalSequence,
+    previousLeaseRenewalId,
+    '$["payload"]["previousLeaseRenewalId"]'
+  );
+  if (previousLeaseRenewalId === leaseRenewalId) {
+    fail('invalid_payload', '$["payload"]["previousLeaseRenewalId"]');
+  }
+  const renewedLeaseExpiresAt = assertRfc3339PayloadTimestamp(
+    payload.renewedLeaseExpiresAt,
+    '$["payload"]["renewedLeaseExpiresAt"]'
+  );
+  const currentLeaseExpiresAt = parseRfc3339(
+    fields.leaseExpiresAt,
+    '$["payload"]["leaseExpiresAt"]'
+  );
+  if (renewedLeaseExpiresAt.instant <= currentLeaseExpiresAt) {
+    fail('invalid_payload', '$["payload"]["renewedLeaseExpiresAt"]');
+  }
+  if (
+    renewedLeaseExpiresAt.instant - currentLeaseExpiresAt >
+    BigInt(maximumLeaseDurationMs) * 1_000_000n
+  ) {
+    fail('invalid_payload', '$["payload"]["renewedLeaseExpiresAt"]');
+  }
+  return {
+    type: 'lease.renew',
+    ...fields,
+    leaseRenewalId,
+    leaseRenewalSequence,
+    ...(previousLeaseRenewalId === undefined ? {} : { previousLeaseRenewalId }),
+    renewedLeaseExpiresAt: renewedLeaseExpiresAt.text,
+  };
+}
+
 function validateWorkExecutionAuthorityFields(
   payload: Record<string, unknown>,
   limits: Readonly<MeshProtocolLimits>
@@ -2524,7 +2616,8 @@ function validateMessageSpecificEnvelope(
       payload.type === 'work.decline' ||
       payload.type === 'work.progress' ||
       payload.type === 'work.checkpoint' ||
-      payload.type === 'work.result') &&
+      payload.type === 'work.result' ||
+      payload.type === 'lease.renew') &&
     payload.assigneePeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["assigneePeerId"]');
@@ -2590,7 +2683,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.checkpoint' ||
     type === 'work.result' ||
     type === 'work.release' ||
-    type === 'work.cancel'
+    type === 'work.cancel' ||
+    type === 'lease.renew'
   ) {
     if (audience.kind !== 'peer') {
       fail('invalid_audience', '$["audience"]');
@@ -2654,7 +2748,8 @@ function validateMessageSpecificEnvelope(
       type === 'work.checkpoint' ||
       type === 'work.result' ||
       type === 'work.release' ||
-      type === 'work.cancel') &&
+      type === 'work.cancel' ||
+      type === 'lease.renew') &&
     causationId === undefined
   ) {
     fail('invalid_payload', '$["causationId"]');
@@ -2673,7 +2768,8 @@ function validateMessageSpecificEnvelope(
     type === 'work.checkpoint' ||
     type === 'work.result' ||
     type === 'work.release' ||
-    type === 'work.cancel'
+    type === 'work.cancel' ||
+    type === 'lease.renew'
   ) {
     if (
       objectiveId === undefined ||
@@ -2693,6 +2789,7 @@ function validateMessageSpecificEnvelope(
             | WorkResultPayload
             | WorkReleasePayload
             | WorkCancelPayload
+            | LeaseRenewPayload
         ).objectiveId
     ) {
       fail('invalid_payload', '$["objectiveId"]');
@@ -2713,7 +2810,8 @@ function validateMessageSpecificEnvelope(
   } else if (
     payload.type === 'work.progress' ||
     payload.type === 'work.checkpoint' ||
-    payload.type === 'work.result'
+    payload.type === 'work.result' ||
+    payload.type === 'lease.renew'
   ) {
     validateWorkExecutionTimes(payload, sentAt, expiresAt);
   } else if (
@@ -2873,7 +2971,8 @@ function validateWorkExecutionTimes(
     | WorkProgressPayload
     | WorkCheckpointPayload
     | WorkResultPayload
-    | WorkReleasePayload,
+    | WorkReleasePayload
+    | LeaseRenewPayload,
   sentAt: bigint,
   expiresAt: bigint
 ): void {
@@ -3128,7 +3227,9 @@ function validateLifetime(
               type === 'work.checkpoint' ||
               type === 'work.result'
             ? maximumWorkExecutionLifetimeMs
-            : 120_000;
+            : type === 'lease.renew'
+              ? 30_000
+              : 120_000;
   const maximum = Math.min(limits.maximumLifetimeMs, messageMaximum);
   if (expiresAt - sentAt > BigInt(maximum) * 1_000_000n) {
     fail('invalid_lifetime', '$["expiresAt"]');
@@ -3386,7 +3487,8 @@ function isImplementedMessageType(
     value === 'work.checkpoint' ||
     value === 'work.result' ||
     value === 'work.release' ||
-    value === 'work.cancel'
+    value === 'work.cancel' ||
+    value === 'lease.renew'
   );
 }
 

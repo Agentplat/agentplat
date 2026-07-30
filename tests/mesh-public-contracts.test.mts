@@ -55,6 +55,7 @@ import {
   parseSignedMeshEnvelope,
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
+  type LeaseRenewPayload,
   type MeshEnvelopeContext,
   type MeshMessagePayload,
   type MeshProtocolResult,
@@ -84,8 +85,8 @@ import {
 
 // This file is compiled, not executed. It freezes the direct-package Alpha 1
 // surface without re-exporting preview Mesh contracts from Framework. Progress,
-// Checkpoint and Result type assertions are added with their public payload
-// contracts; their recipient and authority rules remain stateful.
+// Checkpoint, Result and Lease Renewal assertions are added with their public
+// payload contracts; their recipient and authority rules remain stateful.
 const helloPayload: PeerHelloPayload = {
   type: 'peer.hello',
   peerCardId: 'card-a',
@@ -325,6 +326,23 @@ const workCancelActivePayload: WorkCancelPayload = {
   assignmentState: 'active',
   ...workExecutionAuthorityFields,
 };
+const leaseRenewPayload: LeaseRenewPayload = {
+  type: 'lease.renew',
+  leaseRenewalId: 'lease-renewal-a',
+  leaseRenewalSequence: 1,
+  renewedLeaseExpiresAt: '2026-07-30T01:00:00.000Z',
+  ...workExecutionAuthorityFields,
+};
+const invalidLeaseRenewSequence: LeaseRenewPayload = {
+  ...leaseRenewPayload,
+  // @ts-expect-error renewal sequence is a numeric scalar
+  leaseRenewalSequence: '1',
+};
+const invalidLeaseRenewType: LeaseRenewPayload = {
+  ...leaseRenewPayload,
+  // @ts-expect-error lease renewal has one closed message type
+  type: 'work.release',
+};
 // @ts-expect-error pending cancellation cannot name an acceptance
 const invalidWorkCancelPending: WorkCancelPayload = {
   ...workCancelPendingPayload,
@@ -515,6 +533,7 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'work.result':
     case 'work.release':
     case 'work.cancel':
+    case 'lease.renew':
       return payload.type;
     default: {
       const exhaustive: never = payload;

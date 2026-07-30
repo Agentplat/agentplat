@@ -34,6 +34,9 @@ test.todo(
 test.todo(
   'rejects release and cancellation statefully for unauthorized recipients, unresolved authority, stale epochs, terminal work, duplicate IDs, and invalid accounting'
 );
+test.todo(
+  'rejects lease renewals statefully for unauthorized recipients, unresolved predecessors, stale authority, expired leases, terminal work, sequence forks, and Objective policy limits'
+);
 
 test.before(async () => {
   keys = await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
@@ -820,7 +823,7 @@ test('signed-valid Alpha 2 Objective records stop before the reducer', async () 
   }
 });
 
-test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
+test('signed-valid Alpha 2 Work and Lease records stop before the reducer', async () => {
   const state = runningState();
   const payloads = [
     {
@@ -1027,6 +1030,26 @@ test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
       leaseExpiresAt: '2026-07-30T00:30:00Z',
       acceptanceId: 'acceptance-a',
     },
+    {
+      type: 'lease.renew',
+      leaseRenewalId: 'lease-renewal-a',
+      leaseRenewalSequence: 1,
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      awardId: 'award-a',
+      acceptanceId: 'acceptance-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+      renewedLeaseExpiresAt: '2026-07-30T01:00:00Z',
+    },
   ];
   for (const [index, payload] of payloads.entries()) {
     const envelope = await signedEnvelope(
@@ -1038,7 +1061,8 @@ test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
         audience: { kind: 'peer', peerId: 'peer-b' },
         expiresAt: '2026-07-30T00:00:30Z',
         ...(payload.type === 'work.bid' ||
-        (payload.type.startsWith('work.') && payload.type !== 'work.offer')
+        (payload.type.startsWith('work.') && payload.type !== 'work.offer') ||
+        payload.type === 'lease.renew'
           ? { causationId: messageId(139) }
           : {}),
         payload,
