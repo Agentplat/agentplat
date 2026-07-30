@@ -277,6 +277,7 @@ test('reference signer and verifier cover Alpha 2 payload shapes and tampering',
   const resolver = createStaticMeshKeyResolver([
     keyRecord(keys.publicKey),
     keyRecord(keys.publicKey, { peerId: 'peer-b', keyId: 'key-b' }),
+    keyRecord(keys.publicKey, { peerId: 'peer-c', keyId: 'key-c' }),
   ]);
 
   for (const [fixtureName, payloadField] of [
@@ -299,6 +300,7 @@ test('reference signer and verifier cover Alpha 2 payload shapes and tampering',
     ['work-cancel', 'cancellationId'],
     ['lease-renew', 'leaseRenewalId'],
     ['lease-takeover-proposal', 'takeoverProposalId'],
+    ['lease-vote', 'leaseVoteId'],
   ]) {
     const envelope = JSON.parse(
       await readFile(

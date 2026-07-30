@@ -40,6 +40,9 @@ test.todo(
 test.todo(
   'rejects takeover proposals statefully before recovery grace, from ineligible proposers, to non-witnesses, or against stale lease heads and non-next epochs'
 );
+test.todo(
+  'rejects lease votes statefully from non-witnesses, for unresolved or mismatched proposals, duplicate or conflicting epochs, unauthorized recipients, and terminal work'
+);
 
 test.before(async () => {
   keys = await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
@@ -1076,6 +1079,13 @@ test('signed-valid Alpha 2 Work and Lease records stop before the reducer', asyn
       leaseExpiresAt: '2026-07-30T00:30:00Z',
       leaseRenewalSequence: 0,
     },
+    {
+      type: 'lease.vote',
+      leaseVoteId: 'lease-vote-a',
+      takeoverProposalId: 'takeover-proposal-a',
+      witnessPeerId: 'peer-a',
+      objectiveId: 'objective-a',
+    },
   ];
   for (const [index, payload] of payloads.entries()) {
     const envelope = await signedEnvelope(
@@ -1089,7 +1099,8 @@ test('signed-valid Alpha 2 Work and Lease records stop before the reducer', asyn
         ...(payload.type === 'work.bid' ||
         (payload.type.startsWith('work.') && payload.type !== 'work.offer') ||
         payload.type === 'lease.renew' ||
-        payload.type === 'lease.takeover_proposal'
+        payload.type === 'lease.takeover_proposal' ||
+        payload.type === 'lease.vote'
           ? { causationId: messageId(139) }
           : {}),
         payload,

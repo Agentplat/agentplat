@@ -582,6 +582,16 @@ tests must separately cover trusted expiry-plus-grace time, current lease head,
 proposer/candidate eligibility, witness recipients, proposal conflicts,
 terminality and the invariant that a proposal grants no execution authority.
 
+Wire conformance for witness votes covers a closed affirmative endorsement with
+a stable vote ID, logical takeover proposal ID, self-bound witness, direct
+audience, Objective-header equality, mandatory proposal causation and a
+one-minute TTL. Candidate, Work Item, assignment, lease, epoch and fencing
+snapshots remain canonical in the accepted proposal rather than being copied
+into each vote. Stateful tests must separately cover proposal resolution,
+witness-set and recipient authorization, idempotency, one vote per witness and
+proposed epoch, conflicting proposal evidence, terminality and the invariant
+that a vote grants no authority.
+
 Exit criterion: a threshold can fence and reassign exactly the next epoch, while
 a minority cannot create execution authority.
 

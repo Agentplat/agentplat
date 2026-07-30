@@ -21,9 +21,9 @@
 - Added closed, bounded Alpha 2 Work Progress, Work Checkpoint, Work Result,
   Work Release and Work Cancel contracts with structural lease and assignment
   bindings.
-- Added closed, bounded Alpha 2 Lease Renewal and Lease Takeover Proposal
-  contracts with stable causal records. They remain unsupported at the Mesh
-  runtime boundary pending lease and recovery reducers.
+- Added closed, bounded Alpha 2 Lease Renewal, Lease Takeover Proposal and Lease
+  Vote contracts with stable causal records. They remain unsupported at the
+  Mesh runtime boundary pending lease and recovery reducers.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

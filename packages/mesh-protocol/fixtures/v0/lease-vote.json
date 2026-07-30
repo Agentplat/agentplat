@@ -1,0 +1,28 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "JJJJJJJJJJJJJJJJJJJJJA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "lease.vote",
+  "sender": { "peerId": "peer-c", "instanceId": "instance-c" },
+  "audience": { "kind": "peer", "peerId": "peer-b" },
+  "sequence": 21,
+  "sentAt": "2026-07-30T01:01:10.000Z",
+  "expiresAt": "2026-07-30T01:02:10.000Z",
+  "causationId": "IIIIIIIIIIIIIIIIIIIIIA",
+  "payloadHash": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "payload": {
+    "type": "lease.vote",
+    "leaseVoteId": "lease-vote-a",
+    "takeoverProposalId": "takeover-proposal-a",
+    "witnessPeerId": "peer-c",
+    "objectiveId": "objective-a"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "key-c",
+    "value": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSA"
+  }
+}

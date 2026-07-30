@@ -467,6 +467,22 @@ authorization, terminality, idempotency and proposal conflicts also remain
 stateful. A proposal alone never advances an epoch, changes fencing, grants
 execution authority or modifies budget.
 
+`lease.vote` is an affirmative endorsement of one causally accepted takeover
+proposal. Its closed payload carries a stable `leaseVoteId`, the logical
+`takeoverProposalId`, the self-bound `witnessPeerId` and `objectiveId`. It does
+not repeat the candidate, Work Item, assignment, lease, epoch or fencing
+snapshot; verifiers resolve those fields from the accepted proposal named by
+causation and reject a logical proposal ID whose content conflicts.
+
+Delivery is direct to one recovery participant, the Objective header must
+match, causation is required and TTL is at most one minute. Witness-set
+membership, recipient authorization, accepted proposal resolution and the
+one-vote-per-witness/Work Item revision/proposed epoch rule are stateful. A
+duplicate identical vote is idempotent; endorsing another proposal in that
+scope is conflicting vote evidence and cannot count toward a certificate. A
+vote alone never advances an epoch, changes fencing, grants execution authority
+or modifies budget.
+
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown
 message type. A message that omits a required Objective, revision, epoch or
