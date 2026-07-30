@@ -28,6 +28,10 @@ let keysC;
 let resolver;
 let verifier;
 
+test.todo(
+  'rejects execution records statefully for unauthorized recipients, unresolved causal records, stale authority, expired leases, non-head checkpoints, and duplicate results'
+);
+
 test.before(async () => {
   keys = await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
     'sign',
@@ -918,6 +922,68 @@ test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
       assignmentAuthorityId: 'award-a',
       fencingToken: 'award-a',
       acceptanceDeadline: '2026-07-30T00:15:00Z',
+    },
+    {
+      type: 'work.progress',
+      progressId: 'progress-a',
+      progressSequence: 1,
+      progressSummary: 'The assigned peer has started the summary.',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      awardId: 'award-a',
+      acceptanceId: 'acceptance-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+    },
+    {
+      type: 'work.checkpoint',
+      checkpointId: 'checkpoint-a',
+      checkpointSequence: 1,
+      checkpointDigest: 'sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      checkpointSummary: 'Source selection is complete.',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      awardId: 'award-a',
+      acceptanceId: 'acceptance-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+    },
+    {
+      type: 'work.result',
+      resultId: 'result-a',
+      resultDigest: 'sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      checkpointId: 'checkpoint-a',
+      resultSummary: 'A concise summary was produced.',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      awardId: 'award-a',
+      acceptanceId: 'acceptance-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
     },
   ];
   for (const [index, payload] of payloads.entries()) {

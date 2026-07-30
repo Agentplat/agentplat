@@ -16,6 +16,8 @@ The implementation provides:
   `work.bid`;
 - closed, bounded Alpha 2 award-response records for `work.award`,
   `work.accept` and `work.decline`;
+- closed, bounded Alpha 2 execution records for `work.progress`,
+  `work.checkpoint` and `work.result`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -39,9 +41,9 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Work Item messages beyond Offer and Bid, lease, evidence, trust and peer-sync
-message families remain reserved until their closed payload contracts are
-implemented. They fail explicitly rather than entering a generic payload path.
+`work.release`, `work.cancel`, lease, evidence, trust and peer-sync message
+families remain reserved until their closed payload contracts are implemented.
+They fail explicitly rather than entering a generic payload path. Implemented
 Objective and Work records parse, sign and verify structurally, but remain
 explicitly unsupported at the Mesh runtime boundary until their reducers and
 state authorization are implemented.
@@ -185,6 +187,31 @@ These are structural contracts only. Selection of a current bid, current owner
 and revision, budget reservation, acceptance uniqueness, deadline observation,
 causal-reference resolution, and recovery-certificate acceptance all require
 local state and remain deferred.
+
+## Work Progress, Checkpoint and Result limits
+
+Execution records self-bind the assignee sender, require a direct peer audience
+and causation, and bind Objective and Work Item revisions, accepted assignment
+IDs, epoch, authority token and lease expiry. Each record has a stable domain
+ID independent of the envelope message ID.
+
+| Field              | Rule                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| Owner epoch        | Positive safe integer; frozen at `1` for this protocol slice                                    |
+| Assignment binding | Positive epoch; `assignmentAuthorityId` and `fencingToken` must be identical identifiers        |
+| Progress           | Positive sequence and non-empty summary of at most 4,096 UTF-8 bytes; checkpoint ID is optional |
+| Checkpoint         | Positive sequence, canonical SHA-256 digest and exactly one summary or reference                |
+| Checkpoint parent  | Sequence `1` omits a parent; later sequences require a different `previousCheckpointId`         |
+| Result             | Canonical SHA-256 digest, optional checkpoint ID and exactly one summary or reference           |
+| Content            | Summaries and references are non-empty and at most 4,096 UTF-8 bytes                            |
+| Execution expiry   | At most five minutes, strictly after `sentAt` and no later than the signed `leaseExpiresAt`     |
+
+The structural parser does not prove that causation resolves to the matching
+accepted `work.accept`, that the recipient is an authorized owner, observer or
+witness, or that the assignment, epoch, authority, token, lease and checkpoint
+head are current. It also does not enforce progress ordering or result
+uniqueness. Those checks require accepted local state and remain deferred to
+the Mesh runtime reducer boundary.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.

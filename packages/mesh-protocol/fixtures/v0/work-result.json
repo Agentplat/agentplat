@@ -1,0 +1,42 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "EEEEEEEEEEEEEEEEEEEEEA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "work.result",
+  "sender": { "peerId": "peer-a", "instanceId": "instance-a" },
+  "audience": { "kind": "peer", "peerId": "peer-b" },
+  "sequence": 16,
+  "sentAt": "2026-07-30T00:10:02.000Z",
+  "expiresAt": "2026-07-30T00:15:02.000Z",
+  "causationId": "AAAAAAAAAAAAAAAAAAAAAg",
+  "payloadHash": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "payload": {
+    "type": "work.result",
+    "resultId": "result-a",
+    "resultDigest": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-b",
+    "ownerEpoch": 1,
+    "assigneePeerId": "peer-a",
+    "awardId": "award-a",
+    "acceptanceId": "acceptance-a",
+    "assignmentEpoch": 1,
+    "assignmentAuthorityId": "award-a",
+    "fencingToken": "award-a",
+    "leaseExpiresAt": "2026-07-30T00:30:00.000Z",
+    "checkpointId": "checkpoint-a",
+    "resultSummary": "A concise summary was produced."
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "key-a",
+    "value": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSA"
+  }
+}
