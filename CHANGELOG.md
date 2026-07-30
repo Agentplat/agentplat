@@ -14,6 +14,10 @@
 - Added closed, bounded Alpha 2 Work Offer and Work Bid contracts, fixtures and
   verification coverage. These records remain unsupported at the Mesh runtime
   boundary pending reducers and authorization state.
+- Added closed, bounded Alpha 2 Work Award, Work Accept and Work Decline
+  contracts, fixtures and verification coverage. These records remain
+  unsupported at the Mesh runtime boundary pending reducers and authorization
+  state.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

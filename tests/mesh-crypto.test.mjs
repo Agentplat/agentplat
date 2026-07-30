@@ -274,7 +274,10 @@ test('reference signer and verifier cover every Alpha 1 message type', async () 
 
 test('reference signer and verifier cover Alpha 2 payload shapes and tampering', async () => {
   const keys = await keyPair();
-  const resolver = createStaticMeshKeyResolver([keyRecord(keys.publicKey)]);
+  const resolver = createStaticMeshKeyResolver([
+    keyRecord(keys.publicKey),
+    keyRecord(keys.publicKey, { peerId: 'peer-b', keyId: 'key-b' }),
+  ]);
 
   for (const [fixtureName, payloadField] of [
     ['peer-card', 'peerCardId'],
@@ -286,6 +289,9 @@ test('reference signer and verifier cover Alpha 2 payload shapes and tampering',
     ['objective-cancel', 'cancellationId'],
     ['work-offer', 'offerId'],
     ['work-bid', 'bidId'],
+    ['work-award', 'offerId'],
+    ['work-accept', 'acceptanceId'],
+    ['work-decline', 'declineId'],
   ]) {
     const envelope = JSON.parse(
       await readFile(
