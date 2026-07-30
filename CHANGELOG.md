@@ -7,6 +7,10 @@
 - Added the first Alpha 2 protocol-contract slice for bounded Peer Cards,
   departure records, capability advertisements and withdrawals, including
   public fixtures and compile-time contracts.
+- Added closed, bounded Alpha 2 Objective announce, revise and cancel
+  contracts, fixtures and verification coverage. These records remain
+  unsupported at the Mesh runtime boundary pending reducers and authorization
+  state.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

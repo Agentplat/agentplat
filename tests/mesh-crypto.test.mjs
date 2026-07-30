@@ -281,6 +281,9 @@ test('reference signer and verifier cover Alpha 2 payload shapes and tampering',
     ['peer-goodbye', 'peerCardId'],
     ['capability-advertise', 'advertisementId'],
     ['capability-withdraw', 'advertisementId'],
+    ['objective-announce', 'objectiveDocumentId'],
+    ['objective-revise', 'objectiveDocumentId'],
+    ['objective-cancel', 'cancellationId'],
   ]) {
     const envelope = JSON.parse(
       await readFile(

@@ -22,6 +22,11 @@ import {
   type MeshSender,
   type MeshSigningDocument,
   type MeshTimestampOrder,
+  type ObjectiveAnnouncePayload,
+  type ObjectiveCancelPayload,
+  type ObjectiveDocumentContent,
+  type ObjectiveDocumentFields,
+  type ObjectiveRevisePayload,
   type PeerCardPayload,
   type PeerGoodbyePayload,
   type PeerHelloPayload,
@@ -55,6 +60,20 @@ const maximumAttributeValueBytes = 1_024;
 const maximumAttributesBytes = 16_384;
 const maximumVersionBytes = 128;
 const maximumAdvertisementValidityMs = 24 * 60 * 60 * 1_000;
+const maximumObjectiveValidityMs = 30 * 24 * 60 * 60 * 1_000;
+const maximumObjectiveTextBytes = 4_096;
+const maximumSuccessCriteria = 32;
+const maximumSuccessCriteriaBytes = 16_384;
+const maximumPermittedCapabilityKeys = 32;
+const maximumRecoveryWitnesses = 32;
+const minimumRecoveryWitnesses = 3;
+const maximumAuthorizedObservers = 32;
+const maximumObjectiveWorkItems = 1_000_000;
+const maximumBidWindowMs = 60 * 60 * 1_000;
+const maximumAcceptanceWindowMs = 15 * 60 * 1_000;
+const maximumLeaseDurationMs = 24 * 60 * 60 * 1_000;
+const maximumRecoveryGraceMs = 60 * 60 * 1_000;
+const maximumLeaseRenewals = 100;
 const knownMessageTypes = new Set<string>(MESH_MESSAGE_TYPES);
 const knownTopics = new Set<string>(MESH_AUDIENCE_TOPICS);
 const utf8Encoder = new TextEncoder();
@@ -827,32 +846,332 @@ function validatePayload(
     };
     return result;
   }
+  if (type === 'capability.withdraw') {
+    const payload = assertClosedRecord(
+      input,
+      ['advertisementId', 'capabilityId', 'capabilityRevision', 'type'],
+      [],
+      '$["payload"]',
+      'invalid_payload'
+    );
+    const result: CapabilityWithdrawPayload = {
+      type: assertPayloadType(payload.type, type),
+      capabilityId: assertIdentifier(
+        payload.capabilityId,
+        '$["payload"]["capabilityId"]',
+        limits
+      ),
+      capabilityRevision: assertPositiveSafeInteger(
+        payload.capabilityRevision,
+        '$["payload"]["capabilityRevision"]',
+        'invalid_payload'
+      ),
+      advertisementId: assertIdentifier(
+        payload.advertisementId,
+        '$["payload"]["advertisementId"]',
+        limits
+      ),
+    };
+    return result;
+  }
+  if (type === 'objective.announce') {
+    const document = validateObjectiveDocument(input, type, limits);
+    if (document.objectiveRevision !== 1) {
+      fail('invalid_payload', '$["payload"]["objectiveRevision"]');
+    }
+    const result: ObjectiveAnnouncePayload = {
+      type,
+      ...document,
+    };
+    return result;
+  }
+  if (type === 'objective.revise') {
+    const document = validateObjectiveDocument(input, type, limits);
+    if (document.objectiveRevision < 2) {
+      fail('invalid_payload', '$["payload"]["objectiveRevision"]');
+    }
+    const payload = input as Record<string, unknown>;
+    const previousObjectiveDocumentId = assertIdentifier(
+      payload.previousObjectiveDocumentId,
+      '$["payload"]["previousObjectiveDocumentId"]',
+      limits
+    );
+    if (previousObjectiveDocumentId === document.objectiveDocumentId) {
+      fail('invalid_payload', '$["payload"]["previousObjectiveDocumentId"]');
+    }
+    const result: ObjectiveRevisePayload = {
+      type,
+      ...document,
+      previousObjectiveDocumentId,
+    };
+    return result;
+  }
   const payload = assertClosedRecord(
     input,
-    ['advertisementId', 'capabilityId', 'capabilityRevision', 'type'],
+    [
+      'cancellationId',
+      'objectiveDocumentId',
+      'objectiveId',
+      'objectiveRevision',
+      'type',
+    ],
     [],
     '$["payload"]',
     'invalid_payload'
   );
-  const result: CapabilityWithdrawPayload = {
-    type: assertPayloadType(payload.type, 'capability.withdraw'),
-    capabilityId: assertIdentifier(
-      payload.capabilityId,
-      '$["payload"]["capabilityId"]',
+  const result: ObjectiveCancelPayload = {
+    type: assertPayloadType(payload.type, 'objective.cancel'),
+    cancellationId: assertIdentifier(
+      payload.cancellationId,
+      '$["payload"]["cancellationId"]',
       limits
     ),
-    capabilityRevision: assertPositiveSafeInteger(
-      payload.capabilityRevision,
-      '$["payload"]["capabilityRevision"]',
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
+    objectiveRevision: assertPositiveSafeInteger(
+      payload.objectiveRevision,
+      '$["payload"]["objectiveRevision"]',
       'invalid_payload'
     ),
-    advertisementId: assertIdentifier(
-      payload.advertisementId,
-      '$["payload"]["advertisementId"]',
+    objectiveDocumentId: assertIdentifier(
+      payload.objectiveDocumentId,
+      '$["payload"]["objectiveDocumentId"]',
       limits
     ),
   };
   return result;
+}
+
+function validateObjectiveDocument(
+  input: unknown,
+  type: 'objective.announce' | 'objective.revise',
+  limits: Readonly<MeshProtocolLimits>
+): ObjectiveDocumentFields & ObjectiveDocumentContent {
+  const requiredKeys = [
+    'acceptanceWindowMs',
+    'bidWindowMs',
+    'issuerPeerId',
+    'maximumBudgetUnits',
+    'maximumConcurrentAssignments',
+    'maximumLeaseDurationMs',
+    'maximumLeaseRenewals',
+    'maximumWorkItems',
+    'objectiveDocumentId',
+    'objectiveId',
+    'objectiveRevision',
+    'permittedCapabilityKeys',
+    'recoveryGraceMs',
+    'recoveryWitnessPeerIds',
+    'recoveryWitnessThreshold',
+    'successCriteria',
+    'type',
+    'validFrom',
+    'validUntil',
+  ];
+  if (type === 'objective.revise') {
+    requiredKeys.push('previousObjectiveDocumentId');
+  }
+  const payload = assertClosedRecord(
+    input,
+    requiredKeys,
+    ['authorizedObserverPeerIds', 'contentReference', 'summary'],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  assertPayloadType(payload.type, type);
+
+  const hasSummary = payload.summary !== undefined;
+  const hasContentReference = payload.contentReference !== undefined;
+  if (hasSummary === hasContentReference) {
+    fail('invalid_payload', '$["payload"]');
+  }
+  const summary = hasSummary
+    ? assertBoundedString(
+        payload.summary,
+        '$["payload"]["summary"]',
+        maximumObjectiveTextBytes
+      )
+    : undefined;
+  const contentReference = hasContentReference
+    ? assertBoundedString(
+        payload.contentReference,
+        '$["payload"]["contentReference"]',
+        maximumObjectiveTextBytes
+      )
+    : undefined;
+
+  const successCriteria = validateBoundedStringArray(
+    payload.successCriteria,
+    '$["payload"]["successCriteria"]',
+    maximumSuccessCriteria,
+    maximumObjectiveTextBytes,
+    maximumSuccessCriteriaBytes
+  );
+  if (successCriteria.length === 0) {
+    fail('invalid_payload', '$["payload"]["successCriteria"]');
+  }
+  const permittedCapabilityKeys = validateBoundedStringArray(
+    payload.permittedCapabilityKeys,
+    '$["payload"]["permittedCapabilityKeys"]',
+    maximumPermittedCapabilityKeys,
+    maximumObjectiveTextBytes,
+    undefined,
+    true
+  );
+  if (permittedCapabilityKeys.length === 0) {
+    fail('invalid_payload', '$["payload"]["permittedCapabilityKeys"]');
+  }
+
+  const recoveryWitnessPeerIds = validateIdentifierArray(
+    payload.recoveryWitnessPeerIds,
+    '$["payload"]["recoveryWitnessPeerIds"]',
+    maximumRecoveryWitnesses,
+    limits
+  );
+  if (recoveryWitnessPeerIds.length < minimumRecoveryWitnesses) {
+    fail('invalid_payload', '$["payload"]["recoveryWitnessPeerIds"]');
+  }
+  const recoveryWitnessThreshold = assertPositiveSafeInteger(
+    payload.recoveryWitnessThreshold,
+    '$["payload"]["recoveryWitnessThreshold"]',
+    'invalid_payload'
+  );
+  if (
+    recoveryWitnessThreshold > recoveryWitnessPeerIds.length ||
+    recoveryWitnessThreshold <= recoveryWitnessPeerIds.length / 2
+  ) {
+    fail('invalid_payload', '$["payload"]["recoveryWitnessThreshold"]');
+  }
+  const authorizedObserverPeerIds =
+    payload.authorizedObserverPeerIds === undefined
+      ? undefined
+      : validateIdentifierArray(
+          payload.authorizedObserverPeerIds,
+          '$["payload"]["authorizedObserverPeerIds"]',
+          maximumAuthorizedObservers,
+          limits
+        );
+
+  const maximumWorkItems = assertPositiveSafeInteger(
+    payload.maximumWorkItems,
+    '$["payload"]["maximumWorkItems"]',
+    'invalid_payload'
+  );
+  if (maximumWorkItems > maximumObjectiveWorkItems) {
+    fail('invalid_payload', '$["payload"]["maximumWorkItems"]');
+  }
+  const maximumConcurrentAssignments = assertPositiveSafeInteger(
+    payload.maximumConcurrentAssignments,
+    '$["payload"]["maximumConcurrentAssignments"]',
+    'invalid_payload'
+  );
+  if (maximumConcurrentAssignments > maximumWorkItems) {
+    fail('invalid_payload', '$["payload"]["maximumConcurrentAssignments"]');
+  }
+  const maximumBudgetUnits = assertNonnegativeSafeInteger(
+    payload.maximumBudgetUnits,
+    '$["payload"]["maximumBudgetUnits"]'
+  );
+  const bidWindowMs = assertBoundedPositiveSafeInteger(
+    payload.bidWindowMs,
+    '$["payload"]["bidWindowMs"]',
+    maximumBidWindowMs
+  );
+  const acceptanceWindowMs = assertBoundedPositiveSafeInteger(
+    payload.acceptanceWindowMs,
+    '$["payload"]["acceptanceWindowMs"]',
+    maximumAcceptanceWindowMs
+  );
+  const maximumLeaseDuration = assertBoundedPositiveSafeInteger(
+    payload.maximumLeaseDurationMs,
+    '$["payload"]["maximumLeaseDurationMs"]',
+    maximumLeaseDurationMs
+  );
+  const recoveryGraceMs = assertBoundedPositiveSafeInteger(
+    payload.recoveryGraceMs,
+    '$["payload"]["recoveryGraceMs"]',
+    maximumRecoveryGraceMs
+  );
+  const maximumLeaseRenewalsValue = assertNonnegativeSafeInteger(
+    payload.maximumLeaseRenewals,
+    '$["payload"]["maximumLeaseRenewals"]'
+  );
+  if (maximumLeaseRenewalsValue > maximumLeaseRenewals) {
+    fail('invalid_payload', '$["payload"]["maximumLeaseRenewals"]');
+  }
+
+  const validFrom = assertRfc3339PayloadTimestamp(
+    payload.validFrom,
+    '$["payload"]["validFrom"]'
+  );
+  const validUntil = assertRfc3339PayloadTimestamp(
+    payload.validUntil,
+    '$["payload"]["validUntil"]'
+  );
+  const validityDuration = assertObjectiveValidity(
+    validFrom.instant,
+    validUntil.instant
+  );
+  for (const [path, timer] of [
+    ['$["payload"]["bidWindowMs"]', bidWindowMs],
+    ['$["payload"]["acceptanceWindowMs"]', acceptanceWindowMs],
+    ['$["payload"]["maximumLeaseDurationMs"]', maximumLeaseDuration],
+    ['$["payload"]["recoveryGraceMs"]', recoveryGraceMs],
+  ] as const) {
+    if (BigInt(timer) * 1_000_000n > validityDuration) {
+      fail('invalid_payload', path);
+    }
+  }
+
+  const fields: ObjectiveDocumentFields = {
+    objectiveDocumentId: assertIdentifier(
+      payload.objectiveDocumentId,
+      '$["payload"]["objectiveDocumentId"]',
+      limits
+    ),
+    objectiveId: assertIdentifier(
+      payload.objectiveId,
+      '$["payload"]["objectiveId"]',
+      limits
+    ),
+    objectiveRevision: assertPositiveSafeInteger(
+      payload.objectiveRevision,
+      '$["payload"]["objectiveRevision"]',
+      'invalid_payload'
+    ),
+    issuerPeerId: assertIdentifier(
+      payload.issuerPeerId,
+      '$["payload"]["issuerPeerId"]',
+      limits
+    ),
+    successCriteria,
+    permittedCapabilityKeys,
+    maximumWorkItems,
+    maximumConcurrentAssignments,
+    maximumBudgetUnits,
+    bidWindowMs,
+    acceptanceWindowMs,
+    maximumLeaseDurationMs: maximumLeaseDuration,
+    recoveryGraceMs,
+    maximumLeaseRenewals: maximumLeaseRenewalsValue,
+    recoveryWitnessPeerIds,
+    recoveryWitnessThreshold,
+    validFrom: validFrom.text,
+    validUntil: validUntil.text,
+    ...(authorizedObserverPeerIds === undefined
+      ? {}
+      : { authorizedObserverPeerIds }),
+  };
+  if (summary !== undefined) {
+    return { ...fields, summary };
+  }
+  if (contentReference === undefined) {
+    return fail('invalid_payload', '$["payload"]');
+  }
+  return { ...fields, contentReference };
 }
 
 function validateProof(input: unknown, limits: Readonly<MeshProtocolLimits>) {
@@ -962,6 +1281,12 @@ function validateMessageSpecificEnvelope(
     payload.ownerPeerId !== sender.peerId
   ) {
     fail('invalid_payload', '$["payload"]["ownerPeerId"]');
+  } else if (
+    (payload.type === 'objective.announce' ||
+      payload.type === 'objective.revise') &&
+    payload.issuerPeerId !== sender.peerId
+  ) {
+    fail('invalid_payload', '$["payload"]["issuerPeerId"]');
   }
 
   if (
@@ -979,6 +1304,14 @@ function validateMessageSpecificEnvelope(
     if (audience.kind === 'mesh' && audience.topic !== 'capability') {
       fail('invalid_audience', '$["audience"]["topic"]');
     }
+  } else if (
+    type === 'objective.announce' ||
+    type === 'objective.revise' ||
+    type === 'objective.cancel'
+  ) {
+    if (audience.kind === 'mesh' && audience.topic !== 'objective') {
+      fail('invalid_audience', '$["audience"]["topic"]');
+    }
   } else if (audience.kind !== 'peer') {
     fail('invalid_audience', '$["audience"]');
   }
@@ -992,14 +1325,13 @@ function validateMessageSpecificEnvelope(
   if (
     type === 'peer.ping_ack' ||
     type === 'peer.goodbye' ||
-    type === 'capability.withdraw'
+    type === 'capability.withdraw' ||
+    type === 'objective.cancel'
   ) {
     if (causationId === undefined) {
       fail('invalid_payload', '$["causationId"]');
     }
-    return;
-  }
-  if (type === 'peer.card' || type === 'capability.advertise') {
+  } else if (type === 'peer.card' || type === 'capability.advertise') {
     const revision =
       payload.type === 'peer.card'
         ? payload.cardRevision
@@ -1009,6 +1341,31 @@ function validateMessageSpecificEnvelope(
     }
     if (revision > 1 && causationId === undefined) {
       fail('invalid_payload', '$["causationId"]');
+    }
+  } else if (type === 'objective.announce') {
+    if (causationId !== undefined) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+  } else if (type === 'objective.revise' && causationId === undefined) {
+    fail('invalid_payload', '$["causationId"]');
+  }
+
+  if (
+    type === 'objective.announce' ||
+    type === 'objective.revise' ||
+    type === 'objective.cancel'
+  ) {
+    if (
+      objectiveId === undefined ||
+      objectiveId !==
+        (
+          payload as
+            | ObjectiveAnnouncePayload
+            | ObjectiveRevisePayload
+            | ObjectiveCancelPayload
+        ).objectiveId
+    ) {
+      fail('invalid_payload', '$["objectiveId"]');
     }
   }
 }
@@ -1036,6 +1393,20 @@ function assertBoundedValidity(validFrom: bigint, validUntil: bigint): void {
   ) {
     fail('invalid_payload', '$["payload"]["validUntil"]');
   }
+}
+
+function assertObjectiveValidity(
+  validFrom: bigint,
+  validUntil: bigint
+): bigint {
+  if (validUntil <= validFrom) {
+    fail('invalid_payload', '$["payload"]["validUntil"]');
+  }
+  const duration = validUntil - validFrom;
+  if (duration > BigInt(maximumObjectiveValidityMs) * 1_000_000n) {
+    fail('invalid_payload', '$["payload"]["validUntil"]');
+  }
+  return duration;
 }
 
 function assertRfc3339PayloadTimestamp(
@@ -1230,7 +1601,9 @@ function validateLifetime(
       ? 30_000
       : type === 'peer.goodbye'
         ? 60_000
-        : 120_000;
+        : type === 'objective.announce' || type === 'objective.revise'
+          ? 5 * 60_000
+          : 120_000;
   const maximum = Math.min(limits.maximumLifetimeMs, messageMaximum);
   if (expiresAt - sentAt > BigInt(maximum) * 1_000_000n) {
     fail('invalid_lifetime', '$["expiresAt"]');
@@ -1290,6 +1663,25 @@ function assertPositiveSafeInteger(
     fail(code, path);
   }
   return input;
+}
+
+function assertNonnegativeSafeInteger(input: unknown, path: string): number {
+  if (typeof input !== 'number' || !Number.isSafeInteger(input) || input < 0) {
+    fail('invalid_payload', path);
+  }
+  return input;
+}
+
+function assertBoundedPositiveSafeInteger(
+  input: unknown,
+  path: string,
+  maximum: number
+): number {
+  const value = assertPositiveSafeInteger(input, path, 'invalid_payload');
+  if (value > maximum) {
+    fail('invalid_payload', path);
+  }
+  return value;
 }
 
 function assertString(
@@ -1445,7 +1837,10 @@ function isImplementedMessageType(
     value === 'peer.ping_ack' ||
     value === 'peer.goodbye' ||
     value === 'capability.advertise' ||
-    value === 'capability.withdraw'
+    value === 'capability.withdraw' ||
+    value === 'objective.announce' ||
+    value === 'objective.revise' ||
+    value === 'objective.cancel'
   );
 }
 

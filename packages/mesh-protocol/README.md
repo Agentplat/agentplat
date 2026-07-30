@@ -10,6 +10,8 @@ The implementation provides:
 - closed-schema validation for `peer.hello`, `peer.ping` and `peer.ping_ack`;
 - closed, bounded Alpha 2 discovery and capability records for `peer.card`,
   `peer.goodbye`, `capability.advertise` and `capability.withdraw`;
+- closed, bounded Alpha 2 Objective records for `objective.announce`,
+  `objective.revise` and `objective.cancel`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -33,9 +35,11 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-Objective, Work Item, lease, evidence, trust and peer-sync message families
-remain reserved until their closed payload contracts are implemented. They fail
-explicitly rather than entering a generic payload path.
+Work Item, lease, evidence, trust and peer-sync message families remain
+reserved until their closed payload contracts are implemented. They fail
+explicitly rather than entering a generic payload path. Objective records parse,
+sign and verify structurally, but remain explicitly unsupported at the Mesh
+runtime boundary until their reducers and state authorization are implemented.
 
 ## Frozen limits
 
@@ -84,6 +88,37 @@ Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return
 `invalid_lifetime`; generic parser structural-limit violations return
 `structural_limit_exceeded`.
+
+## Objective limits
+
+Objective documents are complete replacements: announce is revision 1 with no
+envelope causation ID; revise is revision 2 or greater, names a different
+`previousObjectiveDocumentId`, and requires envelope `causationId`; cancel names
+the current document and revision and also requires envelope `causationId`.
+The envelope `causationId` is a message ID, not a substitute for the payload's
+previous-document ID. All three messages require an envelope `objectiveId` that
+exactly matches the payload. Document issuers must self-bind to the sender.
+Structural acceptance of `contentReference` does not authorize retrieval;
+issuer authority, reference authorization and current-revision checks require
+accepted local state and remain outside the protocol parser.
+
+| Field                        | Rule                                                                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Summary or content reference | Exactly one non-empty representation; each at most 4,096 UTF-8 bytes                                                                           |
+| Success criteria             | 1–32 non-empty strings, 4,096 UTF-8 bytes each and 16,384 bytes in aggregate                                                                   |
+| Permitted capability keys    | 1–32 sorted unique non-empty strings, 4,096 UTF-8 bytes each                                                                                   |
+| Work / concurrency           | Work items 1–1,000,000; concurrency 1 through work-item maximum                                                                                |
+| Budget units                 | Non-negative safe integer                                                                                                                      |
+| Timers                       | Bid window at most 1 hour; acceptance at most 15 minutes; lease at most 24 hours; recovery grace at most 1 hour; each must fit within validity |
+| Lease renewals               | Safe integer 0–100                                                                                                                             |
+| Recovery witnesses           | 3–32 sorted unique identifiers and strict-majority threshold                                                                                   |
+| Authorized observers         | Optional, at most 32 sorted unique identifiers                                                                                                 |
+| Objective validity           | Greater than zero and at most exactly 30 days                                                                                                  |
+
+Objective announce and revise have a five-minute envelope TTL; cancel has a
+two-minute TTL. Objective scope, binding, closure, ordering, revision,
+causation, timer and limit violations reject with `invalid_payload`; their TTL
+violations reject with `invalid_lifetime`.
 
 Importing the package performs no parsing, key resolution, network or storage
 operation.
