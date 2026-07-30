@@ -354,8 +354,8 @@ export interface WorkDeclinePayload extends WorkAssignmentResponseFields {
   readonly declineId: string;
 }
 
-/** Assignment authority echoed by every assignee execution record. */
-export interface WorkExecutionAuthorityFields {
+/** Assignment authority echoed by every assignment lifecycle record. */
+export interface WorkAssignmentAuthorityFields {
   readonly objectiveId: string;
   readonly objectiveDocumentId: string;
   readonly objectiveRevision: number;
@@ -365,11 +365,15 @@ export interface WorkExecutionAuthorityFields {
   readonly ownerEpoch: number;
   readonly assigneePeerId: string;
   readonly awardId: string;
-  readonly acceptanceId: string;
   readonly assignmentEpoch: number;
   readonly assignmentAuthorityId: string;
   readonly fencingToken: string;
   readonly leaseExpiresAt: string;
+}
+
+/** Accepted assignment authority echoed by every execution record. */
+export interface WorkExecutionAuthorityFields extends WorkAssignmentAuthorityFields {
+  readonly acceptanceId: string;
 }
 
 /** Reports bounded incremental progress under one accepted assignment. */
@@ -422,6 +426,29 @@ export type WorkResultPayload = WorkExecutionAuthorityFields &
     readonly checkpointId?: string;
   };
 
+/** Releases an active assignment under owner or assignee authority. */
+export interface WorkReleasePayload extends WorkExecutionAuthorityFields {
+  readonly type: 'work.release';
+  readonly releaseId: string;
+  readonly releaseAuthority: 'owner' | 'assignee';
+  readonly releaseDisposition: 'reoffer' | 'close';
+}
+
+/** Cancels either a pending award or an active accepted assignment. */
+export type WorkCancelPayload = WorkAssignmentAuthorityFields & {
+  readonly type: 'work.cancel';
+  readonly cancellationId: string;
+} & (
+    | {
+        readonly assignmentState: 'award_pending';
+        readonly acceptanceId?: never;
+      }
+    | {
+        readonly assignmentState: 'active';
+        readonly acceptanceId: string;
+      }
+  );
+
 /** Payload subset implemented through the first Alpha 2 increment. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -441,7 +468,9 @@ export type MeshMessagePayload =
   | WorkDeclinePayload
   | WorkProgressPayload
   | WorkCheckpointPayload
-  | WorkResultPayload;
+  | WorkResultPayload
+  | WorkReleasePayload
+  | WorkCancelPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

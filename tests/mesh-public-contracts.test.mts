@@ -69,12 +69,15 @@ import {
   type WorkBidPayload,
   type WorkAwardPayload,
   type WorkAcceptPayload,
+  type WorkAssignmentAuthorityFields,
+  type WorkCancelPayload,
   type WorkExecutionAuthorityFields,
   type WorkDeclinePayload,
   type WorkOfferPayload,
   type WorkProgressPayload,
   type WorkCheckpointPayload,
   type WorkResultPayload,
+  type WorkReleasePayload,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -280,6 +283,66 @@ const workDeclinePayload: WorkDeclinePayload = {
   acceptanceDeadline: '2026-07-30T00:15:00.000Z',
 };
 
+const workAssignmentAuthorityFields: WorkAssignmentAuthorityFields = {
+  objectiveId: 'objective-a',
+  objectiveDocumentId: 'objective-document-a',
+  objectiveRevision: 1,
+  workItemId: 'work-item-a',
+  workItemRevision: 1,
+  ownerPeerId: 'peer-b',
+  ownerEpoch: 1,
+  assigneePeerId: 'peer-a',
+  awardId: 'award-a',
+  assignmentEpoch: 1,
+  assignmentAuthorityId: 'award-a',
+  fencingToken: 'award-a',
+  leaseExpiresAt: '2026-07-30T00:30:00.000Z',
+};
+
+const workExecutionAuthorityFields: WorkExecutionAuthorityFields = {
+  ...workAssignmentAuthorityFields,
+  acceptanceId: 'acceptance-a',
+};
+
+const workReleasePayload: WorkReleasePayload = {
+  type: 'work.release',
+  releaseId: 'release-a',
+  releaseAuthority: 'assignee',
+  releaseDisposition: 'reoffer',
+  ...workExecutionAuthorityFields,
+};
+
+const workCancelPendingPayload: WorkCancelPayload = {
+  type: 'work.cancel',
+  cancellationId: 'work-cancellation-pending-a',
+  assignmentState: 'award_pending',
+  ...workAssignmentAuthorityFields,
+};
+
+const workCancelActivePayload: WorkCancelPayload = {
+  type: 'work.cancel',
+  cancellationId: 'work-cancellation-active-a',
+  assignmentState: 'active',
+  ...workExecutionAuthorityFields,
+};
+// @ts-expect-error pending cancellation cannot name an acceptance
+const invalidWorkCancelPending: WorkCancelPayload = {
+  ...workCancelPendingPayload,
+  acceptanceId: 'acceptance-a',
+};
+// @ts-expect-error active cancellation requires an accepted assignment
+const invalidWorkCancelActive: WorkCancelPayload = {
+  type: 'work.cancel',
+  cancellationId: 'work-cancellation-invalid-a',
+  assignmentState: 'active',
+  ...workAssignmentAuthorityFields,
+};
+const invalidWorkReleaseAuthority: WorkReleasePayload = {
+  ...workReleasePayload,
+  // @ts-expect-error release authority is a closed discriminant
+  releaseAuthority: 'other',
+};
+
 const workProgressPayload: WorkProgressPayload = {
   type: 'work.progress',
   progressId: 'progress-a',
@@ -450,6 +513,8 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'work.progress':
     case 'work.checkpoint':
     case 'work.result':
+    case 'work.release':
+    case 'work.cancel':
       return payload.type;
     default: {
       const exhaustive: never = payload;

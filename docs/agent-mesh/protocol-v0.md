@@ -375,8 +375,8 @@ immediately preceding domain record where the matrix requires causation.
 | `work.progress`               | current Work Item revision and assignment epoch                          | accepted `work.accept` message ID                    |     lesser of 5 minutes or remaining lease | Append-only status; it cannot extend a lease                                                              |
 | `work.checkpoint`             | current Work Item revision and assignment epoch                          | accepted `work.accept` plus preceding checkpoint ID  |     lesser of 5 minutes or remaining lease | Append-only checkpoint; compaction preserves its digest chain                                             |
 | `work.result`                 | current Work Item revision and assignment epoch                          | accepted `work.accept` and applicable checkpoint     |     lesser of 5 minutes or remaining lease | Immutable result; later verification or evidence may accept or contest it without rewriting it            |
-| `work.release`                | current Work Item revision and assignment epoch                          | current award or lease ID                            |                                  2 minutes | Appends release; a new assignment requires a higher epoch                                                 |
-| `work.cancel`                 | current Work Item revision and assignment epoch                          | current award or lease ID                            |                                  2 minutes | Appends cancellation; it does not erase completed effects or evidence                                     |
+| `work.release`                | current Work Item revision and assignment epoch                          | accepted `work.accept` or latest `lease.renew` ID    |                                  2 minutes | Appends release; a new assignment requires a higher epoch                                                 |
+| `work.cancel`                 | current Work Item revision and assignment epoch                          | current `work.award`, `work.accept` or lease ID      |                                  2 minutes | Appends cancellation; it does not erase completed effects or evidence                                     |
 | `lease.renew`                 | current Work Item revision and assignment epoch                          | current award or preceding lease ID                  |    lesser of 30 seconds or remaining lease | Appends a bounded lease extension under Objective policy                                                  |
 | `lease.takeover_proposal`     | proposed epoch strictly greater than current epoch                       | expired lease or latest lease certificate ID         |                                   1 minute | Immutable proposal                                                                                        |
 | `lease.vote`                  | proposed epoch from takeover proposal                                    | accepted takeover proposal ID                        |                                   1 minute | One immutable vote per witness, Work Item and proposed epoch; conflicting votes are equivocation evidence |
@@ -413,6 +413,20 @@ resolution of `causationId` to the accepted `work.accept` envelope matching
 checkpoint-head lineage and result uniqueness are stateful rules. They are
 resolved from accepted local state and must be enforced before an execution
 record changes a projection, journal or budget.
+
+`work.release` and `work.cancel` use the Work assignment-authority fields.
+Release is an accepted-assignment record and also carries `acceptanceId`,
+`releaseId`, `releaseAuthority` (`owner` or `assignee`) and
+`releaseDisposition` (`reoffer` or `close`). Its sender self-binds to the
+declared role; only an assignee release is structurally bounded by
+`leaseExpiresAt`. Cancel carries `cancellationId` and is a closed union:
+`award_pending` omits `acceptanceId`, while `active` requires it. Its sender
+self-binds to `ownerPeerId`. Both require causation, direct peer delivery,
+Objective-header equality and a TTL of at most two minutes. Recipient
+authorization and causal resolution are stateful: pending cancellation names
+the current accepted `work.award`, while active cancellation and release name
+the accepted `work.accept` or latest accepted `lease.renew`. Current authority,
+lease, terminal state, idempotency and budget accounting also remain stateful.
 
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown

@@ -18,6 +18,8 @@ The implementation provides:
   `work.accept` and `work.decline`;
 - closed, bounded Alpha 2 execution records for `work.progress`,
   `work.checkpoint` and `work.result`;
+- closed, bounded Alpha 2 Work Release and Work Cancel records for
+  `work.release` and `work.cancel`;
 - exact representations for message IDs, SHA-256 payload digests and Ed25519
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
@@ -41,12 +43,12 @@ keys, verify signatures, perform replay admission, or mutate peer state. Those
 are separate stages so callers cannot confuse structural validity with
 cryptographic authenticity or local acceptance.
 
-`work.release`, `work.cancel`, lease, evidence, trust and peer-sync message
-families remain reserved until their closed payload contracts are implemented.
-They fail explicitly rather than entering a generic payload path. Implemented
-Objective and Work records parse, sign and verify structurally, but remain
-explicitly unsupported at the Mesh runtime boundary until their reducers and
-state authorization are implemented.
+Lease, evidence, trust and peer-sync message families remain reserved until
+their closed payload contracts are implemented. They fail explicitly rather
+than entering a generic payload path. Implemented Objective and Work records
+parse, sign and verify structurally, but remain explicitly unsupported at the
+Mesh runtime boundary until their reducers and state authorization are
+implemented.
 
 ## Frozen limits
 
@@ -90,6 +92,13 @@ Envelope TTL is 30 seconds for `peer.ping` and `peer.ping_ack`, 60 seconds for
 `peer.goodbye`, and 120 seconds for `peer.hello`, `peer.card`,
 `capability.advertise` and `capability.withdraw`. These family limits are also
 bounded by the global ten-minute maximum.
+
+Work Release and Work Cancel envelopes have a two-minute TTL. Release is a
+closed `owner`/`assignee` authority and `reoffer`/`close` disposition pair;
+assignee release must be sent before its declared lease expiry. Cancel is a
+closed `award_pending` branch without `acceptanceId` or `active` branch with
+one. These are structural limits only; local state determines recipients,
+authority, terminality, idempotency and accounting.
 
 Alpha 2 domain-limit, ordering, validity, self-binding and predecessor
 violations return `invalid_payload`. Envelope lifetime violations return

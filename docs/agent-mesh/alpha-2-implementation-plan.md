@@ -100,6 +100,7 @@ Alpha 2 introduces bounded identifiers for:
 - Work Item and offer attempt;
 - bid, award and assignment authority;
 - progress, checkpoint and result;
+- release and cancellation;
 - takeover proposal, vote and recovery certificate.
 
 Receivers deduplicate envelopes by `messageId` and logical records by their
@@ -226,22 +227,22 @@ already accepted revision is rejected.
 
 ### Work Item state machine
 
-| Current state                             | Accepted input                                | Next state           | Authority                                                              |
-| ----------------------------------------- | --------------------------------------------- | -------------------- | ---------------------------------------------------------------------- |
-| absent                                    | local `work.create`                           | ready                | current Objective policy and local owner                               |
-| ready                                     | local `work.offer` / accepted `work.offer`    | offered              | current owner                                                          |
-| offered                                   | accepted bid                                  | offered              | eligible bidder; bid is appended without changing ownership            |
-| offered                                   | accepted award                                | award pending        | owner; selected bid and budget reservation are current                 |
-| award pending                             | accepted acceptance                           | active               | awarded assignee before acceptance deadline                            |
-| award pending                             | decline or acceptance timeout                 | ready                | awarded assignee or trusted timer                                      |
-| active                                    | progress or checkpoint                        | active               | current assignee, epoch, token and unexpired lease                     |
-| active                                    | result                                        | completed            | current assignee, epoch, token, lease and completion bounds            |
-| active                                    | lease renewal                                 | active               | current holder within Objective renewal policy                         |
-| active                                    | release                                       | ready or released    | owner or current assignee under policy                                 |
-| active                                    | expired lease plus valid takeover certificate | recovering           | threshold witnesses certify exactly the next epoch                     |
-| recovering                                | recovery award and acceptance                 | active               | owner selects the certified candidate at the certified epoch and token |
-| non-terminal                              | cancellation or Work Item deadline            | cancelled or expired | owner policy or trusted timer                                          |
-| completed, cancelled, expired or released | ordinary work transition                      | unchanged/rejected   | terminal state cannot be reopened at the same revision                 |
+| Current state                             | Accepted input                                | Next state           | Authority                                                                                 |
+| ----------------------------------------- | --------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| absent                                    | local `work.create`                           | ready                | current Objective policy and local owner                                                  |
+| ready                                     | local `work.offer` / accepted `work.offer`    | offered              | current owner                                                                             |
+| offered                                   | accepted bid                                  | offered              | eligible bidder; bid is appended without changing ownership                               |
+| offered                                   | accepted award                                | award pending        | owner; selected bid and budget reservation are current                                    |
+| award pending                             | accepted acceptance                           | active               | awarded assignee before acceptance deadline                                               |
+| award pending                             | decline or acceptance timeout                 | ready                | awarded assignee or trusted timer                                                         |
+| active                                    | progress or checkpoint                        | active               | current assignee, epoch, token and unexpired lease                                        |
+| active                                    | result                                        | completed            | current assignee, epoch, token, lease and completion bounds                               |
+| active                                    | lease renewal                                 | active               | current holder within Objective renewal policy                                            |
+| active                                    | release                                       | ready or released    | `reoffer` selects ready; `close` selects released; owner or current assignee under policy |
+| active                                    | expired lease plus valid takeover certificate | recovering           | threshold witnesses certify exactly the next epoch                                        |
+| recovering                                | recovery award and acceptance                 | active               | owner selects the certified candidate at the certified epoch and token                    |
+| non-terminal                              | cancellation or Work Item deadline            | cancelled or expired | owner policy or trusted timer                                                             |
+| completed, cancelled, expired or released | ordinary work transition                      | unchanged/rejected   | terminal state cannot be reopened at the same revision                                    |
 
 The reducer records append-only decision events and projects current state from
 them. It never treats message arrival order as authority.

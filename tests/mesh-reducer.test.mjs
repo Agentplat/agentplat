@@ -31,6 +31,9 @@ let verifier;
 test.todo(
   'rejects execution records statefully for unauthorized recipients, unresolved causal records, stale authority, expired leases, non-head checkpoints, and duplicate results'
 );
+test.todo(
+  'rejects release and cancellation statefully for unauthorized recipients, unresolved authority, stale epochs, terminal work, duplicate IDs, and invalid accounting'
+);
 
 test.before(async () => {
   keys = await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
@@ -984,6 +987,45 @@ test('signed-valid Alpha 2 Work records stop before the reducer', async () => {
       assignmentAuthorityId: 'award-a',
       fencingToken: 'award-a',
       leaseExpiresAt: '2026-07-30T00:30:00Z',
+    },
+    {
+      type: 'work.release',
+      releaseId: 'release-a',
+      releaseAuthority: 'assignee',
+      releaseDisposition: 'reoffer',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-b',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-a',
+      awardId: 'award-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+      acceptanceId: 'acceptance-a',
+    },
+    {
+      type: 'work.cancel',
+      cancellationId: 'work-cancellation-a',
+      assignmentState: 'active',
+      objectiveId: 'objective-a',
+      objectiveDocumentId: 'objective-document-a',
+      objectiveRevision: 1,
+      workItemId: 'work-item-a',
+      workItemRevision: 1,
+      ownerPeerId: 'peer-a',
+      ownerEpoch: 1,
+      assigneePeerId: 'peer-b',
+      awardId: 'award-a',
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'award-a',
+      fencingToken: 'award-a',
+      leaseExpiresAt: '2026-07-30T00:30:00Z',
+      acceptanceId: 'acceptance-a',
     },
   ];
   for (const [index, payload] of payloads.entries()) {

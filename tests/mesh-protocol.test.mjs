@@ -225,6 +225,205 @@ function expectIssue(result, code, path) {
   if (path !== undefined) assert.equal(result.issues[0].path, path);
 }
 
+test('Alpha 2 Work Release and Cancel fixtures are closed direct records', async () => {
+  const fixtures = await Promise.all(
+    ['work-release', 'work-cancel'].map(async (name) => [
+      name,
+      await loadFixture(name),
+    ])
+  );
+  for (const [name, fixture] of fixtures) {
+    const parsed = parseSignedMeshEnvelope(await loadFixtureBytes(name));
+    assert.equal(parsed.ok, true, `${name} wire bytes`);
+    assert.equal(Object.isFrozen(parsed.value), true);
+    assert.equal(Object.isFrozen(parsed.value.payload), true);
+    assert.equal(validateSignedMeshEnvelope(fixture).ok, true);
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        audience: { kind: 'mesh', topic: 'work' },
+      }),
+      'invalid_audience',
+      '$["audience"]'
+    );
+    const { causationId: _causationId, ...withoutCausation } = fixture;
+    expectIssue(
+      validateSignedMeshEnvelope(withoutCausation),
+      'invalid_payload',
+      '$["causationId"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        objectiveId: 'objective-other',
+      }),
+      'invalid_payload',
+      '$["objectiveId"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt: new Date(
+          Date.parse(fixture.sentAt) + 2 * 60 * 1000 + 1
+        ).toISOString(),
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, fencingToken: 'different-authority' },
+      }),
+      'invalid_payload',
+      '$["payload"]["fencingToken"]'
+    );
+  }
+  const release = fixtures.find(([name]) => name === 'work-release')[1];
+  const cancel = fixtures.find(([name]) => name === 'work-cancel')[1];
+  const { acceptanceId: _acceptanceId, ...pendingCancelPayload } =
+    cancel.payload;
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...release,
+      sender: { peerId: 'peer-b', instanceId: 'instance-b' },
+      audience: { kind: 'peer', peerId: 'peer-a' },
+      payload: {
+        ...release.payload,
+        releaseAuthority: 'owner',
+        releaseDisposition: 'close',
+        leaseExpiresAt: '2026-07-30T00:10:02.999Z',
+      },
+    }).ok,
+    true,
+    'owner release is not structurally lease-bound'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      payload: { ...release.payload, releaseAuthority: 'other' },
+    }),
+    'invalid_payload',
+    '$["payload"]["releaseAuthority"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      payload: { ...release.payload, releaseDisposition: 'other' },
+    }),
+    'invalid_payload',
+    '$["payload"]["releaseDisposition"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      sender: { peerId: 'peer-b', instanceId: 'instance-b' },
+    }),
+    'invalid_payload',
+    '$["payload"]["assigneePeerId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      expiresAt: new Date(Date.parse(release.sentAt) + 60 * 1000).toISOString(),
+      payload: {
+        ...release.payload,
+        leaseExpiresAt: new Date(
+          Date.parse(release.sentAt) + 30 * 1000
+        ).toISOString(),
+      },
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      payload: {
+        ...release.payload,
+        leaseExpiresAt: release.sentAt,
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["leaseExpiresAt"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...release,
+      payload: {
+        ...release.payload,
+        releaseAuthority: 'owner',
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["ownerPeerId"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      payload: {
+        ...pendingCancelPayload,
+        assignmentState: 'award_pending',
+      },
+    }).ok,
+    true,
+    'pending cancellation omits acceptance'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      payload: { ...cancel.payload, assignmentState: 'award_pending' },
+    }),
+    'invalid_payload'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      payload: {
+        ...pendingCancelPayload,
+        assignmentState: 'active',
+      },
+    }),
+    'invalid_identifier',
+    '$["payload"]["acceptanceId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      payload: { ...cancel.payload, assignmentState: 'other' },
+    }),
+    'invalid_payload',
+    '$["payload"]["assignmentState"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      sender: { peerId: 'peer-a', instanceId: 'instance-a' },
+    }),
+    'invalid_payload',
+    '$["payload"]["ownerPeerId"]'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...cancel,
+      payload: {
+        ...cancel.payload,
+        leaseExpiresAt: new Date(Date.parse(cancel.sentAt) - 1).toISOString(),
+      },
+    }).ok,
+    true,
+    'owner cancellation is not structurally lease-bound'
+  );
+});
+
 test('strict JSON parsing rejects ambiguous and malformed documents', () => {
   for (const input of [
     '',
