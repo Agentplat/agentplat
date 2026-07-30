@@ -114,6 +114,8 @@ acceptance.
 A local key record binds:
 
 ```text
+tenantId
+meshId
 peerId
 keyId
 algorithm
@@ -123,6 +125,15 @@ validUntil
 status
 revokedAt?
 ```
+
+`validFrom` is inclusive and `validUntil` is exclusive. Live verification uses
+a trusted local verification time rather than the sender-controlled `sentAt`.
+The reference static resolver is bounded at construction, rejects duplicate
+bindings and performs no callbacks or I/O during lookup. Lookup is scoped by
+`tenantId`, `meshId`, `peerId`, `keyId` and `algorithm`; a key from another
+tenant or Mesh cannot satisfy the binding. A revoked record requires a
+`revokedAt` inside its validity interval, while an active record cannot carry
+one.
 
 For live acceptance, a locally revoked key is rejected regardless of the
 sender-controlled `sentAt`. Historical verification may establish that an
@@ -184,6 +195,14 @@ sequences, invalid RFC 3339 timestamps and content above any applicable limit.
 `expiresAt` must be later than `sentAt`, `sentAt` cannot exceed the clock skew
 allowance into the future, and the signed lifetime cannot exceed ten minutes.
 Large results use authorized content references.
+
+Protocol v0 uses a closed RFC 3339 timestamp profile: four-digit years from
+1970 through 9999, uppercase `T` and `Z`, valid calendar components, an
+optional fractional-second component containing one to nine digits, and
+numeric offsets from `00:00` through `23:59`. Leap seconds, lowercase
+separators and greater-than-nanosecond precision are rejected. Receivers
+preserve the signed timestamp text and use its represented instant for
+lifetime and freshness comparisons.
 
 ## Inbound order
 

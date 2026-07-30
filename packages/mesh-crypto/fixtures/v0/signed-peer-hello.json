@@ -1,0 +1,30 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "CCCCCCCCCCCCCCCCCCCCCA",
+  "tenantId": "tenant-conformance",
+  "meshId": "mesh-conformance",
+  "type": "peer.hello",
+  "sender": {
+    "peerId": "peer-conformance-a",
+    "instanceId": "instance-conformance-a"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-conformance-b"
+  },
+  "sequence": 1,
+  "sentAt": "2026-07-30T12:00:00Z",
+  "expiresAt": "2026-07-30T12:02:00Z",
+  "payloadHash": "sha256:1eTTFKIr3MahNi_Mx-duQidWUAeerEpEK-qWQemPkzQ",
+  "payload": {
+    "type": "peer.hello",
+    "peerCardId": "card-conformance-a",
+    "cardRevision": 1
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "key-conformance-a",
+    "value": "YOM_6GfMuv9xppudjCXvuFxuCOzcl-XbVjBIOV-8LCyE4ECDY8CA3n_idLBMw_Z3Glvgccdmvexr3s2QjIudAw"
+  }
+}

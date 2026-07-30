@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -16,6 +17,7 @@ import {
   packSmokePackages,
 } from './public-package-catalog.mjs';
 import { loadExternalTerminologyDenylist } from './public-audit-terminology.mjs';
+import { assertPackedInternalDependencyRanges } from './packed-manifest.mjs';
 
 const root = process.cwd();
 const catalog = await loadPublicPackageCatalog(root);
@@ -86,6 +88,7 @@ try {
     );
     assert.equal(packedManifest.name, packageEntry.name);
     assert.equal(packedManifest.version, sourceManifest.version);
+    assertPackedInternalDependencyRanges(packedManifest);
     await runPublicAudit({
       root: extractedPackageRoot,
       blockedTerms,
@@ -105,9 +108,13 @@ try {
 
   const packageConsumerRoot = path.join(consumerRoot, 'consumers');
   const functionalConsumerRoot = path.join(consumerRoot, 'functional');
+  const meshScenarioConsumerRoot = path.join(consumerRoot, 'mesh-three-peer');
+  const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   await Promise.all([
     mkdir(packageConsumerRoot, { recursive: true }),
     mkdir(functionalConsumerRoot, { recursive: true }),
+    mkdir(meshScenarioConsumerRoot, { recursive: true }),
+    mkdir(typeScriptConsumerRoot, { recursive: true }),
   ]);
   const workspaceWrites = [
     writeFile(
@@ -134,7 +141,14 @@ try {
     ),
     writeFile(
       path.join(consumerRoot, 'pnpm-workspace.yaml'),
-      ['packages:', "  - 'consumers/*'", "  - 'functional'", ''].join('\n')
+      [
+        'packages:',
+        "  - 'consumers/*'",
+        "  - 'functional'",
+        "  - 'mesh-three-peer'",
+        "  - 'typescript'",
+        '',
+      ].join('\n')
     ),
   ];
 
@@ -170,6 +184,22 @@ try {
       artifact.packageEntry.name,
       artifact.tarballReference,
     ])
+  );
+  const meshPackageNames = Object.freeze([
+    '@agentplat/mesh',
+    '@agentplat/mesh-crypto',
+    '@agentplat/mesh-protocol',
+    '@agentplat/mesh-sim',
+  ]);
+  const artifactsByName = new Map(
+    packedArtifacts.map((artifact) => [artifact.packageEntry.name, artifact])
+  );
+  const meshDependencies = Object.fromEntries(
+    meshPackageNames.map((packageName) => {
+      const artifact = artifactsByName.get(packageName);
+      assert.ok(artifact, `Missing packed Mesh dependency: ${packageName}`);
+      return [packageName, artifact.tarballReference];
+    })
   );
   workspaceWrites.push(
     writeFile(
@@ -208,6 +238,62 @@ try {
         "if (!service || result.output !== 'ok' || sessionResult.turnsCompleted !== 2 || !response.headers.get('content-type')?.startsWith('text/event-stream')) process.exit(1);",
         '',
       ].join('\n')
+    ),
+    writeFile(
+      path.join(typeScriptConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-typescript',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: meshDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    writeFile(
+      path.join(typeScriptConsumerRoot, 'tsconfig.json'),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            strict: true,
+            noEmit: true,
+            skipLibCheck: false,
+            types: [],
+            lib: ['ES2022', 'DOM'],
+          },
+          include: ['verify-types.ts'],
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/mesh-types.ts'),
+      path.join(typeScriptConsumerRoot, 'verify-types.ts')
+    ),
+    writeFile(
+      path.join(meshScenarioConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-mesh-three-peer',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: meshDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/mesh-three-peer.mjs'),
+      path.join(meshScenarioConsumerRoot, 'verify-mesh.mjs')
     )
   );
   await Promise.all(workspaceWrites);
@@ -238,6 +324,22 @@ try {
       stdio: 'inherit',
     });
   }
+  execFileSync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules/typescript/bin/tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    {
+      cwd: typeScriptConsumerRoot,
+      stdio: 'inherit',
+    }
+  );
+  execFileSync(process.execPath, ['verify-mesh.mjs'], {
+    cwd: meshScenarioConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-functional.mjs'], {
     cwd: functionalConsumerRoot,
     stdio: 'inherit',
@@ -248,7 +350,7 @@ try {
     0
   );
   console.log(
-    `Audited ${tarballs.length} tarballs and imported ${importedExportCount} exports from per-package isolated consumers before the functional smoke test.`
+    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations and replayed the signed three-peer scenario before the unchanged functional smoke test.`
   );
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

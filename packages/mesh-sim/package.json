@@ -1,0 +1,41 @@
+{
+  "name": "@agentplat/mesh-sim",
+  "version": "0.3.0-alpha.1",
+  "description": "Deterministic simulation contracts for AgentPlat Mesh peer state machines.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/mesh": "workspace:^",
+    "@agentplat/mesh-crypto": "workspace:^",
+    "@agentplat/mesh-protocol": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/mesh-sim"
+  }
+}

@@ -32,6 +32,18 @@ importers:
       '@agentplat/memory':
         specifier: workspace:*
         version: link:packages/memory
+      '@agentplat/mesh':
+        specifier: workspace:*
+        version: link:packages/mesh
+      '@agentplat/mesh-crypto':
+        specifier: workspace:*
+        version: link:packages/mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:*
+        version: link:packages/mesh-protocol
+      '@agentplat/mesh-sim':
+        specifier: workspace:*
+        version: link:packages/mesh-sim
       '@agentplat/model':
         specifier: workspace:*
         version: link:packages/model
@@ -77,6 +89,9 @@ importers:
       prettier:
         specifier: ^3.1.0
         version: 3.9.4
+      semver:
+        specifier: ^7.7.2
+        version: 7.8.5
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -167,6 +182,35 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+
+  packages/mesh:
+    dependencies:
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/mesh-crypto:
+    dependencies:
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/mesh-protocol: {}
+
+  packages/mesh-sim:
+    dependencies:
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
 
   packages/model:
     dependencies:
@@ -1236,6 +1280,12 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /semver@7.8.5:
+    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
+    engines: {node: '>=10'}
+    hasBin: true
+    dev: true
 
   /send@1.2.1:
     resolution: {integrity: sha512-1gnZf7DFcoIcajTjTwjwuDjzuz4PPcY2StKPlsGAQ1+YH20IRVrBaXSWmdjowTJ6u8Rc01PoYOGHXfP1mYcZNQ==}

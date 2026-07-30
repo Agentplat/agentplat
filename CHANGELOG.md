@@ -2,10 +2,28 @@
 
 ## Unreleased
 
+## 0.3.0-alpha.1 - 2026-07-30
+
 - Added a canonical public package catalog shared by release verification,
   versioning, package smoke tests and publishing.
 - Added Agent Mesh architecture decisions, glossary, protocol v0 design, threat
   model, compatibility policy and staged release plan.
+- Added strict bounded parsing, deterministic JSON canonicalization,
+  closed-schema validation and structural conformance fixtures to
+  `@agentplat/mesh-protocol`.
+- Added canonical SHA-256 digests, Ed25519 signing and verification, bounded
+  static key resolution and public verification fixtures to
+  `@agentplat/mesh-crypto`.
+- Added the immutable Alpha 1 peer reducer and inbound coordinator with
+  preprovisioned admission, bounded replay, message idempotency and causal
+  liveness effects to `@agentplat/mesh`, including prepare-before-deliver
+  outbound handling and monotonic logical time.
+- Added the signed in-memory loopback driver and deterministic Mesh simulation
+  kernel with composite routing, bounded queues, serialized peer transitions,
+  seeded scheduling, chained trace digests and replay divergence reporting.
+- Extended tarball verification with registry-compatible internal dependency
+  ranges, packed TypeScript declaration compilation and a signed three-peer
+  loopback and replay consumer installed exclusively from local tarballs.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.

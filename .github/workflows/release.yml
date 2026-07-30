@@ -44,3 +44,5 @@ jobs:
         env:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify exact packages from a clean registry consumer
+        run: pnpm run verify:registry-consumer
