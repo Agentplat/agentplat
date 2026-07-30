@@ -479,7 +479,17 @@ export interface LeaseVotePayload {
   readonly objectiveId: string;
 }
 
-/** Payload subset implemented through the first Alpha 2 increment. */
+/** Certifies one takeover proposal from a bounded set of witness votes. */
+export interface LeaseCertificatePayload {
+  readonly type: 'lease.certificate';
+  readonly certificateId: string;
+  readonly certificateAssemblerPeerId: string;
+  readonly takeoverProposalId: string;
+  readonly leaseVoteIds: readonly string[];
+  readonly objectiveId: string;
+}
+
+/** Structurally implemented protocol payload subset. */
 export type MeshMessagePayload =
   | PeerHelloPayload
   | PeerCardPayload
@@ -503,7 +513,8 @@ export type MeshMessagePayload =
   | WorkCancelPayload
   | LeaseRenewPayload
   | LeaseTakeoverProposalPayload
-  | LeaseVotePayload;
+  | LeaseVotePayload
+  | LeaseCertificatePayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<

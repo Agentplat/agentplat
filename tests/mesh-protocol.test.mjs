@@ -932,6 +932,141 @@ test('Alpha 2 Lease Vote fixture freezes one witness endorsement', async () => {
   }
 });
 
+test('Alpha 2 Lease Certificate fixture freezes a bounded quorum reference', async () => {
+  const certificate = await loadFixture('lease-certificate');
+  const parsed = parseSignedMeshEnvelope(
+    await loadFixtureBytes('lease-certificate')
+  );
+  assert.equal(parsed.ok, true);
+  assert.equal(Object.isFrozen(parsed.value), true);
+  assert.equal(Object.isFrozen(parsed.value.payload), true);
+  assert.equal(Object.isFrozen(parsed.value.payload.leaseVoteIds), true);
+  assert.equal(validateSignedMeshEnvelope(certificate).ok, true);
+
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...certificate,
+      audience: { kind: 'peer', peerId: 'peer-c' },
+    }).ok,
+    true,
+    'affected-peer authorization is resolved from local recovery state'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...certificate,
+      causationId: 'AAAAAAAAAAAAAAAAAAAAAA',
+    }).ok,
+    true,
+    'accepted proposal and vote resolution is stateful'
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...certificate,
+      sentAt: '2026-07-30T00:59:59.000Z',
+      expiresAt: '2026-07-30T01:00:59.000Z',
+    }).ok,
+    true,
+    'trusted receiver state, not sender-declared time, decides certification eligibility'
+  );
+
+  for (const [envelope, code, path] of [
+    [
+      {
+        ...certificate,
+        audience: { kind: 'mesh', topic: 'work' },
+      },
+      'invalid_audience',
+      '$["audience"]',
+    ],
+    [
+      {
+        ...certificate,
+        sender: { peerId: 'peer-other', instanceId: 'instance-other' },
+      },
+      'invalid_payload',
+      '$["payload"]["certificateAssemblerPeerId"]',
+    ],
+    [
+      {
+        ...certificate,
+        objectiveId: 'objective-other',
+      },
+      'invalid_payload',
+      '$["objectiveId"]',
+    ],
+    [
+      {
+        ...certificate,
+        payload: { ...certificate.payload, fencingToken: 'certificate-a' },
+      },
+      'invalid_payload',
+      '$["payload"]["fencingToken"]',
+    ],
+  ]) {
+    expectIssue(validateSignedMeshEnvelope(envelope), code, path);
+  }
+
+  const { causationId: _causationId, ...withoutCausation } = certificate;
+  expectIssue(
+    validateSignedMeshEnvelope(withoutCausation),
+    'invalid_payload',
+    '$["causationId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...certificate,
+      expiresAt: new Date(
+        Date.parse(certificate.sentAt) + 60_000 + 1
+      ).toISOString(),
+    }),
+    'invalid_lifetime',
+    '$["expiresAt"]'
+  );
+
+  for (const [payload, path] of [
+    [{ certificateId: '' }, '$["payload"]["certificateId"]'],
+    [
+      { certificateAssemblerPeerId: '' },
+      '$["payload"]["certificateAssemblerPeerId"]',
+    ],
+    [{ takeoverProposalId: '' }, '$["payload"]["takeoverProposalId"]'],
+    [{ objectiveId: '' }, '$["payload"]["objectiveId"]'],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...certificate,
+        payload: { ...certificate.payload, ...payload },
+      }),
+      'invalid_identifier',
+      path
+    );
+  }
+
+  for (const [leaseVoteIds, path] of [
+    [[], '$["payload"]["leaseVoteIds"]'],
+    [['lease-vote-a'], '$["payload"]["leaseVoteIds"]'],
+    [['lease-vote-a', 'lease-vote-a'], '$["payload"]["leaseVoteIds"][1]'],
+    [['lease-vote-b', 'lease-vote-a'], '$["payload"]["leaseVoteIds"][1]'],
+    [['', 'lease-vote-a'], '$["payload"]["leaseVoteIds"][0]'],
+    [
+      Array.from(
+        { length: 33 },
+        (_, index) => `lease-vote-${String(index).padStart(2, '0')}`
+      ),
+      '$["payload"]["leaseVoteIds"]',
+    ],
+  ]) {
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...certificate,
+        payload: { ...certificate.payload, leaseVoteIds },
+      }),
+      leaseVoteIds[0] === '' ? 'invalid_identifier' : 'invalid_payload',
+      path
+    );
+  }
+});
+
 test('strict JSON parsing rejects ambiguous and malformed documents', () => {
   for (const input of [
     '',
