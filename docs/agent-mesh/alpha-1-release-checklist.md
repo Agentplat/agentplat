@@ -19,7 +19,7 @@ or Git tag has occurred.
 
 ## Public preparation evidence
 
-Verified on 2026-07-30: the complete `check` pipeline passed with 158 unit
+Verified on 2026-07-30: the complete `check` pipeline passed with 163 unit
 tests, adapter regressions, 28 audited tarballs and 31 isolated public exports.
 
 - [x] all 28 public manifests use the fixed candidate version;
@@ -37,13 +37,13 @@ These gates run only from the reviewed commit on a clean `main` checkout:
 - [ ] supply the non-empty external terminology denylist;
 - [ ] authenticate the approved npm publisher or Trusted Publishing workflow;
 - [ ] run the no-mutation publish dry run with `NPM_DIST_TAG=next`;
-- [ ] confirm `0.3.0-alpha.1` remains absent or has matching integrity for every
-      package;
+- [ ] confirm `0.3.0-alpha.1` remains absent or has authenticated, equivalent
+      package contents for every package;
 - [ ] record the clean release commit and current rollback targets;
 - [ ] publish missing packages under the commit-specific staging tag;
 - [ ] verify SHA-512 registry integrity for all 28 packages;
 - [ ] promote the complete package set to `next`;
-- [ ] remove the staging tag only after promotion succeeds;
+- [ ] remove all candidate staging tags only after promotion succeeds;
 - [ ] validate one independent clean consumer from npm;
 - [ ] create and push `v0.3.0-alpha.1` at the verified commit.
 

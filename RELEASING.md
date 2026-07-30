@@ -73,10 +73,18 @@ Before the first registry mutation, the publisher:
 4. checks every version already present in the registry.
 
 Missing versions are uploaded under a commit-specific staging tag. A retry
-skips an existing version only when registry and local tarball integrity match.
-The requested distribution tag is applied only after every cataloged package is
-present and verified. A failed final tag promotion is safe to retry. Staging
-tags are removed after promotion.
+pins both global and `@agentplat` scope operations to the public npm registry,
+then compares registry and local tarball SHA-512 integrity. If archive bytes
+differ, the publisher downloads the registry artifact, verifies it against
+npm's advertised SHA-512, audits its extracted contents and compares the full
+package tree, with every file other than `package.json` checked byte-for-byte.
+JSON object key order in `package.json` is canonicalized with strict duplicate
+key and exact numeric-token handling; extra files, links, permission modes or
+any other content difference fail closed. The requested distribution tag is
+applied only after every cataloged package is present and verified. A failed
+final tag promotion or staging cleanup is safe to retry. All staging tags that
+point at the promoted version are removed afterward, and cleanup failure keeps
+the release workflow red.
 
 Exercise the same packing, ordering and registry-integrity preflight without
 uploading or changing tags:
