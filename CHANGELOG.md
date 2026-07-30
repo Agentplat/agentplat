@@ -27,6 +27,9 @@
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.
+- Hardened interrupted-release recovery with authenticated registry downloads,
+  pinned public-registry operations, strict extracted-tree and package metadata
+  comparison, and fail-closed cleanup of stale staging tags.
 
 ## 0.2.0-beta.11 - 2026-07-16
 

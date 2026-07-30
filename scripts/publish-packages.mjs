@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,11 @@ import {
   publishablePackages,
 } from './public-package-catalog.mjs';
 import { loadExternalTerminologyDenylist } from './public-audit-terminology.mjs';
+
+export const PUBLIC_NPM_REGISTRY_ARGUMENTS = Object.freeze([
+  '--registry=https://registry.npmjs.org/',
+  '--@agentplat:registry=https://registry.npmjs.org/',
+]);
 
 export async function publishPackages({
   root = process.cwd(),
@@ -90,11 +95,13 @@ export async function publishPackages({
   );
   const tarballRoot = path.join(temporaryRoot, 'tarballs');
   const extractionRoot = path.join(temporaryRoot, 'extracted');
+  const registryArtifactRoot = path.join(temporaryRoot, 'registry');
 
   try {
     await Promise.all([
       mkdir(tarballRoot, { recursive: true }),
       mkdir(extractionRoot, { recursive: true }),
+      mkdir(registryArtifactRoot, { recursive: true }),
     ]);
     const artifacts = [];
     for (const packageEntry of orderedPackages) {
@@ -121,14 +128,12 @@ export async function publishPackages({
         packageEntry.name.slice('@agentplat/'.length)
       );
       await mkdir(packageExtractionRoot, { recursive: true });
-      assertSafeTarballPaths(root, environment, tarballPath);
-      run(
+      extractPackageTarball({
         root,
         environment,
-        'tar',
-        ['-xzf', tarballPath, '-C', packageExtractionRoot],
-        { stdio: 'pipe' }
-      );
+        tarballPath,
+        destination: packageExtractionRoot,
+      });
       assert.deepEqual(
         (await readdir(packageExtractionRoot)).sort(),
         ['package'],
@@ -152,6 +157,7 @@ export async function publishPackages({
         packageEntry,
         manifest,
         tarballPath,
+        extractedPackageRoot,
         integrity: await sha512Integrity(tarballPath),
       });
     }
@@ -164,15 +170,37 @@ export async function publishPackages({
         root,
         version: artifact.manifest.version,
       });
-      registryState.set(
-        artifact.manifest.name,
+      if (existingIntegrity === undefined) {
+        registryState.set(artifact.manifest.name, {
+          action: 'publish',
+          expectedRegistryIntegrity: artifact.integrity,
+        });
+        continue;
+      }
+      if (existingIntegrity !== artifact.integrity) {
+        await verifyExistingRegistryArtifactEquivalent({
+          artifact,
+          blockedTerms,
+          environment,
+          registryArtifactRoot,
+          registryIntegrity: existingIntegrity,
+          root,
+        });
+        console.log(
+          `Verified existing ${artifact.manifest.name}@${artifact.manifest.version}; authenticated extracted contents match after canonicalizing package.json object key order.`
+        );
+      } else {
         determineUploadAction({
           existingIntegrity,
           localIntegrity: artifact.integrity,
           packageName: artifact.manifest.name,
           version: artifact.manifest.version,
-        })
-      );
+        });
+      }
+      registryState.set(artifact.manifest.name, {
+        action: 'skip',
+        expectedRegistryIntegrity: existingIntegrity,
+      });
     }
 
     console.log(
@@ -181,7 +209,7 @@ export async function publishPackages({
     for (const artifact of artifacts) {
       const name = artifact.manifest.name;
       const version = artifact.manifest.version;
-      if (registryState.get(name) === 'skip') {
+      if (registryState.get(name).action === 'skip') {
         console.log(
           `Verified existing ${name}@${version}; skipping immutable version upload.`
         );
@@ -204,6 +232,7 @@ export async function publishPackages({
         'public',
         '--tag',
         stagingTag,
+        ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
       ];
       if (dryRun) publishArguments.push('--dry-run');
       run(root, environment, 'npm', publishArguments, {
@@ -238,6 +267,7 @@ export async function publishPackages({
       return;
     }
 
+    const stagingCleanupFailures = [];
     for (const artifact of artifacts) {
       const { name, version } = artifact.manifest;
       const verifiedIntegrity = await waitForRegistryIntegrity({
@@ -248,7 +278,7 @@ export async function publishPackages({
       });
       assert.equal(
         verifiedIntegrity,
-        artifact.integrity,
+        registryState.get(name).expectedRegistryIntegrity,
         `${name}@${version} failed final integrity verification`
       );
     }
@@ -262,12 +292,34 @@ export async function publishPackages({
       });
     }
     for (const artifact of artifacts) {
-      removeDistributionTag({
+      const { name, version } = artifact.manifest;
+      const distributionTags = registryDistributionTags({
         environment,
-        packageName: artifact.manifest.name,
+        packageName: name,
         root,
-        tag: stagingTag,
       });
+      const stagingTags = new Set([
+        stagingTag,
+        ...stagingTagsForVersion(distributionTags, version),
+      ]);
+      for (const tag of [...stagingTags].sort()) {
+        try {
+          removeDistributionTag({
+            environment,
+            packageName: name,
+            root,
+            tag,
+          });
+        } catch (error) {
+          stagingCleanupFailures.push(error);
+        }
+      }
+    }
+    if (stagingCleanupFailures.length > 0) {
+      throw new AggregateError(
+        stagingCleanupFailures,
+        `Unable to remove ${stagingCleanupFailures.length} staging distribution tags after promotion`
+      );
     }
     console.log(
       `Published and promoted ${artifacts.length} cataloged packages to ${distributionTag}.`
@@ -356,6 +408,93 @@ export function parseRegistryIntegrityResult(result, packageName, version) {
   return parsed;
 }
 
+export function parseRegistryDistributionTags(result, packageName) {
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim();
+    throw new Error(
+      `Unable to inspect distribution tags for ${packageName}: ${output}`
+    );
+  }
+  const parsed = JSON.parse(String(result.stdout ?? '').trim());
+  assert.ok(
+    parsed && typeof parsed === 'object' && !Array.isArray(parsed),
+    `${packageName} returned invalid registry distribution tags`
+  );
+  for (const [tag, version] of Object.entries(parsed)) {
+    assert.match(tag, /^[a-z][0-9a-z._-]*$/i);
+    assert.equal(
+      typeof version,
+      'string',
+      `${packageName} returned an invalid version for distribution tag ${tag}`
+    );
+  }
+  return parsed;
+}
+
+export function stagingTagsForVersion(distributionTags, version) {
+  return Object.entries(distributionTags)
+    .filter(
+      ([tag, taggedVersion]) =>
+        tag.startsWith('agentplat-stage-') && taggedVersion === version
+    )
+    .map(([tag]) => tag)
+    .sort();
+}
+
+export async function assertPackageTreesEquivalent(
+  localPackageRoot,
+  registryPackageRoot
+) {
+  const [localEntries, registryEntries] = await Promise.all([
+    packageTreeEntries(localPackageRoot),
+    packageTreeEntries(registryPackageRoot),
+  ]);
+  assert.deepEqual(
+    [...registryEntries.keys()],
+    [...localEntries.keys()],
+    'Registry package tree differs from the local package tree'
+  );
+  for (const [relativePath, localEntry] of localEntries) {
+    const registryEntry = registryEntries.get(relativePath);
+    assert.equal(
+      registryEntry.type,
+      localEntry.type,
+      `Package entry type differs for ${relativePath}`
+    );
+    assert.equal(
+      registryEntry.mode,
+      localEntry.mode,
+      `Package permission mode differs for ${relativePath}`
+    );
+    if (localEntry.type !== 'file') continue;
+    if (relativePath === 'package.json') {
+      assert.equal(
+        canonicalJson(registryEntry.contents, relativePath),
+        canonicalJson(localEntry.contents, relativePath),
+        'Registry package.json differs from the local package.json'
+      );
+      continue;
+    }
+    assert.ok(
+      registryEntry.contents.equals(localEntry.contents),
+      `Package file contents differ for ${relativePath}`
+    );
+  }
+}
+
+export function extractPackageTarball({
+  destination,
+  environment,
+  root,
+  tarballPath,
+}) {
+  assertSafeTarballPaths(root, environment, tarballPath);
+  run(root, environment, 'tar', ['-xzpf', tarballPath, '-C', destination], {
+    stdio: 'pipe',
+  });
+}
+
 function runtimeDependencyNames(manifest) {
   return [
     ...Object.keys(manifest.dependencies ?? {}),
@@ -372,6 +511,227 @@ async function sha512Integrity(file) {
   return `sha512-${createHash('sha512')
     .update(await readFile(file))
     .digest('base64')}`;
+}
+
+async function packageTreeEntries(root) {
+  const entries = new Map();
+  const rootStats = await lstat(root);
+  assert.equal(
+    rootStats.isSymbolicLink(),
+    false,
+    'Package root must not be a symbolic link'
+  );
+  assert.ok(rootStats.isDirectory(), 'Package root must be a directory');
+  entries.set('.', {
+    type: 'directory',
+    mode: rootStats.mode & 0o7777,
+  });
+
+  async function visit(directory, relativeDirectory = '') {
+    const children = await readdir(directory, { withFileTypes: true });
+    children.sort((left, right) => left.name.localeCompare(right.name));
+    for (const child of children) {
+      const relativePath = path.posix.join(relativeDirectory, child.name);
+      const absolutePath = path.join(directory, child.name);
+      const stats = await lstat(absolutePath);
+      assert.equal(
+        stats.isSymbolicLink(),
+        false,
+        `Package tree must not contain symbolic links: ${relativePath}`
+      );
+      if (stats.isDirectory()) {
+        entries.set(relativePath, {
+          type: 'directory',
+          mode: stats.mode & 0o7777,
+        });
+        await visit(absolutePath, relativePath);
+        continue;
+      }
+      assert.ok(
+        stats.isFile(),
+        `Package tree contains unsupported entry: ${relativePath}`
+      );
+      assert.equal(
+        stats.nlink,
+        1,
+        `Package tree must not contain hard links: ${relativePath}`
+      );
+      entries.set(relativePath, {
+        type: 'file',
+        mode: stats.mode & 0o7777,
+        contents: await readFile(absolutePath),
+      });
+    }
+  }
+
+  await visit(root);
+  return entries;
+}
+
+function canonicalJson(contents, relativePath) {
+  let parsed;
+  try {
+    parsed = new CanonicalJsonParser(
+      new TextDecoder('utf-8', {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(contents)
+    ).parse();
+  } catch (error) {
+    throw new Error(`Unable to parse ${relativePath}`, { cause: error });
+  }
+  return parsed;
+}
+
+const jsonNumberPattern = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+
+class CanonicalJsonParser {
+  constructor(source) {
+    this.source = source;
+    this.index = 0;
+  }
+
+  parse() {
+    this.skipWhitespace();
+    const value = this.parseValue();
+    this.skipWhitespace();
+    if (this.index !== this.source.length) this.fail('trailing input');
+    return value;
+  }
+
+  parseValue() {
+    const character = this.source[this.index];
+    if (character === '{') return this.parseObject();
+    if (character === '[') return this.parseArray();
+    if (character === '"') return `s${JSON.stringify(this.parseString())}`;
+    if (this.source.startsWith('true', this.index)) {
+      this.index += 4;
+      return 'b1';
+    }
+    if (this.source.startsWith('false', this.index)) {
+      this.index += 5;
+      return 'b0';
+    }
+    if (this.source.startsWith('null', this.index)) {
+      this.index += 4;
+      return 'z';
+    }
+    if (character === '-' || (character >= '0' && character <= '9')) {
+      return this.parseNumber();
+    }
+    return this.fail('invalid value');
+  }
+
+  parseObject() {
+    this.index += 1;
+    this.skipWhitespace();
+    const entries = [];
+    const keys = new Set();
+    if (this.source[this.index] === '}') {
+      this.index += 1;
+      return 'o{}';
+    }
+    while (this.index < this.source.length) {
+      if (this.source[this.index] !== '"') this.fail('invalid object key');
+      const key = this.parseString();
+      if (keys.has(key))
+        this.fail(`duplicate object key ${JSON.stringify(key)}`);
+      keys.add(key);
+      this.skipWhitespace();
+      if (this.source[this.index] !== ':') this.fail('missing object colon');
+      this.index += 1;
+      this.skipWhitespace();
+      entries.push([key, this.parseValue()]);
+      this.skipWhitespace();
+      const delimiter = this.source[this.index];
+      if (delimiter === '}') {
+        this.index += 1;
+        entries.sort(([left], [right]) =>
+          left < right ? -1 : left > right ? 1 : 0
+        );
+        return `o{${entries
+          .map(([entryKey, value]) => `${JSON.stringify(entryKey)}:${value}`)
+          .join(',')}}`;
+      }
+      if (delimiter !== ',') this.fail('invalid object delimiter');
+      this.index += 1;
+      this.skipWhitespace();
+    }
+    return this.fail('unterminated object');
+  }
+
+  parseArray() {
+    this.index += 1;
+    this.skipWhitespace();
+    const entries = [];
+    if (this.source[this.index] === ']') {
+      this.index += 1;
+      return 'a[]';
+    }
+    while (this.index < this.source.length) {
+      entries.push(this.parseValue());
+      this.skipWhitespace();
+      const delimiter = this.source[this.index];
+      if (delimiter === ']') {
+        this.index += 1;
+        return `a[${entries.join(',')}]`;
+      }
+      if (delimiter !== ',') this.fail('invalid array delimiter');
+      this.index += 1;
+      this.skipWhitespace();
+    }
+    return this.fail('unterminated array');
+  }
+
+  parseString() {
+    const start = this.index;
+    this.index += 1;
+    while (this.index < this.source.length) {
+      const code = this.source.charCodeAt(this.index);
+      if (code === 0x22) {
+        this.index += 1;
+        return JSON.parse(this.source.slice(start, this.index));
+      }
+      if (code <= 0x1f) this.fail('invalid string character');
+      if (code === 0x5c) {
+        this.index += 1;
+        if (this.source[this.index] === 'u') {
+          if (
+            !/^[0-9a-fA-F]{4}$/.test(
+              this.source.slice(this.index + 1, this.index + 5)
+            )
+          ) {
+            this.fail('invalid Unicode escape');
+          }
+          this.index += 5;
+          continue;
+        }
+        if (!'"\\/bfnrt'.includes(this.source[this.index] ?? '')) {
+          this.fail('invalid string escape');
+        }
+      }
+      this.index += 1;
+    }
+    return this.fail('unterminated string');
+  }
+
+  parseNumber() {
+    jsonNumberPattern.lastIndex = this.index;
+    const match = jsonNumberPattern.exec(this.source);
+    if (!match) return this.fail('invalid number');
+    this.index = jsonNumberPattern.lastIndex;
+    return `n${match[0].length}:${match[0]}`;
+  }
+
+  skipWhitespace() {
+    while (' \n\r\t'.includes(this.source[this.index] ?? '\0')) {
+      this.index += 1;
+    }
+  }
+
+  fail(reason) {
+    throw new SyntaxError(`${reason} at byte ${this.index}`);
+  }
 }
 
 function assertSafeTarballPaths(root, environment, tarballPath) {
@@ -397,12 +757,104 @@ function assertSafeTarballPaths(root, environment, tarballPath) {
       `Package tarball entry must remain under package/: ${entry}`
     );
   }
+  const verboseResult = run(root, environment, 'tar', ['-tvzf', tarballPath], {
+    encoding: 'utf8',
+  });
+  const verboseEntries = verboseResult.stdout.split(/\r?\n/).filter(Boolean);
+  assert.equal(
+    verboseEntries.length,
+    entries.length,
+    `${tarballPath} returned inconsistent tar entry metadata`
+  );
+  for (const entry of verboseEntries) {
+    assert.match(
+      entry,
+      /^[d-]/,
+      `Package tarball must contain only regular files and directories: ${entry}`
+    );
+  }
+}
+
+async function verifyExistingRegistryArtifactEquivalent({
+  artifact,
+  blockedTerms,
+  environment,
+  registryArtifactRoot,
+  registryIntegrity: expectedRegistryIntegrity,
+  root,
+}) {
+  const { name, version } = artifact.manifest;
+  const packageRoot = path.join(
+    registryArtifactRoot,
+    name.slice('@agentplat/'.length)
+  );
+  const tarballRoot = path.join(packageRoot, 'tarball');
+  const extractionRoot = path.join(packageRoot, 'extracted');
+  await Promise.all([
+    mkdir(tarballRoot, { recursive: true }),
+    mkdir(extractionRoot, { recursive: true }),
+  ]);
+  run(
+    root,
+    environment,
+    'npm',
+    [
+      'pack',
+      `${name}@${version}`,
+      '--pack-destination',
+      tarballRoot,
+      '--ignore-scripts',
+      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+    ],
+    { stdio: 'pipe' }
+  );
+  const tarballName = expectedTarballName(artifact.manifest);
+  assert.deepEqual(
+    (await readdir(tarballRoot)).sort(),
+    [tarballName],
+    `Registry download for ${name}@${version} produced unexpected files`
+  );
+  const tarballPath = path.join(tarballRoot, tarballName);
+  assert.equal(
+    await sha512Integrity(tarballPath),
+    expectedRegistryIntegrity,
+    `${name}@${version} download differs from registry integrity metadata`
+  );
+  extractPackageTarball({
+    root,
+    environment,
+    tarballPath,
+    destination: extractionRoot,
+  });
+  assert.deepEqual(
+    (await readdir(extractionRoot)).sort(),
+    ['package'],
+    `${name}@${version} registry tarball must contain only the package root`
+  );
+  const extractedRegistryPackageRoot = path.join(extractionRoot, 'package');
+  await runPublicAudit({
+    root: extractedRegistryPackageRoot,
+    blockedTerms,
+    requireTerminologyDenylist: true,
+    excludedDirectories: [],
+    excludedFiles: [],
+  });
+  await assertPackageTreesEquivalent(
+    artifact.extractedPackageRoot,
+    extractedRegistryPackageRoot
+  );
 }
 
 function registryIntegrity({ environment, packageName, root, version }) {
   const result = spawnSync(
     'npm',
-    ['view', `${packageName}@${version}`, 'dist.integrity', '--json'],
+    [
+      'view',
+      `${packageName}@${version}`,
+      'dist.integrity',
+      '--json',
+      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+    ],
     {
       cwd: root,
       encoding: 'utf8',
@@ -412,13 +864,32 @@ function registryIntegrity({ environment, packageName, root, version }) {
   return parseRegistryIntegrityResult(result, packageName, version);
 }
 
+function registryDistributionTags({ environment, packageName, root }) {
+  const result = spawnSync(
+    'npm',
+    [
+      'view',
+      packageName,
+      'dist-tags',
+      '--json',
+      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: environment,
+    }
+  );
+  return parseRegistryDistributionTags(result, packageName);
+}
+
 async function waitForRegistryIntegrity({
   environment,
   packageName,
   root,
   version,
 }) {
-  const delays = [0, 1_000, 2_000, 4_000, 8_000];
+  const delays = [0, 1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
   for (const delay of delays) {
     if (delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -441,7 +912,13 @@ function addDistributionTag({ environment, packageName, root, tag, version }) {
     root,
     environment,
     'npm',
-    ['dist-tag', 'add', `${packageName}@${version}`, tag],
+    [
+      'dist-tag',
+      'add',
+      `${packageName}@${version}`,
+      tag,
+      ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
+    ],
     {
       cwd: root,
       stdio: 'inherit',
@@ -450,17 +927,22 @@ function addDistributionTag({ environment, packageName, root, tag, version }) {
 }
 
 function removeDistributionTag({ environment, packageName, root, tag }) {
-  const result = spawnSync('npm', ['dist-tag', 'rm', packageName, tag], {
-    cwd: root,
-    stdio: 'inherit',
-    env: environment,
-  });
+  const result = spawnSync(
+    'npm',
+    ['dist-tag', 'rm', packageName, tag, ...PUBLIC_NPM_REGISTRY_ARGUMENTS],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: environment,
+    }
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    console.warn(
-      `Unable to remove staging tag ${tag} from ${packageName}; the final tag is already promoted.`
+    throw new Error(
+      `Unable to remove staging tag ${tag} from ${packageName}: ${`${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim()}`
     );
   }
+  console.log(String(result.stdout ?? '').trim());
 }
 
 function runGit(root, arguments_, environment) {
