@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added a canonical public package catalog shared by release verification,
+  versioning, package smoke tests and publishing.
+- Added Agent Mesh architecture decisions, glossary, protocol v0 design, threat
+  model, compatibility policy and staged release plan.
+- Expanded the public audit to the complete checkout, built output and exact
+  package tarballs. Releases require a non-empty terminology denylist that
+  remains outside the repository.
+
 ## 0.2.0-beta.11 - 2026-07-16
 
 - Added `@agentplat/postgres` with verified-pool health, strict multi-schema

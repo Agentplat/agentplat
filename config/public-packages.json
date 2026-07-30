@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 2,
+  "packages": [
+    {
+      "name": "@agentplat/audit",
+      "directory": "packages/audit",
+      "layer": "observability",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/audit-postgres",
+      "directory": "packages/audit-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/auth",
+      "directory": "packages/auth",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/core",
+      "directory": "packages/core",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/events",
+      "directory": "packages/events",
+      "layer": "observability",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/framework",
+      "directory": "packages/framework",
+      "layer": "runtime",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["./browser"],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/mcp",
+      "directory": "packages/mcp",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/memory",
+      "directory": "packages/memory",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/model",
+      "directory": "packages/model",
+      "layer": "model",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/model-anthropic",
+      "directory": "packages/model-anthropic",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": false,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/model-gemini",
+      "directory": "packages/model-gemini",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": false,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/model-openai-compatible",
+      "directory": "packages/model-openai-compatible",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/postgres",
+      "directory": "packages/postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/provider-openai",
+      "directory": "packages/provider-openai",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": false,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/rooms",
+      "directory": "packages/rooms",
+      "layer": "collaboration",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/rooms-api",
+      "directory": "packages/rooms-api",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/rooms-postgres",
+      "directory": "packages/rooms-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/runtime",
+      "directory": "packages/runtime",
+      "layer": "runtime",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/runtime-mock",
+      "directory": "packages/runtime-mock",
+      "layer": "testing",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/sessions",
+      "directory": "packages/sessions",
+      "layer": "collaboration",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/sessions-redis",
+      "directory": "packages/sessions-redis",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/streaming",
+      "directory": "packages/streaming",
+      "layer": "transport",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/tools",
+      "directory": "packages/tools",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/workflows",
+      "directory": "packages/workflows",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    }
+  ]
+}
