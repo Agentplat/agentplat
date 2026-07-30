@@ -26,13 +26,22 @@ import {
   type MeshPeerReducer,
   type MeshPeerState,
 } from '@agentplat/mesh';
-import type { MeshLoopbackTransport } from '@agentplat/mesh/loopback';
-import type {
-  MeshSimulationConfig,
-  MeshSimulationInvariant,
-  MeshSimulationKernel,
+import {
+  createMeshLoopbackTransport,
+  type MeshLoopbackTransport,
+} from '@agentplat/mesh/loopback';
+import {
+  createMeshSimulationKernel,
+  replayMeshSimulation,
+  runMeshSimulation,
+  THREE_PEER_SCENARIO_IDS,
+  type MeshSimulationConfig,
+  type MeshSimulationInvariant,
+  type MeshSimulationKernel,
 } from '@agentplat/mesh-sim';
-import { THREE_PEER_SCENARIO_IDS } from '@agentplat/mesh-sim';
+import type {
+  MeshSimulationEventInput,
+} from '@agentplat/mesh-sim';
 import {
   canonicalizeMeshJson,
   canonicalizeMeshJsonBytes,
@@ -121,11 +130,17 @@ const simulationConfig: MeshSimulationConfig = {
   seed: 1,
   prngVersion: 'xorshift32-v1',
   recordingMode: 'digest',
+  startTime: '2026-07-29T00:00:00Z',
   peers: [
     {
       peerId: 'peer-a',
       state: peerState,
-      reducer: contractReducer,
+      signer: {} as MeshEnvelopeSigner,
+      verifier: {} as WebCryptoMeshEnvelopeVerifier,
+      resolver: {} as MeshKeyResolver,
+      cryptoPolicy: DEFAULT_MESH_CRYPTO_POLICY,
+      admissionPolicy,
+      privateKey: {} as CryptoKey,
     },
   ],
   links: [],
@@ -133,6 +148,7 @@ const simulationConfig: MeshSimulationConfig = {
     maximumEvents: 100,
     maximumLogicalTime: 1_000,
     maximumQueuedEvents: 100,
+    maximumInternalSteps: 100,
   },
 };
 
@@ -230,6 +246,16 @@ const contextValidation = validateMeshEnvelopeContext(
 );
 const loopback: MeshLoopbackTransport | undefined = undefined;
 const kernel: MeshSimulationKernel | undefined = undefined;
+const loopbackRuntime = createMeshLoopbackTransport();
+const simulationEvents: readonly MeshSimulationEventInput[] = [];
+const simulationKernelPromise = createMeshSimulationKernel(simulationConfig);
+const simulationRunPromise = runMeshSimulation(
+  simulationConfig,
+  simulationEvents
+);
+const simulationReplayPromise = simulationRunPromise.then((trace) =>
+  replayMeshSimulation(simulationConfig, simulationEvents, trace)
+);
 
 void unsignedHello;
 void admissionPolicy;
@@ -269,3 +295,7 @@ void signingBytes;
 void contextValidation;
 void loopback;
 void kernel;
+void loopbackRuntime;
+void simulationKernelPromise;
+void simulationRunPromise;
+void simulationReplayPromise;

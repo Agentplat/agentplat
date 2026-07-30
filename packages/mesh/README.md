@@ -45,6 +45,14 @@ is monotonic across reducer and inbound transitions.
 Alpha 1 accepts direct peer audiences only. Mesh-topic intake, work allocation,
 leases and recovery are introduced in later preview releases.
 
-`@agentplat/mesh/loopback` contains contracts for the in-memory signed transport
-used by the local vertical slice. Importing either entrypoint performs no
-network, clock, storage or key operations.
+`@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
+by the local vertical slice. `createMeshLoopbackTransport` owns composite
+tenant/Mesh/peer routing, bounded FIFO delivery and per-peer serialization.
+Registered peers use the same `processMeshEnvelope` boundary as future
+transports. Outbound sequence allocators are included in restart snapshots,
+duplicate batches repeat the exact signed envelope, and cooperative close
+drains already accepted work.
+
+Importing either entrypoint performs no network, clock, storage or key
+operations. Clocks, message-ID sources, signers, keys and verification policy
+are supplied explicitly when a peer is registered.

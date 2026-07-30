@@ -16,6 +16,9 @@
   preprovisioned admission, bounded replay, message idempotency and causal
   liveness effects to `@agentplat/mesh`, including prepare-before-deliver
   outbound handling and monotonic logical time.
+- Added the signed in-memory loopback driver and deterministic Mesh simulation
+  kernel with composite routing, bounded queues, serialized peer transitions,
+  seeded scheduling, chained trace digests and replay divergence reporting.
 - Expanded the public audit to the complete checkout, built output and exact
   package tarballs. Releases require a non-empty terminology denylist that
   remains outside the repository.
