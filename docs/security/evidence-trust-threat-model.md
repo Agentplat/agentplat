@@ -128,7 +128,19 @@ lease, advance an epoch or generate a fence.
 Trust-bound wrappers use existing Alpha 3 execution and gateway boundaries.
 They may refuse delegation or emit an observation. They cannot mint or alter an
 assessment, Action Grant, scope, idempotency record, dispatcher authority or
-downstream fence.
+downstream fence. The state-backed path recognizes only an opaque token built
+by strict Trust snapshot restore; Trust state stays in a private runtime
+registry. On each check, an identity/version/protector-bound current source
+must repeat the exact external rollback anchor used for that token. The current
+profile-resolver and operation-boundary heads bind the policy, subject mapping,
+eligibility template, runtime source and real base implementation.
+
+The bound current source is explicitly in the trusted computing base. It must
+read the application's durable Trust high-water anchor atomically on every
+check and cannot be a cache. A valid older anchor cannot reveal an authentic
+successor that this process has never observed; returning such an older head as
+the first sample is a source compromise/operational boundary violation, not a
+condition local digest validation can detect.
 
 ### Boundary H: snapshot and restore
 
@@ -364,7 +376,13 @@ Trust integration cannot weaken Alpha 3:
 - only already accepted controlled outcomes become Claim candidates;
 - conversion uses digests and excludes raw sensitive content;
 - candidate creation does not automatically admit Evidence;
-- wrappers bind the exact Trust policy and resolver configuration;
+- state-backed wrappers bind the exact Trust policy, profile resolver, subject
+  mapping, eligibility template, current-source identity and base boundary
+  configuration;
+- raw state, structural clones, replaced snapshot generations, clock rewind and
+  stale dependency heads are unavailable;
+- the model gate captures a digest-bound model boundary and passes it the exact
+  immutable per-invocation target that was evaluated;
 - action/message wrappers revalidate synchronously immediately before their
   underlying dispatcher call;
 - stale/unavailable state refuses delegation only in explicit restrict mode;

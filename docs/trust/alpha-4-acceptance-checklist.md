@@ -441,10 +441,25 @@ open until their corresponding transition is complete.
 - [ ] conversion excludes raw prompt, output, action arguments and message body;
 - [ ] application must explicitly admit the candidate to Trust state;
 - [ ] evidence references are exact, bounded and digest-verifiable;
-- [ ] Trust-bound wrappers use construction-bound synchronous resolvers;
-- [ ] wrapper binding digest includes Trust policy, resolver, mapping and base
-      binding digest;
+- [ ] legacy Trust-bound wrappers retain their construction-bound synchronous
+      resolver contracts and behavior unchanged;
+- [ ] state-backed wrappers accept only opaque runtimes produced by strict
+      protected-snapshot restore with the exact external rollback anchor;
+- [ ] the opaque runtime token exposes no Evidence state; its bound current
+      source repeats the exact restore anchor on every synchronous check;
+- [ ] current-source identity, revision and protector binding are included in
+      the eligibility configuration and exact operation-boundary binding;
+- [ ] the current source is documented and tested as a TCB adapter that reads
+      the durable high-water anchor atomically per check and never serves a
+      cached head; an unseen authentic successor is outside local detection;
+- [ ] state-backed evaluation uses only the authenticated snapshot creation
+      time; raw clones, replaced generations and clock rewind are unavailable;
+- [ ] current profile-resolver and operation-boundary heads bind the exact
+      Trust policy, subject mapping, full eligibility template and real base
+      model/dispatcher implementation digest;
 - [ ] model wrapper checks before execution;
+- [ ] model execution captures the exact versioned base boundary and passes it
+      the same immutable per-invocation target evaluated by Trust;
 - [ ] action and message wrappers revalidate immediately before delegation;
 - [ ] stale, mismatched, unavailable or quarantined state refuses only in
       restrict mode;

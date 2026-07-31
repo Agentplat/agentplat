@@ -162,13 +162,27 @@ gateways. It exports:
 - deterministic conversion of accepted controlled outcomes into local claim
   candidates;
 - exact Trust evidence references for assessor requests;
-- synchronous, construction-bound eligibility resolvers;
+- synchronous legacy resolver adapters retained for compatibility;
+- authenticated, construction-bound current-snapshot eligibility runtimes;
 - restrictive model, action-dispatcher and message-dispatcher wrappers.
 
-The wrappers include their Trust policy, profile and resolver binding digests
-in the dependency binding. They revalidate immediately before delegating to the
-wrapped boundary. The resulting claim is point-in-time local restriction, not
-an atomic transaction with mutable remote state.
+The state-backed wrappers require strict snapshot restore through a protector
+and exact external rollback anchor. Restore returns only an opaque token; the
+Trust state remains private in the construction-bound runtime registry. On
+every check, an identity/version/protector-bound current source must return the
+token with that exact anchor. The wrappers validate the current
+`profile_resolver -> model_boundary | action_dispatcher | message_dispatcher`
+binding chain, including policy, subject mapping, full eligibility template,
+base implementation and authenticated logical time, immediately before
+delegating. A raw state, structural clone, replaced generation or historical
+binding is unavailable. The resulting check is a point-in-time local
+restriction, not an atomic transaction with mutable remote state.
+
+The current source is a trusted-computing-base adapter over the application's
+durable Trust high-water store. Each call must synchronously and atomically
+read that store; serving a cached head is invalid. A process cannot detect an
+authentic successor it has never observed, so an obsolete first sample is an
+external source-boundary violation rather than a locally provable condition.
 
 ### Existing observability packages
 
@@ -268,6 +282,8 @@ recovery-evidence-set
 recovery-decision
 mesh-subject-mapping
 mesh-eligibility-config
+inference-subject-mapping
+inference-eligibility-config
 dependency-binding
 origin-proof
 state
@@ -2111,11 +2127,29 @@ fields to its closed policy:
 - a Trust-bound action dispatcher checks the exact current profile immediately
   before delegating to its underlying dispatcher;
 - a Trust-bound message dispatcher does the same before sending;
-- the wrapper binding digest includes Trust policy, resolver, subject mapping
-  and base dispatcher binding digests;
+- the state-backed runtime is accepted only when reconstructed by strict Trust
+  snapshot restore with its current external rollback anchor;
+- the exact profile-resolver and operation-boundary heads bind Trust policy,
+  subject mapping, full eligibility configuration and the base dispatcher or
+  model implementation digest;
+- the runtime source identity, revision and protector binding are part of that
+  configuration, and every synchronous sample repeats the exact rollback
+  anchor used by strict restore;
+- the authenticated snapshot creation time is the sole eligibility evaluation
+  time, and a replaced generation or structural clone is unavailable;
 - `unavailable`, stale, mismatched or quarantined state refuses delegation in
   restrict mode;
 - observe mode delegates and emits a redacted decision.
+
+The Alpha 3 synchronous resolver wrappers remain available unchanged as legacy
+opt-in adapters. They are not accepted as state-backed authority and cannot be
+substituted for the authenticated runtime contract.
+
+The model path captures a versioned local model-boundary object rather than an
+arbitrary callback. Its derived base binding must match the registered
+`model_boundary`, and the exact immutable per-invocation target evaluated by
+Trust is passed to that same captured boundary. Action and Message targets are
+derived from their real permits and inputs.
 
 These checks do not replace Action Grant consumption, authority revalidation,
 idempotency or downstream fencing. A concurrent Trust-state change after local

@@ -29,6 +29,8 @@ export type TrustDigestDomainV1 =
   | "recovery-decision"
   | "mesh-subject-mapping"
   | "mesh-eligibility-config"
+  | "inference-subject-mapping"
+  | "inference-eligibility-config"
   | "dependency-binding"
   | "causal-authorization"
   | "origin-proof"
