@@ -22,9 +22,11 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
 ]);
 export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
+export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_PACKAGES = Object.freeze([
   ...REGISTRY_MESH_PACKAGES,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
+  REGISTRY_TRUST_PACKAGE,
 ]);
 
 export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
@@ -39,6 +41,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/inference-control-alpha3.mjs',
     destination: 'verify-inference-control.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/trust-foundation.mjs',
+    destination: 'verify-trust.mjs',
   }),
 ]);
 
@@ -216,6 +222,11 @@ export async function verifyRegistryConsumer({
       env: cleanEnvironments.execution,
       stdio: 'inherit',
     });
+    execFileSync(process.execPath, ['verify-trust.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
 
     console.log(
       `Verified ${REGISTRY_PACKAGES.length} exact registry packages at ${rootManifest.version} from an independent clean consumer.`,
@@ -245,4 +256,3 @@ if (isMain) {
     process.exitCode = 1;
   }
 }
-
