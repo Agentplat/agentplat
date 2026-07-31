@@ -4,8 +4,10 @@ Status: Increment 0 and Increment 1 complete; Increment 2 Objective projection,
 authenticated ingress and bounded topic delivery implemented. The owner-side
 Allocation handshake is implemented through award, acceptance, decline and
 acceptance timeout. The paired assignee-side slice accepts verified direct
-awards and prepares one locally recorded accept/decline dispatch; execution,
-lease and recovery remain pending.
+awards and prepares one locally recorded accept/decline dispatch. The initial
+execution lifecycle implements progress, checkpoint, result, release and
+cancellation; lease renewal, reassignment, recovery, resilience simulation and
+release publication remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -204,9 +206,11 @@ Registry and Git mutations are checked only after independent verification.
 - [x] local accept/decline preparation has exact idempotency, conflict
       rejection and an exclusive response deadline;
 - [ ] reassignment reuses the existing commitment without double charging;
-- [ ] progress, checkpoint and result require accepted assignment authority;
+- [x] progress, checkpoint and result require accepted assignment authority;
 - [ ] duplicate and reordered records produce the same final projection;
-- [ ] result completion retains committed units as consumed Objective capacity;
+- [x] result completion retains committed units as consumed Objective capacity;
+- [x] release and cancellation create terminal execution heads; active terminal
+      accounting does not uncommit Objective budget;
 - [x] first-offer budget arithmetic rejects a limit breach before mutation.
 
 ### First Allocation sub-slice evidence
@@ -242,9 +246,9 @@ Registry and Git mutations are checked only after independent verification.
   deadline timeout, exact causation/authority/deadline rejection, duplicate and
   conflict behavior, early bid-window closure, exactly-once reserve-to-commit
   or release accounting, migration and adversarial restored snapshots;
-- assignee-side award intake, response preparation/delivery, progress,
-  checkpoint, result, lease and recovery remain explicitly out of scope for
-  this owner-side runtime slice.
+- assignee-side award intake, response preparation/delivery, execution,
+  lease and recovery were delivered by later slices; this owner-side evidence
+  remains scoped to award and response handling.
 
 ### Assignee-side award and response sub-slice evidence
 
@@ -266,8 +270,30 @@ Registry and Git mutations are checked only after independent verification.
 - `tests/mesh-assignment.test.mjs` covers causal offer chains, intake, dispatch,
   exclusive deadline, capacity/restore/migration, mismatch rejection and exact
   idempotency;
-- execution records for progress, checkpoints, results, renewals, reassignment
-  and recovery remain explicitly out of scope.
+- lease renewal, reassignment and recovery remain explicitly out of scope.
+
+### Execution-lifecycle sub-slice evidence
+
+- `packages/mesh/src/coordination-execution.ts` appends bounded signed
+  progress, checkpoint, result, release and cancellation records, derives one
+  immutable head per assignment scope, and rejects stale role, audience,
+  Objective/Work, epoch, token, causation, sequence and deadline bindings
+  before mutation;
+- `packages/mesh/src/coordination-allocation-state.ts` moves the separately
+  restorable Allocation snapshot to schema version 4. Versions 1–3 migrate
+  deterministically with empty execution indexes and conservative derived
+  limits; strict restore binds heads, terminal evidence and coordination domain
+  records;
+- `packages/mesh/src/coordination-inbound.ts` enables authenticated Allocation
+  ingress, ordering context, cryptographic verification, admission and
+  instance checks, replay accounting, then execution domain evaluation;
+- `tests/mesh-allocation.test.mjs` and `tests/mesh-assignment.test.mjs` cover
+  progress/checkpoint/result causality, exact idempotency and conflicts,
+  terminal result/release/cancellation behavior, stale authority and expiry,
+  bounded retention, migration and adversarial restore checks;
+- `tests/mesh-coordination-allocation-inbound.test.mjs` covers authenticated
+  inbound progress and replay accounting retained after an execution-domain
+  rejection.
 
 ## Lease, epoch and fencing
 
@@ -278,7 +304,7 @@ Registry and Git mutations are checked only after independent verification.
 - [ ] recovered fencing token equals `certificateId`;
 - [ ] renewals preserve assignee, epoch and token;
 - [ ] renewals stay within Objective duration and count limits;
-- [ ] expired leases authorize no new progress, checkpoint or result;
+- [x] the initial expired lease authorizes no new progress;
 - [ ] a higher accepted epoch permanently fences lower epochs;
 - [x] a same-epoch record with a different token is rejected;
 - [ ] stale rejection does not mutate projection, journal, reservation or

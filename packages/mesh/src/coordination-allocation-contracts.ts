@@ -6,6 +6,11 @@ import type {
   WorkAwardPayload,
   WorkDeclinePayload,
   WorkOfferPayload,
+  WorkProgressPayload,
+  WorkCheckpointPayload,
+  WorkResultPayload,
+  WorkReleasePayload,
+  WorkCancelPayload,
 } from "@agentplat/mesh-protocol";
 
 import type { MeshLogicalTime, MeshPeerIdentity } from "./contracts.js";
@@ -23,7 +28,13 @@ import type {
 
 /** The externally visible allocation status for one local Work Item. */
 export type MeshWorkAllocationPhase =
-  "ready" | "offered" | "award_pending" | "active";
+  | "ready"
+  | "offered"
+  | "award_pending"
+  | "active"
+  | "completed"
+  | "released"
+  | "cancelled";
 
 /** Exact normalized Objective, policy, and Work revision used for allocation. */
 export interface MeshAllocationWorkBinding {
@@ -115,7 +126,7 @@ export interface MeshLocalAwardProjection extends MeshAllocationWorkBinding {
   readonly validityVerifiedAt: string;
   readonly reservationId: string;
   readonly status:
-    "awaiting_acceptance" | "accepted" | "declined" | "timed_out";
+    "awaiting_acceptance" | "accepted" | "declined" | "timed_out" | "cancelled";
   readonly recipientAward: MeshPreparedAwardEnvelope;
 }
 
@@ -167,7 +178,8 @@ export interface MeshReceivedAwardProjection {
   readonly acceptanceDeadlineTimerId: string;
   readonly acceptanceDeadlineTimerGeneration: number;
   readonly leaseExpiresAtLogical: MeshLogicalTime;
-  readonly status: "awaiting_response" | "accepted" | "declined" | "timed_out";
+  readonly status:
+    "awaiting_response" | "accepted" | "declined" | "timed_out" | "cancelled";
   readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
 }
 
@@ -201,6 +213,60 @@ export interface MeshAssigneeAssignmentAuthorityProjection {
   readonly leaseExpiresAt: string;
   readonly leaseExpiresAtLogical: MeshLogicalTime;
   readonly activatedAt: MeshLogicalTime;
+}
+
+/** Execution record families retained under a single assignment authority. */
+export type MeshExecutionRecordType =
+  "progress" | "checkpoint" | "result" | "release" | "cancel";
+
+export type MeshExecutionPayload =
+  | WorkProgressPayload
+  | WorkCheckpointPayload
+  | WorkResultPayload
+  | WorkReleasePayload
+  | WorkCancelPayload;
+
+/** Immutable signed execution evidence, keyed by its payload-specific record ID. */
+export interface MeshExecutionRecordProjection {
+  readonly recordType: MeshExecutionRecordType;
+  readonly recordId: string;
+  readonly direction: "local" | "received";
+  readonly recordedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
+}
+
+/** Full accepted authority and current lifecycle heads for one assignment scope. */
+export interface MeshExecutionHeadProjection {
+  readonly executionScopeKey: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assigneePeerId: string;
+  readonly awardId: string;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly acceptanceId: string;
+  /** Signed message ID of the acceptance that activated this authority. */
+  readonly acceptanceMessageId: string;
+  readonly workDeadline: string;
+  readonly workDeadlineAt: MeshLogicalTime;
+  readonly leaseExpiresAt: string;
+  readonly leaseExpiresAtLogical: MeshLogicalTime;
+  readonly phase: "active" | "completed" | "released" | "cancelled";
+  readonly latestProgressId?: string;
+  readonly latestProgressSequence?: number;
+  readonly latestCheckpointId?: string;
+  readonly latestCheckpointSequence?: number;
+  readonly resultId?: string;
+  readonly terminalRecordId?: string;
+  readonly terminalAt?: MeshLogicalTime;
 }
 
 /** Current bid revision for exactly one [offerId, bidderPeerId] pair. */
@@ -252,11 +318,14 @@ export interface MeshAllocationLimits {
   readonly maximumReceivedAwards: number;
   readonly maximumLocalAssignmentResponses: number;
   readonly maximumAssignmentAuthorities: number;
+  readonly maximumExecutionRecords: number;
+  readonly maximumExecutionHeads: number;
+  readonly maximumExecutionRecordsPerAssignment: number;
 }
 
 /** Independently restorable offer, bid, award and response projection. */
 export interface MeshAllocationState {
-  readonly schemaVersion: 3;
+  readonly schemaVersion: 4;
   readonly identity: MeshPeerIdentity;
   readonly workAllocations: Readonly<
     Record<string, MeshWorkAllocationProjection>
@@ -291,6 +360,14 @@ export interface MeshAllocationState {
   readonly assigneeAuthorities: Readonly<
     Record<string, MeshAssigneeAssignmentAuthorityProjection>
   >;
+  /** Retained signed execution records keyed by their payload record ID. */
+  readonly executionRecords: Readonly<
+    Record<string, MeshExecutionRecordProjection>
+  >;
+  /** Active or terminal execution lifecycle head keyed by assignment scope. */
+  readonly executionHeads: Readonly<
+    Record<string, MeshExecutionHeadProjection>
+  >;
   readonly reservations: Readonly<Record<string, MeshAllocationReservation>>;
   readonly limits: MeshAllocationLimits;
   readonly lastLogicalTime: MeshLogicalTime;
@@ -314,7 +391,12 @@ export type MeshAllocationPayload =
   | WorkBidPayload
   | WorkAwardPayload
   | WorkAcceptPayload
-  | WorkDeclinePayload;
+  | WorkDeclinePayload
+  | WorkProgressPayload
+  | WorkCheckpointPayload
+  | WorkResultPayload
+  | WorkReleasePayload
+  | WorkCancelPayload;
 
 /** A verified remote bid or assignment response with receiver-controlled time. */
 export interface MeshVerifiedAllocationRequest {
@@ -365,6 +447,13 @@ export interface MeshLocalAssignmentResponseCommand {
   readonly envelope: SignedMeshEnvelope<WorkAcceptPayload | WorkDeclinePayload>;
 }
 
+/** Local execution command; the supplied envelope is already signed and addressed. */
+export interface MeshLocalExecutionCommand {
+  readonly kind: "allocation.execution";
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
+}
+
 export interface MeshLocalAwardPreparedRecipient {
   readonly recipientPeerId: string;
   readonly preparedAt: MeshLogicalTime;
@@ -381,7 +470,8 @@ export type MeshAllocationCommand =
   | MeshLocalOfferCommand
   | MeshLocalAwardCommand
   | MeshLocalBidCommand
-  | MeshLocalAssignmentResponseCommand;
+  | MeshLocalAssignmentResponseCommand
+  | MeshLocalExecutionCommand;
 
 export type MeshAllocationBidSelectionReason =
   | "offer_missing"
@@ -430,6 +520,14 @@ export type MeshAllocationEffect =
       readonly envelope: SignedMeshEnvelope<
         WorkAcceptPayload | WorkDeclinePayload
       >;
+    }
+  | {
+      readonly kind: "allocation.execution.dispatch";
+      readonly recordId: string;
+      readonly recordType: MeshExecutionRecordType;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
     };
 
 export type MeshAllocationRejectionCode =
@@ -473,6 +571,14 @@ export type MeshAllocationRejectionCode =
   | "local_assignment_response_duplicate_conflict"
   | "local_assignment_response_capacity_exceeded"
   | "assignment_authority_capacity_exceeded"
+  | "execution_invalid"
+  | "execution_duplicate_conflict"
+  | "execution_capacity_exceeded"
+  | "execution_head_capacity_exceeded"
+  | "execution_records_per_assignment_exceeded"
+  | "execution_authority_invalid"
+  | "execution_deadline_elapsed"
+  | "execution_phase_invalid"
   | "recipient_capacity_exceeded"
   | "bid_invalid"
   | "bid_duplicate_conflict"

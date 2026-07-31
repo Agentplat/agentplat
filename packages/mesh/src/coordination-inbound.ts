@@ -819,7 +819,12 @@ function validateAllocationFamily(
     type !== 'work.bid' &&
     type !== 'work.award' &&
     type !== 'work.accept' &&
-    type !== 'work.decline'
+    type !== 'work.decline' &&
+    type !== 'work.progress' &&
+    type !== 'work.checkpoint' &&
+    type !== 'work.result' &&
+    type !== 'work.release' &&
+    type !== 'work.cancel'
   ) {
     return 'unsupported_message_type';
   }

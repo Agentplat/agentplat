@@ -69,15 +69,22 @@
   signed Award for the deterministic current bid, atomic early bid-window
   closure, verified causal Accept/Decline handling, exclusive acceptance
   deadline and exactly-once reserved-to-committed or released Objective budget
-  accounting, plus causal monotonic later offer attempts. Assignee-side
-  response delivery, execution, lease and recovery remain pending.
+  accounting, plus causal monotonic later offer attempts.
 - Added the complementary assignee-side allocation handshake and authenticated
   allocation ingress: policy-bound direct Offer intake, locally prepared causal
   Bids, verified Award intake, exclusive response timers, signed Accept/Decline
   dispatch, immutable causal reoffers and one bounded local assignment
   authority per Work epoch. A terminal Award consumes its epoch; the initial
-  reducer does not reuse it with a different token. Execution records, lease
-  renewal and recovery remain pending.
+  reducer does not reuse it with a different token. Lease renewal and recovery
+  remain pending.
+- Added the bounded Allocation execution lifecycle for `work.progress`,
+  `work.checkpoint`, `work.result`, `work.release` and `work.cancel`.
+  Authenticated inbound and locally prepared records enforce exact assignment
+  authority, fencing token, causality, sequencing and initial-lease/Work
+  deadlines; terminal heads preserve committed-budget accounting. Allocation
+  snapshots now use schema version 4 and deterministically migrate versions
+  1–3 with empty execution evidence. Lease renewal, reassignment, recovery,
+  resilience simulation and release publication remain pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

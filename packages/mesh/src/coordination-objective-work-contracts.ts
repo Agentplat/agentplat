@@ -97,7 +97,7 @@ export interface MeshAcceptedObjectiveCancellation {
   readonly validityVerifiedAt: string;
 }
 
-/** Current locally-owned Work Item head. Allocation fields are deferred. */
+/** Current locally-owned Work Item head, including terminal allocation lifecycle. */
 export interface MeshWorkItemProjection {
   readonly objectiveId: string;
   readonly objectiveDocumentId: string;
@@ -119,7 +119,7 @@ export interface MeshWorkItemProjection {
   readonly expiryTimerId?: string;
   readonly expiryTimerGeneration?: number;
   readonly terminalAt?: MeshLogicalTime;
-  readonly status: "ready" | "cancelled" | "expired";
+  readonly status: "ready" | "completed" | "released" | "cancelled" | "expired";
   readonly createdAt: MeshLogicalTime;
   readonly updatedAt: MeshLogicalTime;
 }

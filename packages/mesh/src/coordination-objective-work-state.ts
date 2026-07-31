@@ -767,7 +767,9 @@ function validateWorkItem(
   if (
     !Number.isSafeInteger(value.budgetReservationUnits) ||
     value.budgetReservationUnits < 0 ||
-    !["ready", "cancelled", "expired"].includes(value.status) ||
+    !["ready", "completed", "released", "cancelled", "expired"].includes(
+      value.status,
+    ) ||
     (value.status === "ready" &&
       (!hasTimer ||
         !Number.isSafeInteger(value.expiryTimerGeneration) ||
@@ -796,10 +798,11 @@ function validateWorkItem(
     value.createdAt > value.updatedAt ||
     value.updatedAt > lastLogicalTime ||
     (value.status === "ready" && value.terminalAt !== undefined) ||
-    (value.status === "cancelled" &&
+    (["completed", "released", "cancelled"].includes(value.status) &&
       (value.terminalAt === undefined ||
         value.terminalAt !== value.updatedAt ||
         value.terminalAt < value.createdAt ||
+        value.terminalAt >= value.workDeadlineAt ||
         value.terminalAt > lastLogicalTime)) ||
     (value.status === "expired" &&
       (value.terminalAt === undefined ||
