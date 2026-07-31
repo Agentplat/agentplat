@@ -318,6 +318,156 @@ export interface EvidenceTrustLimitsV1 {
   readonly maximumReviewIntervalMs: number;
 }
 
+export type EvidenceRecordKindV1 =
+  "claim" | "attestation" | "challenge" | "retraction";
+export type EvidenceRecordStatusV1 =
+  | "active"
+  | "pending"
+  | "retracted"
+  | "challenged"
+  | "conflicted"
+  | "unavailable";
+export type EvidenceRecordOriginV1 = "local" | "verified_mesh";
+
+/** The accepted, content-bound form of an evidence record. */
+export interface EvidenceRecordStateV1 {
+  readonly schemaVersion: 1;
+  readonly recordKind: EvidenceRecordKindV1;
+  readonly recordId: string;
+  readonly recordDigest: string;
+  readonly record: EvidenceRecordV1;
+  readonly origin: EvidenceRecordOriginV1;
+  readonly originBindingDigest: string;
+  readonly originVerifierBindingDigest: string | null;
+  readonly originProofDigest: string | null;
+  readonly acceptedAtLogicalMs: number;
+  readonly effectiveAtLogicalMs: number;
+  readonly status: EvidenceRecordStatusV1;
+}
+
+export interface EvidenceContentResolutionV1 {
+  readonly schemaVersion: 1;
+  readonly resolutionId: string;
+  readonly resolutionDigest: string;
+  readonly claimId: string;
+  readonly claimDigest: string;
+  readonly scopeDigest: string;
+  readonly referenceId: string;
+  readonly referenceDigest: string;
+  readonly contentDigest: string;
+  readonly mediaType: string;
+  readonly encodedBytes: number;
+  readonly result: "verified" | "unavailable" | "mismatched";
+  readonly resolverBindingDigest: string;
+  readonly resolvedAtLogicalMs: number;
+}
+export type EvidenceContentProjectionStatusV1 =
+  "verified" | "unavailable" | "mismatched" | "stale" | "not_required";
+
+export interface EvidenceContentResolutionInvalidationV1 {
+  readonly schemaVersion: 1;
+  readonly invalidationId: string;
+  readonly resolutionId: string;
+  readonly resolutionDigest: string;
+  readonly resolverBindingDigest: string;
+  readonly invalidatedAtLogicalMs: number;
+  readonly reasonCode: TrustReasonCodeV1;
+}
+
+export interface EvidenceTrustDiagnosticV1 {
+  readonly schemaVersion: 1;
+  readonly recordId: string;
+  readonly recordDigest: string;
+  readonly reasonCode: TrustReasonCodeV1;
+}
+
+/** Runtime capability owned by the authenticated Mesh ingress adapter, never wire data. */
+export interface EvidenceTrustVerifiedMeshAdmissionVerifierV1 {
+  readonly verifierBindingDigest: string;
+  readonly upstreamBindingDigest: string;
+  verify(input: {
+    readonly recordId: string;
+    readonly recordDigest: string;
+    readonly originBindingDigest: string;
+    readonly originVerifierBindingDigest: string;
+    readonly originProofDigest: string;
+    readonly effectiveAtLogicalMs: number;
+  }): boolean;
+}
+
+/** Construction-bound historical registry; Mesh owns its retention and lookup. */
+export interface EvidenceTrustVerifiedMeshAdmissionVerifierRegistryV1 {
+  resolve(
+    verifierBindingDigest: string,
+  ): EvidenceTrustVerifiedMeshAdmissionVerifierV1 | null;
+}
+
+export interface EvidenceTrustReducerOptionsV1 {
+  /** Construction-bound synchronous capability supplied only by Mesh ingress. */
+  readonly verifiedMeshAdmissionVerifierRegistry?: EvidenceTrustVerifiedMeshAdmissionVerifierRegistryV1;
+  /** The active resolver binding required for positive content resolutions. */
+  readonly currentContentResolverBindingDigest?: string | null;
+}
+export interface EvidenceTrustRestoreOptionsV1 {
+  readonly verifiedMeshAdmissionVerifierRegistry?: EvidenceTrustVerifiedMeshAdmissionVerifierRegistryV1;
+  readonly currentContentResolverBindingDigest?: string | null;
+}
+
+export type EvidenceTrustInputV1 =
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "record_admitted";
+      readonly record: EvidenceRecordV1;
+      readonly origin: EvidenceRecordOriginV1;
+      readonly originBindingDigest: string;
+      readonly originVerifierBindingDigest: string | null;
+      readonly originProofDigest: string | null;
+      /** Historical effective time; it may not be later than admission time. */
+      readonly effectiveAtLogicalMs: number;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "content_resolution_recorded";
+      readonly resolution: Omit<
+        EvidenceContentResolutionV1,
+        "resolutionId" | "resolutionDigest" | "resolvedAtLogicalMs"
+      >;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "content_resolution_invalidated";
+      readonly invalidation: Omit<
+        EvidenceContentResolutionInvalidationV1,
+        "invalidationId" | "invalidatedAtLogicalMs"
+      >;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "advance_logical_time";
+      readonly logicalTimeMs: number;
+    };
+
+export interface EvidenceTrustEffectV1 {
+  readonly schemaVersion: 1;
+  readonly kind:
+    | "record_accepted"
+    | "record_duplicate"
+    | "record_status_changed"
+    | "content_resolution_recorded"
+    | "content_invalidation_recorded"
+    | "logical_time_advanced";
+  readonly recordId: string | null;
+  readonly recordDigest: string | null;
+  readonly reasonCode: TrustReasonCodeV1;
+}
+export interface EvidenceTrustReducerResultV1 {
+  readonly state: EvidenceTrustStateV1;
+  readonly effects: readonly EvidenceTrustEffectV1[];
+}
+
 export interface EvidenceTrustStateV1 {
   readonly schemaVersion: 1;
   readonly stateId: string;
@@ -327,14 +477,14 @@ export interface EvidenceTrustStateV1 {
   readonly policyHeads: readonly JsonValue[];
   readonly sourceBindings: readonly JsonValue[];
   readonly dependencyBindings: readonly JsonValue[];
-  readonly records: readonly JsonValue[];
-  readonly contentResolutions: readonly JsonValue[];
-  readonly contentInvalidations: readonly JsonValue[];
-  readonly pendingRecords: readonly JsonValue[];
+  readonly records: readonly EvidenceRecordStateV1[];
+  readonly contentResolutions: readonly EvidenceContentResolutionV1[];
+  readonly contentInvalidations: readonly EvidenceContentResolutionInvalidationV1[];
+  readonly pendingRecords: readonly string[];
   readonly fusionDecisions: readonly JsonValue[];
   readonly profiles: readonly JsonValue[];
   readonly quarantines: readonly JsonValue[];
-  readonly diagnostics: readonly JsonValue[];
+  readonly diagnostics: readonly EvidenceTrustDiagnosticV1[];
   readonly traceDigest: string;
   readonly encodedBytes: number;
 }

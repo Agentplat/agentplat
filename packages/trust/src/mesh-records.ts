@@ -49,6 +49,7 @@ export function normalizeMeshEvidenceScopeV1(
   if (envelope.causationId !== null)
     assertIdentifier(envelope.causationId, "causationId");
   if (wireScope.kind === "mesh") {
+    assertExactKeys(wireScope, ["kind"], "mesh wire scope");
     if (envelope.objectiveId !== null)
       throw new TrustValidationError("mesh scope forbids objectiveId");
     return {
@@ -58,10 +59,17 @@ export function normalizeMeshEvidenceScopeV1(
       meshId: envelope.meshId,
     };
   }
+  if (wireScope.kind !== "objective" && wireScope.kind !== "work")
+    throw new TrustValidationError("mesh wire scope kind is invalid");
   if (envelope.objectiveId === null)
     throw new TrustValidationError("objective scope requires objectiveId");
   assertSafeInteger(wireScope.objectiveRevision, "objectiveRevision", 1);
-  if (wireScope.kind === "objective")
+  if (wireScope.kind === "objective") {
+    assertExactKeys(
+      wireScope,
+      ["kind", "objectiveRevision"],
+      "objective wire scope",
+    );
     return {
       schemaVersion: 1,
       kind: "objective",
@@ -70,6 +78,20 @@ export function normalizeMeshEvidenceScopeV1(
       objectiveId: envelope.objectiveId,
       objectiveRevision: wireScope.objectiveRevision,
     };
+  }
+  assertExactKeys(
+    wireScope,
+    [
+      "kind",
+      "objectiveRevision",
+      "workItemId",
+      "workItemRevision",
+      "assignmentEpoch",
+      "assignmentAuthorityId",
+      "fencingToken",
+    ],
+    "work wire scope",
+  );
   for (const key of ["workItemId", "assignmentAuthorityId"] as const)
     assertIdentifier(wireScope[key], key);
   for (const key of ["workItemRevision", "assignmentEpoch"] as const)

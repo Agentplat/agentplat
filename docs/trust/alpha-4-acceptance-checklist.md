@@ -237,6 +237,9 @@ open until their corresponding transition is complete.
       contradiction with an explicit reason;
 - [ ] support and contradiction require both group-count and weight thresholds;
 - [ ] simultaneous thresholds produce contested, not an arbitrary tie-break;
+- [ ] inter-Challenge basis dependencies use the well-founded lower fixed
+      point; acyclic blockers may be defeated and recursive blocker cycles are
+      unavailable without arrival-order selection;
 - [ ] contradicted Claims are excluded and never inverted into facts;
 - [ ] supported violated Claims are the only negative Claim contributions;
 - [ ] decay uses trusted effective time and integer steps;

@@ -833,6 +833,18 @@ Every evaluation recomputes grouped resolution from retained Evidence at the
 supplied logical time, so no arrival order or mutable status rewrite determines
 the outcome.
 
+When active Challenges target Evidence used as another Challenge's basis, V1
+uses a well-founded alternating projection over the complete structurally valid
+Challenge set. The lower fixed point contains definitely active Challenges; a
+Challenge left only in the upper set by an odd or mutually recursive blocker
+cycle is `unavailable` with `challenge_basis_unavailable`. This permits an
+acyclic dependent Challenge to become active again when its blocker is itself
+defeated, while cycles never select a winner by arrival or digest order.
+The blocker closure follows explicit `evidence` basis edges. A direct
+Attestation-to-Claim target relationship remains inspectable when only the
+Claim is challenged; it is attribution, not an implicit basis edge. The
+Attestation still cannot qualify that challenged Claim for Fusion.
+
 ## Retraction contract
 
 `EvidenceRetractionV1` contains exactly:

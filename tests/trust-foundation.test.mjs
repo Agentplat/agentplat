@@ -13,6 +13,7 @@ import {
   createTrustObservationV1,
   digestTrustJsonV1,
   restoreEvidenceTrustSnapshotV1,
+  reduceEvidenceTrustStateV1,
   sha256TrustBytesV1,
   validateEvidenceReferenceV1,
   validateEvidenceScopeV1,
@@ -22,6 +23,7 @@ import {
   normalizeMeshEvidenceAttestationV1,
   normalizeMeshEvidenceChallengeV1,
   normalizeMeshEvidenceRetractionV1,
+  normalizeMeshEvidenceScopeV1,
   normalizeMeshTrustObservationV1,
 } from "../packages/trust/dist/mesh-records.js";
 
@@ -73,6 +75,10 @@ test("Trust canonical JSON and SHA-256 are deterministic and browser-safe", () =
   assert.throws(
     () => canonicalizeTrustJsonV1({ [Symbol("smuggled")]: true }),
     /symbol/u,
+  );
+  assert.throws(
+    () => digestTrustJsonV1("not-a-trust-domain", scope),
+    /domain/u,
   );
 });
 
@@ -317,13 +323,20 @@ test("Trust derives content-bound claim IDs and pure Mesh normalizers preserve c
     }).observationId,
     expectedObservation.observationId,
   );
+  assert.throws(
+    () =>
+      normalizeMeshEvidenceScopeV1(envelope, { kind: "mesh", smuggled: true }),
+    /shape/u,
+  );
 });
 
 test("Trust snapshots require the matching external protector and rollback anchor", () => {
   const protectorBindingDigest = digest("e");
+  let protectedMaterial = null;
   const protector = {
     bindingDigest: protectorBindingDigest,
     protect(bytes) {
+      protectedMaterial = bytes;
       return {
         algorithmId: "test",
         keyId: "key-a",
@@ -344,6 +357,12 @@ test("Trust snapshots require the matching external protector and rollback ancho
     createdAtLogicalMs: 0,
     protector,
   });
+  assert.equal(
+    new TextDecoder()
+      .decode(protectedMaterial)
+      .startsWith("agentplat.trust/snapshot-integrity/v1\0"),
+    true,
+  );
   const restored = restoreEvidenceTrustSnapshotV1(
     snapshot,
     {
@@ -373,4 +392,50 @@ test("Trust snapshots require the matching external protector and rollback ancho
       ),
     /rollback/u,
   );
+});
+
+test("snapshot protector binding is authoritative and snapshot time cannot roll back", () => {
+  const binding = digest("a");
+  const protector = {
+    bindingDigest: binding,
+    protect() {
+      return {
+        protectorBindingDigest: digest("b"),
+        algorithmId: "test",
+        keyId: "key-a",
+        encoding: "base64url",
+        proof: "proof-a",
+      };
+    },
+    verify() {
+      return true;
+    },
+  };
+  const state = reduceEvidenceTrustStateV1(
+    createEvidenceTrustStateV1({ stateId: "state-snapshot-time" }),
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 5,
+    },
+  ).state;
+  assert.throws(
+    () =>
+      createEvidenceTrustSnapshotV1({
+        state,
+        generation: 1,
+        previousSnapshotDigest: null,
+        createdAtLogicalMs: 4,
+        protector,
+      }),
+    /high-water/u,
+  );
+  const snapshot = createEvidenceTrustSnapshotV1({
+    state,
+    generation: 1,
+    previousSnapshotDigest: null,
+    createdAtLogicalMs: 5,
+    protector,
+  });
+  assert.equal(snapshot.integrityProof.protectorBindingDigest, binding);
 });

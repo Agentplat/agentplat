@@ -3,6 +3,43 @@ import type { TrustDigestDomainV1 } from "./types.js";
 import { sha256Hex } from "./sha256.js";
 
 const encoder = new TextEncoder();
+const trustDigestDomains = new Set<TrustDigestDomainV1>([
+  "scope",
+  "subject",
+  "claim",
+  "claim-relation",
+  "attestation",
+  "attestation-relation",
+  "challenge",
+  "challenge-relation",
+  "challenge-resolution",
+  "retraction",
+  "retraction-relation",
+  "assertion",
+  "root-basis",
+  "content-resolution",
+  "content-resolution-invalidation",
+  "policy",
+  "source-binding",
+  "fusion-input",
+  "fusion-decision",
+  "profile-key",
+  "profile",
+  "eligibility-request",
+  "eligibility-decision",
+  "quarantine-key",
+  "quarantine-evidence-set",
+  "quarantine-record",
+  "recovery-evidence-set",
+  "recovery-decision",
+  "dependency-binding",
+  "origin-proof",
+  "state",
+  "snapshot",
+  "snapshot-integrity",
+  "trace",
+  "observation",
+]);
 
 export class TrustValidationError extends Error {
   readonly name = "TrustValidationError";
@@ -152,10 +189,13 @@ export function canonicalTrustJsonBytesV1(
 export function digestTrustJsonV1(
   domain: TrustDigestDomainV1,
   value: JsonValue,
+  limits?: StrictJsonLimitsV1,
 ): string {
+  if (!trustDigestDomains.has(domain))
+    throw new TrustValidationError("digest domain is invalid");
   return sha256Hex(
     encoder.encode(
-      `agentplat.trust/${domain}/v1\0${canonicalizeTrustJsonV1(value)}`,
+      `agentplat.trust/${domain}/v1\0${canonicalizeTrustJsonV1(value, limits)}`,
     ),
   );
 }

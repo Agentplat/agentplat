@@ -1,6 +1,7 @@
 import type { JsonValue } from "@agentplat/core";
 import {
   canonicalTrustJsonBytesV1,
+  canonicalizeTrustJsonV1,
   deepFreeze,
   digestTrustJsonV1,
   TrustValidationError,
@@ -12,13 +13,44 @@ import type {
   EvidenceTrustSnapshotProtectorV1,
   EvidenceTrustSnapshotV1,
   EvidenceTrustStateV1,
+  EvidenceTrustRestoreOptionsV1,
 } from "./types.js";
 import {
   assertExactKeys,
   assertIdentifier,
   assertSafeInteger,
   assertTrustDigest,
+  validateReasonCodeV1,
 } from "./validation.js";
+import {
+  validateEvidenceContentResolutionInvalidationV1,
+  validateEvidenceContentResolutionV1,
+  validateEvidenceRecordStateV1,
+  projectEvidenceLifecycleV1,
+  resolveVerifiedMeshAdmissionVerifierV1,
+} from "./lifecycle.js";
+import { digestScopeV1 } from "./evidence.js";
+
+const stateCanonicalLimits = (maximumBytes: number) => ({
+  maximumBytes,
+  maximumDepth: 64,
+  maximumNodes: 100_000,
+  maximumKeysPerObject: 256,
+  maximumItemsPerArray: 100_000,
+});
+const compareUnicode = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+function assertCanonicalOrder(values: readonly string[], label: string): void {
+  if (
+    values.some(
+      (value, index) =>
+        index > 0 && compareUnicode(values[index - 1], value) >= 0,
+    )
+  )
+    throw new TrustValidationError(
+      `${label} must be canonically ordered and unique`,
+    );
+}
 
 export const EVIDENCE_TRUST_LIMITS_V1: Readonly<EvidenceTrustLimitsV1> =
   Object.freeze({
@@ -118,7 +150,11 @@ export function createEvidenceTrustStateV1(input: {
     traceDigest: digestTrustJsonV1("trace", []),
     encodedBytes: 0,
   };
-  return validateEvidenceTrustStateV1(state);
+  const encodedBytes = canonicalTrustJsonBytesV1(
+    state as unknown as JsonValue,
+    stateCanonicalLimits(limits.maximumStateCanonicalBytes),
+  ).byteLength;
+  return validateEvidenceTrustStateV1({ ...state, encodedBytes });
 }
 export function validateEvidenceTrustStateV1(
   value: unknown,
@@ -130,6 +166,7 @@ export function validateEvidenceTrustStateV1(
   assertIdentifier(state.stateId, "stateId");
   const limits = validateEvidenceTrustLimitsV1(state.limits);
   assertSafeInteger(state.logicalTimeHighWaterMs, "logicalTimeHighWaterMs");
+  const logicalTimeHighWaterMs = state.logicalTimeHighWaterMs as number;
   assertTrustDigest(state.traceDigest, "traceDigest");
   assertSafeInteger(state.encodedBytes, "encodedBytes");
   for (const key of [
@@ -137,29 +174,220 @@ export function validateEvidenceTrustStateV1(
     "policyHeads",
     "sourceBindings",
     "dependencyBindings",
-    "records",
-    "contentResolutions",
-    "contentInvalidations",
-    "pendingRecords",
     "fusionDecisions",
     "profiles",
     "quarantines",
-    "diagnostics",
   ] as const) {
     if (!Array.isArray(state[key]) || state[key].length !== 0)
       throw new TrustValidationError(
         `${key} is unavailable before its increment`,
       );
   }
-  const cloned = structuredClone({ ...state, limits }) as EvidenceTrustStateV1;
-  const bytes = canonicalTrustJsonBytesV1(cloned as unknown as JsonValue, {
-    maximumBytes: limits.maximumStateCanonicalBytes,
-    maximumDepth: 64,
-    maximumNodes: 100_000,
-    maximumKeysPerObject: 256,
-    maximumItemsPerArray: 100_000,
+  if (
+    !Array.isArray(state.records) ||
+    !Array.isArray(state.contentResolutions) ||
+    !Array.isArray(state.contentInvalidations) ||
+    !Array.isArray(state.pendingRecords) ||
+    !Array.isArray(state.diagnostics)
+  )
+    throw new TrustValidationError("lifecycle state arrays are invalid");
+  const records = state.records.map(validateEvidenceRecordStateV1);
+  assertCanonicalOrder(
+    records.map((item) => item.recordDigest),
+    "records",
+  );
+  if (new Set(records.map((item) => item.recordId)).size !== records.length)
+    throw new TrustValidationError("record IDs must be unique");
+  if (records.some((item) => item.acceptedAtLogicalMs > logicalTimeHighWaterMs))
+    throw new TrustValidationError(
+      "record acceptance exceeds state high-water",
+    );
+  const counts = { claim: 0, attestation: 0, challenge: 0, retraction: 0 };
+  for (const record of records) counts[record.recordKind] += 1;
+  if (
+    counts.claim > limits.maximumClaims ||
+    counts.attestation > limits.maximumAttestations ||
+    counts.challenge > limits.maximumChallenges ||
+    counts.retraction > limits.maximumRetractions
+  )
+    throw new TrustValidationError("record family capacity exceeded");
+  if (
+    records.some(
+      (item) =>
+        "basisReferences" in item.record &&
+        item.record.basisReferences.length >
+          limits.maximumBasisReferencesPerRecord,
+    )
+  )
+    throw new TrustValidationError("basis reference capacity exceeded");
+  if (
+    records.some(
+      (item) =>
+        item.recordKind === "claim" &&
+        "content" in item.record &&
+        item.record.content !== null &&
+        item.record.content.encodedBytes >
+          (item.record.content.kind === "reference"
+            ? limits.maximumContentReferenceBytes
+            : limits.maximumInlineSummaryBytes),
+    )
+  )
+    throw new TrustValidationError("evidence content size limit exceeded");
+  const challengeCounts = new Map<string, { total: number; pending: number }>();
+  for (const record of records) {
+    if (record.recordKind !== "challenge") continue;
+    const key = `${record.record.sourceKind}\u0000${record.record.sourceId}\u0000${digestScopeV1(record.record.scope)}`;
+    const count = challengeCounts.get(key) ?? { total: 0, pending: 0 };
+    count.total += 1;
+    if (record.status === "pending") count.pending += 1;
+    challengeCounts.set(key, count);
+  }
+  if (
+    [...challengeCounts.values()].some(
+      (count) =>
+        count.total > limits.maximumChallengesPerSourceScope ||
+        count.pending > limits.maximumPendingChallengesPerSourceScope,
+    )
+  )
+    throw new TrustValidationError("challenge source scope capacity exceeded");
+  const resolutions = state.contentResolutions.map(
+    validateEvidenceContentResolutionV1,
+  );
+  assertCanonicalOrder(
+    resolutions.map((item) => item.resolutionDigest),
+    "content resolutions",
+  );
+  if (
+    new Set(resolutions.map((item) => item.resolutionId)).size !==
+    resolutions.length
+  )
+    throw new TrustValidationError("content resolution IDs must be unique");
+  if (
+    resolutions.length > limits.maximumContentResolutions ||
+    resolutions.some(
+      (item) => item.resolvedAtLogicalMs > logicalTimeHighWaterMs,
+    )
+  )
+    throw new TrustValidationError("content resolution state is invalid");
+  for (const resolution of resolutions) {
+    const claim = records.find(
+      (item) =>
+        item.recordKind === "claim" &&
+        item.recordId === resolution.claimId &&
+        item.recordDigest === resolution.claimDigest,
+    );
+    const content =
+      claim && "content" in claim.record ? claim.record.content : null;
+    if (
+      !claim ||
+      digestScopeV1(claim.record.scope) !== resolution.scopeDigest ||
+      !content ||
+      content.kind !== "reference" ||
+      content.reference.referenceId !== resolution.referenceId ||
+      content.reference.referenceDigest !== resolution.referenceDigest ||
+      content.contentDigest !== resolution.contentDigest ||
+      content.mediaType !== resolution.mediaType ||
+      content.encodedBytes !== resolution.encodedBytes
+    )
+      throw new TrustValidationError(
+        "content resolution does not bind claim content",
+      );
+  }
+  const invalidations = state.contentInvalidations.map(
+    validateEvidenceContentResolutionInvalidationV1,
+  );
+  assertCanonicalOrder(
+    invalidations.map((item) => item.invalidationId),
+    "content invalidations",
+  );
+  if (
+    new Set(invalidations.map((item) => item.invalidationId)).size !==
+    invalidations.length
+  )
+    throw new TrustValidationError("content invalidation IDs must be unique");
+  if (
+    invalidations.length > limits.maximumContentInvalidations ||
+    invalidations.some(
+      (item) => item.invalidatedAtLogicalMs > logicalTimeHighWaterMs,
+    )
+  )
+    throw new TrustValidationError("content invalidation state is invalid");
+  if (
+    invalidations.some(
+      (item) =>
+        !resolutions.some(
+          (resolution) =>
+            resolution.resolutionId === item.resolutionId &&
+            resolution.resolutionDigest === item.resolutionDigest &&
+            resolution.resolverBindingDigest === item.resolverBindingDigest &&
+            item.invalidatedAtLogicalMs >= resolution.resolvedAtLogicalMs,
+        ),
+    )
+  )
+    throw new TrustValidationError(
+      "content invalidation does not bind a resolution",
+    );
+  const pendingRecords = state.pendingRecords.map((item) => {
+    assertIdentifier(item, "pendingRecord");
+    return item as string;
   });
-  if (bytes.byteLength !== cloned.encodedBytes && cloned.encodedBytes !== 0)
+  assertCanonicalOrder(pendingRecords, "pending records");
+  const expectedPending = records
+    .filter((item) => item.status === "pending")
+    .map((item) => item.recordId)
+    .sort(compareUnicode);
+  if (
+    pendingRecords.length !== expectedPending.length ||
+    pendingRecords.some((item, index) => item !== expectedPending[index])
+  )
+    throw new TrustValidationError("pending index does not match records");
+  if (pendingRecords.length > limits.maximumPendingRecords)
+    throw new TrustValidationError("pending record capacity exceeded");
+  const diagnostics = state.diagnostics.map((item) => {
+    assertExactKeys(
+      item,
+      ["schemaVersion", "recordId", "recordDigest", "reasonCode"],
+      "diagnostic",
+    );
+    const value = item as Record<string, unknown>;
+    if (value.schemaVersion !== 1)
+      throw new TrustValidationError("diagnostic schema is invalid");
+    assertIdentifier(value.recordId, "diagnostic.recordId");
+    assertTrustDigest(value.recordDigest, "diagnostic.recordDigest");
+    validateReasonCodeV1(value.reasonCode);
+    return value as unknown as EvidenceTrustStateV1["diagnostics"][number];
+  });
+  assertCanonicalOrder(
+    diagnostics.map((item) => item.recordDigest),
+    "diagnostics",
+  );
+  if (diagnostics.length > limits.maximumDiagnostics)
+    throw new TrustValidationError("diagnostic capacity exceeded");
+  if (
+    diagnostics.some(
+      (diagnostic) =>
+        !records.some(
+          (record) =>
+            record.recordId === diagnostic.recordId &&
+            record.recordDigest === diagnostic.recordDigest,
+        ),
+    )
+  )
+    throw new TrustValidationError("diagnostic does not bind a record");
+  const cloned = structuredClone({
+    ...state,
+    limits,
+    records,
+    contentResolutions: resolutions,
+    contentInvalidations: invalidations,
+    pendingRecords,
+    diagnostics,
+  }) as unknown as EvidenceTrustStateV1;
+  const bytes = canonicalTrustJsonBytesV1(
+    { ...cloned, encodedBytes: 0 } as unknown as JsonValue,
+    stateCanonicalLimits(limits.maximumStateCanonicalBytes),
+  );
+  if (bytes.byteLength !== cloned.encodedBytes)
     throw new TrustValidationError("encodedBytes does not match state");
   return deepFreeze(cloned);
 }
@@ -174,14 +402,16 @@ function snapshotMaterial(
     | "stateDigest"
   >,
 ): Uint8Array {
-  return canonicalTrustJsonBytesV1({
-    stateId: snapshot.stateId,
-    generation: snapshot.generation,
-    previousSnapshotDigest: snapshot.previousSnapshotDigest,
-    createdAtLogicalMs: snapshot.createdAtLogicalMs,
-    snapshotDigest: snapshot.snapshotDigest,
-    stateDigest: snapshot.stateDigest,
-  });
+  return new TextEncoder().encode(
+    `agentplat.trust/snapshot-integrity/v1\0${canonicalizeTrustJsonV1({
+      stateId: snapshot.stateId,
+      generation: snapshot.generation,
+      previousSnapshotDigest: snapshot.previousSnapshotDigest,
+      createdAtLogicalMs: snapshot.createdAtLogicalMs,
+      snapshotDigest: snapshot.snapshotDigest,
+      stateDigest: snapshot.stateDigest,
+    })}`,
+  );
 }
 export function createEvidenceTrustSnapshotV1(input: {
   readonly state: EvidenceTrustStateV1;
@@ -193,10 +423,20 @@ export function createEvidenceTrustSnapshotV1(input: {
   const state = validateEvidenceTrustStateV1(input.state);
   assertSafeInteger(input.generation, "generation", 1);
   assertSafeInteger(input.createdAtLogicalMs, "createdAtLogicalMs");
+  if (input.createdAtLogicalMs < state.logicalTimeHighWaterMs)
+    throw new TrustValidationError("snapshot time precedes state high-water");
+  if ((input.generation === 1) !== (input.previousSnapshotDigest === null))
+    throw new TrustValidationError(
+      "snapshot generation and predecessor are incoherent",
+    );
   if (input.previousSnapshotDigest !== null)
     assertTrustDigest(input.previousSnapshotDigest, "previousSnapshotDigest");
   assertTrustDigest(input.protector.bindingDigest, "protector.bindingDigest");
-  const stateDigest = digestTrustJsonV1("state", state as unknown as JsonValue);
+  const stateDigest = digestTrustJsonV1(
+    "state",
+    state as unknown as JsonValue,
+    stateCanonicalLimits(state.limits.maximumStateCanonicalBytes),
+  );
   const unsigned = {
     schemaVersion: 1 as const,
     stateId: state.stateId,
@@ -209,6 +449,7 @@ export function createEvidenceTrustSnapshotV1(input: {
   const snapshotDigest = digestTrustJsonV1(
     "snapshot",
     unsigned as unknown as JsonValue,
+    stateCanonicalLimits(state.limits.maximumStateCanonicalBytes),
   );
   const proof = input.protector.protect(
     snapshotMaterial({ ...unsigned, snapshotDigest }),
@@ -218,8 +459,8 @@ export function createEvidenceTrustSnapshotV1(input: {
     snapshotId: `snapshot:${snapshotDigest}`,
     snapshotDigest,
     integrityProof: {
-      protectorBindingDigest: input.protector.bindingDigest,
       ...proof,
+      protectorBindingDigest: input.protector.bindingDigest,
     },
   });
 }
@@ -248,6 +489,13 @@ export function validateEvidenceTrustSnapshotV1(
   assertIdentifier(snapshot.stateId, "stateId");
   assertSafeInteger(snapshot.generation, "generation", 1);
   assertSafeInteger(snapshot.createdAtLogicalMs, "createdAtLogicalMs");
+  if (
+    (snapshot.generation === 1) !==
+    (snapshot.previousSnapshotDigest === null)
+  )
+    throw new TrustValidationError(
+      "snapshot generation and predecessor are incoherent",
+    );
   if (snapshot.previousSnapshotDigest !== null)
     assertTrustDigest(
       snapshot.previousSnapshotDigest,
@@ -256,10 +504,15 @@ export function validateEvidenceTrustSnapshotV1(
   assertTrustDigest(snapshot.snapshotDigest, "snapshotDigest");
   assertTrustDigest(snapshot.stateDigest, "stateDigest");
   const state = validateEvidenceTrustStateV1(snapshot.state);
+  if ((snapshot.createdAtLogicalMs as number) < state.logicalTimeHighWaterMs)
+    throw new TrustValidationError("snapshot time precedes state high-water");
   if (
     state.stateId !== snapshot.stateId ||
-    digestTrustJsonV1("state", state as unknown as JsonValue) !==
-      snapshot.stateDigest
+    digestTrustJsonV1(
+      "state",
+      state as unknown as JsonValue,
+      stateCanonicalLimits(state.limits.maximumStateCanonicalBytes),
+    ) !== snapshot.stateDigest
   )
     throw new TrustValidationError("snapshot state digest is invalid");
   const unsigned = {
@@ -274,6 +527,7 @@ export function validateEvidenceTrustSnapshotV1(
   const expected = digestTrustJsonV1(
     "snapshot",
     unsigned as unknown as JsonValue,
+    stateCanonicalLimits(state.limits.maximumStateCanonicalBytes),
   );
   if (
     snapshot.snapshotId !== `snapshot:${expected}` ||
@@ -301,7 +555,24 @@ export function restoreEvidenceTrustSnapshotV1(
   snapshotValue: unknown,
   anchor: EvidenceTrustRollbackAnchorV1,
   protector: EvidenceTrustSnapshotProtectorV1,
+  options: EvidenceTrustRestoreOptionsV1 = {},
 ): EvidenceTrustStateV1 {
+  assertExactKeys(
+    options,
+    [
+      "verifiedMeshAdmissionVerifierRegistry",
+      "currentContentResolverBindingDigest",
+    ].filter((key) => key in options),
+    "restore options",
+  );
+  if (
+    options.currentContentResolverBindingDigest !== undefined &&
+    options.currentContentResolverBindingDigest !== null
+  )
+    assertTrustDigest(
+      options.currentContentResolverBindingDigest,
+      "currentContentResolverBindingDigest",
+    );
   const snapshot = validateEvidenceTrustSnapshotV1(snapshotValue);
   assertExactKeys(
     anchor,
@@ -337,5 +608,84 @@ export function restoreEvidenceTrustSnapshotV1(
     throw new TrustValidationError("snapshot rollback validation failed");
   if (!protector.verify(snapshotMaterial(snapshot), snapshot.integrityProof))
     throw new TrustValidationError("snapshot integrity validation failed");
+  const verifiedRecords = snapshot.state.records.filter(
+    (record) => record.origin === "verified_mesh",
+  );
+  const registry = options.verifiedMeshAdmissionVerifierRegistry;
+  if (verifiedRecords.length > 0 && !registry)
+    throw new TrustValidationError(
+      "verified mesh restore requires admission verifier",
+    );
+  if (registry) {
+    assertExactKeys(registry, ["resolve"], "mesh admission verifier registry");
+    if (typeof registry.resolve !== "function")
+      throw new TrustValidationError(
+        "mesh admission verifier registry is invalid",
+      );
+    for (const record of verifiedRecords) {
+      const verifier = resolveVerifiedMeshAdmissionVerifierV1(
+        registry as unknown as NonNullable<
+          EvidenceTrustRestoreOptionsV1["verifiedMeshAdmissionVerifierRegistry"]
+        >,
+        record.originVerifierBindingDigest as string,
+      );
+      if (
+        !verifier ||
+        verifier.verifierBindingDigest !== record.originVerifierBindingDigest ||
+        verifier.upstreamBindingDigest !== record.originBindingDigest ||
+        record.originProofDigest === null ||
+        !verifier.verify({
+          recordId: record.recordId,
+          recordDigest: record.recordDigest,
+          originBindingDigest: record.originBindingDigest,
+          originVerifierBindingDigest: record.originVerifierBindingDigest,
+          originProofDigest: record.originProofDigest,
+          effectiveAtLogicalMs: record.effectiveAtLogicalMs,
+        })
+      )
+        throw new TrustValidationError(
+          "verified mesh restore validation failed",
+        );
+    }
+  }
+  const projected = projectEvidenceLifecycleV1({
+    records: snapshot.state.records,
+    logicalTimeMs: snapshot.state.logicalTimeHighWaterMs,
+    limits: snapshot.state.limits,
+    contentResolutions: snapshot.state.contentResolutions,
+    contentInvalidations: snapshot.state.contentInvalidations,
+    currentContentResolverBindingDigest:
+      options.currentContentResolverBindingDigest,
+  });
+  const expectedPending = projected.records
+    .filter((record) => record.status === "pending")
+    .map((record) => record.recordId)
+    .sort(compareUnicode);
+  const expectedDiagnostics = projected.diagnostics.slice(
+    0,
+    snapshot.state.limits.maximumDiagnostics,
+  );
+  if (
+    projected.records.length !== snapshot.state.records.length ||
+    projected.records.some(
+      (record, index) =>
+        record.recordDigest !== snapshot.state.records[index]?.recordDigest ||
+        record.status !== snapshot.state.records[index]?.status ||
+        record.effectiveAtLogicalMs !==
+          snapshot.state.records[index]?.effectiveAtLogicalMs,
+    ) ||
+    expectedDiagnostics.length !== snapshot.state.diagnostics.length ||
+    expectedDiagnostics.some(
+      (diagnostic, index) =>
+        diagnostic.recordDigest !==
+          snapshot.state.diagnostics[index]?.recordDigest ||
+        diagnostic.reasonCode !== snapshot.state.diagnostics[index]?.reasonCode,
+    ) ||
+    expectedPending.length !== snapshot.state.pendingRecords.length ||
+    expectedPending.some(
+      (record, index) => record !== snapshot.state.pendingRecords[index],
+    )
+  )
+    throw new TrustValidationError("snapshot lifecycle projection is invalid");
   return snapshot.state;
 }
