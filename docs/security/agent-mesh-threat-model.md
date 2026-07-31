@@ -46,7 +46,7 @@ Transport authentication and signed message identity are separate layers.
 Rooms, audit and metrics are optional consumers and are not trusted to maintain
 steady-state coordination.
 
-The coordination discovery inbound boundary revalidates bounded structure,
+The coordination inbound boundary revalidates bounded structure,
 scope, audience, freshness and critical extensions before cryptographic work.
 It is constructed once with trusted local key resolution, cryptographic policy,
 Web Crypto and protocol limits; remote message requests cannot substitute those
@@ -57,12 +57,16 @@ outside this decision boundary. The verified envelope is revalidated and must
 be canonically identical to the requested envelope.
 
 Replay windows and retained message IDs are a separate, non-evictable,
-schema-versioned snapshot. An authenticated and admitted message may consume
-normal replay accounting before a later domain predecessor, revision or
-capacity rejection, but that rejection cannot change domain or discovery
-projection. Receiving a topic envelope never relays it.
+schema-versioned snapshot shared by discovery and Objective ingress. Processing
+orders context, cryptographic verification, exact admission and, for Objective
+messages, issuer authority, replay accounting, then the relevant domain
+transition. An
+authenticated message that reaches replay may consume normal replay accounting
+before a later domain predecessor, revision or capacity rejection, but that
+rejection cannot change the domain projection. Receiving a topic envelope never
+relays it.
 
-The Increment 1 topic driver is a bounded in-memory reference coordination
+The coordination and Objective topic drivers are bounded in-memory reference
 component, not a membership service or durable transport. Its process-local
 endpoint registry is used only as a route table after a sender-local active
 Peer View has selected recipients and joined them to exact current instances.
@@ -78,8 +82,11 @@ pure Objective evaluator accepts only values that a caller asserts were already
 verified. It revalidates closed structure, scope, audience, freshness, exact
 admission instance and provisioned issuer authority, but does not itself verify
 the signature or consume replay state. Untrusted transports must use the
-authenticated shared inbound processor introduced by the following Increment 2
-slice rather than calling this evaluator directly.
+authenticated shared inbound processor rather than calling this evaluator
+directly. The Objective processor composes immutable identity-aligned
+coordination, discovery, Objective and inbound-security snapshots. It uses an
+ephemeral clock-aligned Objective view when discovery alone has advanced logical
+time.
 
 Objective authority is provisioned as an issuer peer plus a bounded sorted key
 allowlist and exclusive validity limit. A current issuer may rotate among those

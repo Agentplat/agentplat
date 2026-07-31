@@ -1,7 +1,8 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
-Status: Increment 0 and Increment 1 complete; Increment 2 projection core
-implemented, with authenticated Objective ingress and allocation still pending.
+Status: Increment 0 and Increment 1 complete; Increment 2 Objective projection,
+authenticated ingress and bounded topic delivery implemented. Allocation remains
+pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -65,7 +66,7 @@ Registry and Git mutations are checked only after independent verification.
 - [x] Peer Card refresh cannot bootstrap admission or extend key validity;
 - [x] Peer View and capability state have explicit entry and byte bounds;
 - [x] view expiry and eviction are deterministic;
-- [ ] active-work security state is not evicted with discovery state;
+- [x] active-work security state is not evicted with discovery state;
 - [x] topic subscriptions and sender fanout are bounded;
 - [x] advertisements are signed, expiring self-claims;
 - [x] withdrawals require owner, accepted advertisement and current revision;
@@ -156,8 +157,23 @@ Registry and Git mutations are checked only after independent verification.
   input, multiple blocks and one million bytes; the pack browser-import gate
   verifies that the reachable source graph contains no Node.js builtin;
 - `tests/mesh-public-contracts.test.mts` freezes the new coordination-subpath
-  exports. Authenticated Objective replay/topic evidence remains unchecked in
-  the next sub-slice.
+  exports, including Objective inbound and topic-driver contracts.
+- `packages/mesh/src/coordination-inbound.ts` shares discovery and Objective
+  replay accounting and processes Objective messages in context, crypto, exact
+  admission/issuer-authority, replay, then domain order; post-replay domain
+  rejections retain security accounting only.
+- `packages/mesh/src/coordination-inbound-state.ts` composes aligned immutable
+  coordination, discovery, Objective and inbound-security snapshots.
+- `packages/mesh/src/coordination-objective-topic.ts` supplies bounded
+  sender-local Objective delivery with exact-instance route snapshots, FIFO
+  processing, coarse receipts and local-only diagnostics; it provides neither
+  forwarding, global membership nor durability.
+- `tests/mesh-coordination-objective-inbound.test.mjs` covers real signed
+  Objective ingress, shared replay behavior and post-replay rejection
+  accounting;
+- `tests/mesh-coordination-objective-topic.test.mjs` covers exact-instance route
+  snapshots, unavailable endpoints, bounded atomic queues, coarse diagnostics
+  and explicit non-forwarding delivery.
 
 ## Allocation
 

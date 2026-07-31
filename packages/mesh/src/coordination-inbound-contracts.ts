@@ -16,6 +16,11 @@ import type {
   MeshDiscoveryState,
 } from './coordination-discovery-contracts.js';
 import type { MeshCoordinationState } from './coordination-contracts.js';
+import type {
+  MeshObjectivePayload,
+  MeshObjectiveWorkRejectionCode,
+  MeshObjectiveWorkState,
+} from './coordination-objective-work-contracts.js';
 
 /** One bounded replay window for an admitted peer and instance pair. */
 export interface MeshCoordinationInboundReplayWindow {
@@ -103,4 +108,60 @@ export interface MeshDiscoveryInboundProcessor {
     state: MeshDiscoveryInboundRuntimeState,
     request: MeshDiscoveryInboundRequest
   ): Promise<MeshDiscoveryInboundDecision>;
+}
+
+/** Composite state used by the signed Objective acceptance boundary. */
+export interface MeshObjectiveInboundRuntimeState {
+  readonly coordination: MeshCoordinationState;
+  readonly discovery: MeshDiscoveryState;
+  readonly objectives: MeshObjectiveWorkState;
+  readonly inbound: MeshCoordinationInboundState;
+}
+
+/** Trusted construction-time dependencies for the Objective inbound boundary. */
+export interface MeshObjectiveInboundProcessorOptions {
+  readonly resolver: MeshKeyResolver;
+  readonly cryptoPolicy: MeshCryptoPolicy;
+  readonly crypto?: Crypto;
+  readonly protocolOptions?: MeshProtocolOptions;
+  readonly supportedCriticalExtensions?: readonly string[];
+}
+
+/** Remote Objective message data accepted by a configured inbound boundary. */
+export interface MeshObjectiveInboundRequest {
+  readonly envelope: SignedMeshEnvelope<MeshObjectivePayload>;
+  readonly verifiedAt: string;
+  readonly receivedAt: MeshLogicalTime;
+}
+
+/** Stable fail-closed outcomes from the signed Objective boundary. */
+export type MeshObjectiveInboundRejectionCode =
+  | MeshCryptoRejectionCode
+  | MeshObjectiveWorkRejectionCode
+  | 'logical_time_regressed'
+  | 'message_replayed'
+  | 'sequence_outside_window'
+  | 'replay_capacity_exceeded'
+  | 'unsupported_message_type';
+
+/** Result of verifying and applying one signed Objective coordination message. */
+export type MeshObjectiveInboundDecision =
+  | {
+      readonly accepted: true;
+      readonly duplicate: boolean;
+      readonly envelope: VerifiedMeshEnvelope<MeshObjectivePayload>;
+      readonly state: MeshObjectiveInboundRuntimeState;
+    }
+  | {
+      readonly accepted: false;
+      readonly code: MeshObjectiveInboundRejectionCode;
+      readonly state: MeshObjectiveInboundRuntimeState;
+    };
+
+/** Authenticated boundary with immutable construction-time trust dependencies. */
+export interface MeshObjectiveInboundProcessor {
+  process(
+    state: MeshObjectiveInboundRuntimeState,
+    request: MeshObjectiveInboundRequest
+  ): Promise<MeshObjectiveInboundDecision>;
 }
