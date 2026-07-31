@@ -1659,6 +1659,13 @@ remote Trust observations and the passage of time cannot satisfy recovery.
 Success appends a `recovered` revision; it never deletes the quarantine or
 negative evidence.
 
+A recovered head is not permanently immune to later evidence. New qualifying
+negative Evidence accepted strictly after `recoveredAtLogicalMs` may append the
+next `active` revision for the same exact quarantine key. Historical or replayed
+activation Evidence cannot reactivate it. Each key retains at most
+`maximumQuarantineRevisionsPerHead` revisions; exhaustion fails closed as
+`unavailable` and never silently leaves a new negative condition eligible.
+
 Every review emits one closed `QuarantineRecoveryDecisionV1`:
 
 ```text
@@ -1772,6 +1779,7 @@ hard release-test ceilings unless a lower application value is supplied.
 | profile heads                       |      2,048 |
 | profile revisions per head          |         32 |
 | quarantine heads                    |      2,048 |
+| quarantine revisions per head       |         32 |
 | diagnostics                         |      1,024 |
 | record canonical bytes              |     65,536 |
 | content reference bytes             |      4,096 |
@@ -1782,10 +1790,11 @@ hard release-test ceilings unless a lower application value is supplied.
 
 The corresponding closed limit fields include
 `maximumChallengesPerSourceScope`,
-`maximumPendingChallengesPerSourceScope` and `maximumPendingAgeMs`; the table
-uses readable labels only. Active and pending per-source/scope counts are
-checked before global capacity mutation, so one source/scope cannot consume the
-entire pending-Challenge budget while capacity remains for others.
+`maximumPendingChallengesPerSourceScope`, `maximumPendingAgeMs` and
+`maximumQuarantineRevisionsPerHead`; the table uses readable labels only.
+Active and pending per-source/scope counts are checked before global capacity
+mutation, so one source/scope cannot consume the entire pending-Challenge
+budget while capacity remains for others.
 
 The implementation checks aggregate bytes, nesting depth, object nodes and
 array items before cloning or state mutation. Capacity exhaustion returns

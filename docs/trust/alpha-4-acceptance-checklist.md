@@ -321,6 +321,8 @@ open until their corresponding transition is complete.
       recovery;
 - [ ] self-claims, old replay, remote observations and time alone cannot recover;
 - [ ] successful recovery appends a revision and preserves negative history;
+- [ ] a recovered key reactivates only from new post-recovery qualifying
+      negative Evidence, and per-key revision exhaustion fails closed;
 - [ ] quarantine/recovery in one tenant, scope, capability or dimension cannot
       affect another.
 
