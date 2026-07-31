@@ -28,7 +28,11 @@ peer state, input, effect, root export or loopback contracts. A caller opts into
 the composite boundary explicitly and must restore every snapshot through its
 strict constructor before use.
 
-The Objective/Work projection is additive schema version `1`. Its composite
+The Objective/Work projection is additive schema version `2`. Version `1`
+snapshots remain readable: restore derives the recovery grace, witness quorum,
+lease bounds and acceptance window from each retained signed Objective
+document, then rebinds every Work Item to the canonical migrated policy.
+Its composite
 timer IDs are stable length-prefixed identifiers, so Objective and Work IDs
 containing separators cannot alias. Coordination restoration now accepts these
 bounded internal timer identifiers up to 768 UTF-8 bytes; every previously
@@ -59,12 +63,25 @@ membership, global fanout or a recipient oracle. Public receipts coarsen
 failures while exact codes stay local-only; receiving a message never forwards
 it.
 
+The Allocation projection is additive schema version `6`. Its strict reader
+migrates versions `1`–`5` deterministically and does not change Alpha 1 state
+or entrypoints. Version 6 adds bounded recovery witness copies, proposal/vote/
+certificate graphs, stable fence heads and checkpoint-resume metadata. Restore
+revalidates these relationships and fails closed for an incomplete, conflicting
+or stale recovery graph; it does not synthesize replacement authority. The
+recovery command API distinguishes locally prepared exact fanout from a single
+received authenticated copy: each received copy remains independently
+verifiable, without asserting delivery to any other recipient.
+
 ## Wire compatibility
 
 The npm package version and wire version are independent.
 
 - Alpha uses `wireVersion: 0`.
 - Alpha wire changes require new canonical fixtures and a migration note.
+- Alpha 2 witness takeover proposals require
+  `candidateConsentProposalId`; candidate-authored proposals forbid it. Older
+  takeover proposal fixtures fail closed instead of being reinterpreted.
 - The final alpha must read replay fixtures produced by the preceding alpha.
 - Beta freezes `wireVersion: 1`.
 - Beta and stable releases support negotiated interoperability between the

@@ -12,6 +12,9 @@ import type {
   WorkReleasePayload,
   WorkCancelPayload,
   LeaseRenewPayload,
+  LeaseTakeoverProposalPayload,
+  LeaseVotePayload,
+  LeaseCertificatePayload,
 } from "@agentplat/mesh-protocol";
 
 import type { MeshLogicalTime, MeshPeerIdentity } from "./contracts.js";
@@ -32,6 +35,7 @@ export type MeshWorkAllocationPhase =
   | "ready"
   | "offered"
   | "award_pending"
+  | "recovering"
   | "active"
   | "completed"
   | "released"
@@ -111,7 +115,7 @@ export interface MeshLocalAwardProjection extends MeshAllocationWorkBinding {
   readonly bidRevision: number;
   readonly offerAttempt: number;
   readonly assigneePeerId: string;
-  readonly assignmentEpoch: 1;
+  readonly assignmentEpoch: number;
   readonly assignmentAuthorityId: string;
   readonly fencingToken: string;
   readonly budgetReservationUnits: number;
@@ -206,7 +210,7 @@ export interface MeshAssigneeAssignmentAuthorityProjection {
   readonly ownerPeerId: string;
   readonly ownerEpoch: number;
   readonly assigneePeerId: string;
-  readonly assignmentEpoch: 1;
+  readonly assignmentEpoch: number;
   readonly assignmentAuthorityId: string;
   readonly fencingToken: string;
   readonly workDeadline: string;
@@ -281,6 +285,85 @@ export interface MeshLeaseHeadProjection {
   readonly status: "active" | "expired" | "terminal";
   readonly expiryTimerId?: string;
   readonly expiryTimerGeneration?: number;
+}
+
+/** Stable high-water mark fencing every assignment epoch for one Work revision. */
+export interface MeshAssignmentFenceHeadProjection {
+  /** Canonical scope key excluding award ID and assignment epoch. */
+  readonly assignmentFenceKey: string;
+  readonly objectiveId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  /** Current assignee, or certified candidate while recovery is incomplete. */
+  readonly assigneePeerId: string;
+  readonly activeAwardId?: string;
+  readonly recoveryCertificateId?: string;
+  readonly phase:
+    "active" | "expired" | "recovering" | "award_pending" | "terminal";
+}
+
+/** Signed accepted-assignment evidence retained by one configured witness. */
+export interface MeshWitnessAssignmentProjection {
+  readonly assignmentFenceKey: string;
+  readonly observedAt: MeshLogicalTime;
+  readonly awardValidityVerifiedAt: string;
+  readonly acceptanceValidityVerifiedAt?: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly awardEnvelope: SignedMeshEnvelope<WorkAwardPayload>;
+  readonly acceptanceEnvelope?: SignedMeshEnvelope<WorkAcceptPayload>;
+  readonly leaseHead?: MeshLeaseHeadProjection;
+  readonly leaseRenewals: readonly MeshLeaseRenewalEvidence[];
+  /** Latest checkpoint known to this witness, if one has been accepted. */
+  readonly latestCheckpoint?: MeshExecutionRecordProjection;
+}
+
+/** One structurally verified recovery proposal retained by logical proposal ID. */
+export interface MeshTakeoverProposalProjection {
+  readonly takeoverProposalId: string;
+  readonly direction: "local" | "received";
+  readonly acceptedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly envelope: SignedMeshEnvelope<LeaseTakeoverProposalPayload>;
+  /** Recipient-specific local fanout copies; absent for received evidence. */
+  readonly recipientEnvelopes?: Readonly<
+    Record<string, SignedMeshEnvelope<LeaseTakeoverProposalPayload>>
+  >;
+}
+
+/** One immutable witness endorsement retained by stable vote ID. */
+export interface MeshLeaseVoteProjection {
+  readonly leaseVoteId: string;
+  readonly takeoverProposalId: string;
+  readonly witnessPeerId: string;
+  readonly direction: "local" | "received";
+  readonly acceptedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly envelope: SignedMeshEnvelope<LeaseVotePayload>;
+  readonly recipientEnvelopes?: Readonly<
+    Record<string, SignedMeshEnvelope<LeaseVotePayload>>
+  >;
+}
+
+/** One accepted quorum certificate retained by stable certificate ID. */
+export interface MeshRecoveryCertificateProjection {
+  readonly certificateId: string;
+  readonly takeoverProposalId: string;
+  readonly direction: "local" | "received";
+  readonly acceptedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly envelope: SignedMeshEnvelope<LeaseCertificatePayload>;
+  readonly recipientEnvelopes?: Readonly<
+    Record<string, SignedMeshEnvelope<LeaseCertificatePayload>>
+  >;
 }
 
 /** Full accepted authority and current lifecycle heads for one assignment scope. */
@@ -368,11 +451,16 @@ export interface MeshAllocationLimits {
   readonly maximumExecutionHeads: number;
   readonly maximumExecutionRecordsPerAssignment: number;
   readonly maximumLeaseRenewals: number;
+  readonly maximumAssignmentFenceHeads: number;
+  readonly maximumWitnessAssignments: number;
+  readonly maximumTakeoverProposals: number;
+  readonly maximumLeaseVotes: number;
+  readonly maximumRecoveryCertificates: number;
 }
 
 /** Independently restorable offer, bid, award and response projection. */
 export interface MeshAllocationState {
-  readonly schemaVersion: 5;
+  readonly schemaVersion: 6;
   readonly identity: MeshPeerIdentity;
   readonly workAllocations: Readonly<
     Record<string, MeshWorkAllocationProjection>
@@ -419,6 +507,24 @@ export interface MeshAllocationState {
   readonly leaseRenewals: Readonly<Record<string, MeshLeaseRenewalEvidence>>;
   /** Current lease lifecycle heads keyed by execution scope. */
   readonly leaseHeads: Readonly<Record<string, MeshLeaseHeadProjection>>;
+  /** Stable fencing high-water marks keyed independently of award and epoch. */
+  readonly assignmentFenceHeads: Readonly<
+    Record<string, MeshAssignmentFenceHeadProjection>
+  >;
+  /** Accepted assignment evidence keyed by stable assignment fence scope. */
+  readonly witnessAssignments: Readonly<
+    Record<string, MeshWitnessAssignmentProjection>
+  >;
+  /** Recovery proposals keyed by takeoverProposalId. */
+  readonly takeoverProposals: Readonly<
+    Record<string, MeshTakeoverProposalProjection>
+  >;
+  /** Witness votes keyed by leaseVoteId. */
+  readonly leaseVotes: Readonly<Record<string, MeshLeaseVoteProjection>>;
+  /** Accepted recovery certificates keyed by certificateId. */
+  readonly recoveryCertificates: Readonly<
+    Record<string, MeshRecoveryCertificateProjection>
+  >;
   readonly reservations: Readonly<Record<string, MeshAllocationReservation>>;
   readonly limits: MeshAllocationLimits;
   readonly lastLogicalTime: MeshLogicalTime;
@@ -448,7 +554,10 @@ export type MeshAllocationPayload =
   | WorkResultPayload
   | WorkReleasePayload
   | WorkCancelPayload
-  | LeaseRenewPayload;
+  | LeaseRenewPayload
+  | LeaseTakeoverProposalPayload
+  | LeaseVotePayload
+  | LeaseCertificatePayload;
 
 /** A verified remote bid or assignment response with receiver-controlled time. */
 export interface MeshVerifiedAllocationRequest {
@@ -513,6 +622,27 @@ export interface MeshLocalLeaseRenewalCommand {
   readonly envelope: SignedMeshEnvelope<LeaseRenewPayload>;
 }
 
+/** Locally signed proposal, vote, or certificate for certified recovery. */
+export interface MeshLocalRecoveryCommand {
+  readonly kind: "allocation.recovery";
+  readonly recipients: readonly MeshLocalRecoveryPreparedRecipient[];
+}
+
+export interface MeshLocalRecoveryPreparedRecipient {
+  readonly recipientPeerId: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<
+    LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload
+  >;
+}
+
+/** Owner-issued award that activates only a previously accepted certificate. */
+export interface MeshLocalRecoveryAwardCommand {
+  readonly kind: "allocation.recovery_award";
+  readonly certificateId: string;
+  readonly recipient: MeshLocalAwardPreparedRecipient;
+}
+
 export interface MeshLocalAwardPreparedRecipient {
   readonly recipientPeerId: string;
   readonly preparedAt: MeshLogicalTime;
@@ -531,7 +661,9 @@ export type MeshAllocationCommand =
   | MeshLocalBidCommand
   | MeshLocalAssignmentResponseCommand
   | MeshLocalExecutionCommand
-  | MeshLocalLeaseRenewalCommand;
+  | MeshLocalLeaseRenewalCommand
+  | MeshLocalRecoveryCommand
+  | MeshLocalRecoveryAwardCommand;
 
 export type MeshAllocationBidSelectionReason =
   | "offer_missing"
@@ -595,6 +727,19 @@ export type MeshAllocationEffect =
       readonly recipientPeerId: string;
       readonly messageId: string;
       readonly envelope: SignedMeshEnvelope<LeaseRenewPayload>;
+    }
+  | {
+      readonly kind: "allocation.recovery.dispatch";
+      readonly recordId: string;
+      readonly recordType:
+        "lease.takeover_proposal" | "lease.vote" | "lease.certificate";
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<
+        | LeaseTakeoverProposalPayload
+        | LeaseVotePayload
+        | LeaseCertificatePayload
+      >;
     };
 
 export type MeshAllocationRejectionCode =
@@ -652,6 +797,17 @@ export type MeshAllocationRejectionCode =
   | "lease_renewal_deadline_elapsed"
   | "lease_renewal_capacity_exceeded"
   | "lease_renewal_authority_invalid"
+  | "witness_assignment_invalid"
+  | "witness_assignment_duplicate_conflict"
+  | "witness_assignment_capacity_exceeded"
+  | "recovery_invalid"
+  | "recovery_duplicate_conflict"
+  | "recovery_grace_not_elapsed"
+  | "recovery_vote_conflict"
+  | "recovery_quorum_insufficient"
+  | "recovery_authority_stale"
+  | "recovery_checkpoint_invalid"
+  | "recovery_capacity_exceeded"
   | "recipient_capacity_exceeded"
   | "bid_invalid"
   | "bid_duplicate_conflict"

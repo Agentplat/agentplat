@@ -825,7 +825,10 @@ function validateAllocationFamily(
     type !== 'work.result' &&
     type !== 'work.release' &&
     type !== 'work.cancel' &&
-    type !== 'lease.renew'
+    type !== 'lease.renew' &&
+    type !== 'lease.takeover_proposal' &&
+    type !== 'lease.vote' &&
+    type !== 'lease.certificate'
   ) {
     return 'unsupported_message_type';
   }

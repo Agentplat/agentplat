@@ -2030,7 +2030,7 @@ function validateLeaseTakeoverProposal(
       'workItemId',
       'workItemRevision',
     ],
-    ['latestLeaseRenewalId'],
+    ['candidateConsentProposalId', 'latestLeaseRenewalId'],
     '$["payload"]',
     'invalid_payload'
   );
@@ -2074,6 +2074,12 @@ function validateLeaseTakeoverProposal(
   ) {
     fail('invalid_payload', '$["payload"]["proposalAuthority"]');
   }
+  if (
+    proposalAuthority === 'candidate' &&
+    Object.hasOwn(payload, 'candidateConsentProposalId')
+  ) {
+    fail('invalid_payload', '$["payload"]["candidateConsentProposalId"]');
+  }
   const proposedAssignmentEpoch = assertPositiveSafeInteger(
     payload.proposedAssignmentEpoch,
     '$["payload"]["proposedAssignmentEpoch"]',
@@ -2089,33 +2095,41 @@ function validateLeaseTakeoverProposal(
   if (leaseRenewalSequence > maximumLeaseRenewals) {
     fail('invalid_payload', '$["payload"]["leaseRenewalSequence"]');
   }
+  const latestLeaseRenewalId =
+    leaseRenewalSequence === 0
+      ? undefined
+      : assertIdentifier(
+          payload.latestLeaseRenewalId,
+          '$["payload"]["latestLeaseRenewalId"]',
+          limits
+        );
   if (leaseRenewalSequence === 0) {
     if (Object.hasOwn(payload, 'latestLeaseRenewalId')) {
       fail('invalid_payload', '$["payload"]["latestLeaseRenewalId"]');
     }
-    return {
-      type: 'lease.takeover_proposal',
-      ...fields,
-      takeoverProposalId,
-      proposalAuthority,
-      proposerPeerId,
-      proposedAssigneePeerId,
-      proposedAssignmentEpoch,
-      leaseRenewalSequence,
-    };
   }
-  return {
-    type: 'lease.takeover_proposal',
+  const proposalFields = {
+    type: 'lease.takeover_proposal' as const,
     ...fields,
     takeoverProposalId,
-    proposalAuthority,
     proposerPeerId,
     proposedAssigneePeerId,
     proposedAssignmentEpoch,
     leaseRenewalSequence,
-    latestLeaseRenewalId: assertIdentifier(
-      payload.latestLeaseRenewalId,
-      '$["payload"]["latestLeaseRenewalId"]',
+    ...(latestLeaseRenewalId === undefined ? {} : { latestLeaseRenewalId }),
+  };
+  if (proposalAuthority === 'candidate') {
+    return {
+      ...proposalFields,
+      proposalAuthority,
+    };
+  }
+  return {
+    ...proposalFields,
+    proposalAuthority,
+    candidateConsentProposalId: assertIdentifier(
+      payload.candidateConsentProposalId,
+      '$["payload"]["candidateConsentProposalId"]',
       limits
     ),
   };

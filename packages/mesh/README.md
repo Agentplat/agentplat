@@ -210,10 +210,9 @@ number and names the preceding offer. It opens a fresh bounded bid window and
 reserves the same Work Item budget anew; it cannot rewrite the Work revision or
 reuse the original attempt.
 
-This owner-side state-machine increment establishes allocation. A later
-execution-lifecycle slice consumes its accepted assignment authority; a valid
-signature or admission entry alone never grants execution authority.
-Reassignment and recovery remain deferred.
+The owner-side state machine establishes allocation, and the execution
+lifecycle consumes only its accepted assignment authority. A valid signature or
+admission entry alone never grants execution authority.
 
 The paired assignee-side allocation slice accepts an already-verified direct
 `work.award` only for the local peer and only when it proves the peer's retained
@@ -255,13 +254,31 @@ records. Release and active cancellation causally name the latest accepted
 renewal when one exists. Assignee execution and release remain lease-bound; the
 owner may still close or cancel an expired assignment before the Work deadline.
 
-Allocation snapshots now use schema version 5. Restore migrates versions 1–4
+Certified recovery retains direct assignment evidence at the configured
+witnesses. After lease expiry plus the Objective recovery grace, a candidate or
+witness can fan out a recipient-specific proposal for exactly the next epoch.
+Each fixed witness contributes at most one vote for that stable assignment
+scope and proposed epoch. A certificate requires the configured majority of
+distinct votes and advances the stable fence before any replacement can become
+active. The unchanged owner must then issue a recovery award for the certified
+candidate, epoch and `certificateId` token; acceptance reuses the existing
+budget commitment and resumes the checkpoint named by that award. A proposal,
+vote or certificate alone never grants execution authority, and an unavailable
+owner leaves the newer epoch fenced but inactive. The first replacement
+checkpoint must name the award's checkpoint as its parent and use its sequence
+plus one. A local recovery command verifies the complete exact direct fanout;
+an authenticated received copy verifies only its own audience, role and causal
+evidence, and never asserts delivery to other recipients.
+
+Allocation snapshots now use schema version 6. Restore migrates versions 1–5
 deterministically, derives sequence-zero lease heads and missing initial expiry
 timers for legacy accepted assignments, and derives conservative bounded
 limits. Strict restore revalidates retained envelopes, causal/domain bindings,
-each signed renewal's complete authority and derived logical deadline, current
-lease heads, historical execution deadlines, timer generations, terminal heads
-and accounting before exposing the immutable snapshot.
+each signed renewal's complete authority and derived logical deadline, stable
+fence heads, witness copies, proposal/vote/certificate graphs, checkpoint
+resume metadata, current lease heads, historical execution deadlines, timer
+generations, terminal heads and accounting before exposing the immutable
+snapshot.
 
 `createMeshAllocationInboundProcessor` authenticates Allocation traffic before
 domain evaluation. It construction-binds key resolution and cryptographic
@@ -269,9 +286,9 @@ policy, then orders context, signature verification, exact admission and
 instance authority, replay accounting and the allocation transition. A signed
 execution record rejected by the domain still consumes normal replay security
 accounting; diagnostics remain local. The same boundary accepts authenticated
-`lease.renew` records only after replay and admission checks. This slice does
-not implement recovery certificates, reassignment, durable execution storage
-or external-action authority.
+`lease.renew`, `lease.takeover_proposal`, `lease.vote` and `lease.certificate`
+records only after replay and admission checks. This alpha does not implement
+durable execution storage, owner transfer or external-action authority.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite

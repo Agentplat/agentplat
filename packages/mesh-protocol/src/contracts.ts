@@ -458,17 +458,29 @@ export interface LeaseRenewPayload extends WorkExecutionAuthorityFields {
   readonly renewedLeaseExpiresAt: string;
 }
 
-/** Proposes the next assignment epoch after one accepted lease expires. */
-export interface LeaseTakeoverProposalPayload extends WorkExecutionAuthorityFields {
+/** Assignment and lease snapshot shared by candidate and witness proposals. */
+export interface LeaseTakeoverProposalFields extends WorkExecutionAuthorityFields {
   readonly type: 'lease.takeover_proposal';
   readonly takeoverProposalId: string;
-  readonly proposalAuthority: 'candidate' | 'witness';
   readonly proposerPeerId: string;
   readonly proposedAssigneePeerId: string;
   readonly proposedAssignmentEpoch: number;
   readonly leaseRenewalSequence: number;
   readonly latestLeaseRenewalId?: string;
 }
+
+/** Proposes the next assignment epoch after one accepted lease expires. */
+export type LeaseTakeoverProposalPayload = LeaseTakeoverProposalFields &
+  (
+    | {
+        readonly proposalAuthority: 'candidate';
+        readonly candidateConsentProposalId?: never;
+      }
+    | {
+        readonly proposalAuthority: 'witness';
+        readonly candidateConsentProposalId: string;
+      }
+  );
 
 /** Endorses one accepted takeover proposal under configured witness authority. */
 export interface LeaseVotePayload {

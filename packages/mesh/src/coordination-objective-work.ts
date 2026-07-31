@@ -1183,6 +1183,14 @@ function freezeObjectivePolicy(
       ...objective.permittedCapabilityKeys,
     ]),
     maximumBudgetUnits: objective.maximumBudgetUnits,
+    acceptanceWindowMs: objective.acceptanceWindowMs,
+    maximumLeaseDurationMs: objective.maximumLeaseDurationMs,
+    recoveryGraceMs: objective.recoveryGraceMs,
+    maximumLeaseRenewals: objective.maximumLeaseRenewals,
+    recoveryWitnessPeerIds: Object.freeze([
+      ...objective.recoveryWitnessPeerIds,
+    ]),
+    recoveryWitnessThreshold: objective.recoveryWitnessThreshold,
     validUntil: objective.validUntil,
   });
 }

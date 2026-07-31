@@ -1027,10 +1027,40 @@ test("retained Objective policies bind historical Work exactly and reject forged
     roundTripped.objectives.workItems[workKey].objectivePolicy,
     roundTripped.objectives.objectivePolicies[revisionOneKey],
   );
+  const legacy = structuredClone(revised.state.objectives);
+  legacy.schemaVersion = 1;
+  for (const policy of Object.values(legacy.objectivePolicies)) {
+    delete policy.acceptanceWindowMs;
+    delete policy.maximumLeaseDurationMs;
+    delete policy.recoveryGraceMs;
+    delete policy.maximumLeaseRenewals;
+    delete policy.recoveryWitnessPeerIds;
+    delete policy.recoveryWitnessThreshold;
+  }
+  for (const work of Object.values(legacy.workItems)) {
+    delete work.objectivePolicy.acceptanceWindowMs;
+    delete work.objectivePolicy.maximumLeaseDurationMs;
+    delete work.objectivePolicy.recoveryGraceMs;
+    delete work.objectivePolicy.maximumLeaseRenewals;
+    delete work.objectivePolicy.recoveryWitnessPeerIds;
+    delete work.objectivePolicy.recoveryWitnessThreshold;
+  }
+  const migrated = restoreMeshObjectiveWorkState(legacy);
+  assert.equal(migrated.schemaVersion, 2);
+  assert.deepEqual(
+    migrated.objectivePolicies[revisionOneKey].recoveryWitnessPeerIds,
+    announced.state.objectives.objectives["objective-a"].recoveryWitnessPeerIds,
+  );
+  assert.equal(
+    migrated.objectivePolicies[revisionOneKey].recoveryWitnessThreshold,
+    announced.state.objectives.objectives["objective-a"]
+      .recoveryWitnessThreshold,
+  );
 
   for (const [field, value] of [
     ["maximumBudgetUnits", 999],
     ["permittedCapabilityKeys", ["translate"]],
+    ["recoveryWitnessThreshold", 1],
     ["validUntil", "2026-08-29T00:00:00.001Z"],
     ["expiresAt", 999],
   ]) {

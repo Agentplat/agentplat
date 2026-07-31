@@ -14,6 +14,9 @@ import {
   type WorkReleasePayload,
   type WorkCancelPayload,
   type LeaseRenewPayload,
+  type LeaseTakeoverProposalPayload,
+  type LeaseVotePayload,
+  type LeaseCertificatePayload,
   type WorkOfferPayload,
 } from "@agentplat/mesh-protocol";
 
@@ -22,6 +25,7 @@ import type {
   MeshAcceptedBidEvidence,
   MeshAcceptedAssignmentResponseEvidence,
   MeshAssigneeAssignmentAuthorityProjection,
+  MeshAssignmentFenceHeadProjection,
   MeshAllocationLimits,
   MeshAllocationReservation,
   MeshAllocationRuntimeState,
@@ -40,6 +44,10 @@ import type {
   MeshExecutionHeadProjection,
   MeshLeaseHeadProjection,
   MeshLeaseRenewalEvidence,
+  MeshLeaseVoteProjection,
+  MeshRecoveryCertificateProjection,
+  MeshTakeoverProposalProjection,
+  MeshWitnessAssignmentProjection,
   MeshExecutionPayload,
   MeshExecutionRecordProjection,
   MeshWorkAllocationProjection,
@@ -78,12 +86,14 @@ const identityKeys = [
   "tenantId",
 ] as const;
 const limitKeys = [
+  "maximumAssignmentFenceHeads",
   "maximumAssignmentResponses",
   "maximumAssignmentAuthorities",
   "maximumExecutionHeads",
   "maximumExecutionRecords",
   "maximumExecutionRecordsPerAssignment",
   "maximumLeaseRenewals",
+  "maximumLeaseVotes",
   "maximumAwards",
   "maximumBidHeads",
   "maximumBidsPerOffer",
@@ -95,17 +105,22 @@ const limitKeys = [
   "maximumReceivedAwards",
   "maximumReceivedOffers",
   "maximumRecipientsPerOffer",
+  "maximumRecoveryCertificates",
+  "maximumTakeoverProposals",
+  "maximumWitnessAssignments",
 ] as const;
 
 /** Fixed ceilings; a caller can only configure lower bounds. */
 export const DEFAULT_MESH_ALLOCATION_LIMITS: Readonly<MeshAllocationLimits> =
   Object.freeze({
+    maximumAssignmentFenceHeads: 8_192,
     maximumAssignmentResponses: 8_192,
     maximumAssignmentAuthorities: 8_192,
     maximumExecutionHeads: 8_192,
     maximumExecutionRecords: 32_768,
     maximumExecutionRecordsPerAssignment: 1_024,
     maximumLeaseRenewals: 8_192,
+    maximumLeaseVotes: 32_768,
     maximumAwards: 8_192,
     maximumOffers: 8_192,
     maximumOffersPerWorkItem: 32,
@@ -117,7 +132,75 @@ export const DEFAULT_MESH_ALLOCATION_LIMITS: Readonly<MeshAllocationLimits> =
     maximumLocalBids: 8_192,
     maximumReceivedAwards: 8_192,
     maximumReceivedOffers: 8_192,
+    maximumRecoveryCertificates: 8_192,
+    maximumTakeoverProposals: 8_192,
+    maximumWitnessAssignments: 8_192,
   });
+
+/** Checks every retained Allocation envelope, including fanout and witness copies. */
+export function meshAllocationRetainsMessageId(
+  state: MeshAllocationRuntimeState,
+  messageId: string,
+): boolean {
+  const recoveryEvidence = [
+    ...Object.values(state.allocation.takeoverProposals),
+    ...Object.values(state.allocation.leaseVotes),
+    ...Object.values(state.allocation.recoveryCertificates),
+  ];
+  return (
+    Object.values(state.coordination.domainRecords).some(
+      (record) => record.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localOffers).some((offer) =>
+      Object.values(offer.recipientOffers).some(
+        (prepared) => prepared.messageId === messageId,
+      ),
+    ) ||
+    Object.values(state.allocation.acceptedBidEvidence).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localAwards).some(
+      (record) => record.recipientAward.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.assignmentResponses).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.receivedOffers).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localBids).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.receivedAwards).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localAssignmentResponses).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.executionRecords).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.leaseRenewals).some(
+      (record) => record.envelope.messageId === messageId,
+    ) ||
+    recoveryEvidence.some(
+      (record) =>
+        record.envelope.messageId === messageId ||
+        Object.values(record.recipientEnvelopes ?? {}).some(
+          (envelope) => envelope.messageId === messageId,
+        ),
+    ) ||
+    Object.values(state.allocation.witnessAssignments).some(
+      (witness) =>
+        witness.awardEnvelope.messageId === messageId ||
+        witness.acceptanceEnvelope?.messageId === messageId ||
+        witness.leaseRenewals.some(
+          (renewal) => renewal.envelope.messageId === messageId,
+        ) ||
+        witness.latestCheckpoint?.envelope.messageId === messageId,
+    )
+  );
+}
 
 /** Creates an empty separately restorable allocation projection. */
 export function createMeshAllocationState(
@@ -126,7 +209,7 @@ export function createMeshAllocationState(
   assertPlainRecord(options, "allocation state options");
   assertExactKeys(options, ["identity", "limits"], ["identity"]);
   return Object.freeze({
-    schemaVersion: 5,
+    schemaVersion: 6,
     identity: freezeIdentity(options.identity),
     workAllocations: createFrozenRecord<MeshWorkAllocationProjection>([]),
     localOffers: createFrozenRecord<MeshLocalOfferProjection>([]),
@@ -146,6 +229,15 @@ export function createMeshAllocationState(
     executionHeads: createFrozenRecord<MeshExecutionHeadProjection>([]),
     leaseRenewals: createFrozenRecord<MeshLeaseRenewalEvidence>([]),
     leaseHeads: createFrozenRecord<MeshLeaseHeadProjection>([]),
+    assignmentFenceHeads: createFrozenRecord<MeshAssignmentFenceHeadProjection>(
+      [],
+    ),
+    witnessAssignments: createFrozenRecord<MeshWitnessAssignmentProjection>([]),
+    takeoverProposals: createFrozenRecord<MeshTakeoverProposalProjection>([]),
+    leaseVotes: createFrozenRecord<MeshLeaseVoteProjection>([]),
+    recoveryCertificates: createFrozenRecord<MeshRecoveryCertificateProjection>(
+      [],
+    ),
     reservations: createFrozenRecord<MeshAllocationReservation>([]),
     limits: resolveLimits(options.limits, false),
     lastLogicalTime: 0,
@@ -262,8 +354,38 @@ export function restoreMeshAllocationState(
       freezeLeaseHead(value, parsed.lastLogicalTime, parsed.limits),
     ]),
   );
+  const assignmentFenceHeads = createFrozenRecord(
+    parsed.assignmentFenceHeads.map(([key, value]) => [
+      key,
+      freezeAssignmentFenceHead(value, parsed.limits),
+    ]),
+  );
+  const witnessAssignments = createFrozenRecord(
+    parsed.witnessAssignments.map(([key, value]) => [
+      key,
+      freezeWitnessAssignment(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
+  const takeoverProposals = createFrozenRecord(
+    parsed.takeoverProposals.map(([key, value]) => [
+      key,
+      freezeTakeoverProposal(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
+  const leaseVotes = createFrozenRecord(
+    parsed.leaseVotes.map(([key, value]) => [
+      key,
+      freezeLeaseVote(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
+  const recoveryCertificates = createFrozenRecord(
+    parsed.recoveryCertificates.map(([key, value]) => [
+      key,
+      freezeRecoveryCertificate(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
   const baseState: MeshAllocationState = Object.freeze({
-    schemaVersion: 5 as const,
+    schemaVersion: 6 as const,
     identity: freezeIdentity(parsed.identity),
     workAllocations,
     localOffers,
@@ -280,6 +402,11 @@ export function restoreMeshAllocationState(
     executionHeads,
     leaseRenewals,
     leaseHeads,
+    assignmentFenceHeads,
+    witnessAssignments,
+    takeoverProposals,
+    leaseVotes,
+    recoveryCertificates,
     reservations,
     limits: Object.freeze({ ...parsed.limits }),
     lastLogicalTime: parsed.lastLogicalTime,
@@ -292,7 +419,7 @@ export function restoreMeshAllocationState(
     migratedLeaseHeadEntries.length > parsed.limits.maximumExecutionHeads
   )
     throw new RangeError("Mesh migrated lease heads exceed their limit");
-  const state =
+  const leaseMigratedState =
     migratedLeaseHeadEntries === undefined
       ? baseState
       : Object.freeze({
@@ -306,6 +433,28 @@ export function restoreMeshAllocationState(
                 freezeLeaseHead(value, parsed.lastLogicalTime, parsed.limits),
               ] as const;
             }),
+          ),
+        });
+  const migratedFenceHeadEntries = parsed.migrateAssignmentFenceHeads
+    ? collectAssignmentFenceHeads(leaseMigratedState.leaseHeads)
+    : undefined;
+  if (
+    migratedFenceHeadEntries !== undefined &&
+    migratedFenceHeadEntries.length > parsed.limits.maximumAssignmentFenceHeads
+  )
+    throw new RangeError(
+      "Mesh migrated assignment fence heads exceed their limit",
+    );
+  const state =
+    migratedFenceHeadEntries === undefined
+      ? leaseMigratedState
+      : Object.freeze({
+          ...leaseMigratedState,
+          assignmentFenceHeads: createFrozenRecord(
+            migratedFenceHeadEntries.map(([key, value]) => [
+              key,
+              freezeAssignmentFenceHead(value, parsed.limits),
+            ]),
           ),
         });
   validateStateRelations(state, false);
@@ -335,6 +484,11 @@ export function assertFrozenMeshAllocationState(
     !Object.isFrozen(state.executionHeads) ||
     !Object.isFrozen(state.leaseRenewals) ||
     !Object.isFrozen(state.leaseHeads) ||
+    !Object.isFrozen(state.assignmentFenceHeads) ||
+    !Object.isFrozen(state.witnessAssignments) ||
+    !Object.isFrozen(state.takeoverProposals) ||
+    !Object.isFrozen(state.leaseVotes) ||
+    !Object.isFrozen(state.recoveryCertificates) ||
     !Object.isFrozen(state.reservations) ||
     !Object.isFrozen(state.limits) ||
     [
@@ -353,6 +507,11 @@ export function assertFrozenMeshAllocationState(
       state.executionHeads,
       state.leaseRenewals,
       state.leaseHeads,
+      state.assignmentFenceHeads,
+      state.witnessAssignments,
+      state.takeoverProposals,
+      state.leaseVotes,
+      state.recoveryCertificates,
       state.reservations,
     ].some((record) => Object.getPrototypeOf(record) !== null) ||
     Object.values(state.workAllocations).some(
@@ -396,7 +555,20 @@ export function assertFrozenMeshAllocationState(
     Object.values(state.leaseRenewals).some(
       (value) => !isDeepFrozenData(value),
     ) ||
-    Object.values(state.leaseHeads).some((value) => !isDeepFrozenData(value))
+    Object.values(state.leaseHeads).some((value) => !isDeepFrozenData(value)) ||
+    Object.values(state.assignmentFenceHeads).some(
+      (value) => !isDeepFrozenData(value),
+    ) ||
+    Object.values(state.witnessAssignments).some(
+      (value) => !isDeepFrozenData(value),
+    ) ||
+    Object.values(state.takeoverProposals).some(
+      (value) => !isDeepFrozenData(value),
+    ) ||
+    Object.values(state.leaseVotes).some((value) => !isDeepFrozenData(value)) ||
+    Object.values(state.recoveryCertificates).some(
+      (value) => !isDeepFrozenData(value),
+    )
   )
     throw new TypeError(
       "Mesh allocation reservation state must be an immutable snapshot",
@@ -632,6 +804,13 @@ export function createMeshAllocationRuntimeState(
           head.expiryTimerId === timer.timerId &&
           head.expiryTimerGeneration === timer.generation &&
           head.currentLeaseExpiresAtLogical === timer.dueAt,
+      ) &&
+      !Object.values(allocation.witnessAssignments).some(
+        (witness) =>
+          witness.leaseHead?.status === "active" &&
+          witness.leaseHead.expiryTimerId === timer.timerId &&
+          witness.leaseHead.expiryTimerGeneration === timer.generation &&
+          witness.leaseHead.currentLeaseExpiresAtLogical === timer.dueAt,
       )
     )
       throw new TypeError("Mesh lease expiry timer is orphaned");
@@ -784,7 +963,7 @@ export function createMeshAllocationRuntimeState(
     )
       throw new TypeError("Mesh remote bid domain record binding is invalid");
   }
-  const retainedMessageIds = new Set<string>([
+  const initiallyRetainedMessageIds = [
     ...Object.values(allocation.localOffers).flatMap((offer) =>
       Object.values(offer.recipientOffers).map(
         (prepared) => prepared.messageId,
@@ -793,7 +972,31 @@ export function createMeshAllocationRuntimeState(
     ...Object.values(allocation.acceptedBidEvidence).map(
       (evidence) => evidence.envelope.messageId,
     ),
-  ]);
+    ...[
+      ...Object.values(allocation.takeoverProposals),
+      ...Object.values(allocation.leaseVotes),
+      ...Object.values(allocation.recoveryCertificates),
+    ].flatMap((projection) =>
+      Object.values(
+        projection.recipientEnvelopes ?? {
+          primary: projection.envelope,
+        },
+      ).map((envelope) => envelope.messageId),
+    ),
+    ...Object.values(allocation.witnessAssignments).flatMap((witness) => [
+      witness.awardEnvelope.messageId,
+      ...(witness.acceptanceEnvelope === undefined
+        ? []
+        : [witness.acceptanceEnvelope.messageId]),
+      ...witness.leaseRenewals.map((renewal) => renewal.envelope.messageId),
+      ...(witness.latestCheckpoint === undefined
+        ? []
+        : [witness.latestCheckpoint.envelope.messageId]),
+    ]),
+  ];
+  const retainedMessageIds = new Set<string>(initiallyRetainedMessageIds);
+  if (retainedMessageIds.size !== initiallyRetainedMessageIds.length)
+    throw new TypeError("Mesh retained recovery messageId is not unique");
   for (const award of Object.values(allocation.localAwards)) {
     const domain =
       coordination.domainRecords[domainRecordKey("work.award", award.awardId)];
@@ -812,6 +1015,28 @@ export function createMeshAllocationRuntimeState(
     const bid = Object.values(allocation.bidHeads).find(
       (entry) => entry.offerId === award.offerId && entry.bidId === award.bidId,
     );
+    const recoveryAward =
+      award.recipientAward.envelope.payload.authorityKind ===
+      "recovery_certificate";
+    const recoveryCertificate = recoveryAward
+      ? allocation.recoveryCertificates[
+          award.recipientAward.envelope.payload.recoveryCertificateId
+        ]
+      : undefined;
+    const assignmentFence =
+      allocation.assignmentFenceHeads[
+        meshAssignmentFenceKey({
+          objectiveId: award.objectiveId,
+          objectiveRevision: award.objectiveRevision,
+          workItemId: award.work.workItemId,
+          workItemRevision: award.work.workItemRevision,
+          ownerPeerId: award.work.ownerPeerId,
+          ownerEpoch: award.work.ownerEpoch,
+        })
+      ];
+    const supersededAward =
+      assignmentFence !== undefined &&
+      assignmentFence.assignmentEpoch > award.assignmentEpoch;
     const awardContext = validateMeshEnvelopeContext(
       award.recipientAward.envelope,
       {
@@ -872,9 +1097,18 @@ export function createMeshAllocationRuntimeState(
       bid.bidRevision !== award.bidRevision ||
       bid.bidderPeerId !== award.assigneePeerId ||
       award.createdAt < bid.acceptedAt ||
-      award.createdAt >= offer.bidDeadlineAt ||
-      compareTimestamp(award.validityVerifiedAt, offer.bidDeadline) >= 0 ||
-      award.recipientAward.envelope.causationId !== bid.acceptedMessageId ||
+      (!recoveryAward && award.createdAt >= offer.bidDeadlineAt) ||
+      (!recoveryAward &&
+        compareTimestamp(award.validityVerifiedAt, offer.bidDeadline) >= 0) ||
+      (recoveryAward
+        ? recoveryCertificate === undefined ||
+          award.recipientAward.envelope.causationId !==
+            (
+              recoveryCertificate.recipientEnvelopes?.[award.assigneePeerId] ??
+              recoveryCertificate.envelope
+            ).messageId
+        : award.recipientAward.envelope.causationId !==
+          bid.acceptedMessageId) ||
       reservation.offerId !== award.offerId ||
       reservation.budgetReservationUnits !== award.budgetReservationUnits
     )
@@ -896,7 +1130,7 @@ export function createMeshAllocationRuntimeState(
         response ||
         work.phase !== "award_pending" ||
         work.activeAwardId !== award.awardId ||
-        reservation.status !== "reserved" ||
+        reservation.status !== (recoveryAward ? "committed" : "reserved") ||
         !timer ||
         timer.kind !== "work.acceptance_deadline" ||
         timer.dueAt !== award.acceptanceDeadlineAt ||
@@ -910,24 +1144,43 @@ export function createMeshAllocationRuntimeState(
         ? response === undefined
         : response !== undefined) ||
       (award.status === "accepted" &&
-        (!["active", "completed", "released", "cancelled"].includes(
-          work.phase,
-        ) ||
-          work.activeAcceptanceId !== response?.responseId ||
-          response?.kind !== "work.accept" ||
-          reservation.status !== "committed" ||
-          (work.phase === "active"
-            ? executionHead !== undefined && executionHead.phase !== "active"
-            : executionHead?.phase !== work.phase))) ||
+        (supersededAward
+          ? response?.kind !== "work.accept" ||
+            reservation.status !== "committed" ||
+            !["recovering", "award_pending", "active"].includes(work.phase)
+          : ![
+              "active",
+              "recovering",
+              "completed",
+              "released",
+              "cancelled",
+            ].includes(work.phase) ||
+            work.activeAcceptanceId !== response?.responseId ||
+            response?.kind !== "work.accept" ||
+            reservation.status !== "committed" ||
+            (work.phase === "active"
+              ? executionHead !== undefined && executionHead.phase !== "active"
+              : work.phase === "recovering"
+                ? executionHead !== undefined &&
+                  executionHead.phase !== "active"
+                : executionHead?.phase !== work.phase))) ||
       (award.status === "declined" &&
         (response?.kind !== "work.decline" ||
-          reservation.status !== "released" ||
-          work.activeAwardId === award.awardId ||
-          work.reservationId === reservation.reservationId)) ||
+          (recoveryAward
+            ? reservation.status !== "committed" ||
+              work.phase !== "recovering" ||
+              work.reservationId !== reservation.reservationId
+            : reservation.status !== "released" ||
+              work.reservationId === reservation.reservationId) ||
+          work.activeAwardId === award.awardId)) ||
       (award.status === "timed_out" &&
-        (reservation.status !== "released" ||
-          work.activeAwardId === award.awardId ||
-          work.reservationId === reservation.reservationId)) ||
+        ((recoveryAward
+          ? reservation.status !== "committed" ||
+            work.phase !== "recovering" ||
+            work.reservationId !== reservation.reservationId
+          : reservation.status !== "released" ||
+            work.reservationId === reservation.reservationId) ||
+          work.activeAwardId === award.awardId)) ||
       (award.status === "cancelled" &&
         (response !== undefined ||
           reservation.status !== "released" ||
@@ -989,7 +1242,7 @@ export function createMeshAllocationRuntimeState(
       payload.workItemId !== award.work.workItemId ||
       payload.workItemRevision !== award.work.workItemRevision ||
       payload.ownerPeerId !== allocation.identity.peerId ||
-      payload.ownerEpoch !== 1 ||
+      payload.ownerEpoch !== award.work.ownerEpoch ||
       payload.assigneePeerId !== award.assigneePeerId ||
       payload.assignmentEpoch !== award.assignmentEpoch ||
       payload.assignmentAuthorityId !== award.assignmentAuthorityId ||
@@ -999,6 +1252,14 @@ export function createMeshAllocationRuntimeState(
       throw new TypeError("Mesh assignment response domain binding is invalid");
     retainedMessageIds.add(response.envelope.messageId);
   }
+  validateRecoveryRuntimeRelations(
+    coordination,
+    discovery,
+    objectives,
+    allocation,
+    domainKeysByMessageId,
+  );
+  validateWitnessCoordinationRelations(coordination, allocation);
   validateAssigneeObjectiveRelations(objectives, allocation);
   validateAssigneeCoordinationRelations(
     coordination,
@@ -1051,7 +1312,9 @@ export function createMeshAllocationRuntimeState(
     ).filter(
       (work) =>
         work.objectiveId === objective.objectiveId &&
-        (work.phase === "award_pending" || work.phase === "active"),
+        (work.phase === "award_pending" ||
+          work.phase === "recovering" ||
+          work.phase === "active"),
     ).length;
     if (concurrentAssignments > objective.maximumConcurrentAssignments) {
       throw new TypeError(
@@ -1060,6 +1323,381 @@ export function createMeshAllocationRuntimeState(
     }
   }
   return Object.freeze({ coordination, discovery, objectives, allocation });
+}
+
+function validateRecoveryRuntimeRelations(
+  coordination: MeshCoordinationState,
+  discovery: MeshDiscoveryState,
+  objectives: MeshObjectiveWorkState,
+  allocation: MeshAllocationState,
+  domainKeysByMessageId: ReadonlyMap<string, string>,
+): void {
+  const validateDomain = (
+    projection:
+      | MeshTakeoverProposalProjection
+      | MeshLeaseVoteProjection
+      | MeshRecoveryCertificateProjection,
+    type: "lease.takeover_proposal" | "lease.vote" | "lease.certificate",
+    id: string,
+  ): void => {
+    const key = domainRecordKey(type, id);
+    const domain = coordination.domainRecords[key];
+    const journal = coordination.journal.filter(
+      (entry) =>
+        entry.domainRecordKey === key &&
+        (entry.kind === "command.accepted" || entry.kind === "domain.accepted"),
+    );
+    const fanout = Object.values(projection.recipientEnvelopes ?? {});
+    if (
+      domain === undefined ||
+      journal.length !== 1 ||
+      domain.recordType !== type ||
+      domain.recordId !== id ||
+      domain.messageId !== projection.envelope.messageId ||
+      domain.acceptedAt !== projection.acceptedAt ||
+      domain.objectiveId !== projection.envelope.payload.objectiveId ||
+      domain.contentDigest !==
+        projection.envelope.payloadHash.slice("sha256:".length) ||
+      journal[0]!.occurredAt !== projection.acceptedAt ||
+      journal[0]!.kind !==
+        (projection.direction === "local"
+          ? "command.accepted"
+          : "domain.accepted") ||
+      fanout.some((envelope) => {
+        const claimed = domainKeysByMessageId.get(envelope.messageId);
+        return claimed !== undefined && claimed !== key;
+      })
+    )
+      throw new TypeError("Mesh recovery domain record binding is invalid");
+  };
+  for (const proposal of Object.values(allocation.takeoverProposals)) {
+    const payload = proposal.envelope.payload;
+    const policy =
+      objectives.objectivePolicies[
+        JSON.stringify([payload.objectiveId, payload.objectiveRevision])
+      ];
+    const oldLease = findRecoveryLease(
+      allocation,
+      meshAssignmentFenceKey(payload),
+      payload.proposedAssignmentEpoch - 1,
+    );
+    const expectedRecipients =
+      policy === undefined
+        ? []
+        : runtimeRecoveryRecipients(allocation.identity.peerId, [
+            payload.ownerPeerId,
+            payload.assigneePeerId,
+            payload.proposedAssigneePeerId,
+            ...policy.recoveryWitnessPeerIds,
+          ]);
+    if (
+      policy === undefined ||
+      oldLease === undefined ||
+      proposal.acceptedAt <
+        oldLease.currentLeaseExpiresAtLogical + policy.recoveryGraceMs ||
+      !runtimeRecoveryRecipientSetMatches(proposal, expectedRecipients) ||
+      !policy.recoveryWitnessPeerIds.every((peerId) =>
+        recoveryPeerWasAdmitted(
+          discovery,
+          allocation.identity.peerId,
+          peerId,
+          proposal.validityVerifiedAt,
+        ),
+      ) ||
+      !recoveryPeerWasAdmitted(
+        discovery,
+        allocation.identity.peerId,
+        payload.proposedAssigneePeerId,
+        proposal.validityVerifiedAt,
+      ) ||
+      (payload.proposalAuthority === "witness" &&
+        !policy.recoveryWitnessPeerIds.includes(payload.proposerPeerId)) ||
+      (proposal.direction === "received" &&
+        !recoveryParticipantIncludes(
+          allocation.identity.peerId,
+          payload,
+          policy.recoveryWitnessPeerIds,
+          true,
+        ))
+    )
+      throw new TypeError("Mesh recovery proposal policy binding is invalid");
+    validateDomain(
+      proposal,
+      "lease.takeover_proposal",
+      proposal.takeoverProposalId,
+    );
+  }
+  for (const vote of Object.values(allocation.leaseVotes)) {
+    const proposal = allocation.takeoverProposals[vote.takeoverProposalId]!;
+    const payload = proposal.envelope.payload;
+    const policy =
+      objectives.objectivePolicies[
+        JSON.stringify([payload.objectiveId, payload.objectiveRevision])
+      ];
+    const expectedRecipients =
+      policy === undefined
+        ? []
+        : runtimeRecoveryRecipients(allocation.identity.peerId, [
+            payload.ownerPeerId,
+            payload.assigneePeerId,
+            payload.proposedAssigneePeerId,
+            ...policy.recoveryWitnessPeerIds,
+          ]);
+    if (
+      policy === undefined ||
+      !policy.recoveryWitnessPeerIds.includes(vote.witnessPeerId) ||
+      vote.acceptedAt < proposal.acceptedAt ||
+      !runtimeRecoveryRecipientSetMatches(vote, expectedRecipients) ||
+      (vote.direction === "received" &&
+        !recoveryParticipantIncludes(
+          allocation.identity.peerId,
+          payload,
+          policy.recoveryWitnessPeerIds,
+          true,
+        ))
+    )
+      throw new TypeError("Mesh recovery vote policy binding is invalid");
+    validateDomain(vote, "lease.vote", vote.leaseVoteId);
+  }
+  for (const certificate of Object.values(allocation.recoveryCertificates)) {
+    const proposal =
+      allocation.takeoverProposals[certificate.takeoverProposalId]!;
+    const payload = proposal.envelope.payload;
+    const policy =
+      objectives.objectivePolicies[
+        JSON.stringify([payload.objectiveId, payload.objectiveRevision])
+      ];
+    const votes = certificate.envelope.payload.leaseVoteIds.map(
+      (voteId) => allocation.leaseVotes[voteId]!,
+    );
+    const expectedRecipients =
+      policy === undefined
+        ? []
+        : runtimeRecoveryRecipients(allocation.identity.peerId, [
+            payload.ownerPeerId,
+            payload.assigneePeerId,
+            payload.proposedAssigneePeerId,
+            ...policy.recoveryWitnessPeerIds,
+          ]);
+    if (
+      policy === undefined ||
+      votes.length < policy.recoveryWitnessThreshold ||
+      votes.some(
+        (vote) =>
+          !policy.recoveryWitnessPeerIds.includes(vote.witnessPeerId) ||
+          certificate.acceptedAt < vote.acceptedAt,
+      ) ||
+      !runtimeRecoveryRecipientSetMatches(certificate, expectedRecipients) ||
+      !recoveryParticipantIncludes(
+        certificate.envelope.payload.certificateAssemblerPeerId,
+        payload,
+        policy.recoveryWitnessPeerIds,
+        true,
+      ) ||
+      (certificate.direction === "received" &&
+        !recoveryParticipantIncludes(
+          allocation.identity.peerId,
+          payload,
+          policy.recoveryWitnessPeerIds,
+          true,
+        ))
+    )
+      throw new TypeError(
+        "Mesh recovery certificate policy binding is invalid",
+      );
+    validateDomain(certificate, "lease.certificate", certificate.certificateId);
+  }
+  const recoveryAwards = [
+    ...Object.values(allocation.localAwards).map(
+      (award) => award.recipientAward.envelope.payload,
+    ),
+    ...Object.values(allocation.receivedAwards).map(
+      (award) => award.envelope.payload,
+    ),
+  ].filter(
+    (
+      payload,
+    ): payload is Extract<
+      WorkAwardPayload,
+      { authorityKind: "recovery_certificate" }
+    > => payload.authorityKind === "recovery_certificate",
+  );
+  for (const award of recoveryAwards) {
+    const certificate =
+      allocation.recoveryCertificates[award.recoveryCertificateId];
+    const proposal =
+      certificate === undefined
+        ? undefined
+        : allocation.takeoverProposals[certificate.takeoverProposalId];
+    const proposed = proposal?.envelope.payload;
+    if (
+      certificate === undefined ||
+      proposed === undefined ||
+      award.assignmentEpoch !== proposed.proposedAssignmentEpoch ||
+      award.assigneePeerId !== proposed.proposedAssigneePeerId ||
+      award.assignmentAuthorityId !== certificate.certificateId ||
+      award.fencingToken !== certificate.certificateId
+    )
+      throw new TypeError("Mesh recovery award certificate binding is invalid");
+    const fenceKey = meshAssignmentFenceKey(proposed);
+    const checkpointIds = new Set(
+      [
+        ...Object.values(allocation.executionHeads)
+          .filter(
+            (head) =>
+              meshAssignmentFenceKey(head) === fenceKey &&
+              head.assignmentEpoch === proposed.proposedAssignmentEpoch - 1,
+          )
+          .map((head) => head.latestCheckpointId),
+        allocation.witnessAssignments[fenceKey]?.latestCheckpoint?.recordId,
+      ].filter(
+        (checkpointId): checkpointId is string => checkpointId !== undefined,
+      ),
+    );
+    if (
+      checkpointIds.size > 1 ||
+      award.resumeCheckpointId !== [...checkpointIds][0]
+    )
+      throw new TypeError("Mesh recovery award checkpoint binding is invalid");
+  }
+  for (const record of Object.values(coordination.domainRecords))
+    if (
+      (record.recordType === "lease.takeover_proposal" &&
+        allocation.takeoverProposals[record.recordId] === undefined) ||
+      (record.recordType === "lease.vote" &&
+        allocation.leaseVotes[record.recordId] === undefined) ||
+      (record.recordType === "lease.certificate" &&
+        allocation.recoveryCertificates[record.recordId] === undefined)
+    )
+      throw new TypeError("Mesh recovery domain record is orphaned");
+}
+
+function validateWitnessCoordinationRelations(
+  coordination: MeshCoordinationState,
+  allocation: MeshAllocationState,
+): void {
+  const verify = (
+    type: "work.award" | "work.accept" | "lease.renew" | "work.checkpoint",
+    id: string,
+    envelope: SignedMeshEnvelope<
+      | WorkAwardPayload
+      | WorkAcceptPayload
+      | LeaseRenewPayload
+      | WorkCheckpointPayload
+    >,
+    latestObservedAt: number,
+    exactAcceptedAt?: number,
+  ): void => {
+    const key = domainRecordKey(type, id);
+    const domain = coordination.domainRecords[key];
+    const journal = coordination.journal.filter(
+      (entry) =>
+        entry.domainRecordKey === key && entry.kind === "domain.accepted",
+    );
+    if (
+      domain === undefined ||
+      journal.length !== 1 ||
+      domain.recordType !== type ||
+      domain.recordId !== id ||
+      domain.messageId !== envelope.messageId ||
+      domain.objectiveId !== envelope.payload.objectiveId ||
+      domain.contentDigest !== envelope.payloadHash.slice("sha256:".length) ||
+      domain.acceptedAt > latestObservedAt ||
+      (exactAcceptedAt !== undefined &&
+        domain.acceptedAt !== exactAcceptedAt) ||
+      journal[0]!.occurredAt !== domain.acceptedAt
+    )
+      throw new TypeError("Mesh witness domain record binding is invalid");
+  };
+  for (const witness of Object.values(allocation.witnessAssignments)) {
+    verify(
+      "work.award",
+      witness.awardEnvelope.payload.awardId,
+      witness.awardEnvelope,
+      witness.observedAt,
+    );
+    if (witness.acceptanceEnvelope !== undefined)
+      verify(
+        "work.accept",
+        witness.acceptanceEnvelope.payload.acceptanceId,
+        witness.acceptanceEnvelope,
+        witness.observedAt,
+      );
+    for (const renewal of witness.leaseRenewals)
+      verify(
+        "lease.renew",
+        renewal.leaseRenewalId,
+        renewal.envelope,
+        witness.observedAt,
+        renewal.acceptedAt,
+      );
+    if (witness.latestCheckpoint !== undefined)
+      verify(
+        "work.checkpoint",
+        witness.latestCheckpoint.recordId,
+        witness.latestCheckpoint
+          .envelope as SignedMeshEnvelope<WorkCheckpointPayload>,
+        witness.observedAt,
+        witness.latestCheckpoint.recordedAt,
+      );
+  }
+}
+
+function runtimeRecoveryRecipients(
+  localPeerId: string,
+  recipients: readonly string[],
+): readonly string[] {
+  return Object.freeze(
+    [...new Set(recipients)]
+      .filter((peerId) => peerId !== localPeerId)
+      .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0)),
+  );
+}
+
+function runtimeRecoveryRecipientSetMatches(
+  projection:
+    | MeshTakeoverProposalProjection
+    | MeshLeaseVoteProjection
+    | MeshRecoveryCertificateProjection,
+  expectedRecipients: readonly string[],
+): boolean {
+  if (projection.direction === "received")
+    return projection.recipientEnvelopes === undefined;
+  const actual = Object.keys(projection.recipientEnvelopes ?? {}).sort(
+    (left, right) => (left < right ? -1 : left > right ? 1 : 0),
+  );
+  return (
+    actual.length === expectedRecipients.length &&
+    actual.every((peerId, index) => peerId === expectedRecipients[index])
+  );
+}
+
+function recoveryPeerWasAdmitted(
+  discovery: MeshDiscoveryState,
+  localPeerId: string,
+  peerId: string,
+  verifiedAt: string,
+): boolean {
+  if (peerId === localPeerId) return true;
+  const admission = discovery.admittedPeers[peerId];
+  return (
+    admission !== undefined &&
+    compareTimestamp(verifiedAt, admission.validUntil) < 0
+  );
+}
+
+function recoveryParticipantIncludes(
+  peerId: string,
+  proposal: LeaseTakeoverProposalPayload,
+  witnesses: readonly string[],
+  includeOldAssignee: boolean,
+): boolean {
+  return (
+    peerId === proposal.ownerPeerId ||
+    peerId === proposal.proposedAssigneePeerId ||
+    witnesses.includes(peerId) ||
+    (includeOldAssignee && peerId === proposal.assigneePeerId)
+  );
 }
 
 /**
@@ -1083,6 +1721,16 @@ function materializeInitialLeaseState(
     ...recordEntries(allocation.leaseHeads),
     ...missing,
   ]);
+  const fenceCandidates = new Map(
+    collectAssignmentFenceHeads(heads, allocation.assignmentFenceHeads),
+  );
+  const missingFences = [...fenceCandidates].filter(
+    ([scope]) => allocation.assignmentFenceHeads[scope] === undefined,
+  );
+  const fenceHeads = createFrozenRecord([
+    ...recordEntries(allocation.assignmentFenceHeads),
+    ...missingFences,
+  ]);
   const timers = new Map(recordEntries(coordination.timers));
   for (const head of Object.values(heads)) {
     if (head.status !== "active") continue;
@@ -1094,6 +1742,7 @@ function materializeInitialLeaseState(
   }
   if (
     missing.length === 0 &&
+    missingFences.length === 0 &&
     timers.size === Object.keys(coordination.timers).length
   )
     return Object.freeze({ coordination, allocation });
@@ -1101,11 +1750,12 @@ function materializeInitialLeaseState(
     throw new RangeError("Mesh initial lease timers exceed their limit");
 
   const normalizedAllocation =
-    missing.length === 0
+    missing.length === 0 && missingFences.length === 0
       ? allocation
       : restoreMeshAllocationState({
           ...allocation,
           leaseHeads: heads,
+          assignmentFenceHeads: fenceHeads,
         });
   const normalizedCoordination = Object.freeze({
     ...coordination,
@@ -1180,6 +1830,47 @@ function collectInitialLeaseHeads(
     if (existing !== undefined && !sameData(existing, candidate))
       throw new TypeError("Mesh initial lease authority is ambiguous");
     candidates.set(scope, candidate);
+  }
+  return Object.freeze([...candidates]);
+}
+
+function collectAssignmentFenceHeads(
+  leaseHeads: Readonly<Record<string, MeshLeaseHeadProjection>>,
+  existing: Readonly<
+    Record<string, MeshAssignmentFenceHeadProjection>
+  > = Object.create(null),
+): readonly (readonly [string, MeshAssignmentFenceHeadProjection])[] {
+  const candidates = new Map<string, MeshAssignmentFenceHeadProjection>();
+  for (const leaseHead of Object.values(leaseHeads)) {
+    const key = meshAssignmentFenceKey(leaseHead);
+    if (existing[key] !== undefined) continue;
+    if (candidates.has(key))
+      throw new TypeError(
+        "Mesh assignment fence migration has a stable scope collision",
+      );
+    candidates.set(
+      key,
+      Object.freeze({
+        assignmentFenceKey: key,
+        objectiveId: leaseHead.objectiveId,
+        objectiveRevision: leaseHead.objectiveRevision,
+        workItemId: leaseHead.workItemId,
+        workItemRevision: leaseHead.workItemRevision,
+        ownerPeerId: leaseHead.ownerPeerId,
+        ownerEpoch: leaseHead.ownerEpoch,
+        assignmentEpoch: leaseHead.assignmentEpoch,
+        assignmentAuthorityId: leaseHead.assignmentAuthorityId,
+        fencingToken: leaseHead.fencingToken,
+        assigneePeerId: leaseHead.assigneePeerId,
+        activeAwardId: leaseHead.awardId,
+        phase:
+          leaseHead.status === "active"
+            ? "active"
+            : leaseHead.status === "expired"
+              ? "expired"
+              : "terminal",
+      }),
+    );
   }
   return Object.freeze([...candidates]);
 }
@@ -1353,8 +2044,9 @@ function validateAssigneeObjectiveRelations(
       policy.objectiveDocumentId !== payload.objectiveDocumentId ||
       award.receivedAt >= policy.expiresAt ||
       compareTimestamp(award.validityVerifiedAt, policy.validUntil) >= 0 ||
-      award.receivedAt >= bid.bidExpiresAtLogical ||
-      compareTimestamp(award.validityVerifiedAt, bid.bidExpiresAt) >= 0 ||
+      (payload.authorityKind === "award" &&
+        (award.receivedAt >= bid.bidExpiresAtLogical ||
+          compareTimestamp(award.validityVerifiedAt, bid.bidExpiresAt) >= 0)) ||
       !signedAcceptanceDuration ||
       signedAcceptanceDuration > document.envelope.payload.acceptanceWindowMs ||
       !signedLeaseDuration ||
@@ -1467,6 +2159,7 @@ function validateSnapshot(snapshot: unknown): ParsedState {
   const legacyV1 = version === 1;
   const legacyV3 = version === 3;
   const legacyV4 = version === 4;
+  const legacyV5 = version === 5;
   assertExactKeys(
     snapshot,
     [
@@ -1490,6 +2183,15 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       "reservations",
       "schemaVersion",
       "workAllocations",
+      ...(version === 6
+        ? [
+            "assignmentFenceHeads",
+            "leaseVotes",
+            "recoveryCertificates",
+            "takeoverProposals",
+            "witnessAssignments",
+          ]
+        : []),
     ],
     legacyV1
       ? [
@@ -1557,28 +2259,56 @@ function validateSnapshot(snapshot: unknown): ParsedState {
                 "schemaVersion",
                 "workAllocations",
               ]
-            : [
-                "acceptedBidEvidence",
-                "assigneeAuthorities",
-                "assignmentResponses",
-                "bidHeads",
-                "executionHeads",
-                "executionRecords",
-                "identity",
-                "leaseHeads",
-                "leaseRenewals",
-                "lastLogicalTime",
-                "limits",
-                "localAssignmentResponses",
-                "localBids",
-                "localAwards",
-                "localOffers",
-                "receivedAwards",
-                "receivedOffers",
-                "reservations",
-                "schemaVersion",
-                "workAllocations",
-              ],
+            : legacyV5
+              ? [
+                  "acceptedBidEvidence",
+                  "assigneeAuthorities",
+                  "assignmentResponses",
+                  "bidHeads",
+                  "executionHeads",
+                  "executionRecords",
+                  "identity",
+                  "leaseHeads",
+                  "leaseRenewals",
+                  "lastLogicalTime",
+                  "limits",
+                  "localAssignmentResponses",
+                  "localBids",
+                  "localAwards",
+                  "localOffers",
+                  "receivedAwards",
+                  "receivedOffers",
+                  "reservations",
+                  "schemaVersion",
+                  "workAllocations",
+                ]
+              : [
+                  "acceptedBidEvidence",
+                  "assignmentFenceHeads",
+                  "assigneeAuthorities",
+                  "assignmentResponses",
+                  "bidHeads",
+                  "executionHeads",
+                  "executionRecords",
+                  "identity",
+                  "leaseHeads",
+                  "leaseRenewals",
+                  "leaseVotes",
+                  "lastLogicalTime",
+                  "limits",
+                  "localAssignmentResponses",
+                  "localBids",
+                  "localAwards",
+                  "localOffers",
+                  "receivedAwards",
+                  "receivedOffers",
+                  "recoveryCertificates",
+                  "reservations",
+                  "schemaVersion",
+                  "workAllocations",
+                  "takeoverProposals",
+                  "witnessAssignments",
+                ],
   );
   const raw = snapshot as Record<string, unknown>;
   if (
@@ -1586,7 +2316,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     raw.schemaVersion !== 2 &&
     raw.schemaVersion !== 3 &&
     raw.schemaVersion !== 4 &&
-    raw.schemaVersion !== 5
+    raw.schemaVersion !== 5 &&
+    raw.schemaVersion !== 6
   )
     throw new TypeError("Mesh allocation schema version is unsupported");
   const assigneeRecords = {
@@ -1620,7 +2351,7 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     ),
     maximumLeaseRenewals: (raw.limits as MeshAllocationLimits).maximumOffers,
   };
-  const candidate = (legacyV1
+  const candidateV5 = (legacyV1
     ? {
         ...raw,
         schemaVersion: 5,
@@ -1675,6 +2406,41 @@ function validateSnapshot(snapshot: unknown): ParsedState {
               },
             }
           : raw) as unknown as MeshAllocationState;
+  const candidate =
+    version === 6
+      ? (raw as unknown as MeshAllocationState)
+      : ({
+          ...candidateV5,
+          schemaVersion: 6,
+          assignmentFenceHeads: Object.create(null),
+          witnessAssignments: Object.create(null),
+          takeoverProposals: Object.create(null),
+          leaseVotes: Object.create(null),
+          recoveryCertificates: Object.create(null),
+          limits: {
+            ...candidateV5.limits,
+            maximumAssignmentFenceHeads: Math.min(
+              candidateV5.limits.maximumExecutionHeads,
+              DEFAULT_MESH_ALLOCATION_LIMITS.maximumAssignmentFenceHeads,
+            ),
+            maximumWitnessAssignments: Math.min(
+              candidateV5.limits.maximumExecutionHeads,
+              DEFAULT_MESH_ALLOCATION_LIMITS.maximumWitnessAssignments,
+            ),
+            maximumTakeoverProposals: Math.min(
+              candidateV5.limits.maximumExecutionRecords,
+              DEFAULT_MESH_ALLOCATION_LIMITS.maximumTakeoverProposals,
+            ),
+            maximumLeaseVotes: Math.min(
+              candidateV5.limits.maximumExecutionRecords,
+              DEFAULT_MESH_ALLOCATION_LIMITS.maximumLeaseVotes,
+            ),
+            maximumRecoveryCertificates: Math.min(
+              candidateV5.limits.maximumExecutionHeads,
+              DEFAULT_MESH_ALLOCATION_LIMITS.maximumRecoveryCertificates,
+            ),
+          },
+        } as MeshAllocationState);
   const identity = freezeIdentity(candidate.identity);
   const limits = resolveLimits(candidate.limits, true);
   assertMeshLogicalTime(candidate.lastLogicalTime);
@@ -1694,6 +2460,11 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     executionHeads: candidate.executionHeads,
     leaseRenewals: candidate.leaseRenewals,
     leaseHeads: candidate.leaseHeads,
+    assignmentFenceHeads: candidate.assignmentFenceHeads,
+    witnessAssignments: candidate.witnessAssignments,
+    takeoverProposals: candidate.takeoverProposals,
+    leaseVotes: candidate.leaseVotes,
+    recoveryCertificates: candidate.recoveryCertificates,
     reservations: candidate.reservations,
   }))
     assertRecord(record, name);
@@ -1701,7 +2472,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     identity,
     limits,
     lastLogicalTime: candidate.lastLogicalTime,
-    migrateInitialLeaseHeads: version !== 5,
+    migrateInitialLeaseHeads: version !== 5 && version !== 6,
+    migrateAssignmentFenceHeads: version !== 6,
     workAllocations: Object.entries(candidate.workAllocations),
     localOffers: Object.entries(candidate.localOffers),
     bidHeads: Object.entries(candidate.bidHeads),
@@ -1719,6 +2491,11 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     executionHeads: Object.entries(candidate.executionHeads),
     leaseRenewals: Object.entries(candidate.leaseRenewals),
     leaseHeads: Object.entries(candidate.leaseHeads),
+    assignmentFenceHeads: Object.entries(candidate.assignmentFenceHeads),
+    witnessAssignments: Object.entries(candidate.witnessAssignments),
+    takeoverProposals: Object.entries(candidate.takeoverProposals),
+    leaseVotes: Object.entries(candidate.leaseVotes),
+    recoveryCertificates: Object.entries(candidate.recoveryCertificates),
     reservations: Object.entries(candidate.reservations),
   };
   if (
@@ -1735,7 +2512,12 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     parsed.executionRecords.length > limits.maximumExecutionRecords ||
     parsed.executionHeads.length > limits.maximumExecutionHeads ||
     parsed.leaseRenewals.length > limits.maximumLeaseRenewals ||
-    parsed.leaseHeads.length > limits.maximumExecutionHeads
+    parsed.leaseHeads.length > limits.maximumExecutionHeads ||
+    parsed.assignmentFenceHeads.length > limits.maximumAssignmentFenceHeads ||
+    parsed.witnessAssignments.length > limits.maximumWitnessAssignments ||
+    parsed.takeoverProposals.length > limits.maximumTakeoverProposals ||
+    parsed.leaseVotes.length > limits.maximumLeaseVotes ||
+    parsed.recoveryCertificates.length > limits.maximumRecoveryCertificates
   )
     throw new RangeError("Mesh allocation snapshot exceeds its limits");
   for (const [key, value] of parsed.workAllocations) {
@@ -1818,7 +2600,33 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       throw new TypeError("Mesh lease head key is invalid");
     freezeLeaseHead(value, parsed.lastLogicalTime, limits);
   }
-  if (!legacyV1) validateStateRelations(candidate, false, version !== 5);
+  for (const [key, value] of parsed.assignmentFenceHeads) {
+    if (key !== value.assignmentFenceKey)
+      throw new TypeError("Mesh assignment fence head key is invalid");
+    freezeAssignmentFenceHead(value, limits);
+  }
+  for (const [key, value] of parsed.witnessAssignments) {
+    if (key !== value.assignmentFenceKey)
+      throw new TypeError("Mesh witness assignment key is invalid");
+    freezeWitnessAssignment(value, parsed.lastLogicalTime, limits);
+  }
+  for (const [key, value] of parsed.takeoverProposals) {
+    if (key !== value.takeoverProposalId)
+      throw new TypeError("Mesh takeover proposal key is invalid");
+    freezeTakeoverProposal(value, parsed.lastLogicalTime, limits);
+  }
+  for (const [key, value] of parsed.leaseVotes) {
+    if (key !== value.leaseVoteId)
+      throw new TypeError("Mesh lease vote key is invalid");
+    freezeLeaseVote(value, parsed.lastLogicalTime, limits);
+  }
+  for (const [key, value] of parsed.recoveryCertificates) {
+    if (key !== value.certificateId)
+      throw new TypeError("Mesh recovery certificate key is invalid");
+    freezeRecoveryCertificate(value, parsed.lastLogicalTime, limits);
+  }
+  if (!legacyV1)
+    validateStateRelations(candidate, false, version !== 5 && version !== 6);
   return parsed;
 }
 
@@ -1827,6 +2635,7 @@ interface ParsedState {
   readonly limits: MeshAllocationLimits;
   readonly lastLogicalTime: number;
   readonly migrateInitialLeaseHeads: boolean;
+  readonly migrateAssignmentFenceHeads: boolean;
   readonly workAllocations: readonly (readonly [
     string,
     MeshWorkAllocationProjection,
@@ -1882,6 +2691,23 @@ interface ParsedState {
     MeshLeaseRenewalEvidence,
   ])[];
   readonly leaseHeads: readonly (readonly [string, MeshLeaseHeadProjection])[];
+  readonly assignmentFenceHeads: readonly (readonly [
+    string,
+    MeshAssignmentFenceHeadProjection,
+  ])[];
+  readonly witnessAssignments: readonly (readonly [
+    string,
+    MeshWitnessAssignmentProjection,
+  ])[];
+  readonly takeoverProposals: readonly (readonly [
+    string,
+    MeshTakeoverProposalProjection,
+  ])[];
+  readonly leaseVotes: readonly (readonly [string, MeshLeaseVoteProjection])[];
+  readonly recoveryCertificates: readonly (readonly [
+    string,
+    MeshRecoveryCertificateProjection,
+  ])[];
 }
 
 function validateStateRelations(
@@ -2086,6 +2912,11 @@ function validateStateRelations(
       (entry) => entry.offerId === award.offerId && entry.bidId === award.bidId,
     );
     const envelope = award.recipientAward.envelope;
+    const recoveryAward =
+      envelope.payload.authorityKind === "recovery_certificate";
+    const recoveryCertificate = recoveryAward
+      ? state.recoveryCertificates[envelope.payload.recoveryCertificateId]
+      : undefined;
     const context = validateMeshEnvelopeContext(envelope, {
       tenantId: state.identity.tenantId,
       meshId: state.identity.meshId,
@@ -2105,8 +2936,8 @@ function validateStateRelations(
     )
       throw new TypeError("Mesh local award assignment scope is not unique");
     if (
-      awardedOfferIds.has(award.offerId) ||
-      awardedReservationIds.has(award.reservationId) ||
+      (!recoveryAward && awardedOfferIds.has(award.offerId)) ||
+      (!recoveryAward && awardedReservationIds.has(award.reservationId)) ||
       !context.ok ||
       !work ||
       !offer ||
@@ -2117,8 +2948,9 @@ function validateStateRelations(
       bid.bidRevision !== award.bidRevision ||
       bid.bidderPeerId !== award.assigneePeerId ||
       award.createdAt < bid.acceptedAt ||
-      award.createdAt >= offer.bidDeadlineAt ||
-      compareTimestamp(award.validityVerifiedAt, offer.bidDeadline) >= 0 ||
+      (!recoveryAward && award.createdAt >= offer.bidDeadlineAt) ||
+      (!recoveryAward &&
+        compareTimestamp(award.validityVerifiedAt, offer.bidDeadline) >= 0) ||
       retainedMessageIds.has(envelope.messageId) ||
       envelope.tenantId !== state.identity.tenantId ||
       envelope.meshId !== state.identity.meshId ||
@@ -2126,7 +2958,14 @@ function validateStateRelations(
       envelope.sender.peerId !== state.identity.peerId ||
       envelope.sender.instanceId !== state.identity.instanceId ||
       envelope.proof.keyId !== state.identity.keyId ||
-      envelope.causationId !== bid.acceptedMessageId ||
+      (recoveryAward
+        ? recoveryCertificate === undefined ||
+          envelope.causationId !==
+            (
+              recoveryCertificate.recipientEnvelopes?.[award.assigneePeerId] ??
+              recoveryCertificate.envelope
+            ).messageId
+        : envelope.causationId !== bid.acceptedMessageId) ||
       (award.status === "awaiting_acceptance" && response !== undefined) ||
       (award.status === "accepted" && response?.kind !== "work.accept") ||
       (award.status === "declined" && response?.kind !== "work.decline") ||
@@ -2137,8 +2976,10 @@ function validateStateRelations(
         "Mesh local award terminal response binding is invalid",
       );
     retainedMessageIds.add(envelope.messageId);
-    awardedOfferIds.add(award.offerId);
-    awardedReservationIds.add(award.reservationId);
+    if (!recoveryAward) {
+      awardedOfferIds.add(award.offerId);
+      awardedReservationIds.add(award.reservationId);
+    }
     awardedAssignmentScopes.set(assignmentScope, award.awardId);
   }
   for (const response of Object.values(state.assignmentResponses)) {
@@ -2192,8 +3033,12 @@ function validateStateRelations(
   for (const reservation of Object.values(state.reservations)) {
     const work = state.workAllocations[reservation.workKey];
     const offer = state.localOffers[reservation.offerId];
-    const award = Object.values(state.localAwards).find(
+    const awards = Object.values(state.localAwards).filter(
       (entry) => entry.reservationId === reservation.reservationId,
+    );
+    const award = awards.find(
+      (entry) =>
+        entry.recipientAward.envelope.payload.authorityKind === "award",
     );
     const response =
       award === undefined
@@ -2238,10 +3083,19 @@ function validateStateRelations(
     }
     if (
       reservation.status === "committed" &&
-      (!["active", "completed", "released", "cancelled"].includes(work.phase) ||
+      (![
+        "award_pending",
+        "active",
+        "recovering",
+        "completed",
+        "released",
+        "cancelled",
+      ].includes(work.phase) ||
         work.reservationId !== reservation.reservationId ||
-        state.localAwards[work.activeAwardId as string]?.status !==
-          "accepted" ||
+        (work.activeAwardId !== undefined &&
+          !["awaiting_acceptance", "accepted"].includes(
+            state.localAwards[work.activeAwardId]?.status ?? "",
+          )) ||
         response?.kind !== "work.accept" ||
         reservation.committedAt !== response.acceptedAt)
     ) {
@@ -2342,6 +3196,11 @@ function validateStateRelations(
     )
       throw new TypeError("Mesh active Work allocation is invalid");
     if (
+      work.phase === "recovering" &&
+      (work.activeOfferId !== undefined || work.bidDeadlineAt !== undefined)
+    )
+      throw new TypeError("Mesh recovering Work allocation is invalid");
+    if (
       ["completed", "released", "cancelled"].includes(work.phase) &&
       (!work.activeAwardId ||
         !work.activeAcceptanceId ||
@@ -2363,10 +3222,343 @@ function validateStateRelations(
       }
     }
   }
+  validateRecoveryStateRelations(state, requireFrozen);
   validateAssigneeStateRelations(
     state,
     requireFrozen,
     allowMissingInitialLeaseHeads,
+  );
+}
+
+function validateRecoveryStateRelations(
+  state: MeshAllocationState,
+  requireFrozen: boolean,
+): void {
+  const voteScopes = new Set<string>();
+  const certificateScopes = new Set<string>();
+  const recoveryMessageIds = new Set<string>();
+  const retainRecoveryEnvelope = (
+    envelope: SignedMeshEnvelope<
+      LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload
+    >,
+    direction: "local" | "received",
+  ): void => {
+    const context = validateMeshEnvelopeContext(envelope, {
+      tenantId: state.identity.tenantId,
+      meshId: state.identity.meshId,
+      peerId:
+        direction === "local"
+          ? envelope.audience.kind === "peer"
+            ? envelope.audience.peerId
+            : ""
+          : state.identity.peerId,
+      receivedAt: envelope.sentAt,
+    });
+    if (
+      !context.ok ||
+      envelope.audience.kind !== "peer" ||
+      (direction === "local" &&
+        (envelope.sender.peerId !== state.identity.peerId ||
+          envelope.sender.instanceId !== state.identity.instanceId ||
+          envelope.proof.keyId !== state.identity.keyId)) ||
+      (direction === "received" &&
+        envelope.audience.peerId !== state.identity.peerId) ||
+      recoveryMessageIds.has(envelope.messageId)
+    )
+      throw new TypeError("Mesh recovery envelope relation is invalid");
+    recoveryMessageIds.add(envelope.messageId);
+  };
+  for (const witness of Object.values(state.witnessAssignments)) {
+    const award = witness.awardEnvelope.payload;
+    const fence = state.assignmentFenceHeads[witness.assignmentFenceKey];
+    const witnessLease = witness.leaseHead;
+    const retainedPredecessor =
+      witnessLease !== undefined &&
+      fence !== undefined &&
+      witnessLease.status === "expired" &&
+      fence.assignmentFenceKey === witness.assignmentFenceKey &&
+      fence.assignmentEpoch === witnessLease.assignmentEpoch + 1;
+    const successorLeaseMatches =
+      fence !== undefined &&
+      Object.values(state.leaseHeads).some((lease) =>
+        fenceMatchesLeaseHead(fence, lease),
+      );
+    const witnessFenceIsValid =
+      witnessLease === undefined ||
+      (fence !== undefined &&
+        (fenceMatchesLeaseHead(fence, witnessLease) ||
+          (retainedPredecessor &&
+            (["recovering", "award_pending"].includes(fence.phase) ||
+              successorLeaseMatches))));
+    if (
+      witness.assignmentFenceKey !== meshAssignmentFenceKey(award) ||
+      witness.awardEnvelope.audience.kind !== "peer" ||
+      witness.awardEnvelope.audience.peerId !== state.identity.peerId ||
+      witness.awardEnvelope.sender.peerId !== award.ownerPeerId ||
+      !witnessFenceIsValid ||
+      (witnessLease?.status === "active" && fence?.phase !== "active")
+    )
+      throw new TypeError("Mesh witness recovery relation is invalid");
+    if (requireFrozen && !isDeepFrozenData(witness))
+      throw new TypeError("Mesh witness recovery evidence is mutable");
+  }
+  for (const proposal of Object.values(state.takeoverProposals)) {
+    const payload = proposal.envelope.payload;
+    const key = meshAssignmentFenceKey(payload);
+    const oldLease = findRecoveryLease(
+      state,
+      key,
+      payload.proposedAssignmentEpoch - 1,
+    );
+    retainRecoveryProjectionEnvelopes(proposal, retainRecoveryEnvelope);
+    if (
+      proposal.envelope.sender.peerId !== payload.proposerPeerId ||
+      oldLease === undefined ||
+      oldLease.status !== "expired" ||
+      payload.proposedAssignmentEpoch !== oldLease.assignmentEpoch + 1 ||
+      !takeoverProposalMatchesLease(payload, oldLease) ||
+      proposal.acceptedAt < oldLease.currentLeaseExpiresAtLogical ||
+      (payload.proposalAuthority === "candidate"
+        ? payload.proposerPeerId !== payload.proposedAssigneePeerId
+        : !witnessProposalConsentIsValid(state, proposal))
+    )
+      throw new TypeError("Mesh takeover proposal relation is invalid");
+    if (requireFrozen && !isDeepFrozenData(proposal))
+      throw new TypeError("Mesh takeover proposal evidence is mutable");
+  }
+  for (const vote of Object.values(state.leaseVotes)) {
+    const proposal = state.takeoverProposals[vote.takeoverProposalId];
+    if (proposal === undefined)
+      throw new TypeError("Mesh lease vote proposal is missing");
+    const proposed = proposal.envelope.payload;
+    const scope = JSON.stringify([
+      meshAssignmentFenceKey(proposed),
+      proposed.proposedAssignmentEpoch,
+      vote.witnessPeerId,
+    ]);
+    retainRecoveryProjectionEnvelopes(vote, retainRecoveryEnvelope);
+    if (
+      voteScopes.has(scope) ||
+      vote.envelope.sender.peerId !== vote.witnessPeerId ||
+      (vote.direction === "local" &&
+        vote.envelope.causationId !==
+          recoveryProjectionEnvelopeForPeer(proposal, vote.witnessPeerId)
+            .messageId)
+    )
+      throw new TypeError("Mesh lease vote relation is invalid");
+    voteScopes.add(scope);
+    if (requireFrozen && !isDeepFrozenData(vote))
+      throw new TypeError("Mesh lease vote evidence is mutable");
+  }
+  for (const certificate of Object.values(state.recoveryCertificates)) {
+    const proposal = state.takeoverProposals[certificate.takeoverProposalId];
+    if (proposal === undefined)
+      throw new TypeError("Mesh recovery certificate proposal is missing");
+    const proposed = proposal.envelope.payload;
+    const votes = certificate.envelope.payload.leaseVoteIds.map(
+      (voteId) => state.leaseVotes[voteId],
+    );
+    const scope = JSON.stringify([
+      meshAssignmentFenceKey(proposed),
+      proposed.proposedAssignmentEpoch,
+    ]);
+    retainRecoveryProjectionEnvelopes(certificate, retainRecoveryEnvelope);
+    if (
+      certificateScopes.has(scope) ||
+      votes.length < 2 ||
+      votes.some(
+        (vote) =>
+          vote === undefined ||
+          vote.takeoverProposalId !== certificate.takeoverProposalId,
+      ) ||
+      new Set(votes.map((vote) => vote!.witnessPeerId)).size !== votes.length ||
+      (certificate.direction === "local" &&
+        certificate.envelope.causationId !==
+          recoveryProjectionEnvelopeForPeer(
+            proposal,
+            certificate.envelope.payload.certificateAssemblerPeerId,
+          ).messageId)
+    )
+      throw new TypeError("Mesh recovery certificate relation is invalid");
+    certificateScopes.add(scope);
+    if (requireFrozen && !isDeepFrozenData(certificate))
+      throw new TypeError("Mesh recovery certificate evidence is mutable");
+  }
+  for (const fence of Object.values(state.assignmentFenceHeads)) {
+    if (fence.recoveryCertificateId === undefined) continue;
+    const certificate = state.recoveryCertificates[fence.recoveryCertificateId];
+    const proposal =
+      certificate === undefined
+        ? undefined
+        : state.takeoverProposals[certificate.takeoverProposalId];
+    const payload = proposal?.envelope.payload;
+    if (
+      certificate === undefined ||
+      payload === undefined ||
+      fence.assignmentFenceKey !== meshAssignmentFenceKey(payload) ||
+      fence.assignmentEpoch !== payload.proposedAssignmentEpoch ||
+      fence.assignmentAuthorityId !== certificate.certificateId ||
+      fence.fencingToken !== certificate.certificateId ||
+      fence.assigneePeerId !== payload.proposedAssigneePeerId ||
+      (fence.phase === "award_pending" &&
+        (fence.activeAwardId === undefined ||
+          !recoveryAwardMatchesFence(
+            state,
+            fence.activeAwardId,
+            certificate.certificateId,
+          ))) ||
+      (fence.phase === "active" &&
+        !Object.values(state.leaseHeads).some((head) =>
+          fenceMatchesLeaseHead(fence, head),
+        ))
+    )
+      throw new TypeError("Mesh recovery fence relation is invalid");
+  }
+}
+
+function retainRecoveryProjectionEnvelopes<
+  TPayload extends
+    LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload,
+>(
+  projection: Readonly<{
+    direction: "local" | "received";
+    envelope: SignedMeshEnvelope<TPayload>;
+    recipientEnvelopes?: Readonly<Record<string, SignedMeshEnvelope<TPayload>>>;
+  }>,
+  retain: (
+    envelope: SignedMeshEnvelope<
+      LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload
+    >,
+    direction: "local" | "received",
+  ) => void,
+): void {
+  const envelopes =
+    projection.recipientEnvelopes === undefined
+      ? [projection.envelope]
+      : Object.values(projection.recipientEnvelopes);
+  if (
+    !envelopes.some(
+      (envelope) => envelope.messageId === projection.envelope.messageId,
+    )
+  )
+    throw new TypeError("Mesh recovery primary envelope is not retained");
+  for (const envelope of envelopes)
+    retain(
+      envelope as SignedMeshEnvelope<
+        | LeaseTakeoverProposalPayload
+        | LeaseVotePayload
+        | LeaseCertificatePayload
+      >,
+      projection.direction,
+    );
+}
+
+function recoveryProjectionEnvelopeForPeer<
+  TPayload extends
+    LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload,
+>(
+  projection: Readonly<{
+    envelope: SignedMeshEnvelope<TPayload>;
+    recipientEnvelopes?: Readonly<Record<string, SignedMeshEnvelope<TPayload>>>;
+  }>,
+  peerId: string,
+): SignedMeshEnvelope<TPayload> {
+  return projection.recipientEnvelopes?.[peerId] ?? projection.envelope;
+}
+
+function findRecoveryLease(
+  state: MeshAllocationState,
+  fenceKey: string,
+  assignmentEpoch: number,
+): MeshLeaseHeadProjection | undefined {
+  return (
+    Object.values(state.leaseHeads).find(
+      (head) =>
+        meshAssignmentFenceKey(head) === fenceKey &&
+        head.assignmentEpoch === assignmentEpoch,
+    ) ??
+    Object.values(state.witnessAssignments).find(
+      (witness) =>
+        witness.assignmentFenceKey === fenceKey &&
+        witness.leaseHead?.assignmentEpoch === assignmentEpoch,
+    )?.leaseHead
+  );
+}
+
+function takeoverProposalMatchesLease(
+  proposal: LeaseTakeoverProposalPayload,
+  lease: MeshLeaseHeadProjection,
+): boolean {
+  return (
+    proposal.objectiveId === lease.objectiveId &&
+    proposal.objectiveDocumentId === lease.objectiveDocumentId &&
+    proposal.objectiveRevision === lease.objectiveRevision &&
+    proposal.workItemId === lease.workItemId &&
+    proposal.workItemRevision === lease.workItemRevision &&
+    proposal.ownerPeerId === lease.ownerPeerId &&
+    proposal.ownerEpoch === lease.ownerEpoch &&
+    proposal.assigneePeerId === lease.assigneePeerId &&
+    proposal.awardId === lease.awardId &&
+    proposal.acceptanceId === lease.acceptanceId &&
+    proposal.assignmentEpoch === lease.assignmentEpoch &&
+    proposal.assignmentAuthorityId === lease.assignmentAuthorityId &&
+    proposal.fencingToken === lease.fencingToken &&
+    proposal.leaseExpiresAt === lease.currentLeaseExpiresAt &&
+    proposal.leaseRenewalSequence === lease.leaseRenewalSequence &&
+    proposal.latestLeaseRenewalId === lease.latestLeaseRenewalId
+  );
+}
+
+function witnessProposalConsentIsValid(
+  state: MeshAllocationState,
+  proposal: MeshTakeoverProposalProjection,
+): boolean {
+  const payload = proposal.envelope.payload;
+  if (payload.proposalAuthority !== "witness") return false;
+  const consent = state.takeoverProposals[payload.candidateConsentProposalId];
+  return (
+    consent !== undefined &&
+    consent.envelope.payload.proposalAuthority === "candidate" &&
+    consent.envelope.payload.proposedAssigneePeerId ===
+      payload.proposedAssigneePeerId &&
+    consent.envelope.payload.proposedAssignmentEpoch ===
+      payload.proposedAssignmentEpoch &&
+    meshAssignmentFenceKey(consent.envelope.payload) ===
+      meshAssignmentFenceKey(payload) &&
+    (proposal.direction === "received" ||
+      proposal.envelope.causationId ===
+        recoveryProjectionEnvelopeForPeer(consent, payload.proposerPeerId)
+          .messageId)
+  );
+}
+
+function fenceMatchesLeaseHead(
+  fence: MeshAssignmentFenceHeadProjection,
+  lease: MeshLeaseHeadProjection,
+): boolean {
+  return (
+    fence.assignmentFenceKey === meshAssignmentFenceKey(lease) &&
+    fence.assignmentEpoch === lease.assignmentEpoch &&
+    fence.assignmentAuthorityId === lease.assignmentAuthorityId &&
+    fence.fencingToken === lease.fencingToken &&
+    fence.assigneePeerId === lease.assigneePeerId &&
+    fence.activeAwardId === lease.awardId
+  );
+}
+
+function recoveryAwardMatchesFence(
+  state: MeshAllocationState,
+  awardId: string,
+  certificateId: string,
+): boolean {
+  const payload =
+    state.localAwards[awardId]?.recipientAward.envelope.payload ??
+    state.receivedAwards[awardId]?.envelope.payload;
+  return (
+    payload?.authorityKind === "recovery_certificate" &&
+    payload.recoveryCertificateId === certificateId &&
+    payload.assignmentAuthorityId === certificateId &&
+    payload.fencingToken === certificateId
   );
 }
 
@@ -2505,6 +3697,10 @@ function validateAssigneeStateRelations(
     const envelope = award.envelope;
     const payload = envelope.payload;
     const response = state.localAssignmentResponses[award.awardId];
+    const recoveryCertificate =
+      payload.authorityKind === "recovery_certificate"
+        ? state.recoveryCertificates[payload.recoveryCertificateId]
+        : undefined;
     if (
       !offer ||
       !bid ||
@@ -2516,12 +3712,16 @@ function validateAssigneeStateRelations(
       envelope.sender.peerId !== offer.envelope.sender.peerId ||
       envelope.audience.kind !== "peer" ||
       envelope.audience.peerId !== state.identity.peerId ||
-      envelope.causationId !== bid.envelope.messageId ||
+      (payload.authorityKind === "recovery_certificate"
+        ? recoveryCertificate === undefined ||
+          envelope.causationId !==
+            (
+              recoveryCertificate.recipientEnvelopes?.[state.identity.peerId] ??
+              recoveryCertificate.envelope
+            ).messageId
+        : envelope.causationId !== bid.envelope.messageId) ||
       payload.assigneePeerId !== state.identity.peerId ||
-      payload.assignmentEpoch !== 1 ||
-      payload.authorityKind !== "award" ||
-      payload.assignmentAuthorityId !== payload.awardId ||
-      payload.fencingToken !== payload.awardId ||
+      !awardAuthorityIsCanonical(payload) ||
       payload.objectiveId !== offer.envelope.payload.objectiveId ||
       payload.objectiveDocumentId !==
         offer.envelope.payload.objectiveDocumentId ||
@@ -2583,9 +3783,10 @@ function validateAssigneeStateRelations(
       payload.ownerPeerId !== award.envelope.payload.ownerPeerId ||
       payload.ownerEpoch !== award.envelope.payload.ownerEpoch ||
       payload.assigneePeerId !== state.identity.peerId ||
-      payload.assignmentEpoch !== 1 ||
-      payload.assignmentAuthorityId !== award.awardId ||
-      payload.fencingToken !== award.awardId ||
+      payload.assignmentEpoch !== award.envelope.payload.assignmentEpoch ||
+      payload.assignmentAuthorityId !==
+        award.envelope.payload.assignmentAuthorityId ||
+      payload.fencingToken !== award.envelope.payload.fencingToken ||
       payload.acceptanceDeadline !== award.envelope.payload.acceptanceDeadline
     )
       throw new TypeError("Mesh local assignment response relation is invalid");
@@ -2843,6 +4044,9 @@ function validateExecutionStateRelations(
     const localAward = state.localAwards[head.awardId];
     const localResponse = state.localAssignmentResponses[head.awardId];
     const ownerResponse = state.assignmentResponses[head.awardId];
+    const fence = state.assignmentFenceHeads[meshAssignmentFenceKey(head)];
+    const superseded =
+      fence !== undefined && fence.assignmentEpoch > head.assignmentEpoch;
     if (
       !executionHeadHasAcceptedAuthority(
         head,
@@ -2852,6 +4056,7 @@ function validateExecutionStateRelations(
         ownerResponse,
       ) ||
       (localAward !== undefined &&
+        !superseded &&
         state.workAllocations[
           workKey(localAward.objectiveId, localAward.work.workItemId)
         ]?.phase !== head.phase) ||
@@ -2998,6 +4203,11 @@ function executionLifecycleMatchesHead(
   state: MeshAllocationState,
 ): boolean {
   if (activatedAt === undefined) return false;
+  const resumeCheckpoint = recoveryResumeCheckpointForExecutionHead(
+    state,
+    head,
+  );
+  const resumeCheckpointId = resumeCheckpoint?.checkpointId;
   if (
     records.some((record) => {
       const leaseDeadline = executionRecordLeaseDeadline(record, head, state);
@@ -3052,9 +4262,12 @@ function executionLifecycleMatchesHead(
       (record, index) =>
         (record.envelope.payload as WorkCheckpointPayload)
           .checkpointSequence !==
-          index + 1 ||
+          (resumeCheckpoint?.checkpointSequence ?? 0) + index + 1 ||
         (record.envelope.payload as WorkCheckpointPayload)
-          .previousCheckpointId !== checkpoints[index - 1]?.recordId ||
+          .previousCheckpointId !==
+          (index === 0
+            ? resumeCheckpointId
+            : checkpoints[index - 1]?.recordId) ||
         record.envelope.causationId !==
           (index === 0
             ? head.acceptanceMessageId
@@ -3076,7 +4289,8 @@ function executionLifecycleMatchesHead(
     results.some((record) => {
       const payload = record.envelope.payload as WorkResultPayload;
       return (
-        payload.checkpointId !== latestCheckpoint?.recordId ||
+        payload.checkpointId !==
+          (latestCheckpoint?.recordId ?? resumeCheckpointId) ||
         record.envelope.causationId !==
           (latestCheckpoint === undefined
             ? head.acceptanceMessageId
@@ -3138,6 +4352,34 @@ function executionLifecycleMatchesHead(
   )
     return false;
   return true;
+}
+
+function recoveryResumeCheckpointForExecutionHead(
+  state: MeshAllocationState,
+  head: MeshExecutionHeadProjection,
+): Readonly<{ checkpointId: string; checkpointSequence: number }> | undefined {
+  const payload =
+    state.localAwards[head.awardId]?.recipientAward.envelope.payload ??
+    state.receivedAwards[head.awardId]?.envelope.payload;
+  const checkpointId =
+    payload?.authorityKind === "recovery_certificate"
+      ? payload.resumeCheckpointId
+      : undefined;
+  if (checkpointId === undefined) return undefined;
+  const record =
+    state.executionRecords[checkpointId] ??
+    Object.values(state.witnessAssignments)
+      .map((witness) => witness.latestCheckpoint)
+      .find((checkpoint) => checkpoint?.recordId === checkpointId);
+  if (
+    record?.envelope.payload.type !== "work.checkpoint" ||
+    record.recordId !== checkpointId
+  )
+    return undefined;
+  return Object.freeze({
+    checkpointId,
+    checkpointSequence: record.envelope.payload.checkpointSequence,
+  });
 }
 
 function currentLeaseCausationMessageIdForHead(
@@ -3435,6 +4677,7 @@ function freezeWorkAllocation(
       "ready",
       "offered",
       "award_pending",
+      "recovering",
       "active",
       "completed",
       "released",
@@ -3837,9 +5080,8 @@ function freezeLocalAward(
   ])
     assertIdentifier((value as Record<string, unknown>)[name], name);
   if (
-    value.assignmentEpoch !== 1 ||
-    value.assignmentAuthorityId !== value.awardId ||
-    value.fencingToken !== value.awardId ||
+    !Number.isSafeInteger(value.assignmentEpoch) ||
+    value.assignmentEpoch < 1 ||
     value.acceptanceDeadlineTimerId !==
       `allocation.acceptance.${value.awardId}` ||
     ![
@@ -3903,7 +5145,7 @@ function freezeLocalAward(
     prepared.recipientPeerId !== value.assigneePeerId ||
     prepared.preparedAt !== value.createdAt ||
     prepared.envelope.objectiveId !== value.objectiveId ||
-    prepared.envelope.payload.authorityKind !== "award" ||
+    !awardAuthorityIsCanonical(prepared.envelope.payload) ||
     prepared.envelope.payload.awardId !== value.awardId ||
     prepared.envelope.payload.offerId !== value.offerId ||
     prepared.envelope.payload.bidId !== value.bidId ||
@@ -4176,25 +5418,37 @@ function freezePolicy(
   assertExactKeys(
     value,
     [
+      "acceptanceWindowMs",
       "acceptedAt",
       "acceptedMessageId",
       "expiresAt",
+      "maximumLeaseDurationMs",
+      "maximumLeaseRenewals",
       "maximumBudgetUnits",
       "objectiveDocumentId",
       "objectiveId",
       "objectiveRevision",
       "permittedCapabilityKeys",
+      "recoveryGraceMs",
+      "recoveryWitnessPeerIds",
+      "recoveryWitnessThreshold",
       "validUntil",
     ],
     [
+      "acceptanceWindowMs",
       "acceptedAt",
       "acceptedMessageId",
       "expiresAt",
+      "maximumLeaseDurationMs",
+      "maximumLeaseRenewals",
       "maximumBudgetUnits",
       "objectiveDocumentId",
       "objectiveId",
       "objectiveRevision",
       "permittedCapabilityKeys",
+      "recoveryGraceMs",
+      "recoveryWitnessPeerIds",
+      "recoveryWitnessThreshold",
       "validUntil",
     ],
   );
@@ -4207,8 +5461,28 @@ function freezePolicy(
     value.objectiveRevision < 1 ||
     !Number.isSafeInteger(value.maximumBudgetUnits) ||
     value.maximumBudgetUnits < 0 ||
+    !Number.isSafeInteger(value.acceptanceWindowMs) ||
+    value.acceptanceWindowMs < 1 ||
+    !Number.isSafeInteger(value.maximumLeaseDurationMs) ||
+    value.maximumLeaseDurationMs < 1 ||
+    !Number.isSafeInteger(value.maximumLeaseRenewals) ||
+    value.maximumLeaseRenewals < 0 ||
+    !Number.isSafeInteger(value.recoveryGraceMs) ||
+    value.recoveryGraceMs < 1 ||
     !Array.isArray(value.permittedCapabilityKeys) ||
     value.permittedCapabilityKeys.some((key) => typeof key !== "string") ||
+    !Array.isArray(value.recoveryWitnessPeerIds) ||
+    value.recoveryWitnessPeerIds.length < 3 ||
+    value.recoveryWitnessPeerIds.some(
+      (peerId, index) =>
+        typeof peerId !== "string" ||
+        peerId.length === 0 ||
+        (index > 0 &&
+          value.recoveryWitnessPeerIds[index - 1]!.localeCompare(peerId) >= 0),
+    ) ||
+    !Number.isSafeInteger(value.recoveryWitnessThreshold) ||
+    value.recoveryWitnessThreshold <= value.recoveryWitnessPeerIds.length / 2 ||
+    value.recoveryWitnessThreshold > value.recoveryWitnessPeerIds.length ||
     !Number.isSafeInteger(value.acceptedAt) ||
     value.acceptedAt < 0 ||
     !Number.isSafeInteger(value.expiresAt) ||
@@ -4752,9 +6026,8 @@ function freezeAssigneeAuthority(
     assertMeshLogicalTime(time);
   if (
     value.activatedAt > last ||
-    value.assignmentEpoch !== 1 ||
-    value.assignmentAuthorityId !== value.awardId ||
-    value.fencingToken !== value.awardId ||
+    !Number.isSafeInteger(value.assignmentEpoch) ||
+    value.assignmentEpoch < 1 ||
     value.workDeadlineAt <= value.activatedAt ||
     value.leaseExpiresAtLogical <= value.activatedAt ||
     value.leaseExpiresAtLogical > value.workDeadlineAt ||
@@ -5167,6 +6440,569 @@ function freezeLeaseHead(
   return frozen;
 }
 
+function freezeAssignmentFenceHead(
+  value: MeshAssignmentFenceHeadProjection,
+  limits: MeshAllocationLimits,
+): MeshAssignmentFenceHeadProjection {
+  assertPlainRecord(value, "assignment fence head");
+  assertExactKeys(
+    value,
+    [
+      "activeAwardId",
+      "assignmentAuthorityId",
+      "assignmentEpoch",
+      "assignmentFenceKey",
+      "assigneePeerId",
+      "fencingToken",
+      "objectiveId",
+      "objectiveRevision",
+      "ownerEpoch",
+      "ownerPeerId",
+      "phase",
+      "recoveryCertificateId",
+      "workItemId",
+      "workItemRevision",
+    ],
+    [
+      "assignmentAuthorityId",
+      "assignmentEpoch",
+      "assignmentFenceKey",
+      "assigneePeerId",
+      "fencingToken",
+      "objectiveId",
+      "objectiveRevision",
+      "ownerEpoch",
+      "ownerPeerId",
+      "phase",
+      "workItemId",
+      "workItemRevision",
+    ],
+  );
+  for (const [name, identifier] of Object.entries({
+    assignmentAuthorityId: value.assignmentAuthorityId,
+    assigneePeerId: value.assigneePeerId,
+    fencingToken: value.fencingToken,
+    objectiveId: value.objectiveId,
+    ownerPeerId: value.ownerPeerId,
+    workItemId: value.workItemId,
+  }))
+    assertIdentifier(identifier, name);
+  assertOptionalIdentifier(value.activeAwardId, "active awardId");
+  assertOptionalIdentifier(
+    value.recoveryCertificateId,
+    "recovery certificateId",
+  );
+  if (
+    value.assignmentFenceKey !== meshAssignmentFenceKey(value) ||
+    !Number.isSafeInteger(value.objectiveRevision) ||
+    value.objectiveRevision < 1 ||
+    !Number.isSafeInteger(value.workItemRevision) ||
+    value.workItemRevision < 1 ||
+    !Number.isSafeInteger(value.ownerEpoch) ||
+    value.ownerEpoch < 1 ||
+    !Number.isSafeInteger(value.assignmentEpoch) ||
+    value.assignmentEpoch < 1 ||
+    !["active", "expired", "recovering", "award_pending", "terminal"].includes(
+      value.phase,
+    ) ||
+    (value.phase === "recovering" &&
+      (value.recoveryCertificateId === undefined ||
+        value.activeAwardId !== undefined)) ||
+    (value.phase === "award_pending" &&
+      (value.recoveryCertificateId === undefined ||
+        value.activeAwardId === undefined)) ||
+    (["active", "expired", "terminal"].includes(value.phase) &&
+      value.activeAwardId === undefined) ||
+    (value.recoveryCertificateId !== undefined &&
+      (value.assignmentAuthorityId !== value.recoveryCertificateId ||
+        value.fencingToken !== value.recoveryCertificateId))
+  )
+    throw new TypeError("Mesh assignment fence head is invalid");
+  const frozen = Object.freeze({ ...value });
+  assertByteBound(
+    frozen,
+    limits.maximumProjectionBytes,
+    "assignment fence head",
+  );
+  return frozen;
+}
+
+function freezeWitnessAssignment(
+  value: MeshWitnessAssignmentProjection,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshWitnessAssignmentProjection {
+  assertPlainRecord(value, "witness assignment");
+  assertExactKeys(
+    value,
+    [
+      "acceptanceEnvelope",
+      "acceptanceValidityVerifiedAt",
+      "assignmentFenceKey",
+      "awardEnvelope",
+      "awardValidityVerifiedAt",
+      "latestCheckpoint",
+      "leaseHead",
+      "leaseRenewals",
+      "observedAt",
+      "supportedCriticalExtensions",
+    ],
+    [
+      "assignmentFenceKey",
+      "awardEnvelope",
+      "awardValidityVerifiedAt",
+      "leaseRenewals",
+      "observedAt",
+    ],
+  );
+  assertMeshLogicalTime(value.observedAt);
+  if (value.observedAt > last)
+    throw new TypeError("Mesh witness assignment time is invalid");
+  assertTimestamp(
+    value.awardValidityVerifiedAt,
+    "witness award validityVerifiedAt",
+  );
+  if (value.acceptanceValidityVerifiedAt !== undefined)
+    assertTimestamp(
+      value.acceptanceValidityVerifiedAt,
+      "witness acceptance validityVerifiedAt",
+    );
+  assertCriticalExtensions(
+    value.supportedCriticalExtensions,
+    "witness assignment",
+  );
+  const award = validateSignedMeshEnvelope(value.awardEnvelope);
+  if (!award.ok || award.value.payload.type !== "work.award")
+    throw new TypeError("Mesh witness assignment envelopes are invalid");
+  const awardEnvelope = award.value as SignedMeshEnvelope<WorkAwardPayload>;
+  assertCanonicalPayloadDigest(awardEnvelope);
+  const awardPayload = awardEnvelope.payload;
+  if (
+    value.assignmentFenceKey !== meshAssignmentFenceKey(awardPayload) ||
+    awardEnvelope.objectiveId !== awardPayload.objectiveId ||
+    !Array.isArray(value.leaseRenewals)
+  )
+    throw new TypeError("Mesh witness assignment authority is invalid");
+  const hasAcceptance = value.acceptanceEnvelope !== undefined;
+  if (
+    hasAcceptance !== (value.acceptanceValidityVerifiedAt !== undefined) ||
+    hasAcceptance !== (value.leaseHead !== undefined) ||
+    (!hasAcceptance &&
+      (value.leaseRenewals.length !== 0 ||
+        value.latestCheckpoint !== undefined))
+  )
+    throw new TypeError("Mesh witness assignment authority is incomplete");
+  const acceptance =
+    value.acceptanceEnvelope === undefined
+      ? undefined
+      : validateSignedMeshEnvelope(value.acceptanceEnvelope);
+  if (
+    acceptance !== undefined &&
+    (!acceptance.ok || acceptance.value.payload.type !== "work.accept")
+  )
+    throw new TypeError("Mesh witness acceptance envelope is invalid");
+  const acceptanceEnvelope =
+    acceptance?.ok === true
+      ? (acceptance.value as SignedMeshEnvelope<WorkAcceptPayload>)
+      : undefined;
+  if (acceptanceEnvelope !== undefined)
+    assertCanonicalPayloadDigest(acceptanceEnvelope);
+  const leaseHead =
+    value.leaseHead === undefined
+      ? undefined
+      : freezeLeaseHead(value.leaseHead, last, limits);
+  if (
+    acceptanceEnvelope !== undefined &&
+    leaseHead !== undefined &&
+    (acceptanceEnvelope.causationId !== awardEnvelope.messageId ||
+      acceptanceEnvelope.objectiveId !==
+        acceptanceEnvelope.payload.objectiveId ||
+      !assignmentResponseMatchesAward(
+        acceptanceEnvelope.payload,
+        awardPayload,
+      ) ||
+      leaseHead.awardId !== awardPayload.awardId ||
+      leaseHead.acceptanceId !== acceptanceEnvelope.payload.acceptanceId ||
+      leaseHead.acceptanceMessageId !== acceptanceEnvelope.messageId ||
+      !leaseHeadMatchesAward(leaseHead, awardPayload))
+  )
+    throw new TypeError("Mesh witness assignment authority is invalid");
+  const leaseRenewals = value.leaseRenewals.map((renewal) =>
+    freezeLeaseRenewal(renewal, last, limits),
+  );
+  if (
+    leaseHead !== undefined &&
+    (leaseRenewals.length !== leaseHead.leaseRenewalSequence ||
+      leaseRenewals.some(
+        (renewal, index) =>
+          renewal.direction !== "received" ||
+          renewal.executionScopeKey !== leaseHead.executionScopeKey ||
+          renewal.leaseRenewalSequence !== index + 1 ||
+          renewal.previousLeaseRenewalId !==
+            (index === 0
+              ? undefined
+              : leaseRenewals[index - 1]!.leaseRenewalId),
+      ) ||
+      (leaseRenewals.length === 0
+        ? leaseHead.latestLeaseRenewalId !== undefined
+        : leaseHead.latestLeaseRenewalId !==
+          leaseRenewals.at(-1)!.leaseRenewalId))
+  )
+    throw new TypeError("Mesh witness lease renewal chain is invalid");
+  const latestCheckpoint =
+    value.latestCheckpoint === undefined
+      ? undefined
+      : freezeExecutionRecord(value.latestCheckpoint, last, limits);
+  if (
+    latestCheckpoint !== undefined &&
+    (latestCheckpoint.envelope.payload.type !== "work.checkpoint" ||
+      leaseHead === undefined ||
+      !executionAuthorityMatchesLeaseHead(
+        latestCheckpoint.envelope.payload,
+        leaseHead,
+      ))
+  )
+    throw new TypeError("Mesh witness assignment checkpoint is invalid");
+  const frozen = Object.freeze({
+    assignmentFenceKey: value.assignmentFenceKey,
+    observedAt: value.observedAt,
+    awardValidityVerifiedAt: value.awardValidityVerifiedAt,
+    ...(value.acceptanceValidityVerifiedAt === undefined
+      ? {}
+      : {
+          acceptanceValidityVerifiedAt: value.acceptanceValidityVerifiedAt,
+        }),
+    ...(value.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...value.supportedCriticalExtensions,
+          ]),
+        }),
+    awardEnvelope: deepFreezeCopy(awardEnvelope),
+    ...(acceptanceEnvelope === undefined
+      ? {}
+      : { acceptanceEnvelope: deepFreezeCopy(acceptanceEnvelope) }),
+    ...(leaseHead === undefined ? {} : { leaseHead }),
+    leaseRenewals: Object.freeze(leaseRenewals),
+    ...(latestCheckpoint === undefined ? {} : { latestCheckpoint }),
+  }) as MeshWitnessAssignmentProjection;
+  assertByteBound(frozen, limits.maximumProjectionBytes, "witness assignment");
+  return frozen;
+}
+
+function freezeTakeoverProposal(
+  value: MeshTakeoverProposalProjection,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshTakeoverProposalProjection {
+  assertPlainRecord(value, "takeover proposal");
+  assertRecoveryEvidenceFields(value, last, "takeover proposal", [
+    "takeoverProposalId",
+  ]);
+  assertIdentifier(value.takeoverProposalId, "takeoverProposalId");
+  const parsed = validateSignedMeshEnvelope(value.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "lease.takeover_proposal")
+    throw new TypeError("Mesh signed takeover proposal is invalid");
+  const envelope =
+    parsed.value as SignedMeshEnvelope<LeaseTakeoverProposalPayload>;
+  assertCanonicalPayloadDigest(envelope);
+  if (
+    envelope.payload.takeoverProposalId !== value.takeoverProposalId ||
+    envelope.objectiveId !== envelope.payload.objectiveId
+  )
+    throw new TypeError("Mesh takeover proposal projection is invalid");
+  return freezeRecoveryEvidence(value, envelope, limits, "takeover proposal");
+}
+
+function freezeLeaseVote(
+  value: MeshLeaseVoteProjection,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshLeaseVoteProjection {
+  assertPlainRecord(value, "lease vote");
+  assertRecoveryEvidenceFields(value, last, "lease vote", [
+    "leaseVoteId",
+    "takeoverProposalId",
+    "witnessPeerId",
+  ]);
+  for (const [name, identifier] of Object.entries({
+    leaseVoteId: value.leaseVoteId,
+    takeoverProposalId: value.takeoverProposalId,
+    witnessPeerId: value.witnessPeerId,
+  }))
+    assertIdentifier(identifier, name);
+  const parsed = validateSignedMeshEnvelope(value.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "lease.vote")
+    throw new TypeError("Mesh signed lease vote is invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<LeaseVotePayload>;
+  assertCanonicalPayloadDigest(envelope);
+  if (
+    envelope.payload.leaseVoteId !== value.leaseVoteId ||
+    envelope.payload.takeoverProposalId !== value.takeoverProposalId ||
+    envelope.payload.witnessPeerId !== value.witnessPeerId ||
+    envelope.objectiveId !== envelope.payload.objectiveId
+  )
+    throw new TypeError("Mesh lease vote projection is invalid");
+  return freezeRecoveryEvidence(value, envelope, limits, "lease vote");
+}
+
+function freezeRecoveryCertificate(
+  value: MeshRecoveryCertificateProjection,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshRecoveryCertificateProjection {
+  assertPlainRecord(value, "recovery certificate");
+  assertRecoveryEvidenceFields(value, last, "recovery certificate", [
+    "certificateId",
+    "takeoverProposalId",
+  ]);
+  assertIdentifier(value.certificateId, "certificateId");
+  assertIdentifier(value.takeoverProposalId, "takeoverProposalId");
+  const parsed = validateSignedMeshEnvelope(value.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "lease.certificate")
+    throw new TypeError("Mesh signed recovery certificate is invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<LeaseCertificatePayload>;
+  assertCanonicalPayloadDigest(envelope);
+  if (
+    envelope.payload.certificateId !== value.certificateId ||
+    envelope.payload.takeoverProposalId !== value.takeoverProposalId ||
+    envelope.objectiveId !== envelope.payload.objectiveId
+  )
+    throw new TypeError("Mesh recovery certificate projection is invalid");
+  return freezeRecoveryEvidence(
+    value,
+    envelope,
+    limits,
+    "recovery certificate",
+  );
+}
+
+function assertRecoveryEvidenceFields(
+  value:
+    | MeshTakeoverProposalProjection
+    | MeshLeaseVoteProjection
+    | MeshRecoveryCertificateProjection,
+  last: number,
+  name: string,
+  domainKeys: readonly string[],
+): void {
+  assertExactKeys(
+    value,
+    [
+      "acceptedAt",
+      "direction",
+      "envelope",
+      ...domainKeys,
+      "recipientEnvelopes",
+      "supportedCriticalExtensions",
+      "validityVerifiedAt",
+    ],
+    [
+      "acceptedAt",
+      "direction",
+      "envelope",
+      ...domainKeys,
+      "validityVerifiedAt",
+    ],
+  );
+  assertMeshLogicalTime(value.acceptedAt);
+  assertTimestamp(value.validityVerifiedAt, `${name} validityVerifiedAt`);
+  assertCriticalExtensions(value.supportedCriticalExtensions, name);
+  if (
+    value.acceptedAt > last ||
+    !["local", "received"].includes(value.direction) ||
+    (value.direction === "local") !== (value.recipientEnvelopes !== undefined)
+  )
+    throw new TypeError(`Mesh ${name} evidence is invalid`);
+}
+
+function freezeRecoveryEvidence<
+  T extends
+    | MeshTakeoverProposalProjection
+    | MeshLeaseVoteProjection
+    | MeshRecoveryCertificateProjection,
+>(
+  value: T,
+  envelope: T["envelope"],
+  limits: MeshAllocationLimits,
+  name: string,
+): T {
+  const recipientEnvelopes =
+    value.recipientEnvelopes === undefined
+      ? undefined
+      : freezeRecoveryRecipientEnvelopes(
+          value.recipientEnvelopes as Readonly<
+            Record<
+              string,
+              SignedMeshEnvelope<
+                | LeaseTakeoverProposalPayload
+                | LeaseVotePayload
+                | LeaseCertificatePayload
+              >
+            >
+          >,
+          envelope as SignedMeshEnvelope<
+            | LeaseTakeoverProposalPayload
+            | LeaseVotePayload
+            | LeaseCertificatePayload
+          >,
+          name,
+        );
+  const frozen = Object.freeze({
+    ...value,
+    ...(value.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...value.supportedCriticalExtensions,
+          ]),
+        }),
+    envelope: deepFreezeCopy(envelope),
+    ...(recipientEnvelopes === undefined ? {} : { recipientEnvelopes }),
+  }) as T;
+  assertByteBound(frozen, limits.maximumProjectionBytes, name);
+  return frozen;
+}
+
+function freezeRecoveryRecipientEnvelopes(
+  value: Readonly<
+    Record<
+      string,
+      SignedMeshEnvelope<
+        | LeaseTakeoverProposalPayload
+        | LeaseVotePayload
+        | LeaseCertificatePayload
+      >
+    >
+  >,
+  primary: SignedMeshEnvelope<
+    LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload
+  >,
+  name: string,
+): Readonly<
+  Record<
+    string,
+    SignedMeshEnvelope<
+      LeaseTakeoverProposalPayload | LeaseVotePayload | LeaseCertificatePayload
+    >
+  >
+> {
+  assertPlainRecord(value, `${name} recipient envelopes`);
+  const entries = Object.entries(value);
+  if (entries.length === 0)
+    throw new TypeError(`Mesh ${name} recipient envelopes are empty`);
+  let primaryFound = false;
+  const frozenEntries = entries.map(([peerId, candidate]) => {
+    assertIdentifier(peerId, `${name} recipient peerId`);
+    const parsed = validateSignedMeshEnvelope(candidate);
+    if (
+      !parsed.ok ||
+      parsed.value.payload.type !== primary.payload.type ||
+      parsed.value.audience.kind !== "peer" ||
+      parsed.value.audience.peerId !== peerId ||
+      parsed.value.sender.peerId !== primary.sender.peerId ||
+      parsed.value.sender.instanceId !== primary.sender.instanceId ||
+      parsed.value.proof.keyId !== primary.proof.keyId ||
+      parsed.value.payloadHash !== primary.payloadHash ||
+      !deepEqual(parsed.value.payload, primary.payload) ||
+      parsed.value.sentAt !== primary.sentAt ||
+      parsed.value.expiresAt !== primary.expiresAt ||
+      parsed.value.causationId !== primary.causationId ||
+      parsed.value.correlationId !== primary.correlationId ||
+      !deepEqual(parsed.value.criticalExtensions, primary.criticalExtensions)
+    )
+      throw new TypeError(`Mesh ${name} recipient envelope is invalid`);
+    assertCanonicalPayloadDigest(
+      parsed.value as SignedMeshEnvelope<
+        | LeaseTakeoverProposalPayload
+        | LeaseVotePayload
+        | LeaseCertificatePayload
+      >,
+    );
+    if (parsed.value.messageId === primary.messageId) primaryFound = true;
+    return [
+      peerId,
+      deepFreezeCopy(parsed.value) as SignedMeshEnvelope<
+        | LeaseTakeoverProposalPayload
+        | LeaseVotePayload
+        | LeaseCertificatePayload
+      >,
+    ] as const;
+  });
+  if (!primaryFound)
+    throw new TypeError(`Mesh ${name} primary recipient is missing`);
+  return createFrozenRecord(frozenEntries);
+}
+
+function assignmentResponseMatchesAward(
+  response: WorkAcceptPayload,
+  award: WorkAwardPayload,
+): boolean {
+  return (
+    response.awardId === award.awardId &&
+    response.objectiveId === award.objectiveId &&
+    response.objectiveDocumentId === award.objectiveDocumentId &&
+    response.objectiveRevision === award.objectiveRevision &&
+    response.workItemId === award.workItemId &&
+    response.workItemRevision === award.workItemRevision &&
+    response.ownerPeerId === award.ownerPeerId &&
+    response.ownerEpoch === award.ownerEpoch &&
+    response.assigneePeerId === award.assigneePeerId &&
+    response.assignmentEpoch === award.assignmentEpoch &&
+    response.assignmentAuthorityId === award.assignmentAuthorityId &&
+    response.fencingToken === award.fencingToken &&
+    response.acceptanceDeadline === award.acceptanceDeadline
+  );
+}
+
+function awardAuthorityIsCanonical(award: WorkAwardPayload): boolean {
+  return award.authorityKind === "award"
+    ? award.assignmentEpoch === 1 &&
+        award.assignmentAuthorityId === award.awardId &&
+        award.fencingToken === award.awardId
+    : award.assignmentEpoch > 1 &&
+        award.assignmentAuthorityId === award.recoveryCertificateId &&
+        award.fencingToken === award.recoveryCertificateId;
+}
+
+function leaseHeadMatchesAward(
+  head: MeshLeaseHeadProjection,
+  award: WorkAwardPayload,
+): boolean {
+  return (
+    head.executionScopeKey === executionScopeKey(award) &&
+    head.objectiveId === award.objectiveId &&
+    head.objectiveDocumentId === award.objectiveDocumentId &&
+    head.objectiveRevision === award.objectiveRevision &&
+    head.workItemId === award.workItemId &&
+    head.workItemRevision === award.workItemRevision &&
+    head.ownerPeerId === award.ownerPeerId &&
+    head.ownerEpoch === award.ownerEpoch &&
+    head.assigneePeerId === award.assigneePeerId &&
+    head.awardId === award.awardId &&
+    head.assignmentEpoch === award.assignmentEpoch &&
+    head.assignmentAuthorityId === award.assignmentAuthorityId &&
+    head.fencingToken === award.fencingToken &&
+    head.originalLeaseExpiresAt === award.leaseExpiresAt &&
+    head.workDeadline === award.workDeadline
+  );
+}
+
+function executionAuthorityMatchesLeaseHead(
+  payload: WorkCheckpointPayload,
+  head: MeshLeaseHeadProjection,
+): boolean {
+  return (
+    executionScopeKey(payload) === head.executionScopeKey &&
+    payload.objectiveDocumentId === head.objectiveDocumentId &&
+    payload.assigneePeerId === head.assigneePeerId &&
+    payload.assignmentAuthorityId === head.assignmentAuthorityId &&
+    payload.fencingToken === head.fencingToken &&
+    payload.acceptanceId === head.acceptanceId
+  );
+}
+
 function isExecutionPayload(payload: unknown): payload is MeshExecutionPayload {
   return (
     !!payload &&
@@ -5237,6 +7073,29 @@ function executionScopeKey(
     authority.assignmentEpoch,
   ]);
 }
+
+/** Canonical assignment scope used for epoch fencing across awards. */
+export function meshAssignmentFenceKey(
+  authority: Pick<
+    MeshAssignmentFenceHeadProjection,
+    | "objectiveId"
+    | "objectiveRevision"
+    | "workItemId"
+    | "workItemRevision"
+    | "ownerPeerId"
+    | "ownerEpoch"
+  >,
+): string {
+  return JSON.stringify([
+    authority.objectiveId,
+    authority.objectiveRevision,
+    authority.workItemId,
+    authority.workItemRevision,
+    authority.ownerPeerId,
+    authority.ownerEpoch,
+  ]);
+}
+
 function validateBidEnvelope(
   input: unknown,
   verifyDigest: boolean,
@@ -5261,6 +7120,9 @@ function assertCanonicalPayloadDigest(
     | WorkReleasePayload
     | WorkCancelPayload
     | LeaseRenewPayload
+    | LeaseTakeoverProposalPayload
+    | LeaseVotePayload
+    | LeaseCertificatePayload
   >,
 ): void {
   const canonical = canonicalizeMeshPayload(envelope.payload);

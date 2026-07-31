@@ -22,9 +22,7 @@
   Work Release and Work Cancel contracts with structural lease and assignment
   bindings.
 - Added closed, bounded Alpha 2 Lease Renewal, Lease Takeover Proposal, Lease
-  Vote and Lease Certificate contracts with stable causal records. Lease
-  Renewal now has runtime support; recovery records remain unsupported pending
-  certified-reassignment reducers.
+  Vote and Lease Certificate contracts with stable causal records.
 - Added the additive `@agentplat/mesh/coordination` runtime foundation with
   strict schema-versioned snapshots, hard local bounds, redacted domain-record
   metadata, generation-fenced trusted timer evaluation and fail-closed journal
@@ -76,8 +74,8 @@
   Bids, verified Award intake, exclusive response timers, signed Accept/Decline
   dispatch, immutable causal reoffers and one bounded local assignment
   authority per Work epoch. A terminal Award consumes its epoch; the initial
-  reducer does not reuse it with a different token. Lease renewal and recovery
-  remain pending.
+  reducer does not reuse it with a different token. Lease renewal remains
+  pending at this point in the changelog.
 - Added the bounded Allocation execution lifecycle for `work.progress`,
   `work.checkpoint`, `work.result`, `work.release` and `work.cancel`.
   Authenticated inbound and locally prepared records enforce exact assignment
@@ -89,10 +87,18 @@
   obeys Objective duration/count and Work bounds, replaces timer generations
   atomically and retains immutable signed evidence. Release/cancel follow the
   latest renewal causal head, while owner close remains possible after expiry.
-  Allocation snapshots now use schema version 5, re-derive renewal and
-  historical execution deadlines during strict restore, and migrate versions
-  1–4 with bounded derived initial lease heads and timers. Reassignment,
-  recovery, resilience simulation and release publication remain pending.
+  Strict restore re-derives renewal and historical execution deadlines with
+  bounded derived initial lease heads and timers.
+- Added certified Allocation recovery: bounded recipient-specific proposals,
+  votes and certificates, majority witness validation, stable next-epoch
+  fencing, owner-issued recovery award and acceptance, and checkpoint resume.
+  Recovery reuses the committed reservation without double charging; the first
+  replacement checkpoint names the retained checkpoint and increments its
+  sequence. Local commands prove exact fanout, while received envelopes prove
+  only their own verifiable direct causation. Allocation snapshots now use
+  schema version 6 and migrate versions 1–5. If the owner is unavailable, the
+  certificate fences stale work but does not activate a replacement. Resilience
+  simulation and release publication remain pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

@@ -7,8 +7,9 @@ acceptance timeout. The paired assignee-side slice accepts verified direct
 awards and prepares one locally recorded accept/decline dispatch. The initial
 execution lifecycle implements progress, checkpoint, result, release and
 cancellation; bounded lease renewal and deterministic expiry are complete.
-Reassignment, recovery, resilience simulation and release publication remain
-pending.
+Certified reassignment is implemented through proposal, vote, certificate,
+fence, owner-issued recovery award and replacement acceptance. Resilience
+simulation and release publication remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -30,13 +31,13 @@ Registry and Git mutations are checked only after independent verification.
 
 - [x] implementation plan is approved;
 - [x] all Alpha 2 payload schemas and domain IDs are closed and bounded;
-- [ ] state-machine transitions and terminal states are frozen;
-- [ ] authority rules exist for every implemented message;
+- [x] state-machine transitions and terminal states are frozen;
+- [x] authority rules exist for every implemented message;
 - [x] lease, epoch, token, quorum and deadline semantics are frozen;
 - [x] liveness assumptions and owner-failure limitation are documented;
 - [x] no API implies complete membership, capability truth or exactly-once
       delivery;
-- [ ] threat model and compatibility policy cover every new trust boundary;
+- [x] threat model and compatibility policy cover every new trust boundary;
 - [x] all deferred message families fail explicitly before reducer invocation.
 
 ### Increment 0 evidence
@@ -120,7 +121,7 @@ Registry and Git mutations are checked only after independent verification.
 - [x] revisions do not rewrite accepted Work Item policy or timer bindings;
 - [x] Work Items require a current locally accepted Objective;
 - [x] Work Item revision and offer attempt are independent and monotonic;
-- [ ] Objective limits bound Work Item count, concurrency and budget units;
+- [x] Objective limits bound Work Item count, concurrency and budget units;
 - [x] every deadline is driven by injected trusted time;
 - [x] journals and timers are bounded and backpressure is fail-closed.
 
@@ -206,7 +207,7 @@ Registry and Git mutations are checked only after independent verification.
       prepared bid and recipient-specific offer causation;
 - [x] local accept/decline preparation has exact idempotency, conflict
       rejection and an exclusive response deadline;
-- [ ] reassignment reuses the existing commitment without double charging;
+- [x] reassignment reuses the existing commitment without double charging;
 - [x] progress, checkpoint and result require accepted assignment authority;
 - [ ] duplicate and reordered records produce the same final projection;
 - [x] result completion retains committed units as consumed Objective capacity;
@@ -271,7 +272,8 @@ Registry and Git mutations are checked only after independent verification.
 - `tests/mesh-assignment.test.mjs` covers causal offer chains, intake, dispatch,
   exclusive deadline, capacity/restore/migration, mismatch rejection and exact
   idempotency;
-- reassignment and recovery remain explicitly out of scope.
+- recovery is implemented by the certified-reassignment slice; owner transfer
+  remains explicitly out of scope.
 
 ### Execution-lifecycle sub-slice evidence
 
@@ -281,10 +283,11 @@ Registry and Git mutations are checked only after independent verification.
   Objective/Work, epoch, token, causation, sequence and deadline bindings
   before mutation;
 - `packages/mesh/src/coordination-allocation-state.ts` now exposes the
-  separately restorable Allocation snapshot as schema version 5. Versions 1–4
+  separately restorable Allocation snapshot as schema version 6. Versions 1–5
   migrate deterministically with conservative derived limits and sequence-zero
   lease heads for accepted assignments; strict restore binds execution and
-  lease heads, terminal evidence, timers and coordination domain records;
+  lease heads, terminal evidence, recovery evidence, timers and coordination
+  domain records;
 - `packages/mesh/src/coordination-inbound.ts` enables authenticated Allocation
   ingress, ordering context, cryptographic verification, admission and
   instance checks, replay accounting, then execution domain evaluation;
@@ -310,10 +313,11 @@ Registry and Git mutations are checked only after independent verification.
   erasing history, release/cancel use the latest renewal as their causal head,
   owner close remains available after expiry, and terminal execution retires
   the current lease timer;
-- Allocation schema version 5 strictly validates renewal/domain/timer
-  relations, complete renewal authority, re-derived logical deadlines and each
-  historical execution deadline, and deterministically migrates versions 1–4
-  with bounded sequence-zero heads and missing legacy initial timers;
+- Allocation schema version 6 strictly validates renewal/domain/timer and
+  recovery-graph relations, complete renewal authority, re-derived logical
+  deadlines and each historical execution deadline, and deterministically
+  migrates versions 1–5 with bounded sequence-zero heads and missing legacy
+  initial timers;
 - focused assignment and authenticated ingress tests cover chained renewal,
   policy and authority rejection, stale timer generations, current-expiry
   execution, terminality, capacity, migration and adversarial restore.
@@ -321,37 +325,60 @@ Registry and Git mutations are checked only after independent verification.
 ## Lease, epoch and fencing
 
 - [x] the initial assignment epoch is `1`;
-- [ ] every later epoch is exactly the preceding epoch plus one;
+- [x] every later epoch is exactly the preceding epoch plus one;
 - [x] one epoch has exactly one stable assignment authority ID and token;
 - [x] initial fencing token equals `awardId`;
-- [ ] recovered fencing token equals `certificateId`;
+- [x] recovered fencing token equals `certificateId`;
 - [x] renewals preserve assignee, epoch and token;
 - [x] renewals stay within Objective duration and count limits;
 - [x] the initial expired lease authorizes no new progress;
-- [ ] a higher accepted epoch permanently fences lower epochs;
+- [x] a higher accepted epoch permanently fences lower epochs;
 - [x] a same-epoch record with a different token is rejected;
 - [x] stale rejection does not mutate projection, journal, reservation or
       idempotency decisions beyond normal replay accounting.
 
 ## Certified recovery
 
-- [ ] witness set is sorted, unique, admitted and fixed for an active
+- [x] witness set is sorted, unique, admitted and fixed for an active
       assignment;
-- [ ] threshold is greater than half of at least three witnesses;
-- [ ] proposals target exactly `currentEpoch + 1`;
-- [ ] no valid proposal is accepted before lease expiry plus recovery grace;
-- [ ] each witness contributes at most one vote per Work Item, revision and
+- [x] threshold is greater than half of at least three witnesses;
+- [x] proposals target exactly `currentEpoch + 1`;
+- [x] no valid proposal is accepted before lease expiry plus recovery grace;
+- [x] each witness contributes at most one vote per Work Item, revision and
       proposed epoch;
-- [ ] duplicate, conflicting and non-witness votes are rejected;
-- [ ] a certificate contains one accepted proposal and a threshold of distinct
+- [x] duplicate, conflicting and non-witness votes are rejected;
+- [x] a certificate contains one accepted proposal and a threshold of distinct
       valid votes;
-- [ ] certificate acceptance fences the old epoch before replacement
+- [x] certificate acceptance fences the old epoch before replacement
       activation;
-- [ ] recovery award uses the certified candidate, epoch and token;
-- [ ] replacement acceptance resumes from the named accepted checkpoint;
-- [ ] insufficient quorum creates no certificate or execution authority;
-- [ ] owner unavailability fences stale work but does not silently transfer
+- [x] recovery award uses the certified candidate, epoch and token;
+- [x] replacement acceptance resumes from the named accepted checkpoint and
+      the first later checkpoint sequence is its predecessor sequence plus one;
+- [x] insufficient quorum creates no certificate or execution authority;
+- [x] owner unavailability fences stale work but does not silently transfer
       ownership.
+
+### Certified-recovery evidence
+
+- `tests/mesh-recovery.test.mjs` test `expired witnessed work is fenced,
+recovered once, and resumes from its checkpoint` exercises expiry plus grace,
+  recipient-specific proposal fanout, distinct votes, quorum certificate,
+  certificate fence, stale-epoch rejection, owner recovery award, replacement
+  acceptance, preserved committed budget and the first resumed checkpoint at
+  predecessor sequence plus one;
+- `packages/mesh/src/coordination-recovery.ts` separates a local recovery
+  command (all exact recipient envelopes and fanout are checked together) from
+  one received authenticated envelope (its direct audience, role and retained
+  causal evidence are checked locally). A received copy is verifiable, but is
+  not proof that every fanout recipient received it;
+- `packages/mesh/src/coordination-allocation.ts` and
+  `packages/mesh/src/coordination-execution.ts` require the certified
+  candidate, epoch, `certificateId` authority/token, owner-issued recovery
+  award and checkpoint-resume chain before replacement execution;
+- `packages/mesh/src/coordination-allocation-state.ts` is Allocation schema
+  version 6 and strictly restores recovery graphs, fence heads, witness copies,
+  checkpoint resume metadata and bounded retained evidence. Versions 1–5
+  migrate deterministically.
 
 ## Deterministic fault scenarios
 

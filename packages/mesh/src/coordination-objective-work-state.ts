@@ -77,7 +77,7 @@ export function createMeshObjectiveWorkState(
     throw new RangeError("Mesh Objective issuer authority limit exceeded");
   }
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     identity: freezeIdentity(options.identity),
     issuerAuthorities: createFrozenRecord(
       authorities.map((authority) => {
@@ -118,7 +118,7 @@ export function restoreMeshObjectiveWorkState(
     ]),
   );
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     identity: freezeIdentity(parsed.identity),
     issuerAuthorities: createFrozenRecord(
       parsed.issuerAuthorities.map(([key, authority]) => [
@@ -193,7 +193,8 @@ export function assertFrozenMeshObjectiveWorkState(
     Object.values(state.objectivePolicies).some(
       (entry) =>
         !Object.isFrozen(entry) ||
-        !Object.isFrozen(entry.permittedCapabilityKeys),
+        !Object.isFrozen(entry.permittedCapabilityKeys) ||
+        !Object.isFrozen(entry.recoveryWitnessPeerIds),
     ) ||
     Object.values(state.workItems).some(
       (entry) =>
@@ -202,6 +203,7 @@ export function assertFrozenMeshObjectiveWorkState(
         !Object.isFrozen(entry.completionCriteria) ||
         !Object.isFrozen(entry.objectivePolicy) ||
         !Object.isFrozen(entry.objectivePolicy.permittedCapabilityKeys) ||
+        !Object.isFrozen(entry.objectivePolicy.recoveryWitnessPeerIds) ||
         entry.objectivePolicy !==
           state.objectivePolicies[
             objectivePolicyKey(entry.objectiveId, entry.objectiveRevision)
@@ -264,9 +266,10 @@ function validateSnapshot(
       "workItems",
     ],
   );
-  const candidate = snapshot as unknown as MeshObjectiveWorkState;
-  if (candidate.schemaVersion !== 1)
+  const raw = snapshot as unknown as Record<string, unknown>;
+  if (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)
     throw new TypeError("Mesh Objective/Work schema version is unsupported");
+  const candidate = migrateObjectiveWorkSnapshot(raw);
   const identity = freezeIdentity(candidate.identity);
   const limits = resolveLimits(candidate.limits, true);
   assertMeshLogicalTime(candidate.lastLogicalTime);
@@ -433,6 +436,67 @@ function validateSnapshot(
     limits,
     lastLogicalTime: candidate.lastLogicalTime,
   };
+}
+
+function migrateObjectiveWorkSnapshot(
+  raw: Record<string, unknown>,
+): MeshObjectiveWorkState {
+  if (raw.schemaVersion === 2) return raw as unknown as MeshObjectiveWorkState;
+  const documents = raw.objectiveDocuments as Readonly<
+    Record<string, MeshAcceptedObjectiveDocument>
+  >;
+  const legacyPolicies = raw.objectivePolicies as Readonly<
+    Record<
+      string,
+      Omit<
+        MeshWorkObjectivePolicySnapshot,
+        | "acceptanceWindowMs"
+        | "maximumLeaseDurationMs"
+        | "recoveryGraceMs"
+        | "maximumLeaseRenewals"
+        | "recoveryWitnessPeerIds"
+        | "recoveryWitnessThreshold"
+      >
+    >
+  >;
+  const migratedPolicies = Object.create(null) as Record<
+    string,
+    MeshWorkObjectivePolicySnapshot
+  >;
+  for (const [key, policy] of Object.entries(legacyPolicies)) {
+    const payload = documents[key]?.envelope.payload;
+    migratedPolicies[key] = {
+      ...policy,
+      acceptanceWindowMs: payload?.acceptanceWindowMs,
+      maximumLeaseDurationMs: payload?.maximumLeaseDurationMs,
+      recoveryGraceMs: payload?.recoveryGraceMs,
+      maximumLeaseRenewals: payload?.maximumLeaseRenewals,
+      recoveryWitnessPeerIds: payload?.recoveryWitnessPeerIds,
+      recoveryWitnessThreshold: payload?.recoveryWitnessThreshold,
+    } as MeshWorkObjectivePolicySnapshot;
+  }
+  const legacyWorkItems = raw.workItems as Readonly<
+    Record<string, MeshWorkItemProjection>
+  >;
+  const migratedWorkItems = Object.create(null) as Record<
+    string,
+    MeshWorkItemProjection
+  >;
+  for (const [key, workItem] of Object.entries(legacyWorkItems)) {
+    migratedWorkItems[key] = {
+      ...workItem,
+      objectivePolicy:
+        migratedPolicies[
+          objectivePolicyKey(workItem.objectiveId, workItem.objectiveRevision)
+        ],
+    } as MeshWorkItemProjection;
+  }
+  return {
+    ...raw,
+    schemaVersion: 2,
+    objectivePolicies: migratedPolicies,
+    workItems: migratedWorkItems,
+  } as unknown as MeshObjectiveWorkState;
 }
 
 function validateObjective(
@@ -1040,6 +1104,7 @@ function freezeWorkObjectivePolicy(
   return Object.freeze({
     ...value,
     permittedCapabilityKeys: Object.freeze([...value.permittedCapabilityKeys]),
+    recoveryWitnessPeerIds: Object.freeze([...value.recoveryWitnessPeerIds]),
   });
 }
 
@@ -1092,6 +1157,15 @@ function policyMatchesAcceptedDocument(
     policy.acceptedAt === document.acceptedAt &&
     policy.expiresAt === document.expiresAt &&
     policy.maximumBudgetUnits === payload.maximumBudgetUnits &&
+    policy.acceptanceWindowMs === payload.acceptanceWindowMs &&
+    policy.maximumLeaseDurationMs === payload.maximumLeaseDurationMs &&
+    policy.recoveryGraceMs === payload.recoveryGraceMs &&
+    policy.maximumLeaseRenewals === payload.maximumLeaseRenewals &&
+    arraysEqual(
+      policy.recoveryWitnessPeerIds,
+      payload.recoveryWitnessPeerIds,
+    ) &&
+    policy.recoveryWitnessThreshold === payload.recoveryWitnessThreshold &&
     policy.validUntil === payload.validUntil &&
     arraysEqual(policy.permittedCapabilityKeys, payload.permittedCapabilityKeys)
   );
@@ -1157,22 +1231,34 @@ function validateWorkObjectivePolicy(
       "acceptedAt",
       "acceptedMessageId",
       "expiresAt",
+      "acceptanceWindowMs",
       "maximumBudgetUnits",
+      "maximumLeaseDurationMs",
+      "maximumLeaseRenewals",
       "objectiveDocumentId",
       "objectiveId",
       "objectiveRevision",
       "permittedCapabilityKeys",
+      "recoveryGraceMs",
+      "recoveryWitnessPeerIds",
+      "recoveryWitnessThreshold",
       "validUntil",
     ],
     [
       "acceptedAt",
       "acceptedMessageId",
       "expiresAt",
+      "acceptanceWindowMs",
       "maximumBudgetUnits",
+      "maximumLeaseDurationMs",
+      "maximumLeaseRenewals",
       "objectiveDocumentId",
       "objectiveId",
       "objectiveRevision",
       "permittedCapabilityKeys",
+      "recoveryGraceMs",
+      "recoveryWitnessPeerIds",
+      "recoveryWitnessThreshold",
       "validUntil",
     ],
   );
@@ -1186,7 +1272,15 @@ function validateWorkObjectivePolicy(
     !Number.isSafeInteger(value.objectiveRevision) ||
     value.objectiveRevision < 1 ||
     !Number.isSafeInteger(value.maximumBudgetUnits) ||
-    value.maximumBudgetUnits < 0
+    value.maximumBudgetUnits < 0 ||
+    !Number.isSafeInteger(value.acceptanceWindowMs) ||
+    value.acceptanceWindowMs < 1 ||
+    !Number.isSafeInteger(value.maximumLeaseDurationMs) ||
+    value.maximumLeaseDurationMs < 1 ||
+    !Number.isSafeInteger(value.recoveryGraceMs) ||
+    value.recoveryGraceMs < 1 ||
+    !Number.isSafeInteger(value.maximumLeaseRenewals) ||
+    value.maximumLeaseRenewals < 0
   )
     throw new TypeError("Mesh Work Objective policy value is invalid");
   assertSortedStringArray(
@@ -1194,6 +1288,22 @@ function validateWorkObjectivePolicy(
     limits.maximumRequiredCapabilityKeys,
     "Work Objective policy capability keys",
   );
+  assertSortedStringArray(
+    value.recoveryWitnessPeerIds,
+    limits.maximumIssuerAuthorities,
+    "Work Objective policy witnesses",
+    false,
+  );
+  value.recoveryWitnessPeerIds.forEach((peerId) =>
+    assertIdentifier(peerId, "Work Objective policy witness peerId"),
+  );
+  if (
+    value.recoveryWitnessPeerIds.length < 3 ||
+    !Number.isSafeInteger(value.recoveryWitnessThreshold) ||
+    value.recoveryWitnessThreshold <= value.recoveryWitnessPeerIds.length / 2 ||
+    value.recoveryWitnessThreshold > value.recoveryWitnessPeerIds.length
+  )
+    throw new TypeError("Mesh Work Objective witness policy is invalid");
   assertTimestamp(value.validUntil, "Work Objective policy validUntil");
   assertMeshLogicalTime(value.acceptedAt);
   assertMeshLogicalTime(value.expiresAt);
@@ -1219,6 +1329,15 @@ function policyMatchesObjective(
     policy.acceptedAt === objective.acceptedAt &&
     policy.expiresAt === objective.expiresAt &&
     policy.maximumBudgetUnits === objective.maximumBudgetUnits &&
+    policy.acceptanceWindowMs === objective.acceptanceWindowMs &&
+    policy.maximumLeaseDurationMs === objective.maximumLeaseDurationMs &&
+    policy.recoveryGraceMs === objective.recoveryGraceMs &&
+    policy.maximumLeaseRenewals === objective.maximumLeaseRenewals &&
+    arraysEqual(
+      policy.recoveryWitnessPeerIds,
+      objective.recoveryWitnessPeerIds,
+    ) &&
+    policy.recoveryWitnessThreshold === objective.recoveryWitnessThreshold &&
     policy.validUntil === objective.validUntil &&
     arraysEqual(
       policy.permittedCapabilityKeys,
@@ -1239,6 +1358,12 @@ function policiesEqual(
     left.acceptedAt === right.acceptedAt &&
     left.expiresAt === right.expiresAt &&
     left.maximumBudgetUnits === right.maximumBudgetUnits &&
+    left.acceptanceWindowMs === right.acceptanceWindowMs &&
+    left.maximumLeaseDurationMs === right.maximumLeaseDurationMs &&
+    left.recoveryGraceMs === right.recoveryGraceMs &&
+    left.maximumLeaseRenewals === right.maximumLeaseRenewals &&
+    arraysEqual(left.recoveryWitnessPeerIds, right.recoveryWitnessPeerIds) &&
+    left.recoveryWitnessThreshold === right.recoveryWitnessThreshold &&
     left.validUntil === right.validUntil &&
     arraysEqual(left.permittedCapabilityKeys, right.permittedCapabilityKeys)
   );

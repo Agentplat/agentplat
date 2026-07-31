@@ -1063,6 +1063,7 @@ test('signed-valid Alpha 2 Work and Lease records stop before the reducer', asyn
       type: 'lease.takeover_proposal',
       takeoverProposalId: 'takeover-proposal-a',
       proposalAuthority: 'witness',
+      candidateConsentProposalId: 'candidate-consent-proposal-a',
       proposerPeerId: 'peer-a',
       proposedAssigneePeerId: 'peer-c',
       proposedAssignmentEpoch: 2,
