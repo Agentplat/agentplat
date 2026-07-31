@@ -31,23 +31,35 @@ import {
   type MeshLoopbackTransport,
 } from '@agentplat/mesh/loopback';
 import {
+  DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
   DEFAULT_MESH_COORDINATION_LIMITS,
   DEFAULT_MESH_DISCOVERY_LIMITS,
   advanceMeshDiscoveryState,
   createMeshCoordinationState,
+  createMeshCoordinationInboundState,
+  createMeshDiscoveryInboundProcessor,
+  createMeshDiscoveryInboundRuntimeState,
   createMeshDiscoveryRuntimeState,
   createMeshDiscoveryState,
   evaluateMeshCoordinationTimer,
   evaluateVerifiedMeshDiscoveryEnvelope,
   matchMeshDiscoveryCapabilities,
+  restoreMeshCoordinationInboundState,
   restoreMeshCoordinationState,
   restoreMeshDiscoveryState,
   selectMeshDiscoveryTopicRecipients,
   type MeshCapabilityMatchResult,
   type MeshCapabilityRequirement,
+  type MeshCoordinationInboundState,
   type MeshCoordinationState,
   type MeshCoordinationTimerFiredInput,
   type MeshDiscoveryRuntimeState,
+  type MeshDiscoveryInboundDecision,
+  type MeshDiscoveryInboundProcessor,
+  type MeshDiscoveryInboundProcessorOptions,
+  type MeshDiscoveryInboundRequest,
+  type MeshDiscoveryInboundRuntimeState,
+  type MeshDiscoveryPayload,
   type MeshDiscoveryState,
   type MeshVerifiedDiscoveryRequest,
 } from '@agentplat/mesh/coordination';
@@ -702,6 +714,19 @@ const discoveryRuntimeState: MeshDiscoveryRuntimeState =
     restoredCoordinationState,
     restoredDiscoveryState
   );
+const inboundSecurityState: MeshCoordinationInboundState =
+  createMeshCoordinationInboundState({
+    identity: peerState.identity,
+    limits: DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
+  });
+const restoredInboundSecurityState: MeshCoordinationInboundState =
+  restoreMeshCoordinationInboundState(inboundSecurityState);
+const discoveryInboundRuntimeState: MeshDiscoveryInboundRuntimeState =
+  createMeshDiscoveryInboundRuntimeState(
+    restoredCoordinationState,
+    restoredDiscoveryState,
+    restoredInboundSecurityState
+  );
 const capabilityRequirement: MeshCapabilityRequirement = {
   capabilityKeys: ['summarize'],
   attributes: { language: 'en' },
@@ -733,6 +758,7 @@ void capabilityMatches;
 void selectedMembershipPeers;
 void advancedDiscoveryState;
 void evaluatedDiscoveryRequest;
+void discoveryInboundRuntimeState;
 
 const contractReducer: MeshPeerReducer = (state) => ({
   state,
@@ -839,6 +865,24 @@ const validatedEnvelope = validateSignedMeshEnvelope({});
 const canonicalPayload = canonicalizeMeshPayload(helloPayload);
 const expectedResult: MeshProtocolResult<unknown> = parsedJson;
 const signedForContract = {} as SignedMeshEnvelope<PeerHelloPayload>;
+const signedDiscoveryForContract =
+  {} as SignedMeshEnvelope<MeshDiscoveryPayload>;
+const discoveryInboundProcessorOptions: MeshDiscoveryInboundProcessorOptions = {
+  resolver: staticResolver,
+  cryptoPolicy,
+};
+const discoveryInboundProcessor: MeshDiscoveryInboundProcessor =
+  createMeshDiscoveryInboundProcessor(discoveryInboundProcessorOptions);
+const discoveryInboundRequest: MeshDiscoveryInboundRequest = {
+  envelope: signedDiscoveryForContract,
+  verifiedAt: '2026-07-29T00:00:01Z',
+  receivedAt: 1,
+};
+const discoveryInboundPromise: Promise<MeshDiscoveryInboundDecision> =
+  discoveryInboundProcessor.process(
+    discoveryInboundRuntimeState,
+    discoveryInboundRequest
+  );
 const verificationPromise = verifyMeshEnvelope({
   envelope: signedForContract,
   resolver: staticResolver,
@@ -890,6 +934,7 @@ void cryptoPolicy;
 void revocationBypassPolicy;
 void incompleteRevokedRecord;
 void staticResolverClass;
+void discoveryInboundPromise;
 void referenceSigner;
 void referenceVerifier;
 void digestPromise;

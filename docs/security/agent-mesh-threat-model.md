@@ -46,6 +46,27 @@ Transport authentication and signed message identity are separate layers.
 Rooms, audit and metrics are optional consumers and are not trusted to maintain
 steady-state coordination.
 
+The coordination discovery inbound boundary revalidates bounded structure,
+scope, audience, freshness and critical extensions before cryptographic work.
+It is constructed once with trusted local key resolution, cryptographic policy,
+Web Crypto and protocol limits; remote message requests cannot substitute those
+dependencies. It then uses the reference verifier for payload digest, proof and
+locally resolved key binding before consulting admission or replay state. Key
+resolution is synchronous and local; network-backed discovery must occur
+outside this decision boundary. The verified envelope is revalidated and must
+be canonically identical to the requested envelope.
+
+Replay windows and retained message IDs are a separate, non-evictable,
+schema-versioned snapshot. An authenticated and admitted message may consume
+normal replay accounting before a later domain predecessor, revision or
+capacity rejection, but that rejection cannot change domain or discovery
+projection. Receiving a topic envelope never relays it.
+
+Detailed cryptographic rejection codes are local diagnostics. Transports must
+not echo them to untrusted senders, and must apply bounded queues and ingress
+rate limits so pre-admission verification cannot become a key-status oracle or
+unbounded CPU-amplification path.
+
 ## Adversaries
 
 - unauthenticated network clients;
@@ -84,7 +105,9 @@ steady-state coordination.
 ## Required invariants
 
 - No unaccepted envelope reaches a domain reducer.
-- No invalid, expired or replayed message mutates decision state.
+- No structurally invalid, expired, unauthenticated, unadmitted or replayed
+  message mutates state. An authenticated admitted message rejected by a later
+  domain rule may advance only bounded replay security accounting.
 - No accepted message or Action Grant authorizes an action across tenant or
   mesh scope.
 - No stale epoch can authorize an external action.
