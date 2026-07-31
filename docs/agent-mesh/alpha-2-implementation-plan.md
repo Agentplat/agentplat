@@ -1,8 +1,10 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
 Status: Increments 0 and 1 are complete. Increment 2 Objective/Work and its
-authenticated ingress are complete; the first bounded Allocation sub-slice is
-complete, while award, execution, lease and recovery work remains pending.
+authenticated ingress are complete. The bounded owner-side allocation handshake
+is complete through offer, bid, award, acceptance, decline and acceptance
+timeout; execution, assignee-side response preparation/delivery, lease and
+recovery work remains pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -274,23 +276,25 @@ Topic-audience parsing and subscription are supported, but the canonical
 allocation scenario uses explicit direct fanout so every intended recipient is
 visible in the trace.
 
-#### Implemented first-offer sub-slice
+#### Implemented first-offer foundation
 
-The first executable Allocation sub-slice deliberately stops before award. A
-local Work Item owner opens only its first offer attempt and supplies one
-already-signed direct envelope for each candidate. Each envelope has its own
-recipient and `messageId`; a later bid from that recipient must name that exact
-`messageId` as its causation ID. The reducer verifies the prepared envelopes'
-closed structure, canonical payload equality, local sender/key binding, direct
-audience and recipient set against the owner's bounded local capability match.
-Signing and transport remain outside the reducer's trusted local driver
-boundary.
+The first executable Allocation component established the offer/bid boundary
+before the later award component described below. A local Work Item owner
+supplies one already-signed direct offer envelope for each candidate. Each
+envelope has its own recipient and `messageId`; a later bid from that recipient
+must name that exact `messageId` as its causation ID. The reducer verifies the
+prepared envelopes' closed structure, canonical payload equality, local
+sender/key binding, direct audience and recipient set against the owner's
+bounded local capability match. Signing and transport remain outside the
+reducer's trusted local driver boundary.
 
 Opening the offer immediately reserves the Work Item's budget units and starts
 the generation-fenced bid-deadline timer. The reservation is attached to the
 Objective, Work Item and offer, not to a bidder or a selection. A due bid
 deadline closes the offer and releases that reservation exactly once. Award,
-acceptance and their deadline are not part of this sub-slice.
+acceptance and their deadline are implemented by the subsequent owner-side
+component; later attempts reuse the same bounded offer rules with an exact
+causal predecessor.
 
 ### Bid
 
@@ -337,6 +341,15 @@ For an initial assignment, the authority ID and fencing token are `awardId`.
 For recovery, both remain the accepted `certificateId` and the award references
 that certificate.
 
+The owner-side runtime implements the initial-award path as one local
+`allocation.award` command containing one prepared, signed direct envelope for
+the deterministically selected assignee. It accepts an award only while the bid
+window and selected bid are still valid, then atomically closes that window:
+the bid-deadline timer is removed, an acceptance-deadline timer is installed,
+and the existing reservation remains reserved. This slice deliberately does
+not prepare or deliver an award on the assignee, send copies to witnesses, or
+activate execution.
+
 ### Acceptance and decline
 
 Only the selected assignee can accept or decline. Acceptance must arrive before
@@ -346,6 +359,15 @@ configured witnesses receive causally bound direct records.
 The assignee cannot emit authorized progress, checkpoints or results until it
 has accepted the award locally. A decline or acceptance timeout releases the
 reservation and permits a later offer attempt.
+
+The owner-side runtime accepts already-verified direct `work.accept` and
+`work.decline` records only from the awarded assignee, with exact award-envelope
+causation, Objective/Work binding, epoch, authority, fencing token and deadline.
+The acceptance deadline is exclusive. Acceptance atomically moves the Work Item
+to `active` and the budget from reserved to committed; decline or the trusted
+acceptance timer moves it to `ready` and releases the reservation exactly once.
+Assignee-side response preparation, actual delivery and execution authority are
+deferred to later slices.
 
 ### Progress, checkpoint and result
 
@@ -442,7 +464,7 @@ state + accepted input + logical time -> next state + ordered effects
 Alpha 2 adds typed local inputs for:
 
 - Objective and Work Item creation or cancellation;
-- offer creation and deterministic bid selection;
+- offer creation, deterministic bid selection and owner-side award preparation;
 - trusted timer firing;
 - crash/restart lifecycle events supplied by a driver;
 - effect results for signed record preparation and delivery.
@@ -463,7 +485,8 @@ Alpha 2 adds explicit limits for:
 - active and passive Peer View entries;
 - capability advertisements per peer and across the local Mesh;
 - active Objectives and Work Items per Objective;
-- bids per offer and offer attempts per Work Item;
+- bids per offer, offer attempts per Work Item, and globally retained awards
+  and assignment responses;
 - witnesses and votes per recovery proposal;
 - journal events and canonical bytes per Work Item;
 - pending timers, preparations and deliveries;
@@ -662,7 +685,12 @@ Objective, its limits or its local owner authority.
   recipient-specific signed envelopes and immediate budget reservation;
 - [complete] implement verified bid submission, causal replacement, bounded
   evidence retention, pure deterministic selection and bid-deadline release;
-- implement later offer attempts, award preparation, acceptance and decline;
+- [complete] implement owner-side initial award preparation, accepted direct
+  acceptance/decline, exclusive acceptance-deadline handling, atomic early
+  bid-window close and exactly-once reservation accounting;
+- [complete] implement causal, monotonic later offer attempts after a released
+  reservation;
+- implement assignee-side response preparation and delivery;
 - implement progress, checkpoint, result, release and cancellation;
 - add timeout and idempotency component scenarios.
 

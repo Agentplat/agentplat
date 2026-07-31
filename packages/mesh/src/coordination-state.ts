@@ -218,6 +218,7 @@ function validateSnapshot(snapshot: unknown): {
   ) {
     throw new RangeError('Mesh coordination snapshot exceeds its limits');
   }
+  const domainMessageIds = new Set<string>();
   for (const [recordKey, record] of domainRecords) {
     assertExactKeys(
       record,
@@ -258,6 +259,10 @@ function validateSnapshot(snapshot: unknown): {
     ) {
       throw new TypeError('Mesh coordination domain record is invalid');
     }
+    if (domainMessageIds.has(record.messageId)) {
+      throw new TypeError('Mesh coordination domain messageId is not unique');
+    }
+    domainMessageIds.add(record.messageId);
   }
   for (const [timerId, timer] of timers) {
     assertExactKeys(
