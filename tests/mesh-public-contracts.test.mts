@@ -34,6 +34,7 @@ import {
   DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
   DEFAULT_MESH_COORDINATION_LIMITS,
   DEFAULT_MESH_DISCOVERY_LIMITS,
+  DEFAULT_MESH_OBJECTIVE_WORK_LIMITS,
   advanceMeshDiscoveryState,
   createMeshCoordinationState,
   createMeshCoordinationInboundState,
@@ -42,12 +43,18 @@ import {
   createMeshDiscoveryInboundRuntimeState,
   createMeshDiscoveryRuntimeState,
   createMeshDiscoveryState,
+  createMeshObjectiveWorkRuntimeState,
+  createMeshObjectiveWorkState,
   evaluateMeshCoordinationTimer,
+  evaluateMeshObjectiveWorkCommand,
+  evaluateMeshObjectiveWorkTimer,
   evaluateVerifiedMeshDiscoveryEnvelope,
+  evaluateVerifiedMeshObjectiveEnvelope,
   matchMeshDiscoveryCapabilities,
   restoreMeshCoordinationInboundState,
   restoreMeshCoordinationState,
   restoreMeshDiscoveryState,
+  restoreMeshObjectiveWorkState,
   selectMeshDiscoveryTopicRecipients,
   type MeshCapabilityMatchResult,
   type MeshCapabilityRequirement,
@@ -69,6 +76,17 @@ import {
   type MeshCoordinationTopicDriverOptions,
   type MeshCoordinationTopicPeer,
   type MeshCoordinationTopicReceipt,
+  type MeshObjectiveWorkRuntimeState,
+  type MeshObjectiveWorkCommand,
+  type MeshObjectiveWorkDecision,
+  type MeshObjectiveWorkRejectionCode,
+  type MeshObjectiveWorkState,
+  type MeshObjectiveWorkTimerDecision,
+  type MeshObjectiveWorkTimerInput,
+  type MeshObjectiveWorkTrustedTime,
+  type MeshVerifiedObjectiveRequest,
+  type MeshWorkObjectivePolicySnapshot,
+  type MeshWorkItemProjection,
 } from '@agentplat/mesh/coordination';
 import {
   createMeshSimulationKernel,
@@ -716,6 +734,85 @@ const discoveryState: MeshDiscoveryState = createMeshDiscoveryState({
 });
 const restoredDiscoveryState: MeshDiscoveryState =
   restoreMeshDiscoveryState(discoveryState);
+const objectiveWorkState: MeshObjectiveWorkState = createMeshObjectiveWorkState(
+  {
+    identity: peerState.identity,
+    issuerAuthorities: [
+      {
+        peerId: 'peer-a',
+        keyIds: ['key-a'],
+        validUntil: '2027-01-01T00:00:00Z',
+      },
+    ],
+    limits: DEFAULT_MESH_OBJECTIVE_WORK_LIMITS,
+  }
+);
+const restoredObjectiveWorkState: MeshObjectiveWorkState =
+  restoreMeshObjectiveWorkState(objectiveWorkState);
+const objectivePolicyHistory: Readonly<
+  Record<string, MeshWorkObjectivePolicySnapshot>
+> = restoredObjectiveWorkState.objectivePolicies;
+const maximumObjectivePolicies: number =
+  DEFAULT_MESH_OBJECTIVE_WORK_LIMITS.maximumObjectivePolicies;
+const objectiveDiscoveryState = createMeshDiscoveryState({
+  identity: peerState.identity,
+  admittedPeers: [],
+  subscriptions: ['objective'],
+});
+const objectiveWorkRuntime: MeshObjectiveWorkRuntimeState =
+  createMeshObjectiveWorkRuntimeState(
+    restoredCoordinationState,
+    objectiveDiscoveryState,
+    restoredObjectiveWorkState
+  );
+const objectiveWorkTimerInput: MeshObjectiveWorkTimerInput = {
+  kind: 'timer.fired',
+  timerId: 'objective:11:objective-a:expiry',
+  generation: 1,
+};
+const objectiveWorkTimerDecision: MeshObjectiveWorkTimerDecision =
+  evaluateMeshObjectiveWorkTimer(
+    objectiveWorkRuntime,
+    objectiveWorkTimerInput,
+    1
+  );
+const localWorkCommand: MeshObjectiveWorkCommand = {
+  kind: 'work.create',
+  input: {
+    objectiveId: 'objective-a',
+    workItemId: 'work-item-a',
+    requiredCapabilityKeys: ['summarize'],
+    matchingAttributes: { language: 'en' },
+    completionCriteria: ['Return a concise summary.'],
+    inputSummary: 'Summarize the approved material.',
+    budgetReservationUnits: 0,
+    workDeadline: '2026-07-30T01:00:00Z',
+  },
+};
+const objectiveWorkTrustedTime: MeshObjectiveWorkTrustedTime = {
+  verifiedAt: '2026-07-30T00:00:01Z',
+  receivedAt: 1,
+};
+const objectiveWorkDecision: MeshObjectiveWorkDecision =
+  evaluateMeshObjectiveWorkCommand(
+    objectiveWorkRuntime,
+    localWorkCommand,
+    objectiveWorkTrustedTime
+  );
+const verifiedObjectiveRequest: MeshVerifiedObjectiveRequest | undefined =
+  undefined;
+const evaluatedObjectiveRequest: MeshObjectiveWorkDecision | undefined =
+  verifiedObjectiveRequest === undefined
+    ? undefined
+    : evaluateVerifiedMeshObjectiveEnvelope(
+        objectiveWorkRuntime,
+        verifiedObjectiveRequest
+      );
+const objectiveWorkRejectionCode: MeshObjectiveWorkRejectionCode | undefined =
+  undefined;
+const workObjectivePolicy: MeshWorkObjectivePolicySnapshot | undefined =
+  undefined;
+const workItemProjection: MeshWorkItemProjection | undefined = undefined;
 const discoveryRuntimeState: MeshDiscoveryRuntimeState =
   createMeshDiscoveryRuntimeState(
     restoredCoordinationState,
@@ -989,3 +1086,11 @@ void loopbackRuntime;
 void simulationKernelPromise;
 void simulationRunPromise;
 void simulationReplayPromise;
+void objectiveWorkTimerDecision;
+void objectiveWorkDecision;
+void evaluatedObjectiveRequest;
+void objectiveWorkRejectionCode;
+void workObjectivePolicy;
+void workItemProjection;
+void objectivePolicyHistory;
+void maximumObjectivePolicies;

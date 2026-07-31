@@ -27,6 +27,7 @@ const utf8Encoder = new TextEncoder();
 const allowedSubscriptions = new Set<MeshAudienceTopic>([
   'membership',
   'capability',
+  'objective',
 ]);
 
 export const DEFAULT_MESH_DISCOVERY_LIMITS: Readonly<MeshDiscoveryLimits> =
@@ -39,7 +40,7 @@ export const DEFAULT_MESH_DISCOVERY_LIMITS: Readonly<MeshDiscoveryLimits> =
     maximumCapabilities: 2_048,
     maximumCapabilitiesPerPeer: 64,
     maximumCapabilityBytes: 65_536,
-    maximumSubscriptions: 2,
+    maximumSubscriptions: 3,
     maximumFanout: 32,
     maximumRequirementCapabilityKeys: 64,
     maximumRequirementAttributes: 128,

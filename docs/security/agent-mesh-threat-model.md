@@ -73,6 +73,42 @@ no global fanout, implicit forwarding, complete membership knowledge or
 recipient oracle. Public receipts coarsen failures; detailed codes are emitted
 only to local diagnostics so remote senders cannot probe validation outcomes.
 
+The Objective/Work projection is another explicit local trust boundary. Its
+pure Objective evaluator accepts only values that a caller asserts were already
+verified. It revalidates closed structure, scope, audience, freshness, exact
+admission instance and provisioned issuer authority, but does not itself verify
+the signature or consume replay state. Untrusted transports must use the
+authenticated shared inbound processor introduced by the following Increment 2
+slice rather than calling this evaluator directly.
+
+Objective authority is provisioned as an issuer peer plus a bounded sorted key
+allowlist and exclusive validity limit. A current issuer may rotate among those
+keys; a different issuer peer cannot revise or cancel the Objective. Local Work
+commands derive the local owner, owner epoch and next revision, accept no
+command-embedded clock or caller-selected next revision, and use a separate
+driver-supplied trusted time input plus stable generation-fenced deadlines.
+Strict runtime composition binds Objective-scoped domain metadata through
+`objectiveId`, retains every accepted signed Objective envelope and its derived
+policy under a hard non-evicting limit, and canonicalizes each Work Item to that
+exact policy head. Restore revalidates closed envelope structure, recomputes the
+canonical SHA-256 payload digest, derives expiry from retained trusted time and
+requires the accepted domain record to carry the same digest. Cancelled heads
+retain the signed cancellation envelope and bind its payload, digest, message,
+cause and trusted validation time to the terminal record. It rejects coherent
+historical policy/Work forgery, fabricated cancellation, orphan timers,
+historical document/message ID reuse, ambiguous composite IDs and Work timers
+rebound to a later Objective revision. Timer-ID collisions fail closed, the
+generic coordination timer evaluator refuses workflow-owned Objective expiry
+and Work deadline timers, and exact nanosecond timestamp arithmetic prevents
+valid sub-millisecond inputs from triggering an exception or early expiry.
+Restore does not re-resolve keys or reverify retained proofs; the driver must
+integrity-protect persisted snapshots.
+
+An exact historical Objective duplicate is idempotent only after current
+ingress, admission, issuer-authority and freshness validation at the pure
+Objective boundary. Duplicate handling does not restore a prior head or bypass
+those checks.
+
 Detailed cryptographic rejection codes are local diagnostics. Transports must
 not echo them to untrusted senders, and must apply bounded queues and ingress
 rate limits so pre-admission verification cannot become a key-status oracle or
@@ -105,6 +141,8 @@ unbounded CPU-amplification path.
 | Gossip amplification              | Sender-local active-view snapshot, atomic bounded FIFO admission and backpressure; no global fanout or transitive forwarding | Signed three-peer A-to-B and explicit B-to-C scenario, saturation and cyclic topology scenarios |
 | Parser resource exhaustion        | Pre-parse byte limits, strict JSON limits and bounded errors                                                                 | Fuzz and oversized input tests                                                                  |
 | Capability spoofing               | Treat capabilities as self-claims; verify outcomes separately                                                                | False-advertisement scenario                                                                    |
+| Objective issuer takeover         | Provisioned peer/key authority, peer-stable revisions, exact parent causation and terminal heads                             | Key-rotation, alternate-issuer, stale-parent and terminal replay scenarios                      |
+| Deadline or timer confusion       | Injected monotonic time, length-prefixed timer IDs, exact domain binding and generation fencing                              | Early, stale, late, ambiguous-ID and cross-revision timer scenarios                             |
 | Evidence poisoning                | Signed provenance, contradiction sets and diversity policies                                                                 | Conflicting evidence scenarios                                                                  |
 | Trust manipulation                | Local scoped profiles, decay, uncertainty and low third-party weight                                                         | False-report and recovery scenarios                                                             |
 | Context injection                 | Trust zones and structured peer content; no implicit instruction promotion                                                   | Inference control fixtures                                                                      |

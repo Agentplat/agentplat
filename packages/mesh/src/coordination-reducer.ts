@@ -11,6 +11,9 @@ import {
 } from './state.js';
 
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
+const maximumTimerIdentifierBytes = 768;
+const utf8Encoder = new TextEncoder();
+const workflowOwnedTimerKinds = new Set(['objective.expiry', 'work.deadline']);
 
 /**
  * Evaluates one driver-supplied timer generation without reading a host clock.
@@ -32,10 +35,22 @@ export function evaluateMeshCoordinationTimer(
   if (
     !input ||
     typeof input !== 'object' ||
+    (Object.getPrototypeOf(input) !== null &&
+      Object.getPrototypeOf(input) !== Object.prototype) ||
+    Object.getOwnPropertySymbols(input).length > 0 ||
+    Object.values(Object.getOwnPropertyDescriptors(input)).some(
+      (descriptor) =>
+        !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
+    ) ||
+    Object.keys(input).length !== 3 ||
+    Object.keys(input).some(
+      (key) => !['generation', 'kind', 'timerId'].includes(key)
+    ) ||
     input.kind !== 'timer.fired' ||
     typeof input.timerId !== 'string' ||
     !identifierPattern.test(input.timerId) ||
-    input.timerId.length > 256 ||
+    utf8Encoder.encode(input.timerId).byteLength >
+      maximumTimerIdentifierBytes ||
     !Number.isSafeInteger(input.generation) ||
     input.generation < 1
   ) {
@@ -44,6 +59,9 @@ export function evaluateMeshCoordinationTimer(
 
   const timer = state.timers[input.timerId];
   if (!timer) return rejection(state, 'timer_unknown');
+  if (workflowOwnedTimerKinds.has(timer.kind)) {
+    return rejection(state, 'timer_owned_by_workflow');
+  }
   if (timer.generation !== input.generation) {
     return rejection(state, 'timer_generation_stale');
   }
@@ -87,6 +105,7 @@ function rejection(
   state: MeshCoordinationState,
   code:
     | 'timer_unknown'
+    | 'timer_owned_by_workflow'
     | 'timer_generation_stale'
     | 'timer_not_due'
     | 'journal_capacity_exceeded'

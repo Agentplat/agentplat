@@ -50,10 +50,15 @@ journal. Its pure timer evaluator uses only injected logical time; an early,
 stale or duplicate generation cannot mutate state, and journal exhaustion
 fails closed before a due timer is consumed.
 
-The foundation does not schedule host timers or accept Alpha 2 envelopes.
-Driver integration is added only with the workflow increment that first creates
-each timer, so a public effect cannot be emitted before loopback and simulation
-drivers know how to interpret it.
+The generic coordination timer evaluator refuses workflow-owned
+`objective.expiry` and `work.deadline` timers. Those timers are evaluated only
+by the Objective/Work workflow evaluator, so the generic path cannot consume
+or reinterpret them.
+
+The foundation does not schedule host timers. Driver integration is added only
+with the workflow increment that first creates each timer, so a public effect
+cannot be emitted before loopback and simulation drivers know how to interpret
+it.
 
 The same subpath now exposes an independently versioned discovery projection.
 Local admission is explicit and separate from Peer Cards; a card can refresh
@@ -100,10 +105,55 @@ inbound processor. Public receipts deliberately coarsen rejection details to
 `accepted`, `rejected` or `unavailable`; detailed codes remain local diagnostics
 and cannot be used as a remote validation oracle.
 
-The runtime currently accepts direct peer audiences and the Alpha 1
-`peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. Structurally valid
-Alpha 2 discovery, allocation, lease and recovery records remain
-`unsupported_message_type` until their state, authority and reducer increments
+The first Increment 2 slice adds a separate Objective and Work Item projection.
+`createMeshObjectiveWorkState` provisions bounded issuer peer/key authority;
+`createMeshObjectiveWorkRuntimeState` composes it with aligned coordination and
+discovery snapshots. Strict restoration binds each Objective's coordination
+domain record to its `objectiveId`, retains the complete signed envelope and
+derived policy for every accepted Objective revision under a hard non-evicting
+limit, and canonicalizes each Work Item to that exact immutable policy head.
+Restore validates the closed envelope, recomputes the canonical SHA-256 payload
+digest, checks derived wall/logical expiry metadata and binds the result to the
+accepted domain record. A cancelled head also retains its signed cancellation
+envelope and binds its payload, digest, message, cause and trusted validation
+time to the terminal record. It rejects missing, forged, orphaned or
+cross-revision bindings. Objective revision `1`, exact next revisions,
+cancellation and expiry are causal and terminal. An issuer may rotate among its
+currently provisioned keys, but another issuer peer cannot take over an
+Objective.
+
+Local `work.create`, `work.revise` and `work.cancel` commands derive local
+ownership and the exact next Work Item revision. They use only caller-injected
+trusted wall and logical time, enforce the current Objective's capability,
+Work Item-count, per-Work budget and deadline ceilings, and reject without
+mutation when journal, timer or projection capacity is unavailable. Stable
+length-prefixed timer IDs avoid ambiguous composite identifiers; exact
+generations fence both Objective expiry and Work deadlines. RFC 3339
+sub-millisecond differences use exact nanosecond arithmetic and round a
+positive remainder up to one logical millisecond. A later Objective revision
+governs later Work revisions but does not rewrite an existing Work Item or its
+timer binding. Any attempt to create a timer whose stable ID collides with a
+different existing timer fails closed.
+
+`evaluateVerifiedMeshObjectiveEnvelope` is a pure already-verified boundary. It
+revalidates closed protocol structure, context, admission instance and
+provisioned issuer authority, but it does not perform signature verification or
+replay accounting. Network adapters must not invoke it with merely parsed or
+self-asserted values. Snapshot restore verifies the retained canonical payload
+digest but does not resolve keys or reverify the proof, so persisted snapshots
+must be integrity protected by the driver. The authenticated shared replay
+boundary and Objective topic delivery are the next Increment 2 slice.
+
+An exact historical Objective record is idempotent only after this evaluator
+has applied the current structure, context, admission, issuer-authority and
+freshness checks; it cannot use duplicate handling to bypass them or restore an
+older Objective head.
+
+The Alpha 1 root runtime continues to accept direct peer audiences and its
+`peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. The explicit
+coordination subpath now projects already-verified discovery and Objective
+records plus local ready Work Items. Allocation, execution, lease and recovery
+records remain unsupported until their state, authority and reducer increments
 are implemented. A valid signature or admission entry does not grant that
 authority.
 

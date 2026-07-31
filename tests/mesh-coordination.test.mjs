@@ -32,12 +32,12 @@ function timerSnapshot({
   limits = DEFAULT_MESH_COORDINATION_LIMITS,
   timers,
 } = {}) {
-  const recordKey = JSON.stringify(['objective.announce', 'objective-a']);
+  const recordKey = JSON.stringify(['capability.advertise', 'capability-a']);
   const domainRecords = {
     [recordKey]: {
       recordKey,
-      recordType: 'objective.announce',
-      recordId: 'objective-a',
+      recordType: 'capability.advertise',
+      recordId: 'capability-a',
       contentDigest: 'A'.repeat(43),
       messageId: messageId(1),
       acceptedAt: 0,
@@ -50,7 +50,7 @@ function timerSnapshot({
     timers: timers ?? {
       'timer-a': {
         timerId: 'timer-a',
-        kind: 'objective.expiry',
+        kind: 'capability.expiry',
         dueAt,
         generation,
         domainRecordKey: recordKey,
@@ -265,6 +265,61 @@ test('trusted timer evaluation is generation-fenced and fail-closed', () => {
   assert.equal(late.accepted, true);
 });
 
+test('generic timer evaluation cannot consume workflow-owned timers', () => {
+  const recordKey = JSON.stringify([
+    'objective.announce',
+    'objective-document-a',
+  ]);
+  const state = restoreMeshCoordinationState({
+    ...timerSnapshot(),
+    domainRecords: {
+      [recordKey]: {
+        recordKey,
+        recordType: 'objective.announce',
+        recordId: 'objective-document-a',
+        objectiveId: 'objective-a',
+        contentDigest: 'A'.repeat(43),
+        messageId: messageId(1),
+        acceptedAt: 0,
+      },
+    },
+    timers: {
+      'objective:11:objective-a:expiry': {
+        timerId: 'objective:11:objective-a:expiry',
+        kind: 'objective.expiry',
+        dueAt: 10,
+        generation: 1,
+        domainRecordKey: recordKey,
+      },
+      'work:11:objective-a:11:work-item-a:deadline': {
+        timerId: 'work:11:objective-a:11:work-item-a:deadline',
+        kind: 'work.deadline',
+        dueAt: 10,
+        generation: 1,
+        domainRecordKey: recordKey,
+      },
+    },
+  });
+
+  for (const timerId of Object.keys(state.timers)) {
+    const decision = evaluateMeshCoordinationTimer(
+      state,
+      { kind: 'timer.fired', timerId, generation: 1 },
+      10
+    );
+    assert.deepEqual(decision, {
+      accepted: false,
+      code: 'timer_owned_by_workflow',
+      state,
+    });
+    assert.equal(decision.state, state);
+    assert.equal(state.timers[timerId].generation, 1);
+  }
+  assert.equal(state.journal.length, 0);
+  assert.equal(state.localEventSequence, 0);
+  assert.equal(state.lastLogicalTime, 0);
+});
+
 test('journal exhaustion cannot consume a due timer', () => {
   const base = timerSnapshot({
     limits: {
@@ -319,7 +374,7 @@ test('timer evaluation rejects forged mutable snapshots', () => {
         state,
         {
           kind: 'timer.fired',
-          timerId: 'a'.repeat(257),
+          timerId: 'a'.repeat(769),
           generation: 1,
         },
         10
