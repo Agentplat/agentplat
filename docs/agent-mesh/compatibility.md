@@ -28,6 +28,14 @@ state, input, effect, root export or loopback contracts. A caller opts into the
 composite boundary explicitly and must restore every snapshot through its
 strict constructor before use.
 
+The Increment 1 topic driver is a new explicit coordination-subpath API. It is
+a bounded in-memory reference driver with construction-bound clocks and inbound
+processors; it does not alter Alpha 1 loopback behavior or promise durable
+delivery. Its endpoint registry is only a process-local route table. Recipient
+selection is limited to the sender's local active Peer View joined to exact
+current endpoint instances, not global membership, global fanout or a recipient
+oracle. Public receipts coarsen failures while exact codes stay local-only.
+
 ## Wire compatibility
 
 The npm package version and wire version are independent.

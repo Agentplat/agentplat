@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
-Status: Increment 0 complete; runtime increments pending.
+Status: Increment 0 and Increment 1 complete; later runtime increments pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -85,8 +85,8 @@ Registry and Git mutations are checked only after independent verification.
   withdrawal/reactivation, goodbye, admission separation, exact expiry,
   equal-time eviction, instance isolation, snapshot/domain binding, matching,
   fanout, scope, subscription and capacity;
-- the projection consumes already-verified protocol values and does not yet
-  enable topic transport;
+- the projection consumes already-verified protocol values; the separate topic
+  driver remains coordination-only and does not add reducer authority;
 - `packages/mesh/src/coordination-inbound-state.ts` preserves bounded replay
   windows and retained message IDs in a separate non-evictable schema;
 - `packages/mesh/src/coordination-inbound.ts` construction-binds trusted crypto
@@ -94,6 +94,14 @@ Registry and Git mutations are checked only after independent verification.
 - `tests/mesh-coordination-inbound.test.mjs` exercises real signatures and
   keys, contextual failures before crypto, admission, replay, domain
   duplicate/conflict behavior and replay-only accounting on domain rejection.
+- `packages/mesh/src/coordination-topic.ts` provides the bounded in-memory
+  reference driver with sender-local active-view selection, exact-instance route
+  joining, atomic bounded FIFO admission, exact signed-envelope copying and
+  serialized construction-bound receiver processing;
+- `tests/mesh-coordination-topic.test.mjs` proves the signed three-peer path:
+  A reaches B, B explicitly publishes to C, and C does not receive A's
+  envelope through global fanout or forwarding. It also covers endpoint-snapshot
+  unavailability, queue rejection and close/drain behavior.
 
 ## Objective and Work Item state
 

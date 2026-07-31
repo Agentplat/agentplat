@@ -1,6 +1,7 @@
 export * from './coordination-contracts.js';
 export * from './coordination-discovery-contracts.js';
 export * from './coordination-inbound-contracts.js';
+export * from './coordination-topic-contracts.js';
 export {
   DEFAULT_MESH_COORDINATION_LIMITS,
   createMeshCoordinationState,
@@ -26,3 +27,7 @@ export {
   restoreMeshCoordinationInboundState,
 } from './coordination-inbound-state.js';
 export { createMeshDiscoveryInboundProcessor } from './coordination-inbound.js';
+export {
+  DEFAULT_MESH_COORDINATION_TOPIC_LIMITS,
+  createMeshCoordinationTopicDriver,
+} from './coordination-topic.js';

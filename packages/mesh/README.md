@@ -85,7 +85,20 @@ local diagnostics, not transport response payloads; adapters must rate-limit
 ingress and avoid exposing cryptographic distinctions. Topic receipt never
 relays or emits effects.
 
-Actual topic driver delivery remains the final Increment 1 slice.
+`createMeshCoordinationTopicDriver` is the final Increment 1 coordination-only
+driver. It is an additive, bounded in-memory reference driver, not a production
+transport or durability mechanism. Its process-local registry is a route table,
+not membership: it selects recipients only from the publisher's local active
+Peer View, joined to endpoints registered for those exact current instances.
+It never consults a global recipient oracle, supplies a complete membership
+view, fans out beyond that snapshot, or forwards a received envelope.
+
+The driver copies the exact signed envelope for every selected recipient into
+one atomically accepted bounded FIFO queue and serializes delivery. Each
+receiver is invoked only through its construction-bound trusted clock and
+inbound processor. Public receipts deliberately coarsen rejection details to
+`accepted`, `rejected` or `unavailable`; detailed codes remain local diagnostics
+and cannot be used as a remote validation oracle.
 
 The runtime currently accepts direct peer audiences and the Alpha 1
 `peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. Structurally valid

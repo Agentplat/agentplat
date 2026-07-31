@@ -36,6 +36,12 @@
   validation, local signature/key verification, admission and instance
   authority, non-evictable replay windows, retained message IDs and atomic
   composition with the coordination and discovery projections.
+- Added the additive, bounded in-memory coordination topic driver. It snapshots
+  recipients only from the sender's local active Peer View, copies each exact
+  signed envelope into an atomic bounded FIFO queue, and invokes only the
+  construction-bound receiver clock and inbound processor. It is a local route
+  table, not membership or a delivery oracle: it provides no global fanout,
+  implicit forwarding, complete membership view or durability guarantee.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

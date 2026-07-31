@@ -1,6 +1,7 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
-Status: Increment 0 complete; runtime implementation begins with Increment 1.
+Status: Increment 0 and Increment 1 complete; runtime implementation continues
+with Increment 2.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -538,8 +539,8 @@ state composed with that foundation. It enforces admission separation, causal
 Peer Card and capability heads, explicit entry and encoded-byte ceilings,
 logical expiry, deterministic passive-view eviction, pure matching reason codes
 and bounded local topic-recipient selection. Its input is already-verified
-protocol data; the cryptographic inbound boundary and actual topic delivery are
-the remaining Increment 1 slices.
+protocol data; the later authenticated-inbound and topic-driver sub-slices add
+the trust boundary and actual topic delivery.
 
 The authenticated-inbound sub-slice is also implemented under the coordination
 subpath. Context and message-family checks run before cryptographic work; the
@@ -551,7 +552,23 @@ protocol policy. A signed, authenticated record that fails a domain predecessor
 or capacity check retains only normal replay accounting. Composite logical time
 uses the maximum of coordination, discovery and replay-security snapshots, and
 restored message-ID retention must remain inside its exact configured window.
-Actual topic driver delivery remains pending.
+
+The final Increment 1 slice is an additive coordination-only, bounded
+in-memory reference topic driver. Its process-local endpoint registry is a
+route table rather than a membership service. For each publication it snapshots
+recipients exclusively from the sender's local active Peer View and joins them
+to registered endpoints for the exact current peer instances. It does not use a
+global registry as a recipient oracle, infer complete membership, fan out beyond
+that local snapshot, forward received envelopes, or claim production durability.
+
+The driver atomically admits the whole selected batch only if its FIFO queue and
+byte limits permit it, copying the exact signed envelope per recipient. FIFO
+serialization invokes a receiver only through its construction-bound trusted
+clock and authenticated inbound processor. Public delivery receipts coarsen all
+rejections to `rejected` or `unavailable`; exact codes remain local-only
+diagnostics. The evidence includes a real signed three-peer scenario: A delivers
+to B, while B separately publishes to C; C never receives A's envelope through
+implicit forwarding.
 
 Exit criterion: three peers with different bounded views discover only locally
 visible, admitted and unexpired capability declarations.

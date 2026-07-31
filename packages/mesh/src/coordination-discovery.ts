@@ -284,7 +284,12 @@ export function matchMeshDiscoveryCapabilities(
   });
 }
 
-/** Resolves bounded topic recipients from the sender's local view only. */
+/**
+ * Resolves bounded topic recipients from the sender's local view only.
+ * Topic subscriptions are receiver-local and are enforced at inbound delivery;
+ * an existing capability self-claim is never required to receive a first
+ * capability advertisement.
+ */
 export function selectMeshDiscoveryTopicRecipients(
   state: MeshDiscoveryRuntimeState,
   topic: MeshAudienceTopic,
@@ -310,17 +315,11 @@ export function selectMeshDiscoveryTopicRecipients(
   const peers = recordEntries(state.discovery.peerViews)
     .filter(([peerId, view]) => {
       const card = state.discovery.peerCards[peerId];
-      if (!card || card.status !== 'active' || view.expiresAt <= logicalTime) {
-        return false;
-      }
       return (
-        topic === 'membership' ||
-        Object.values(state.discovery.capabilities).some(
-          (capability) =>
-            capability.ownerPeerId === peerId &&
-            capability.status === 'active' &&
-            capability.expiresAt > logicalTime
-        )
+        card !== undefined &&
+        card.status === 'active' &&
+        card.expiresAt > logicalTime &&
+        view.expiresAt > logicalTime
       );
     })
     .map(([peerId]) => peerId)
