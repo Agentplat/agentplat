@@ -2,10 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  MESH_PEER_SUBJECT_MAPPING_DIGEST_V1,
+  createMeshTrustStateEligibilityConfigV1,
   createMeshEvidenceInboundProcessorV1,
   createMeshEvidenceTrustAdapterV1,
+  digestMeshTrustStateEligibilityConfigV1,
   encodeMeshTrustObservationV1,
   filterMeshCapabilityMatchesWithTrustV1,
+  filterMeshCapabilityMatchesWithTrustStateV1,
+  restoreMeshTrustEligibilityRuntimeStateV1,
   validateMeshEvidenceOriginJournalEntryV1,
 } from "@agentplat/mesh/trust";
 import {
@@ -13,11 +18,19 @@ import {
   signMeshEnvelope,
 } from "@agentplat/mesh-crypto";
 import {
+  EVIDENCE_TRUST_LIMITS_V1,
   createEvidenceAttestationV1,
   createEvidenceClaimV1,
+  createEvidenceFusionPolicyV1,
+  createEvidenceTrustDependencyBindingV1,
+  createEvidenceTrustSnapshotV1,
   createEvidenceTrustStateV1,
   createTrustObservationV1,
+  deriveApplicableBindingDigests,
+  digestEvidenceFusionPolicyV1,
   projectEvidenceLifecycleV1,
+  reduceEvidenceTrustStateV1,
+  sha256TrustBytesV1,
 } from "../packages/trust/dist/index.js";
 
 test("Mesh Trust filtering only preserves candidates or returns a subset", () => {
@@ -56,6 +69,461 @@ test("Mesh Trust filtering only preserves candidates or returns a subset", () =>
   );
   assert.deepEqual(unavailable.matches, []);
   assert.equal(unavailable.unavailable, true);
+});
+
+const meshEligibilityScope = {
+  schemaVersion: 1,
+  kind: "mesh",
+  tenantId: "tenant-a",
+  meshId: "mesh-a",
+};
+
+function meshEligibilityPolicy(minimumScoreBasisPoints = 4000) {
+  return createEvidenceFusionPolicyV1({
+    schemaVersion: 1,
+    policyId: "mesh-eligibility-policy",
+    policyVersion: 1,
+    parentPolicyDigest: null,
+    mode: "restrict",
+    dimensions: [
+      {
+        dimensionId: "integrity",
+        priorScoreBasisPoints: 5000,
+        priorWeightBasisPoints: 1,
+        minimumUncertaintyBasisPoints: 0,
+        coverageTargetBasisPoints: 1,
+        decayIntervalMs: 100,
+        decayBasisPointsPerInterval: 1,
+        uncertaintyGrowthBasisPointsPerInterval: 1,
+        minimumRetainedWeightBasisPoints: 1,
+        contradictionUncertaintyBasisPointsPerClaim: 1,
+        maximumContradictionUncertaintyBasisPoints: 1000,
+        degradedScoreAtOrBelowBasisPoints: 1000,
+        degradedUncertaintyAtOrAboveBasisPoints: 9000,
+      },
+    ],
+    criteria: [
+      {
+        criterionId: "criterion-a",
+        dimensionId: "integrity",
+        satisfiedValueBasisPoints: 10000,
+        violatedValueBasisPoints: 0,
+        inconclusiveValueBasisPoints: null,
+        baseWeightBasisPoints: 1000,
+        maximumClaimWeightBasisPoints: 1000,
+        maximumSourceGroupContributionWeightBasisPoints: 1000,
+        minimumSupportGroups: 1,
+        minimumSupportWeightBasisPoints: 1,
+        minimumContradictionGroups: 1,
+        minimumContradictionWeightBasisPoints: 1,
+        allowClaimSourceAttestation: false,
+        contentRequired: false,
+        quarantineEligible: false,
+        recoveryEligible: false,
+        maximumAgeMs: 1000,
+        claimAuthority: {
+          allowedSourceRelations: ["subject_self"],
+          allowedBasisReferences: [],
+        },
+        challengeAuthority: {
+          allowedSourceRelations: ["target_author"],
+          allowedBasisReferences: [],
+          requireResolvedBasis: true,
+        },
+        challengeResolution: {
+          minimumCorroboratingGroups: 1,
+          minimumCorroboratingWeightBasisPoints: 1,
+          minimumOpposingGroups: 1,
+          minimumOpposingWeightBasisPoints: 1,
+        },
+      },
+    ],
+    sourceBindings: [
+      {
+        sourceId: "peer-a",
+        sourceKind: "peer",
+        dependencyGroupId: "peer-a-group",
+        roles: ["challenge", "claim"],
+        maximumWeightBasisPoints: 1000,
+        validFromLogicalMs: 0,
+        validUntilLogicalMs: 1000,
+      },
+    ],
+    dependencyGroups: [
+      {
+        dependencyGroupId: "peer-a-group",
+        maximumAttestationWeightPerClaimBasisPoints: 1000,
+        maximumProfileWeightPerDimensionCriterionBasisPoints: 1000,
+      },
+    ],
+    eligibilityRules: [
+      {
+        ruleId: "mesh-match",
+        maximumProfileAgeMs: 100,
+        requirements: [
+          {
+            dimensionId: "integrity",
+            minimumScoreBasisPoints,
+            maximumUncertaintyBasisPoints: 10000,
+          },
+        ],
+      },
+    ],
+    quarantinePolicy: { enabled: false, rules: [], maximumActiveRecords: 1 },
+    recoveryPolicy: { rules: [] },
+    limits: EVIDENCE_TRUST_LIMITS_V1,
+    diagnosticsPolicyId: "diagnostics",
+    redactionPolicyId: "redaction",
+  });
+}
+
+let meshEligibilityFixtureSequence = 0;
+function meshEligibilityFixture({
+  mode = "restrict",
+  minimumScoreBasisPoints = 4000,
+} = {}) {
+  const policy = meshEligibilityPolicy(minimumScoreBasisPoints);
+  const policyDigest = digestEvidenceFusionPolicyV1(policy);
+  const rule = policy.eligibilityRules[0];
+  const placeholderConfig = {
+    schemaVersion: 1,
+    mode,
+    logicalTimeMs: 0,
+    scope: meshEligibilityScope,
+    policyId: policy.policyId,
+    policyVersion: policy.policyVersion,
+    policyDigest,
+    maximumProfileAgeMs: rule.maximumProfileAgeMs,
+    requirements: rule.requirements,
+    subjectMappingDigest: MESH_PEER_SUBJECT_MAPPING_DIGEST_V1,
+    meshEligibilityBindingDigest: "a".repeat(64),
+    profileResolverBindingDigest: "b".repeat(64),
+  };
+  const configurationDigest =
+    digestMeshTrustStateEligibilityConfigV1(placeholderConfig);
+  const profileResolver = createEvidenceTrustDependencyBindingV1({
+    schemaVersion: 1,
+    bindingName: "mesh-profile-resolver",
+    bindingVersion: 1,
+    parentBindingDigest: null,
+    bindingKind: "profile_resolver",
+    implementationId: "mesh-profile-resolver-v1",
+    implementationDigest: "c".repeat(64),
+    configurationDigest: "d".repeat(64),
+    policyDigest,
+    subjectMappingDigest: MESH_PEER_SUBJECT_MAPPING_DIGEST_V1,
+    upstreamBindingDigest: null,
+    registeredAtLogicalMs: 0,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: null,
+  });
+  const meshEligibility = createEvidenceTrustDependencyBindingV1({
+    schemaVersion: 1,
+    bindingName: "mesh-state-eligibility",
+    bindingVersion: 1,
+    parentBindingDigest: null,
+    bindingKind: "mesh_eligibility",
+    implementationId: "mesh-state-eligibility-v1",
+    implementationDigest: "e".repeat(64),
+    configurationDigest,
+    policyDigest,
+    subjectMappingDigest: MESH_PEER_SUBJECT_MAPPING_DIGEST_V1,
+    upstreamBindingDigest: profileResolver.bindingDigest,
+    registeredAtLogicalMs: 0,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: null,
+  });
+  const config = createMeshTrustStateEligibilityConfigV1({
+    ...placeholderConfig,
+    meshEligibilityBindingDigest: meshEligibility.bindingDigest,
+    profileResolverBindingDigest: profileResolver.bindingDigest,
+  });
+  let state = reduceEvidenceTrustStateV1(
+    createEvidenceTrustStateV1({
+      stateId: `mesh-eligibility-${mode}-${(meshEligibilityFixtureSequence += 1)}`,
+    }),
+    {
+      schemaVersion: 1,
+      kind: "policy_registered",
+      policy,
+      logicalTimeMs: 0,
+    },
+  ).state;
+  for (const binding of [profileResolver, meshEligibility])
+    state = reduceEvidenceTrustStateV1(state, {
+      schemaVersion: 1,
+      kind: "dependency_binding_registered",
+      binding,
+      logicalTimeMs: 0,
+    }).state;
+  const subject = { schemaVersion: 1, kind: "peer", peerId: "peer-a" };
+  const request = {
+    tenantId: meshEligibilityScope.tenantId,
+    subject,
+    scope: meshEligibilityScope,
+    policyId: policy.policyId,
+    policyVersion: policy.policyVersion,
+    policyDigest,
+    dependencyBindingDigests: deriveApplicableBindingDigests(
+      state,
+      policyDigest,
+      0,
+    ),
+  };
+  state = reduceEvidenceTrustStateV1(state, {
+    schemaVersion: 1,
+    kind: "fusion_evaluated",
+    request,
+    logicalTimeMs: 0,
+  }).state;
+  const decision = state.fusionDecisions[0];
+  state = reduceEvidenceTrustStateV1(state, {
+    schemaVersion: 1,
+    kind: "profile_evaluated",
+    fusionDecisionId: decision.fusionDecisionId,
+    fusionDecisionDigest: decision.fusionDecisionDigest,
+    logicalTimeMs: 0,
+  }).state;
+  return { state, config, policy, profileResolver, meshEligibility };
+}
+
+const meshEligibilityProtector = {
+  bindingDigest: "9".repeat(64),
+  protect(materialBytes) {
+    return {
+      algorithmId: "test-sha256",
+      keyId: "mesh-eligibility-test-key",
+      encoding: "base64url",
+      proof: sha256TrustBytesV1(materialBytes),
+    };
+  },
+  verify(materialBytes, proof) {
+    return proof.proof === sha256TrustBytesV1(materialBytes);
+  },
+};
+
+function verifiedMeshEligibilityRuntime(
+  trust,
+  { generation = 1, previousSnapshotDigest = null } = {},
+) {
+  const snapshot = createEvidenceTrustSnapshotV1({
+    state: trust,
+    generation,
+    previousSnapshotDigest,
+    createdAtLogicalMs: trust.logicalTimeHighWaterMs,
+    protector: meshEligibilityProtector,
+  });
+  const current = Object.freeze({
+    schemaVersion: 1,
+    identity: Object.freeze({
+      tenantId: "tenant-a",
+      meshId: "mesh-a",
+      peerId: "local-peer",
+    }),
+    state: Object.freeze({
+      authorizationState: Object.freeze({}),
+      trust,
+      originProofs: Object.freeze({}),
+      remoteObservations: Object.freeze({}),
+    }),
+  });
+  const anchor = {
+    schemaVersion: 1,
+    stateId: snapshot.stateId,
+    requiredGeneration: snapshot.generation,
+    requiredSnapshotDigest: snapshot.snapshotDigest,
+    minimumLogicalHighWaterMs: trust.logicalTimeHighWaterMs,
+    protectorBindingDigest: meshEligibilityProtector.bindingDigest,
+  };
+  return {
+    snapshot,
+    runtime: restoreMeshTrustEligibilityRuntimeStateV1(
+      current,
+      snapshot,
+      anchor,
+      meshEligibilityProtector,
+    ),
+  };
+}
+
+test("state-backed Mesh eligibility binds the exact local profile and only narrows matches", () => {
+  const fixture = meshEligibilityFixture();
+  const { runtime } = verifiedMeshEligibilityRuntime(fixture.state);
+  const candidate = {
+    peerId: "peer-a",
+    capabilities: [{ capabilityId: "declared-only" }],
+  };
+  const before = structuredClone(fixture.state);
+  const eligible = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidate],
+    runtime,
+    fixture.config,
+  );
+  assert.deepEqual(eligible.matches, [candidate]);
+  assert.equal(eligible.matches[0], candidate);
+  assert.equal(eligible.diagnostics[0].disposition, "eligible");
+  assert.match(
+    eligible.diagnostics[0].eligibilityDecisionId,
+    /^eligibility-decision:[0-9a-f]{64}$/u,
+  );
+  assert.equal(Object.isFrozen(candidate), false);
+  assert.equal(Object.isFrozen(candidate.capabilities), false);
+  assert.equal(Object.isFrozen(candidate.capabilities[0]), false);
+  assert.deepEqual(fixture.state, before);
+
+  const unknown = Object.freeze({
+    peerId: "peer-b",
+    capabilities: candidate.capabilities,
+  });
+  const mixed = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidate, unknown],
+    runtime,
+    fixture.config,
+  );
+  assert.deepEqual(mixed.matches, []);
+  assert.equal(mixed.unavailable, true);
+  assert.equal(mixed.diagnostics[1].disposition, "unavailable");
+  assert.deepEqual(mixed.diagnostics[1].reasonCodes, ["profile_unavailable"]);
+  const unauthenticated = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidate],
+    structuredClone(runtime),
+    fixture.config,
+  );
+  assert.deepEqual(unauthenticated.matches, []);
+  assert.equal(unauthenticated.unavailable, true);
+  assert.deepEqual(unauthenticated.diagnostics[0].reasonCodes, [
+    "state_conflict",
+  ]);
+  assert.throws(() =>
+    filterMeshCapabilityMatchesWithTrustStateV1(
+      [candidate, candidate],
+      runtime,
+      fixture.config,
+    ),
+  );
+});
+
+test("state-backed Mesh eligibility preserves observe mode and fails closed on stale or rebound dependencies", () => {
+  const fixture = meshEligibilityFixture({ mode: "observe" });
+  const verified = verifiedMeshEligibilityRuntime(fixture.state);
+  const candidates = Object.freeze([
+    Object.freeze({ peerId: "peer-a", capabilities: Object.freeze([]) }),
+    Object.freeze({ peerId: "peer-b", capabilities: Object.freeze([]) }),
+  ]);
+  const observed = filterMeshCapabilityMatchesWithTrustStateV1(
+    candidates,
+    verified.runtime,
+    fixture.config,
+  );
+  assert.equal(observed.matches[0], candidates[0]);
+  assert.equal(observed.matches[1], candidates[1]);
+  assert.deepEqual(
+    observed.diagnostics.map((item) => item.disposition),
+    ["eligible", "unavailable"],
+  );
+
+  const unauthenticatedFutureTime = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidates[0]],
+    verified.runtime,
+    { ...fixture.config, logicalTimeMs: 101 },
+  );
+  assert.deepEqual(unauthenticatedFutureTime.diagnostics[0].reasonCodes, [
+    "state_conflict",
+  ]);
+  const advanced = reduceEvidenceTrustStateV1(fixture.state, {
+    schemaVersion: 1,
+    kind: "advance_logical_time",
+    logicalTimeMs: 101,
+  }).state;
+  const advancedVerified = verifiedMeshEligibilityRuntime(advanced, {
+    generation: 2,
+    previousSnapshotDigest: verified.snapshot.snapshotDigest,
+  });
+  const stale = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidates[0]],
+    advancedVerified.runtime,
+    { ...fixture.config, logicalTimeMs: 101 },
+  );
+  assert.equal(stale.diagnostics[0].disposition, "unavailable");
+  assert.deepEqual(stale.diagnostics[0].reasonCodes, ["profile_stale"]);
+  const rewound = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidates[0]],
+    advancedVerified.runtime,
+    fixture.config,
+  );
+  assert.deepEqual(rewound.diagnostics[0].reasonCodes, ["state_conflict"]);
+  assert.throws(() => verifiedMeshEligibilityRuntime(fixture.state));
+
+  const rotationFixture = meshEligibilityFixture({ mode: "observe" });
+  const rotationVerified = verifiedMeshEligibilityRuntime(
+    rotationFixture.state,
+  );
+  const { bindingDigest: _previousResolverDigest, ...profileResolverBody } =
+    rotationFixture.profileResolver;
+  const replacement = createEvidenceTrustDependencyBindingV1({
+    ...profileResolverBody,
+    bindingVersion: 2,
+    parentBindingDigest: rotationFixture.profileResolver.bindingDigest,
+    registeredAtLogicalMs: 1,
+    validFromLogicalMs: 1,
+  });
+  const rotated = reduceEvidenceTrustStateV1(rotationFixture.state, {
+    schemaVersion: 1,
+    kind: "dependency_binding_registered",
+    binding: replacement,
+    logicalTimeMs: 1,
+  }).state;
+  const rotatedRuntime = verifiedMeshEligibilityRuntime(rotated, {
+    generation: 2,
+    previousSnapshotDigest: rotationVerified.snapshot.snapshotDigest,
+  }).runtime;
+  const rebound = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidates[0]],
+    rotatedRuntime,
+    { ...rotationFixture.config, logicalTimeMs: 1 },
+  );
+  assert.equal(rebound.unavailable, true);
+  assert.deepEqual(rebound.matches, [candidates[0]]);
+  assert.deepEqual(rebound.diagnostics[0].reasonCodes, [
+    "dependency_binding_invalid",
+  ]);
+  const supersededRuntime = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidates[0]],
+    rotationVerified.runtime,
+    { ...rotationFixture.config, logicalTimeMs: 0 },
+  );
+  assert.deepEqual(supersededRuntime.matches, [candidates[0]]);
+  assert.deepEqual(supersededRuntime.diagnostics[0].reasonCodes, [
+    "state_conflict",
+  ]);
+  assert.throws(() => verifiedMeshEligibilityRuntime(rotationFixture.state));
+
+  assert.throws(() =>
+    createMeshTrustStateEligibilityConfigV1({
+      ...fixture.config,
+      subjectMappingDigest: "f".repeat(64),
+    }),
+  );
+});
+
+test("state-backed Mesh restrict mode excludes a policy-restricted profile without auto-selection", () => {
+  const fixture = meshEligibilityFixture({ minimumScoreBasisPoints: 6000 });
+  const { runtime } = verifiedMeshEligibilityRuntime(fixture.state);
+  const candidate = Object.freeze({
+    peerId: "peer-a",
+    capabilities: Object.freeze([]),
+  });
+  const result = filterMeshCapabilityMatchesWithTrustStateV1(
+    [candidate],
+    runtime,
+    fixture.config,
+  );
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.unavailable, false);
+  assert.equal(result.diagnostics[0].disposition, "restricted");
+  assert.deepEqual(result.diagnostics[0].reasonCodes, [
+    "eligibility_restricted",
+  ]);
 });
 
 test("Mesh Trust rejects a direct payload before it can reach the adapter", async () => {

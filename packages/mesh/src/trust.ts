@@ -19,21 +19,56 @@ import {
   normalizeMeshTrustObservationV1,
 } from "@agentplat/trust/mesh-records";
 import {
+  assertExactKeys,
+  assertIdentifier,
+  assertSafeInteger,
+  assertTrustDigest,
+  createTrustEligibilityRequestV1,
+  deepFreeze,
+  digestScopeV1,
+  digestSubjectV1,
+  digestTrustProfileKeyV1,
   digestTrustJsonV1,
+  evaluateTrustEligibilityV1,
   reduceEvidenceTrustStateV1,
+  restoreEvidenceTrustSnapshotV1,
   sha256TrustBytesV1,
+  validateEvidenceScopeV1,
+  validateEvidenceTrustStateV1,
+  type EvidenceScopeV1,
   type EvidenceRecordV1,
+  type EvidenceTrustRestoreOptionsV1,
+  type EvidenceTrustRollbackAnchorV1,
+  type EvidenceTrustSnapshotProtectorV1,
+  type EvidenceTrustSnapshotV1,
   type EvidenceTrustStateV1,
+  type TrustEligibilityDecisionV1,
+  type TrustEligibilityRequirementV1,
   type TrustObservationV1,
+  type TrustReasonCodeV1,
 } from "@agentplat/trust";
 
 const trustDigestPattern = /^[0-9a-f]{64}$/;
 const maximumOriginProofs = 4_096;
 const maximumRemoteObservations = 4_096;
 const maximumAuthorityDigests = 32;
+const maximumEligibilityStateIdentities = 4_096;
 /** Unforgeable, adapter-bound handoff from the verified processor. */
 const concreteAdapterCapabilities = new WeakMap<object, object>();
 const authorizedAdapterInvocations = new WeakMap<object, object>();
+const verifiedEligibilityRuntimeStates = new WeakMap<
+  object,
+  {
+    readonly stateId: string;
+    readonly generation: number;
+    readonly digest: string;
+    readonly logicalTimeMs: number;
+  }
+>();
+const latestEligibilitySnapshotByStateId = new Map<
+  string,
+  { readonly generation: number; readonly digest: string }
+>();
 
 type MeshTrustPayloadV1 =
   | Extract<SignedMeshEnvelope["payload"], { readonly type: "evidence.claim" }>
@@ -1063,6 +1098,407 @@ export function filterMeshCapabilityMatchesWithTrustV1<
         ? []
         : candidates.filter(
             (_, index) => diagnostics[index]!.status === "eligible",
+          );
+  return Object.freeze({
+    matches: Object.freeze([...matches]),
+    diagnostics: Object.freeze(diagnostics),
+    unavailable,
+  });
+}
+
+export const MESH_PEER_SUBJECT_MAPPING_DIGEST_V1 = digestTrustJsonV1(
+  "mesh-subject-mapping",
+  {
+    schemaVersion: 1,
+    candidateField: "peerId",
+    subjectKind: "peer",
+  },
+);
+
+export interface MeshTrustStateEligibilityConfigV1 {
+  readonly schemaVersion: 1;
+  readonly mode: MeshTrustEligibilityModeV1;
+  readonly logicalTimeMs: number;
+  readonly scope: EvidenceScopeV1;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly maximumProfileAgeMs: number;
+  readonly requirements: readonly TrustEligibilityRequirementV1[];
+  readonly subjectMappingDigest: string;
+  readonly meshEligibilityBindingDigest: string;
+  readonly profileResolverBindingDigest: string;
+}
+
+export interface MeshTrustStateEligibilityDiagnosticV1 {
+  readonly peerId: string;
+  readonly disposition:
+    "eligible" | "restricted" | "quarantined" | "unavailable";
+  readonly eligibilityDecisionId: string | null;
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+
+export interface MeshTrustStateEligibilityResultV1<
+  T extends MeshTrustCandidateV1,
+> {
+  readonly matches: readonly T[];
+  readonly diagnostics: readonly MeshTrustStateEligibilityDiagnosticV1[];
+  readonly unavailable: boolean;
+}
+
+export type MeshTrustEligibilityRuntimeStateV1<TAuthorizationState = unknown> =
+  MeshEvidenceInboundRuntimeStateV1<
+    MeshEvidenceTrustCompositeStateV1<TAuthorizationState>
+  >;
+
+/**
+ * Reconstructs the Trust member of a Mesh transaction only through the strict
+ * authenticated snapshot boundary. The caller must supply its current trusted
+ * external rollback anchor; structural Trust validation alone is insufficient.
+ */
+export function restoreMeshTrustEligibilityRuntimeStateV1<TAuthorizationState>(
+  current: MeshTrustEligibilityRuntimeStateV1<TAuthorizationState>,
+  snapshot: EvidenceTrustSnapshotV1,
+  anchor: EvidenceTrustRollbackAnchorV1,
+  protector: EvidenceTrustSnapshotProtectorV1,
+  options: EvidenceTrustRestoreOptionsV1 = {},
+): MeshTrustEligibilityRuntimeStateV1<TAuthorizationState> {
+  if (
+    !isRuntimeState(current) ||
+    !current.state ||
+    typeof current.state !== "object" ||
+    !Object.hasOwn(current.state, "authorizationState") ||
+    !Object.hasOwn(current.state, "originProofs") ||
+    !Object.hasOwn(current.state, "remoteObservations")
+  )
+    throw new TypeError("Mesh Trust current transaction is invalid");
+  const trust = restoreEvidenceTrustSnapshotV1(
+    snapshot,
+    anchor,
+    protector,
+    options,
+  );
+  const prior = latestEligibilitySnapshotByStateId.get(snapshot.stateId);
+  if (
+    !prior &&
+    latestEligibilitySnapshotByStateId.size >= maximumEligibilityStateIdentities
+  )
+    throw new TypeError("Mesh Trust eligibility state capacity exceeded");
+  if (
+    prior &&
+    (snapshot.generation < prior.generation ||
+      (snapshot.generation === prior.generation &&
+        snapshot.snapshotDigest !== prior.digest))
+  )
+    throw new TypeError("Mesh Trust snapshot anchor is not current");
+  latestEligibilitySnapshotByStateId.set(snapshot.stateId, {
+    generation: snapshot.generation,
+    digest: snapshot.snapshotDigest,
+  });
+  const restored = Object.freeze({
+    schemaVersion: 1 as const,
+    identity: Object.freeze({ ...current.identity }),
+    state: Object.freeze({
+      ...current.state,
+      trust,
+    }),
+  });
+  verifiedEligibilityRuntimeStates.set(restored, {
+    stateId: snapshot.stateId,
+    generation: snapshot.generation,
+    digest: snapshot.snapshotDigest,
+    logicalTimeMs: snapshot.createdAtLogicalMs,
+  });
+  return restored;
+}
+
+const stateEligibilityConfigKeys = [
+  "schemaVersion",
+  "mode",
+  "logicalTimeMs",
+  "scope",
+  "policyId",
+  "policyVersion",
+  "policyDigest",
+  "maximumProfileAgeMs",
+  "requirements",
+  "subjectMappingDigest",
+  "meshEligibilityBindingDigest",
+  "profileResolverBindingDigest",
+] as const;
+
+export function createMeshTrustStateEligibilityConfigV1(
+  value: MeshTrustStateEligibilityConfigV1,
+): MeshTrustStateEligibilityConfigV1 {
+  try {
+    assertExactKeys(value, stateEligibilityConfigKeys, "Mesh Trust config");
+    if (
+      value.schemaVersion !== 1 ||
+      (value.mode !== "observe" && value.mode !== "restrict")
+    )
+      throw new TypeError("Mesh Trust config is invalid");
+    assertSafeInteger(value.logicalTimeMs, "logicalTimeMs");
+    assertIdentifier(value.policyId, "policyId");
+    assertSafeInteger(value.policyVersion, "policyVersion", 1);
+    assertTrustDigest(value.policyDigest, "policyDigest");
+    assertTrustDigest(value.subjectMappingDigest, "subjectMappingDigest");
+    assertTrustDigest(
+      value.meshEligibilityBindingDigest,
+      "meshEligibilityBindingDigest",
+    );
+    assertTrustDigest(
+      value.profileResolverBindingDigest,
+      "profileResolverBindingDigest",
+    );
+    if (
+      value.subjectMappingDigest !== MESH_PEER_SUBJECT_MAPPING_DIGEST_V1 ||
+      value.meshEligibilityBindingDigest === value.profileResolverBindingDigest
+    )
+      throw new TypeError("Mesh Trust config binding is invalid");
+    const scope = validateEvidenceScopeV1(value.scope);
+    if (
+      scope.kind !== "mesh" &&
+      scope.kind !== "objective" &&
+      scope.kind !== "work"
+    )
+      throw new TypeError("Mesh Trust scope is invalid");
+    const validationSubject = {
+      schemaVersion: 1 as const,
+      kind: "peer" as const,
+      peerId: "mesh-subject-validation",
+    };
+    const validationProfileDigest = "0".repeat(64);
+    const request = createTrustEligibilityRequestV1({
+      schemaVersion: 1,
+      tenantId: scope.tenantId,
+      subject: validationSubject,
+      subjectDigest: digestSubjectV1(validationSubject),
+      scope,
+      scopeDigest: digestScopeV1(scope),
+      policyId: value.policyId,
+      policyVersion: value.policyVersion,
+      policyDigest: value.policyDigest,
+      profileId: `profile:${validationProfileDigest}`,
+      profileDigest: validationProfileDigest,
+      maximumProfileAgeMs: value.maximumProfileAgeMs,
+      requirements: value.requirements,
+    });
+    return deepFreeze({
+      ...value,
+      scope,
+      requirements: request.requirements,
+    });
+  } catch (error) {
+    if (error instanceof TypeError && error.message.startsWith("Mesh Trust"))
+      throw error;
+    throw new TypeError("Mesh Trust state eligibility config is invalid", {
+      cause: error,
+    });
+  }
+}
+
+export function digestMeshTrustStateEligibilityConfigV1(
+  value: MeshTrustStateEligibilityConfigV1,
+): string {
+  const config = createMeshTrustStateEligibilityConfigV1(value);
+  return digestTrustJsonV1("mesh-eligibility-config", {
+    schemaVersion: config.schemaVersion,
+    mode: config.mode,
+    scope: config.scope,
+    policyId: config.policyId,
+    policyVersion: config.policyVersion,
+    policyDigest: config.policyDigest,
+    maximumProfileAgeMs: config.maximumProfileAgeMs,
+    requirements: config.requirements,
+    subjectMappingDigest: config.subjectMappingDigest,
+  } as unknown as Parameters<typeof digestTrustJsonV1>[1]);
+}
+
+function meshTrustBindingsAreCurrent(
+  state: EvidenceTrustStateV1,
+  config: MeshTrustStateEligibilityConfigV1,
+): boolean {
+  const resolver = state.dependencyBindings.find(
+    (binding) => binding.bindingDigest === config.profileResolverBindingDigest,
+  );
+  const integration = state.dependencyBindings.find(
+    (binding) => binding.bindingDigest === config.meshEligibilityBindingDigest,
+  );
+  const isCurrent = (
+    binding: (typeof state.dependencyBindings)[number] | undefined,
+  ) =>
+    binding !== undefined &&
+    binding.registeredAtLogicalMs <= config.logicalTimeMs &&
+    binding.validFromLogicalMs <= config.logicalTimeMs &&
+    (binding.validUntilLogicalMs === null ||
+      config.logicalTimeMs < binding.validUntilLogicalMs) &&
+    state.dependencyBindingHeads.some(
+      (head) =>
+        head.bindingKind === binding.bindingKind &&
+        head.bindingName === binding.bindingName &&
+        head.bindingVersion === binding.bindingVersion &&
+        head.bindingDigest === binding.bindingDigest,
+    );
+  return (
+    isCurrent(resolver) &&
+    resolver!.bindingKind === "profile_resolver" &&
+    resolver!.policyDigest === config.policyDigest &&
+    resolver!.subjectMappingDigest === config.subjectMappingDigest &&
+    isCurrent(integration) &&
+    integration!.bindingKind === "mesh_eligibility" &&
+    integration!.policyDigest === config.policyDigest &&
+    integration!.subjectMappingDigest === config.subjectMappingDigest &&
+    integration!.upstreamBindingDigest === resolver!.bindingDigest &&
+    integration!.configurationDigest ===
+      digestMeshTrustStateEligibilityConfigV1(config)
+  );
+}
+
+const unavailableMeshTrustDiagnostic = (
+  peerId: string,
+  reasonCode: TrustReasonCodeV1,
+): MeshTrustStateEligibilityDiagnosticV1 =>
+  deepFreeze({
+    peerId,
+    disposition: "unavailable" as const,
+    eligibilityDecisionId: null,
+    reasonCodes: [reasonCode],
+  });
+
+const decisionDiagnostic = (
+  peerId: string,
+  decision: TrustEligibilityDecisionV1,
+): MeshTrustStateEligibilityDiagnosticV1 =>
+  deepFreeze({
+    peerId,
+    disposition: decision.disposition,
+    eligibilityDecisionId: decision.eligibilityDecisionId,
+    reasonCodes: decision.reasonCodes,
+  });
+
+export function filterMeshCapabilityMatchesWithTrustStateV1<
+  T extends MeshTrustCandidateV1,
+  TAuthorizationState = unknown,
+>(
+  candidates: readonly T[],
+  current: MeshTrustEligibilityRuntimeStateV1<TAuthorizationState>,
+  configValue: MeshTrustStateEligibilityConfigV1,
+): MeshTrustStateEligibilityResultV1<T> {
+  const config = createMeshTrustStateEligibilityConfigV1(configValue);
+  if (!Array.isArray(candidates))
+    throw new TypeError("Mesh Trust candidates are invalid");
+  for (const candidate of candidates)
+    try {
+      assertIdentifier(candidate?.peerId, "candidate.peerId");
+    } catch (error) {
+      throw new TypeError("Mesh Trust candidates are invalid", {
+        cause: error,
+      });
+    }
+  if (
+    new Set(candidates.map((candidate) => candidate.peerId)).size !==
+    candidates.length
+  )
+    throw new TypeError("Mesh Trust candidates must be unique");
+
+  let state: EvidenceTrustStateV1 | null = null;
+  let sharedFailure: TrustReasonCodeV1 | null = null;
+  try {
+    const scopeMeshId =
+      "meshId" in config.scope ? config.scope.meshId : undefined;
+    const verifiedRuntime = verifiedEligibilityRuntimeStates.get(
+      current as object,
+    );
+    const currentSnapshot = verifiedRuntime
+      ? latestEligibilitySnapshotByStateId.get(verifiedRuntime.stateId)
+      : null;
+    if (
+      !verifiedRuntime ||
+      !currentSnapshot ||
+      verifiedRuntime.generation !== currentSnapshot.generation ||
+      verifiedRuntime.digest !== currentSnapshot.digest ||
+      config.logicalTimeMs !== verifiedRuntime.logicalTimeMs ||
+      !isRuntimeState(current) ||
+      !current.state ||
+      typeof current.state !== "object" ||
+      current.identity.tenantId !== config.scope.tenantId ||
+      current.identity.meshId !== scopeMeshId
+    )
+      throw new TypeError("Mesh Trust current transaction is invalid");
+    state = validateEvidenceTrustStateV1(current.state.trust);
+    if (config.logicalTimeMs < state.logicalTimeHighWaterMs)
+      sharedFailure = "logical_time_rollback";
+    else if (!meshTrustBindingsAreCurrent(state, config))
+      sharedFailure = "dependency_binding_invalid";
+  } catch {
+    sharedFailure = "state_conflict";
+  }
+
+  const diagnostics = candidates.map((candidate) => {
+    if (!state || sharedFailure)
+      return unavailableMeshTrustDiagnostic(
+        candidate.peerId,
+        sharedFailure ?? "state_conflict",
+      );
+    try {
+      const subject = {
+        schemaVersion: 1 as const,
+        kind: "peer" as const,
+        peerId: candidate.peerId,
+      };
+      const subjectDigest = digestSubjectV1(subject);
+      const scopeDigest = digestScopeV1(config.scope);
+      const profileKey = digestTrustProfileKeyV1({
+        tenantId: config.scope.tenantId,
+        subjectDigest,
+        scopeDigest,
+        policyDigest: config.policyDigest,
+      });
+      const profileHead = state.profileHeads.find(
+        (head) => head.profileKey === profileKey,
+      );
+      if (!profileHead)
+        return unavailableMeshTrustDiagnostic(
+          candidate.peerId,
+          "profile_unavailable",
+        );
+      const decision = evaluateTrustEligibilityV1(
+        state,
+        createTrustEligibilityRequestV1({
+          schemaVersion: 1,
+          tenantId: config.scope.tenantId,
+          subject,
+          subjectDigest,
+          scope: config.scope,
+          scopeDigest,
+          policyId: config.policyId,
+          policyVersion: config.policyVersion,
+          policyDigest: config.policyDigest,
+          profileId: profileHead.profileId,
+          profileDigest: profileHead.profileDigest,
+          maximumProfileAgeMs: config.maximumProfileAgeMs,
+          requirements: config.requirements,
+        }),
+        config.logicalTimeMs,
+      );
+      return decisionDiagnostic(candidate.peerId, decision);
+    } catch {
+      return unavailableMeshTrustDiagnostic(
+        candidate.peerId,
+        "profile_unavailable",
+      );
+    }
+  });
+  const unavailable = diagnostics.some(
+    (diagnostic) => diagnostic.disposition === "unavailable",
+  );
+  const matches =
+    config.mode === "observe"
+      ? candidates
+      : unavailable
+        ? []
+        : candidates.filter(
+            (_, index) => diagnostics[index]!.disposition === "eligible",
           );
   return Object.freeze({
     matches: Object.freeze([...matches]),

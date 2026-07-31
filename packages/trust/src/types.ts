@@ -27,6 +27,8 @@ export type TrustDigestDomainV1 =
   | "quarantine-record"
   | "recovery-evidence-set"
   | "recovery-decision"
+  | "mesh-subject-mapping"
+  | "mesh-eligibility-config"
   | "dependency-binding"
   | "causal-authorization"
   | "origin-proof"

@@ -424,6 +424,11 @@ open until their corresponding transition is complete.
 - [ ] wrong audience, role, Objective, Work, revision, epoch or fence fails;
 - [ ] public rejection codes are coarse and diagnostics do not echo payload;
 - [ ] Mesh eligibility filter cannot add candidates or create assignment;
+- [ ] Mesh restrict filtering accepts only the construction-bound composite
+      runtime restored through the exact current protected snapshot and
+      rollback anchor; raw/structural/cloned state is unavailable;
+- [ ] Mesh evaluation time equals the authenticated snapshot creation time;
+      older runtimes and clock rewind are unavailable;
 - [ ] observe filter preserves original candidate set;
 - [ ] restrict filter returns a subset or unavailable and never auto-selects;
 - [ ] existing Mesh root, loopback and coordination behavior remains unchanged.

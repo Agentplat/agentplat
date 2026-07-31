@@ -266,6 +266,8 @@ quarantine-evidence-set
 quarantine-record
 recovery-evidence-set
 recovery-decision
+mesh-subject-mapping
+mesh-eligibility-config
 dependency-binding
 origin-proof
 state
@@ -2074,6 +2076,19 @@ The filter is used only when the application supplies an explicit Trust policy
 binding. `observe` returns the original candidates plus diagnostics. `restrict`
 returns a subset or an `unavailable` result; it never selects a replacement on
 its own.
+
+Restrict-mode evaluation never accepts a raw `EvidenceTrustStateV1` as an
+authentication boundary. `restoreMeshTrustEligibilityRuntimeStateV1` must
+first reconstruct the Trust member of the current composite Mesh transaction
+through `restoreEvidenceTrustSnapshotV1`, using the exact current trusted
+external rollback anchor and snapshot protector. The filter recognizes only
+that construction-bound runtime object; a structurally valid clone, an older
+runtime object or arbitrary JSON is `unavailable`. The application must create
+the protected checkpoint in the same local transaction used for candidate
+selection. `logicalTimeMs` must equal the protected snapshot's trusted creation
+time; evaluating later requires a newer anchored generation, so a stale profile
+cannot become fresh through clock rewind. A stale anchor is an application
+security-boundary violation, not a valid eligibility input.
 
 ## Inference Control integration
 
