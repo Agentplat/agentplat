@@ -8,6 +8,11 @@ records, plus Work Release, Work Cancel and Lease Renewal records.
 Lease Takeover Proposal, Lease Vote and Lease Certificate are also covered as
 structural recovery records.
 
+Alpha 4 adds content-bound `evidence.claim`, `evidence.attest`,
+`evidence.challenge`, `evidence.retract` and `trust.observation` fixtures.
+Their logical identifiers and Claim assertion digest are derived through the
+shared Trust Mesh-record normalizer.
+
 The digest and proof fields are deterministic representation placeholders.
 They are not cryptographic test vectors and do not assert that a payload digest
 or signature verifies. No private key material is included.

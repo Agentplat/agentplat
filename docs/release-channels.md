@@ -15,21 +15,23 @@ but may change between prereleases. A preview is promoted to `latest` only after
 the public checks, package smoke test, reference examples and downstream
 integration validation are green.
 
-`0.3.0-alpha.3` is the coordinated Inference Control preview. It adds opt-in
-context provenance, capability negotiation, bounded assessments, controlled
-output release, single-use Action Grants and an outbound-message gateway while
-retaining the Alpha 1 and Alpha 2 Agent Mesh contracts unchanged. Repository
-examples carry the same version as the coordinated package release; install
-packages from npm with `@next` when running an example outside this repository.
+`0.3.0-alpha.4` is the coordinated Evidence and Trust preview. It adds scoped
+Evidence lifecycle, deterministic multidimensional Trust Profiles,
+policy-exact eligibility, contradiction, quarantine and recovery, while
+retaining Alpha 1/2 Mesh and Alpha 3 Inference Control defaults and contracts.
+Repository examples carry the same version as the coordinated package release;
+install packages from npm with `@next` when running an example outside this
+repository.
 
 ```sh
-pnpm add @agentplat/inference-control@next
+pnpm add @agentplat/trust@next
 ```
 
-The package exposes the browser-safe root plus explicit `model`, `runtime`,
-`tools` and `messages` subpaths. Only calls routed through those opt-in
-boundaries receive Alpha 3 enforcement; direct provider, handler or dispatcher
-calls keep their existing behavior.
+Trust exposes a browser-safe root and pure `mesh-records` normalizers. Explicit
+server-only adapters live at `@agentplat/mesh/trust` and
+`@agentplat/inference-control/trust`. Only calls routed through those opt-in
+adapters receive Trust filtering or restriction; direct Mesh, provider,
+handler and dispatcher calls keep their existing behavior.
 
 Session/browser APIs remain on `next` until the reference Next.js controls,
 public contract tests, package smoke test, downstream validation and a stable
@@ -38,6 +40,7 @@ not advanced merely because a preview release is published.
 
 New scoped packages can receive `latest` from npm on their first publication
 even when published with `next`; npm does not permit removing the only
-version's `latest` tag. This caveat applied when the four Agent Mesh packages
-were introduced in Alpha 1. Consumers should still install the coordinated
-channel explicitly while the framework is in preview.
+version's `latest` tag. This caveat applies to the first publication of
+`@agentplat/trust`, as it did when the four Agent Mesh packages were introduced
+in Alpha 1. Consumers should still install the coordinated channel explicitly
+while the framework is in preview.

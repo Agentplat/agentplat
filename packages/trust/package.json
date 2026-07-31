@@ -1,0 +1,43 @@
+{
+  "name": "@agentplat/trust",
+  "version": "0.3.0-alpha.4",
+  "description": "Browser-safe deterministic evidence and trust primitives for AgentPlat.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mesh-records": {
+      "types": "./dist/mesh-records.d.ts",
+      "import": "./dist/mesh-records.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/core": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/trust"
+  }
+}

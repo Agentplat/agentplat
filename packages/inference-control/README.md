@@ -1,7 +1,7 @@
 # @agentplat/inference-control
 
 Opt-in, provider-neutral control boundaries for inference, released output,
-external actions and outbound messages. Alpha 3 is a developer preview.
+external actions and outbound messages. Alpha 4 is a developer preview.
 
 ```sh
 pnpm add @agentplat/inference-control@next
@@ -20,6 +20,8 @@ pnpm add @agentplat/inference-control@next
   ledger and gateway.
 - `@agentplat/inference-control/messages` — explicit outbound-message attempt
   ledger and gateway.
+- `@agentplat/inference-control/trust` — content-free outcome-to-Claim
+  conversion plus opt-in legacy and authenticated state-backed Trust gates.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -35,13 +37,13 @@ boundary to `ControlledModelExecutorV1`:
 import {
   CapabilityRegistryV1,
   createContextEntryV1,
-} from '@agentplat/inference-control';
-import { ControlledModelExecutorV1 } from '@agentplat/inference-control/model';
+} from "@agentplat/inference-control";
+import { ControlledModelExecutorV1 } from "@agentplat/inference-control/model";
 
 const registry = new CapabilityRegistryV1();
 const capability = registry.register({
   descriptor: localDescriptor,
-  wrapperInstanceId: 'instance:primary',
+  wrapperInstanceId: "instance:primary",
 });
 
 const executor = new ControlledModelExecutorV1({
@@ -51,26 +53,26 @@ const executor = new ControlledModelExecutorV1({
     capabilityRegistry: registry,
     resolvePolicy: (id, version) => localPolicies.get(`${id}:${version}`),
   },
-  mode: 'buffered',
-  outputRisk: 'high',
+  mode: "buffered",
+  outputRisk: "high",
   assessor: localAssessor,
 });
 
 const result = await executor.generate(
   {
     schemaVersion: 1,
-    runId: 'run:example',
-    tenantId: 'tenant:example',
-    policyId: 'policy:example',
+    runId: "run:example",
+    tenantId: "tenant:example",
+    policyId: "policy:example",
     policyVersion: 1,
     capabilityHandleId: capability.capabilityHandleId,
-    contextEntryIds: ['context:policy', 'context:user'],
+    contextEntryIds: ["context:policy", "context:user"],
     model: null,
     tools: [],
     options: null,
     scope: null,
   },
-  { tenant: { tenantId: 'tenant:example' } },
+  { tenant: { tenantId: "tenant:example" } },
 );
 ```
 
@@ -99,3 +101,31 @@ grant or message attempt. The gateway calls it once to consume the assessment
 and again at the final local pre-effect boundary; cancellation, generation
 advance or revocation between those checks must make the second call return
 `false`.
+
+## State-backed Trust gates
+
+The `./trust` subpath can restrict model, Action and outbound-message
+delegation using the current local Trust Profile. This path accepts only an
+opaque runtime token created by strict protected-snapshot restore. Its bound
+runtime source must return that token together with the exact current external
+rollback anchor on every synchronous check. Raw state, cloned tokens, replaced
+generations, clock rewind and stale dependency heads are unavailable.
+
+That current source is part of the application's trusted computing base. It
+must atomically read the durable Trust high-water anchor on every check and
+must not serve a cached head. A process cannot infer an unseen successor from a
+valid older anchor; returning one as the first sample is a source-boundary
+violation that must be prevented by the durable adapter.
+
+The full eligibility configuration is bound to the current
+`profile_resolver` and operation boundary, including policy, subject mapping,
+runtime-source identity, request template and the real base implementation
+digest. Model execution uses a captured model-boundary object that receives the
+same immutable target evaluated by Trust; Action and Message targets are
+derived from their real permits and inputs. `restrict` delegates only for
+`eligible`; `observe` preserves the base call and emits a redacted diagnostic.
+
+These gates remain opt-in and point-in-time. They do not issue assessments or
+grants, replace idempotency/fencing, or claim atomic revocation after an
+external effect has started. The legacy synchronous-resolver helpers remain
+available unchanged for Alpha 3 compatibility.

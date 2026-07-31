@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 
 export const REGISTRY_MESH_PACKAGES = Object.freeze([
   '@agentplat/mesh',
@@ -22,9 +22,11 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
 ]);
 export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
+export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_PACKAGES = Object.freeze([
   ...REGISTRY_MESH_PACKAGES,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
+  REGISTRY_TRUST_PACKAGE,
 ]);
 
 export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
@@ -39,6 +41,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/inference-control-alpha3.mjs',
     destination: 'verify-inference-control.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/trust-foundation.mjs',
+    destination: 'verify-trust.mjs',
   }),
 ]);
 
@@ -106,7 +112,7 @@ export async function verifyRegistryConsumer({
   const rootManifest = JSON.parse(
     await readFile(path.join(root, 'package.json'), 'utf8'),
   );
-  await assertInferenceControlReleaseLine({ root, rootManifest });
+  await assertReleaseLine({ root, rootManifest });
   const manifest = registryConsumerManifest(rootManifest.version);
   const temporaryRoot = await mkdtemp(
     path.join(os.tmpdir(), 'agentplat-registry-consumer-'),
@@ -212,6 +218,11 @@ export async function verifyRegistryConsumer({
       stdio: 'inherit',
     });
     execFileSync(process.execPath, ['verify-inference-control.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
+    execFileSync(process.execPath, ['verify-trust.mjs'], {
       cwd: temporaryRoot,
       env: cleanEnvironments.execution,
       stdio: 'inherit',

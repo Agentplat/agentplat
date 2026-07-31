@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.3.0-alpha.4 - 2026-07-31
+
+- Added the provider-neutral `@agentplat/trust` package with strict canonical
+  contracts for scoped Claims, Attestations, Challenges and Retractions,
+  content-bound relationships, immutable state and protected snapshots.
+- Added policy-bound deterministic Fusion, multidimensional Trust Profiles,
+  decay and uncertainty, exact eligibility templates, contradiction,
+  quarantine review, recovery and reactivation without global-reputation or
+  universal-truth claims.
+- Added authenticated Mesh Evidence normalization and ingress, causal authority
+  retention, redacted observations and opt-in state-backed capability filtering
+  that cannot create peers, assignments, awards, leases, epochs or fences.
+- Added content-free Inference Control outcome conversion and opt-in model,
+  Action and Message Trust gates using opaque restored runtimes, exact current
+  rollback anchors, dependency heads and base implementation bindings.
+- Preserved Alpha 1/2/3 defaults, fixtures, snapshots and direct call paths;
+  Framework neither depends on nor re-exports Trust.
+- Extended release verification to exactly 30 coordinated packages, an Alpha 4
+  cohort sentinel, clean Trust tarball and exact-version registry consumers,
+  public terminology audits and independent zero-P0/P1 reviews.
+
 ## 0.3.0-alpha.3 - 2026-07-31
 
 - Added the opt-in `@agentplat/inference-control` package with browser-safe

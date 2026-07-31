@@ -187,6 +187,9 @@ importers:
       "@agentplat/tools":
         specifier: workspace:^
         version: link:../tools
+      "@agentplat/trust":
+        specifier: workspace:^
+        version: link:../trust
 
   packages/mcp:
     dependencies:
@@ -211,6 +214,9 @@ importers:
       "@agentplat/mesh-protocol":
         specifier: workspace:^
         version: link:../mesh-protocol
+      "@agentplat/trust":
+        specifier: workspace:^
+        version: link:../trust
 
   packages/mesh-crypto:
     dependencies:
@@ -218,7 +224,11 @@ importers:
         specifier: workspace:^
         version: link:../mesh-protocol
 
-  packages/mesh-protocol: {}
+  packages/mesh-protocol:
+    dependencies:
+      "@agentplat/trust":
+        specifier: workspace:^
+        version: link:../trust
 
   packages/mesh-sim:
     dependencies:
@@ -405,6 +415,12 @@ importers:
         version: link:../runtime
 
   packages/tools:
+    dependencies:
+      "@agentplat/core":
+        specifier: workspace:^
+        version: link:../core
+
+  packages/trust:
     dependencies:
       "@agentplat/core":
         specifier: workspace:^

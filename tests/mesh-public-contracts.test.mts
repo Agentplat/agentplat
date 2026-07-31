@@ -756,6 +756,11 @@ function implementedPayloadType(payload: MeshMessagePayload): string {
     case 'lease.takeover_proposal':
     case 'lease.vote':
     case 'lease.certificate':
+    case 'evidence.claim':
+    case 'evidence.attest':
+    case 'evidence.challenge':
+    case 'evidence.retract':
+    case 'trust.observation':
       return payload.type;
     default: {
       const exhaustive: never = payload;

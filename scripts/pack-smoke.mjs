@@ -18,11 +18,11 @@ import {
 } from './public-package-catalog.mjs';
 import { loadExternalTerminologyDenylist } from './public-audit-terminology.mjs';
 import { assertPackedInternalDependencyRanges } from './packed-manifest.mjs';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 
 const root = process.cwd();
 const catalog = await loadPublicPackageCatalog(root);
-await assertInferenceControlReleaseLine({ root, catalog });
+await assertReleaseLine({ root, catalog });
 const packageEntries = packSmokePackages(catalog);
 const pnpmStoreDirectory = execFileSync('corepack', ['pnpm', 'store', 'path'], {
   cwd: root,
@@ -120,6 +120,7 @@ try {
     consumerRoot,
     'inference-control',
   );
+  const trustConsumerRoot = path.join(consumerRoot, 'trust');
   await Promise.all([
     mkdir(packageConsumerRoot, { recursive: true }),
     mkdir(functionalConsumerRoot, { recursive: true }),
@@ -127,6 +128,7 @@ try {
     mkdir(meshAllocationRecoveryConsumerRoot, { recursive: true }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
+    mkdir(trustConsumerRoot, { recursive: true }),
   ]);
   const workspaceWrites = [
     writeFile(
@@ -161,6 +163,7 @@ try {
         "  - 'mesh-allocation-recovery'",
         "  - 'typescript'",
         "  - 'inference-control'",
+        "  - 'trust'",
         '',
       ].join('\n'),
     ),
@@ -222,6 +225,8 @@ try {
     inferenceControlArtifact,
     'Missing packed inference-control dependency',
   );
+  const trustArtifact = artifactsByName.get('@agentplat/trust');
+  assert.ok(trustArtifact, 'Missing packed Trust dependency');
   workspaceWrites.push(
     writeFile(
       path.join(functionalConsumerRoot, 'package.json'),
@@ -313,6 +318,14 @@ try {
     copyFile(
       path.join(root, 'scripts/pack-consumers/inference-control-alpha3.mjs'),
       path.join(inferenceControlConsumerRoot, 'verify-inference-control.mjs'),
+    ),
+    writeFile(
+      path.join(trustConsumerRoot, 'package.json'),
+      `${JSON.stringify({ name: 'agentplat-pack-smoke-trust', version: '1.0.0', private: true, type: 'module', dependencies: { '@agentplat/trust': trustArtifact.tarballReference, '@agentplat/mesh': meshDependencies['@agentplat/mesh'], '@agentplat/inference-control': inferenceControlArtifact.tarballReference } }, null, 2)}\n`,
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/trust-foundation.mjs'),
+      path.join(trustConsumerRoot, 'verify-trust.mjs'),
     ),
     writeFile(
       path.join(meshScenarioConsumerRoot, 'package.json'),
@@ -418,6 +431,10 @@ try {
     cwd: inferenceControlConsumerRoot,
     stdio: 'inherit',
   });
+  execFileSync(process.execPath, ['verify-trust.mjs'], {
+    cwd: trustConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-functional.mjs'], {
     cwd: functionalConsumerRoot,
     stdio: 'inherit',
@@ -428,7 +445,7 @@ try {
     0,
   );
   console.log(
-    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations, replayed the signed three-peer scenario, and verified allocation plus recovery fencing before the unchanged functional smoke test.`,
+    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations, replayed the signed three-peer scenario, verified allocation plus recovery fencing, and exercised Trust policy/profile/eligibility before the unchanged functional smoke test.`,
   );
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

@@ -1,5 +1,13 @@
 import { canonicalizeJsonValue } from './canonical-json.js';
 import {
+  normalizeMeshEvidenceAttestationV1,
+  normalizeMeshEvidenceChallengeV1,
+  normalizeMeshEvidenceClaimV1,
+  normalizeMeshEvidenceRetractionV1,
+  normalizeMeshTrustObservationV1,
+} from '@agentplat/trust/mesh-records';
+import type { TrustReasonCodeV1 } from '@agentplat/trust';
+import {
   DEFAULT_MESH_PROTOCOL_LIMITS,
   MESH_AUDIENCE_TOPICS,
   MESH_MESSAGE_TYPES,
@@ -8,6 +16,10 @@ import {
   MESH_WIRE_VERSION,
   type CapabilityAdvertisePayload,
   type CapabilityWithdrawPayload,
+  type EvidenceAttestationPayload,
+  type EvidenceChallengePayload,
+  type EvidenceClaimPayload,
+  type EvidenceRetractionPayload,
   type LeaseCertificatePayload,
   type LeaseRenewPayload,
   type LeaseTakeoverProposalPayload,
@@ -16,6 +28,10 @@ import {
   type MeshAudienceTopic,
   type MeshEnvelope,
   type MeshEnvelopeContext,
+  type MeshEvidenceContent,
+  type MeshEvidenceReference,
+  type MeshEvidenceScope,
+  type MeshEvidenceSubject,
   type MeshJsonValue,
   type MeshMessagePayload,
   type MeshProtocolErrorCode,
@@ -37,6 +53,7 @@ import {
   type PeerPingAckPayload,
   type PeerPingPayload,
   type SignedMeshEnvelope,
+  type TrustObservationPayload,
   type WorkBidPayload,
   type WorkAcceptPayload,
   type WorkAssignmentAuthorityFields,
@@ -103,6 +120,13 @@ const maximumCapacityReservationUnits = 1_000_000;
 const maximumWorkBidWindowMs = 60 * 60 * 1_000;
 const maximumWorkDeadlineMs = 30 * 24 * 60 * 60 * 1_000;
 const maximumWorkExecutionLifetimeMs = 5 * 60 * 1_000;
+const maximumEvidenceLifetimeMs = 5 * 60 * 1_000;
+const maximumEvidenceReferences = 32;
+const maximumEvidenceReferenceBytes = 4_096;
+const maximumEvidenceContentBytes = 4_096;
+const maximumEvidenceIdentifierBytes = 256;
+const maximumEvidenceReasonCodes = 32;
+const trustDigestPattern = /^[0-9a-f]{64}$/;
 const knownMessageTypes = new Set<string>(MESH_MESSAGE_TYPES);
 const knownTopics = new Set<string>(MESH_AUDIENCE_TOPICS);
 const utf8Encoder = new TextEncoder();
@@ -485,6 +509,14 @@ function validateEnvelope(
     payload,
     sentAt,
     expiresAt
+  );
+  validateEvidenceTrustBinding(
+    tenantId,
+    meshId,
+    objectiveId,
+    sender,
+    causationId,
+    payload
   );
 
   return {
@@ -1018,7 +1050,797 @@ function validatePayload(
   if (type === 'lease.certificate') {
     return validateLeaseCertificate(input, limits);
   }
+  if (type === 'evidence.claim') {
+    return validateEvidenceClaim(input, limits);
+  }
+  if (type === 'evidence.attest') {
+    return validateEvidenceAttestation(input, limits);
+  }
+  if (type === 'evidence.challenge') {
+    return validateEvidenceChallenge(input, limits);
+  }
+  if (type === 'evidence.retract') {
+    return validateEvidenceRetraction(input, limits);
+  }
+  if (type === 'trust.observation') {
+    return validateTrustObservation(input, limits);
+  }
   return fail('unsupported_message_type', '$["type"]');
+}
+
+function validateEvidenceClaim(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): EvidenceClaimPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'assertionDigest',
+      'basisReferences',
+      'claimId',
+      'content',
+      'criterionId',
+      'observedAt',
+      'outcome',
+      'scope',
+      'subject',
+      'type',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  const content = validateEvidenceContent(
+    payload.content,
+    '$["payload"]["content"]',
+    limits
+  );
+  return {
+    type: assertPayloadType(payload.type, 'evidence.claim'),
+    claimId: assertTrustRecordId(
+      payload.claimId,
+      'claim',
+      '$["payload"]["claimId"]'
+    ),
+    subject: validateEvidenceSubject(
+      payload.subject,
+      '$["payload"]["subject"]',
+      limits
+    ),
+    scope: validateEvidenceScope(
+      payload.scope,
+      '$["payload"]["scope"]',
+      limits
+    ),
+    criterionId: assertBoundedString(
+      payload.criterionId,
+      '$["payload"]["criterionId"]',
+      maximumDomainStringBytes
+    ),
+    outcome: assertEnum(
+      payload.outcome,
+      ['satisfied', 'violated', 'inconclusive'],
+      '$["payload"]["outcome"]'
+    ),
+    assertionDigest: assertTrustDigest(
+      payload.assertionDigest,
+      '$["payload"]["assertionDigest"]'
+    ),
+    content,
+    basisReferences: validateEvidenceReferences(
+      payload.basisReferences,
+      '$["payload"]["basisReferences"]',
+      limits,
+      { allowControlRecords: false, minimum: 0 }
+    ),
+    observedAt: validateOptionalEvidenceTimestamp(
+      payload.observedAt,
+      '$["payload"]["observedAt"]'
+    ),
+  };
+}
+
+function validateEvidenceAttestation(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): EvidenceAttestationPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'attestationId',
+      'basisReferences',
+      'claimDigest',
+      'claimId',
+      'confidenceBasisPoints',
+      'disposition',
+      'observedAt',
+      'scope',
+      'type',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  return {
+    type: assertPayloadType(payload.type, 'evidence.attest'),
+    attestationId: assertTrustRecordId(
+      payload.attestationId,
+      'attestation',
+      '$["payload"]["attestationId"]'
+    ),
+    scope: validateEvidenceScope(
+      payload.scope,
+      '$["payload"]["scope"]',
+      limits
+    ),
+    claimId: assertTrustRecordId(
+      payload.claimId,
+      'claim',
+      '$["payload"]["claimId"]'
+    ),
+    claimDigest: assertTrustDigest(
+      payload.claimDigest,
+      '$["payload"]["claimDigest"]'
+    ),
+    disposition: assertEnum(
+      payload.disposition,
+      ['support', 'contradict', 'inconclusive'],
+      '$["payload"]["disposition"]'
+    ),
+    confidenceBasisPoints: assertBoundedSafeInteger(
+      payload.confidenceBasisPoints,
+      '$["payload"]["confidenceBasisPoints"]',
+      0,
+      10_000
+    ),
+    basisReferences: validateEvidenceReferences(
+      payload.basisReferences,
+      '$["payload"]["basisReferences"]',
+      limits,
+      { allowControlRecords: false, minimum: 0 }
+    ),
+    observedAt: validateOptionalEvidenceTimestamp(
+      payload.observedAt,
+      '$["payload"]["observedAt"]'
+    ),
+  };
+}
+
+function validateEvidenceChallenge(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): EvidenceChallengePayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'basisReferences',
+      'challengeId',
+      'observedAt',
+      'reasonCode',
+      'scope',
+      'targetDigest',
+      'targetId',
+      'targetKind',
+      'type',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  const targetKind = assertEnum(
+    payload.targetKind,
+    ['claim', 'attestation'],
+    '$["payload"]["targetKind"]'
+  );
+  return {
+    type: assertPayloadType(payload.type, 'evidence.challenge'),
+    challengeId: assertTrustRecordId(
+      payload.challengeId,
+      'challenge',
+      '$["payload"]["challengeId"]'
+    ),
+    scope: validateEvidenceScope(
+      payload.scope,
+      '$["payload"]["scope"]',
+      limits
+    ),
+    targetKind,
+    targetId: assertTrustRecordId(
+      payload.targetId,
+      targetKind,
+      '$["payload"]["targetId"]'
+    ),
+    targetDigest: assertTrustDigest(
+      payload.targetDigest,
+      '$["payload"]["targetDigest"]'
+    ),
+    reasonCode: assertBoundedString(
+      payload.reasonCode,
+      '$["payload"]["reasonCode"]',
+      maximumDomainStringBytes
+    ),
+    basisReferences: validateEvidenceReferences(
+      payload.basisReferences,
+      '$["payload"]["basisReferences"]',
+      limits,
+      { allowControlRecords: false, minimum: 1 }
+    ),
+    observedAt: validateOptionalEvidenceTimestamp(
+      payload.observedAt,
+      '$["payload"]["observedAt"]'
+    ),
+  };
+}
+
+function validateEvidenceRetraction(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): EvidenceRetractionPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'observedAt',
+      'reasonCode',
+      'retractionId',
+      'scope',
+      'targetDigest',
+      'targetId',
+      'targetKind',
+      'type',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  const targetKind = assertEnum(
+    payload.targetKind,
+    ['claim', 'attestation'],
+    '$["payload"]["targetKind"]'
+  );
+  return {
+    type: assertPayloadType(payload.type, 'evidence.retract'),
+    retractionId: assertTrustRecordId(
+      payload.retractionId,
+      'retraction',
+      '$["payload"]["retractionId"]'
+    ),
+    scope: validateEvidenceScope(
+      payload.scope,
+      '$["payload"]["scope"]',
+      limits
+    ),
+    targetKind,
+    targetId: assertTrustRecordId(
+      payload.targetId,
+      targetKind,
+      '$["payload"]["targetId"]'
+    ),
+    targetDigest: assertTrustDigest(
+      payload.targetDigest,
+      '$["payload"]["targetDigest"]'
+    ),
+    reasonCode: assertBoundedString(
+      payload.reasonCode,
+      '$["payload"]["reasonCode"]',
+      maximumDomainStringBytes
+    ),
+    observedAt: validateOptionalEvidenceTimestamp(
+      payload.observedAt,
+      '$["payload"]["observedAt"]'
+    ),
+  };
+}
+
+function validateTrustObservation(
+  input: unknown,
+  limits: Readonly<MeshProtocolLimits>
+): TrustObservationPayload {
+  const payload = assertClosedRecord(
+    input,
+    [
+      'dimensionId',
+      'disposition',
+      'evidenceIds',
+      'fusionDecisionDigest',
+      'observationId',
+      'observedAt',
+      'policyDigest',
+      'policyId',
+      'policyVersion',
+      'profileDigest',
+      'reasonCodes',
+      'scope',
+      'scoreBand',
+      'subject',
+      'type',
+      'uncertaintyBand',
+      'validUntil',
+    ],
+    [],
+    '$["payload"]',
+    'invalid_payload'
+  );
+  const observedAt = assertRfc3339PayloadTimestamp(
+    payload.observedAt,
+    '$["payload"]["observedAt"]'
+  );
+  const validUntil = assertRfc3339PayloadTimestamp(
+    payload.validUntil,
+    '$["payload"]["validUntil"]'
+  );
+  if (
+    validUntil.instant <= observedAt.instant ||
+    validUntil.instant - observedAt.instant > 24n * 60n * 60n * 1_000_000_000n
+  ) {
+    fail('invalid_payload', '$["payload"]["validUntil"]');
+  }
+  return {
+    type: assertPayloadType(payload.type, 'trust.observation'),
+    observationId: assertTrustRecordId(
+      payload.observationId,
+      'observation',
+      '$["payload"]["observationId"]'
+    ),
+    subject: validateEvidenceSubject(
+      payload.subject,
+      '$["payload"]["subject"]',
+      limits
+    ),
+    scope: validateEvidenceScope(
+      payload.scope,
+      '$["payload"]["scope"]',
+      limits
+    ),
+    policyId: assertBoundedString(
+      payload.policyId,
+      '$["payload"]["policyId"]',
+      maximumDomainStringBytes
+    ),
+    policyVersion: assertPositiveSafeInteger(
+      payload.policyVersion,
+      '$["payload"]["policyVersion"]',
+      'invalid_payload'
+    ),
+    policyDigest: assertTrustDigest(
+      payload.policyDigest,
+      '$["payload"]["policyDigest"]'
+    ),
+    profileDigest: assertTrustDigest(
+      payload.profileDigest,
+      '$["payload"]["profileDigest"]'
+    ),
+    fusionDecisionDigest: assertTrustDigest(
+      payload.fusionDecisionDigest,
+      '$["payload"]["fusionDecisionDigest"]'
+    ),
+    dimensionId: assertBoundedString(
+      payload.dimensionId,
+      '$["payload"]["dimensionId"]',
+      maximumDomainStringBytes
+    ),
+    scoreBand: assertEnum(
+      payload.scoreBand,
+      ['unknown', 'low', 'medium', 'high'],
+      '$["payload"]["scoreBand"]'
+    ),
+    uncertaintyBand: assertEnum(
+      payload.uncertaintyBand,
+      ['low', 'medium', 'high'],
+      '$["payload"]["uncertaintyBand"]'
+    ),
+    disposition: assertEnum(
+      payload.disposition,
+      ['eligible', 'restricted', 'quarantined', 'unavailable'],
+      '$["payload"]["disposition"]'
+    ),
+    evidenceIds: validateTrustRecordIdArray(
+      payload.evidenceIds,
+      '$["payload"]["evidenceIds"]'
+    ),
+    observedAt: observedAt.text,
+    validUntil: validUntil.text,
+    reasonCodes: validateBoundedStringArray(
+      payload.reasonCodes,
+      '$["payload"]["reasonCodes"]',
+      maximumEvidenceReasonCodes,
+      maximumDomainStringBytes,
+      undefined,
+      true
+    ),
+  };
+}
+
+function validateEvidenceSubject(
+  input: unknown,
+  path: string,
+  limits: Readonly<MeshProtocolLimits>
+): MeshEvidenceSubject {
+  const subject = assertRecord(input, path, 'invalid_payload');
+  if (subject.kind === 'peer') {
+    assertExactKeys(subject, ['kind', 'peerId'], path, 'invalid_payload');
+    return {
+      kind: 'peer',
+      peerId: assertIdentifier(subject.peerId, `${path}["peerId"]`, limits),
+    };
+  }
+  if (subject.kind === 'peer_capability') {
+    assertExactKeys(
+      subject,
+      [
+        'capabilityKey',
+        'capabilityRevision',
+        'capabilityVersion',
+        'kind',
+        'peerId',
+      ],
+      path,
+      'invalid_payload'
+    );
+    return {
+      kind: 'peer_capability',
+      peerId: assertIdentifier(subject.peerId, `${path}["peerId"]`, limits),
+      capabilityKey: assertBoundedString(
+        subject.capabilityKey,
+        `${path}["capabilityKey"]`,
+        maximumDomainStringBytes
+      ),
+      capabilityVersion: assertBoundedString(
+        subject.capabilityVersion,
+        `${path}["capabilityVersion"]`,
+        maximumVersionBytes
+      ),
+      capabilityRevision: assertPositiveSafeInteger(
+        subject.capabilityRevision,
+        `${path}["capabilityRevision"]`,
+        'invalid_payload'
+      ),
+    };
+  }
+  return fail('invalid_payload', `${path}["kind"]`);
+}
+
+function validateEvidenceScope(
+  input: unknown,
+  path: string,
+  limits: Readonly<MeshProtocolLimits>
+): MeshEvidenceScope {
+  const scope = assertRecord(input, path, 'invalid_payload');
+  if (scope.kind === 'mesh') {
+    assertExactKeys(scope, ['kind'], path, 'invalid_payload');
+    return { kind: 'mesh' };
+  }
+  if (scope.kind === 'objective') {
+    assertExactKeys(
+      scope,
+      ['kind', 'objectiveRevision'],
+      path,
+      'invalid_payload'
+    );
+    return {
+      kind: 'objective',
+      objectiveRevision: assertPositiveSafeInteger(
+        scope.objectiveRevision,
+        `${path}["objectiveRevision"]`,
+        'invalid_payload'
+      ),
+    };
+  }
+  if (scope.kind === 'work') {
+    assertExactKeys(
+      scope,
+      [
+        'assignmentAuthorityId',
+        'assignmentEpoch',
+        'fencingToken',
+        'kind',
+        'objectiveRevision',
+        'workItemId',
+        'workItemRevision',
+      ],
+      path,
+      'invalid_payload'
+    );
+    const assignmentAuthorityId = assertIdentifier(
+      scope.assignmentAuthorityId,
+      `${path}["assignmentAuthorityId"]`,
+      limits
+    );
+    const fencingToken = assertIdentifier(
+      scope.fencingToken,
+      `${path}["fencingToken"]`,
+      limits
+    );
+    return {
+      kind: 'work',
+      objectiveRevision: assertPositiveSafeInteger(
+        scope.objectiveRevision,
+        `${path}["objectiveRevision"]`,
+        'invalid_payload'
+      ),
+      workItemId: assertIdentifier(
+        scope.workItemId,
+        `${path}["workItemId"]`,
+        limits
+      ),
+      workItemRevision: assertPositiveSafeInteger(
+        scope.workItemRevision,
+        `${path}["workItemRevision"]`,
+        'invalid_payload'
+      ),
+      assignmentEpoch: assertPositiveSafeInteger(
+        scope.assignmentEpoch,
+        `${path}["assignmentEpoch"]`,
+        'invalid_payload'
+      ),
+      assignmentAuthorityId,
+      fencingToken,
+    };
+  }
+  return fail('invalid_payload', `${path}["kind"]`);
+}
+
+function validateEvidenceReferences(
+  input: unknown,
+  path: string,
+  limits: Readonly<MeshProtocolLimits>,
+  {
+    allowControlRecords,
+    minimum,
+  }: { readonly allowControlRecords: boolean; readonly minimum: number }
+): readonly MeshEvidenceReference[] {
+  if (
+    !Array.isArray(input) ||
+    input.length < minimum ||
+    input.length > maximumEvidenceReferences
+  ) {
+    fail('invalid_payload', path);
+  }
+  const references = input.map((item, index) =>
+    validateEvidenceReference(
+      item,
+      `${path}[${index}]`,
+      limits,
+      allowControlRecords
+    )
+  );
+  let previous = '';
+  for (const reference of references) {
+    const order = JSON.stringify([
+      reference.kind,
+      reference.referenceType,
+      reference.referenceId,
+      reference.referenceDigest,
+    ]);
+    if (order <= previous) fail('invalid_payload', path);
+    previous = order;
+  }
+  return Object.freeze(references);
+}
+
+function validateEvidenceReference(
+  input: unknown,
+  path: string,
+  limits: Readonly<MeshProtocolLimits>,
+  allowControlRecords: boolean
+): MeshEvidenceReference {
+  const reference = assertClosedRecord(
+    input,
+    [
+      'kind',
+      'referenceDigest',
+      'referenceId',
+      'referenceType',
+      'schemaVersion',
+    ],
+    [],
+    path,
+    'invalid_payload'
+  );
+  if (reference.schemaVersion !== 1)
+    fail('invalid_payload', `${path}["schemaVersion"]`);
+  const kind = assertEnum(
+    reference.kind,
+    ['evidence', 'mesh_record', 'control_record', 'external'],
+    `${path}["kind"]`
+  );
+  if (!allowControlRecords && kind === 'control_record') {
+    fail('invalid_payload', `${path}["kind"]`);
+  }
+  const referenceDigest = assertEvidenceReferenceDigest(
+    kind,
+    reference.referenceDigest,
+    `${path}["referenceDigest"]`
+  );
+  return {
+    schemaVersion: 1,
+    kind,
+    referenceType: assertBoundedString(
+      reference.referenceType,
+      `${path}["referenceType"]`,
+      maximumEvidenceReferenceBytes
+    ),
+    referenceId: assertBoundedString(
+      reference.referenceId,
+      `${path}["referenceId"]`,
+      maximumEvidenceReferenceBytes
+    ),
+    referenceDigest,
+  };
+}
+
+function validateEvidenceContent(
+  input: unknown,
+  path: string,
+  limits: Readonly<MeshProtocolLimits>
+): MeshEvidenceContent | null {
+  if (input === null) return null;
+  const content = assertRecord(input, path, 'invalid_payload');
+  if (content.kind === 'inline_summary') {
+    assertExactKeys(
+      content,
+      ['contentDigest', 'encodedBytes', 'kind', 'mediaType', 'summary'],
+      path,
+      'invalid_payload'
+    );
+    const summary = assertBoundedString(
+      content.summary,
+      `${path}["summary"]`,
+      maximumEvidenceContentBytes
+    );
+    const encodedBytes = assertBoundedSafeInteger(
+      content.encodedBytes,
+      `${path}["encodedBytes"]`,
+      0,
+      maximumEvidenceContentBytes
+    );
+    if (utf8Encoder.encode(summary).byteLength !== encodedBytes) {
+      fail('invalid_payload', `${path}["encodedBytes"]`);
+    }
+    return {
+      kind: 'inline_summary',
+      mediaType: assertBoundedString(
+        content.mediaType,
+        `${path}["mediaType"]`,
+        maximumMediaTypeBytes
+      ),
+      summary,
+      contentDigest: assertTrustDigest(
+        content.contentDigest,
+        `${path}["contentDigest"]`
+      ),
+      encodedBytes,
+    };
+  }
+  if (content.kind === 'reference') {
+    assertExactKeys(
+      content,
+      ['contentDigest', 'encodedBytes', 'kind', 'mediaType', 'reference'],
+      path,
+      'invalid_payload'
+    );
+    const reference = validateEvidenceReference(
+      content.reference,
+      `${path}["reference"]`,
+      limits,
+      false
+    );
+    if (reference.kind !== 'mesh_record' && reference.kind !== 'external') {
+      fail('invalid_payload', `${path}["reference"]["kind"]`);
+    }
+    return {
+      kind: 'reference',
+      mediaType: assertBoundedString(
+        content.mediaType,
+        `${path}["mediaType"]`,
+        maximumMediaTypeBytes
+      ),
+      reference,
+      contentDigest: assertTrustDigest(
+        content.contentDigest,
+        `${path}["contentDigest"]`
+      ),
+      encodedBytes: assertBoundedSafeInteger(
+        content.encodedBytes,
+        `${path}["encodedBytes"]`,
+        0,
+        maximumEvidenceContentBytes
+      ),
+    };
+  }
+  return fail('invalid_payload', `${path}["kind"]`);
+}
+
+function validateTrustRecordIdArray(
+  input: unknown,
+  path: string
+): readonly string[] {
+  if (!Array.isArray(input) || input.length > maximumEvidenceReferences) {
+    fail('invalid_payload', path);
+  }
+  const ids = input.map((value, index) =>
+    assertBoundedString(
+      value,
+      `${path}[${index}]`,
+      maximumEvidenceIdentifierBytes
+    )
+  );
+  let previous = '';
+  for (const id of ids) {
+    if (id <= previous) fail('invalid_payload', path);
+    previous = id;
+  }
+  return Object.freeze(ids);
+}
+
+function validateOptionalEvidenceTimestamp(
+  input: unknown,
+  path: string
+): string | null {
+  if (input === null) return null;
+  return assertRfc3339PayloadTimestamp(input, path).text;
+}
+
+function assertTrustRecordId(
+  input: unknown,
+  prefix: string,
+  path: string
+): string {
+  const value = assertBoundedString(
+    input,
+    path,
+    maximumEvidenceIdentifierBytes
+  );
+  if (!new RegExp(`^${prefix}:[0-9a-f]{64}$`).test(value)) {
+    fail('invalid_payload', path);
+  }
+  return value;
+}
+
+function assertTrustDigest(input: unknown, path: string): string {
+  const value = assertString(input, path, 'invalid_payload');
+  if (!trustDigestPattern.test(value)) fail('invalid_payload', path);
+  return value;
+}
+
+function assertEvidenceReferenceDigest(
+  kind: MeshEvidenceReference['kind'],
+  input: unknown,
+  path: string
+): string {
+  if (kind === 'mesh_record') return assertPayloadHash(input, path);
+  if (kind === 'control_record') {
+    const value = assertString(input, path, 'invalid_payload');
+    if (!/^sha256:[0-9a-f]{64}$/.test(value)) fail('invalid_payload', path);
+    return value;
+  }
+  return assertTrustDigest(input, path);
+}
+
+function assertBoundedSafeInteger(
+  input: unknown,
+  path: string,
+  minimum: number,
+  maximum: number
+): number {
+  if (
+    !Number.isSafeInteger(input) ||
+    (input as number) < minimum ||
+    (input as number) > maximum
+  ) {
+    fail('invalid_payload', path);
+  }
+  return input as number;
+}
+
+function assertEnum<T extends string>(
+  input: unknown,
+  values: readonly T[],
+  path: string
+): T {
+  if (typeof input !== 'string' || !values.includes(input as T)) {
+    fail('invalid_payload', path);
+  }
+  return input as T;
 }
 
 function validateWorkOffer(
@@ -2932,6 +3754,19 @@ function validateMessageSpecificEnvelope(
       fail('invalid_audience', '$["audience"]["peerId"]');
     }
   } else if (
+    type === 'evidence.claim' ||
+    type === 'evidence.attest' ||
+    type === 'evidence.challenge' ||
+    type === 'evidence.retract'
+  ) {
+    if (audience.kind === 'mesh' && audience.topic !== 'evidence') {
+      fail('invalid_audience', '$["audience"]["topic"]');
+    }
+  } else if (type === 'trust.observation') {
+    if (audience.kind !== 'peer') {
+      fail('invalid_audience', '$["audience"]');
+    }
+  } else if (
     type === 'work.award' ||
     type === 'work.accept' ||
     type === 'work.decline' ||
@@ -3018,6 +3853,40 @@ function validateMessageSpecificEnvelope(
   }
 
   if (
+    type === 'evidence.claim' ||
+    type === 'evidence.attest' ||
+    type === 'evidence.challenge' ||
+    type === 'evidence.retract'
+  ) {
+    const evidencePayload = payload as
+      | EvidenceClaimPayload
+      | EvidenceAttestationPayload
+      | EvidenceChallengePayload
+      | EvidenceRetractionPayload;
+    if (evidencePayload.scope.kind === 'mesh') {
+      if (objectiveId !== undefined) {
+        fail('invalid_payload', '$["objectiveId"]');
+      }
+    } else if (objectiveId === undefined) {
+      fail('invalid_payload', '$["objectiveId"]');
+    }
+
+    const references =
+      evidencePayload.type === 'evidence.claim' ||
+      evidencePayload.type === 'evidence.attest' ||
+      evidencePayload.type === 'evidence.challenge'
+        ? evidencePayload.basisReferences
+        : [];
+    if (
+      (evidencePayload.scope.kind === 'work' ||
+        references.some((reference) => reference.kind === 'mesh_record')) &&
+      causationId === undefined
+    ) {
+      fail('invalid_payload', '$["causationId"]');
+    }
+  }
+
+  if (
     type === 'objective.announce' ||
     type === 'objective.revise' ||
     type === 'objective.cancel' ||
@@ -3087,6 +3956,125 @@ function validateMessageSpecificEnvelope(
     payload.releaseAuthority === 'assignee'
   ) {
     validateWorkExecutionTimes(payload, sentAt, expiresAt);
+  }
+}
+
+/**
+ * The shared Trust normalizer owns every content-bound Evidence digest. Mesh
+ * only supplies the signed envelope material, then compares the projected ID
+ * (and Claim assertion digest) with the closed wire payload.
+ */
+function validateEvidenceTrustBinding(
+  tenantId: string,
+  meshId: string,
+  objectiveId: string | undefined,
+  sender: MeshSender,
+  causationId: string | undefined,
+  payload: MeshMessagePayload
+): void {
+  if (
+    payload.type !== 'evidence.claim' &&
+    payload.type !== 'evidence.attest' &&
+    payload.type !== 'evidence.challenge' &&
+    payload.type !== 'evidence.retract' &&
+    payload.type !== 'trust.observation'
+  ) {
+    return;
+  }
+  const envelope = {
+    schemaVersion: 1 as const,
+    tenantId,
+    meshId,
+    objectiveId: objectiveId ?? null,
+    senderPeerId: sender.peerId,
+    causationId: causationId ?? null,
+  };
+  try {
+    if (payload.type === 'evidence.claim') {
+      const normalized = normalizeMeshEvidenceClaimV1(envelope, {
+        subject: payload.subject,
+        scope: payload.scope,
+        criterionId: payload.criterionId,
+        outcome: payload.outcome,
+        content: payload.content,
+        basisReferences: payload.basisReferences,
+        observedAt: payload.observedAt,
+      });
+      if (normalized.claimId !== payload.claimId) {
+        fail('invalid_payload', '$["payload"]["claimId"]');
+      }
+      if (normalized.assertionDigest !== payload.assertionDigest) {
+        fail('invalid_payload', '$["payload"]["assertionDigest"]');
+      }
+      return;
+    }
+    if (payload.type === 'evidence.attest') {
+      const normalized = normalizeMeshEvidenceAttestationV1(envelope, {
+        scope: payload.scope,
+        claimId: payload.claimId,
+        claimDigest: payload.claimDigest,
+        disposition: payload.disposition,
+        confidenceBasisPoints: payload.confidenceBasisPoints,
+        basisReferences: payload.basisReferences,
+        observedAt: payload.observedAt,
+      });
+      if (normalized.attestationId !== payload.attestationId) {
+        fail('invalid_payload', '$["payload"]["attestationId"]');
+      }
+      return;
+    }
+    if (payload.type === 'evidence.challenge') {
+      const normalized = normalizeMeshEvidenceChallengeV1(envelope, {
+        scope: payload.scope,
+        targetKind: payload.targetKind,
+        targetId: payload.targetId,
+        targetDigest: payload.targetDigest,
+        reasonCode: payload.reasonCode as TrustReasonCodeV1,
+        basisReferences: payload.basisReferences,
+        observedAt: payload.observedAt,
+      });
+      if (normalized.challengeId !== payload.challengeId) {
+        fail('invalid_payload', '$["payload"]["challengeId"]');
+      }
+      return;
+    }
+    if (payload.type === 'trust.observation') {
+      const normalized = normalizeMeshTrustObservationV1(envelope, {
+        subject: payload.subject,
+        scope: payload.scope,
+        policyId: payload.policyId,
+        policyVersion: payload.policyVersion,
+        policyDigest: payload.policyDigest,
+        profileDigest: payload.profileDigest,
+        fusionDecisionDigest: payload.fusionDecisionDigest,
+        dimensionId: payload.dimensionId,
+        scoreBand: payload.scoreBand,
+        uncertaintyBand: payload.uncertaintyBand,
+        disposition: payload.disposition,
+        evidenceIds: payload.evidenceIds,
+        observedAt: payload.observedAt,
+        validUntil: payload.validUntil,
+        reasonCodes: payload.reasonCodes as readonly TrustReasonCodeV1[],
+      });
+      if (normalized.observationId !== payload.observationId) {
+        fail('invalid_payload', '$["payload"]["observationId"]');
+      }
+      return;
+    }
+    const normalized = normalizeMeshEvidenceRetractionV1(envelope, {
+      scope: payload.scope,
+      targetKind: payload.targetKind,
+      targetId: payload.targetId,
+      targetDigest: payload.targetDigest,
+      reasonCode: payload.reasonCode as TrustReasonCodeV1,
+      observedAt: payload.observedAt,
+    });
+    if (normalized.retractionId !== payload.retractionId) {
+      fail('invalid_payload', '$["payload"]["retractionId"]');
+    }
+  } catch (error) {
+    if (error instanceof ValidationFailure) throw error;
+    fail('invalid_payload', '$["payload"]');
   }
 }
 
@@ -3487,20 +4475,26 @@ function validateLifetime(
   const messageMaximum =
     type === 'peer.ping' || type === 'peer.ping_ack'
       ? 30_000
-      : type === 'peer.goodbye' ||
-          type === 'lease.takeover_proposal' ||
-          type === 'lease.vote' ||
-          type === 'lease.certificate'
-        ? 60_000
-        : type === 'objective.announce' || type === 'objective.revise'
-          ? 5 * 60_000
-          : type === 'work.progress' ||
-              type === 'work.checkpoint' ||
-              type === 'work.result'
-            ? maximumWorkExecutionLifetimeMs
-            : type === 'lease.renew'
-              ? 30_000
-              : 120_000;
+      : type === 'evidence.claim' ||
+          type === 'evidence.attest' ||
+          type === 'evidence.challenge' ||
+          type === 'evidence.retract' ||
+          type === 'trust.observation'
+        ? maximumEvidenceLifetimeMs
+        : type === 'peer.goodbye' ||
+            type === 'lease.takeover_proposal' ||
+            type === 'lease.vote' ||
+            type === 'lease.certificate'
+          ? 60_000
+          : type === 'objective.announce' || type === 'objective.revise'
+            ? 5 * 60_000
+            : type === 'work.progress' ||
+                type === 'work.checkpoint' ||
+                type === 'work.result'
+              ? maximumWorkExecutionLifetimeMs
+              : type === 'lease.renew'
+                ? 30_000
+                : 120_000;
   const maximum = Math.min(limits.maximumLifetimeMs, messageMaximum);
   if (expiresAt - sentAt > BigInt(maximum) * 1_000_000n) {
     fail('invalid_lifetime', '$["expiresAt"]');
@@ -3762,7 +4756,12 @@ function isImplementedMessageType(
     value === 'lease.renew' ||
     value === 'lease.takeover_proposal' ||
     value === 'lease.vote' ||
-    value === 'lease.certificate'
+    value === 'lease.certificate' ||
+    value === 'evidence.claim' ||
+    value === 'evidence.attest' ||
+    value === 'evidence.challenge' ||
+    value === 'evidence.retract' ||
+    value === 'trust.observation'
   );
 }
 

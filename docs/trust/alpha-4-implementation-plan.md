@@ -162,13 +162,27 @@ gateways. It exports:
 - deterministic conversion of accepted controlled outcomes into local claim
   candidates;
 - exact Trust evidence references for assessor requests;
-- synchronous, construction-bound eligibility resolvers;
+- synchronous legacy resolver adapters retained for compatibility;
+- authenticated, construction-bound current-snapshot eligibility runtimes;
 - restrictive model, action-dispatcher and message-dispatcher wrappers.
 
-The wrappers include their Trust policy, profile and resolver binding digests
-in the dependency binding. They revalidate immediately before delegating to the
-wrapped boundary. The resulting claim is point-in-time local restriction, not
-an atomic transaction with mutable remote state.
+The state-backed wrappers require strict snapshot restore through a protector
+and exact external rollback anchor. Restore returns only an opaque token; the
+Trust state remains private in the construction-bound runtime registry. On
+every check, an identity/version/protector-bound current source must return the
+token with that exact anchor. The wrappers validate the current
+`profile_resolver -> model_boundary | action_dispatcher | message_dispatcher`
+binding chain, including policy, subject mapping, full eligibility template,
+base implementation and authenticated logical time, immediately before
+delegating. A raw state, structural clone, replaced generation or historical
+binding is unavailable. The resulting check is a point-in-time local
+restriction, not an atomic transaction with mutable remote state.
+
+The current source is a trusted-computing-base adapter over the application's
+durable Trust high-water store. Each call must synchronously and atomically
+read that store; serving a cached head is invalid. A process cannot detect an
+authentic successor it has never observed, so an obsolete first sample is an
+external source-boundary violation rather than a locally provable condition.
 
 ### Existing observability packages
 
@@ -266,6 +280,10 @@ quarantine-evidence-set
 quarantine-record
 recovery-evidence-set
 recovery-decision
+mesh-subject-mapping
+mesh-eligibility-config
+inference-subject-mapping
+inference-eligibility-config
 dependency-binding
 origin-proof
 state
@@ -550,6 +568,62 @@ references reached by that bounded traversal. `rootBasisDigest` is the
 cycles, missing records or depth overflow make the Claim ineffective. The same
 root basis can contribute at most once to one dimension evaluation.
 
+### Retained causal authorization
+
+Claim and Challenge records remain immutable public facts; historical role and
+upstream authority are verified separately and retained as a closed
+`EvidenceCausalAuthorizationV1`:
+
+```text
+schemaVersion: 1
+authorizationId
+authorizationDigest
+recordId
+recordDigest
+recordKind: "claim" | "challenge"
+policyDigest
+criterionId
+subjectDigest
+scopeDigest
+targetRecordId: string | null
+targetRecordDigest: digest | null
+sourceRelation
+authorityBindingDigest
+authorityProofDigest
+bases: sorted unique {
+  schemaVersion: 1,
+  kind,
+  referenceType,
+  referenceId,
+  referenceDigest,
+  resolvedDigest,
+  trustedEffectiveAtLogicalMs,
+  resolverBindingDigest: digest | null,
+  resolutionProofDigest: digest | null
+}[]
+authorizedAtLogicalMs
+```
+
+The construction-bound causal-authority verifier resolves the exact registered
+`causal_authority` dependency-binding head, verifies its policy and upstream
+lineage, and verifies `authorityProofDigest` over the complete authorization.
+Every basis must be effective no later than `authorizedAtLogicalMs`. An
+`evidence` basis carries no external resolver proof and must match the exact
+same-scope retained record, digest, kind and effective time. Mesh, Control and
+external terminal bases require their exact historical resolver binding and
+proof.
+
+An authorization may contain only Evidence bases when those bases recursively
+reach at least one terminal root. Fusion traverses the retained authorization
+chain with cycle and depth checks and derives `rootBasisDigest` only from the
+unique terminal reference tuples. Proof digests, resolver metadata and trusted
+times authorize the traversal but do not change the normative root identity.
+
+Authorizations are append-only, bounded and accepted only through the reducer
+with a synchronous verifier registry. Strict restore re-verifies every retained
+authorization through the exact historical registry entry. A structurally
+valid authorization object or state digest alone never establishes authority.
+
 ## Evidence content
 
 Every Claim contains a public criterion and outcome, plus a digest of the
@@ -833,6 +907,36 @@ Every evaluation recomputes grouped resolution from retained Evidence at the
 supplied logical time, so no arrival order or mutable status rewrite determines
 the outcome.
 
+When active Challenges target Evidence used as another Challenge's basis, V1
+uses a well-founded alternating projection over the complete structurally valid
+Challenge set. The lower fixed point contains definitely active Challenges; a
+Challenge left only in the upper set by an odd or mutually recursive blocker
+cycle is `unavailable` with `challenge_basis_unavailable`. This permits an
+acyclic dependent Challenge to become active again when its blocker is itself
+defeated, while cycles never select a winner by arrival or digest order.
+The blocker closure follows explicit `evidence` basis edges. A direct
+Attestation-to-Claim target relationship remains inspectable when only the
+Claim is challenged; it is attribution, not an implicit basis edge. The
+Attestation still cannot qualify that challenged Claim for Fusion.
+
+Fusion applies the same fail-closed rule after source, policy and causal
+authorization checks. It constructs a graph of authorized group Challenges,
+including lifecycle-unavailable Challenge records only when their exact
+diagnostic is `challenge_basis_unavailable`. A group waits until every
+authorized group targeting one of its Evidence bases or resolution
+Attestations is settled. An all-dismissed dependency set makes those inputs
+available; any non-dismissed dependency leaves the dependent group unresolved.
+Unicode-ordered iteration continues to a fixed point, and every remaining
+strongly connected cycle emits `unresolved` with both
+`challenge_basis_unavailable` and `challenge_unresolved`. Unauthorized
+structural Challenges never enter this graph and cannot block a target.
+
+For an Attestation target, both the challenger dependency group and the target
+Attestation author's dependency group are excluded from votes. Once resolution
+finishes, Stage 3 group caps are recomputed without blocked Attestations so an
+ineffective newer candidate cannot consume weight that belongs to the next
+valid candidate in deterministic order.
+
 ## Retraction contract
 
 `EvidenceRetractionV1` contains exactly:
@@ -1015,6 +1119,27 @@ modify or select a Fusion policy. Policy versions increase by exactly one and
 bind the immediately preceding digest. Historical decisions remain bound to
 their original policy. A policy head affects only later evaluations.
 
+`TrustEligibilityRuleV1` is one closed, named request template and contains
+exactly:
+
+```text
+ruleId
+maximumProfileAgeMs
+requirements: sorted unique {
+  dimensionId,
+  minimumScoreBasisPoints,
+  maximumUncertaintyBasisPoints
+}[]
+```
+
+The requirement set is non-empty, every dimension is declared by the same
+policy, and `maximumProfileAgeMs` is positive and within the state ceiling.
+Rule IDs are unique within a policy. An eligibility request is policy-valid
+only when its `maximumProfileAgeMs` and complete requirement set exactly equal
+one registered rule; callers cannot omit a requirement or relax a threshold.
+The request remains self-contained and does not select a rule by an untrusted
+name.
+
 ### Dimension policy
 
 Each dimension declares:
@@ -1134,7 +1259,7 @@ schemaVersion: 1
 bindingName
 bindingVersion
 parentBindingDigest: digest | null
-bindingKind: "content_resolver" | "mesh_ingress" |
+bindingKind: "content_resolver" | "causal_authority" | "mesh_ingress" |
              "mesh_eligibility" | "profile_resolver" |
              "snapshot_protector" | "verified_mesh_origin_verifier" |
              "model_boundary" | "action_dispatcher" |
@@ -1145,6 +1270,7 @@ configurationDigest
 policyDigest: digest | null
 subjectMappingDigest: digest | null
 upstreamBindingDigest: digest | null
+registeredAtLogicalMs
 validFromLogicalMs
 validUntilLogicalMs: number | null
 bindingDigest
@@ -1158,6 +1284,13 @@ current `content_resolver` digest. Mesh ingress and restrictive wrappers bind
 their exact applicable kind plus upstream component. A missing, expired,
 rebound or cross-policy binding makes the requested evaluation or delegation
 `unavailable`; it never falls back to an unbound dependency.
+
+`registeredAtLogicalMs` is the trusted local time of first registration and is
+included in the binding digest. It must equal the reducer input time;
+`validFromLogicalMs` cannot precede it. Historical evaluation selects the exact
+highest registered lineage version visible at its evaluation time. Current
+evaluation never falls back to an older version when that head is expired,
+rebound or otherwise unavailable.
 
 Content, Mesh-ingress, eligibility, profile and restrictive-wrapper bindings
 require the exact non-null applicable policy digest. State-level
@@ -1596,6 +1729,15 @@ Quarantine is local to the exact subject, dimension and scope. Reaching
 the restriction. Other tenants, scopes, capabilities and dimensions are not
 affected.
 
+If a key has already reached `maximumQuarantineRevisionsPerHead`, the reducer
+cannot append that transition without violating the append-only capacity. Its
+canonical exhausted representation therefore retains the final `active` head,
+emits `quarantine_review_required` once when trusted logical time crosses the
+review boundary, and treats the head as review-required for eligibility. An
+explicit review against that exact overdue exhausted head emits a closed
+`unavailable` recovery decision and cannot lift the restriction. This is the
+only V1 exception to materializing a separate `review_required` revision.
+
 ## Recovery
 
 Recovery is evaluated only by an explicit review input after the review time.
@@ -1625,6 +1767,13 @@ Self-claims, replayed pre-quarantine records, partially overlapping groups,
 remote Trust observations and the passage of time cannot satisfy recovery.
 Success appends a `recovered` revision; it never deletes the quarantine or
 negative evidence.
+
+A recovered head is not permanently immune to later evidence. New qualifying
+negative Evidence accepted strictly after `recoveredAtLogicalMs` may append the
+next `active` revision for the same exact quarantine key. Historical or replayed
+activation Evidence cannot reactivate it. Each key retains at most
+`maximumQuarantineRevisionsPerHead` revisions; exhaustion fails closed as
+`unavailable` and never silently leaves a new negative condition eligible.
 
 Every review emits one closed `QuarantineRecoveryDecisionV1`:
 
@@ -1735,10 +1884,14 @@ hard release-test ceilings unless a lower application value is supplied.
 | basis references per record         |         32 |
 | relationship depth                  |         16 |
 | considered records per fusion       |      1,024 |
+| Fusion group allocations            |      4,096 |
+| Fusion projection canonical nodes   |    100,000 |
+| Fusion projection canonical bytes   | 16,777,216 |
 | retained Fusion Decisions           |      4,096 |
 | profile heads                       |      2,048 |
 | profile revisions per head          |         32 |
 | quarantine heads                    |      2,048 |
+| quarantine revisions per head       |         32 |
 | diagnostics                         |      1,024 |
 | record canonical bytes              |     65,536 |
 | content reference bytes             |      4,096 |
@@ -1749,10 +1902,14 @@ hard release-test ceilings unless a lower application value is supplied.
 
 The corresponding closed limit fields include
 `maximumChallengesPerSourceScope`,
-`maximumPendingChallengesPerSourceScope` and `maximumPendingAgeMs`; the table
-uses readable labels only. Active and pending per-source/scope counts are
-checked before global capacity mutation, so one source/scope cannot consume the
-entire pending-Challenge budget while capacity remains for others.
+`maximumPendingChallengesPerSourceScope`, `maximumPendingAgeMs` and
+`maximumQuarantineRevisionsPerHead`; the table uses readable labels only.
+Fusion input-set and decision digests use their listed bounded projection
+limits so the exact 1,024-record ceiling remains evaluable; one record above
+that ceiling fails before projection construction.
+Active and pending per-source/scope counts are checked before global capacity
+mutation, so one source/scope cannot consume the entire pending-Challenge
+budget while capacity remains for others.
 
 The implementation checks aggregate bytes, nesting depth, object nodes and
 array items before cloning or state mutation. Capacity exhaustion returns
@@ -1832,6 +1989,14 @@ normalizer output, and proves exact record ID/digest equality. It does no
 network access. A standalone normalized record is insufficient proof of
 verified Mesh origin.
 
+`validateEvidenceTrustStateV1` is deliberately a pure closed-structure and
+deterministic-projection validator: it performs no key lookup and no verifier
+callback. It is not an authentication or import boundary. A state used for a
+new Fusion or reducer transition must originate from the in-process reducer or
+from strict restore with every required construction-bound verifier registry;
+an arbitrary JSON object that merely passes structural validation is not a
+trusted state.
+
 Strict restore:
 
 1. validates closed JSON and aggregate limits;
@@ -1846,11 +2011,13 @@ Strict restore:
    effective at its recorded logical time;
 8. validates historical ingress/verifier binding kind and upstream linkage,
    then revalidates every verified Mesh origin from its exact external proof;
-9. rebuilds relationship, pending, profile and quarantine indexes;
-10. replays deterministic projection from retained Evidence and compares every
+9. resolves the exact historical causal-authority binding and re-verifies every
+   retained causal authorization without network access;
+10. rebuilds relationship, pending, profile and quarantine indexes;
+11. replays deterministic projection from retained Evidence and compares every
     serialized Fusion Decision and profile head;
-11. validates logical-time high-water, trace digest and encoded-byte count;
-12. rejects missing records, forged scores, removed contradictions, clock
+12. validates logical-time high-water, trace digest and encoded-byte count;
+13. rejects missing records, forged scores, removed contradictions, clock
     rollback, stale bindings and incomplete quarantine history.
 
 A redacted projection is explicitly `restorable: false`. Restore has no network
@@ -1932,6 +2099,19 @@ binding. `observe` returns the original candidates plus diagnostics. `restrict`
 returns a subset or an `unavailable` result; it never selects a replacement on
 its own.
 
+Restrict-mode evaluation never accepts a raw `EvidenceTrustStateV1` as an
+authentication boundary. `restoreMeshTrustEligibilityRuntimeStateV1` must
+first reconstruct the Trust member of the current composite Mesh transaction
+through `restoreEvidenceTrustSnapshotV1`, using the exact current trusted
+external rollback anchor and snapshot protector. The filter recognizes only
+that construction-bound runtime object; a structurally valid clone, an older
+runtime object or arbitrary JSON is `unavailable`. The application must create
+the protected checkpoint in the same local transaction used for candidate
+selection. `logicalTimeMs` must equal the protected snapshot's trusted creation
+time; evaluating later requires a newer anchored generation, so a stale profile
+cannot become fresh through clock rewind. A stale anchor is an application
+security-boundary violation, not a valid eligibility input.
+
 ## Inference Control integration
 
 Controlled outcomes may become local Claim candidates only after Alpha 3 has
@@ -1953,11 +2133,29 @@ fields to its closed policy:
 - a Trust-bound action dispatcher checks the exact current profile immediately
   before delegating to its underlying dispatcher;
 - a Trust-bound message dispatcher does the same before sending;
-- the wrapper binding digest includes Trust policy, resolver, subject mapping
-  and base dispatcher binding digests;
+- the state-backed runtime is accepted only when reconstructed by strict Trust
+  snapshot restore with its current external rollback anchor;
+- the exact profile-resolver and operation-boundary heads bind Trust policy,
+  subject mapping, full eligibility configuration and the base dispatcher or
+  model implementation digest;
+- the runtime source identity, revision and protector binding are part of that
+  configuration, and every synchronous sample repeats the exact rollback
+  anchor used by strict restore;
+- the authenticated snapshot creation time is the sole eligibility evaluation
+  time, and a replaced generation or structural clone is unavailable;
 - `unavailable`, stale, mismatched or quarantined state refuses delegation in
   restrict mode;
 - observe mode delegates and emits a redacted decision.
+
+The Alpha 3 synchronous resolver wrappers remain available unchanged as legacy
+opt-in adapters. They are not accepted as state-backed authority and cannot be
+substituted for the authenticated runtime contract.
+
+The model path captures a versioned local model-boundary object rather than an
+arbitrary callback. Its derived base binding must match the registered
+`model_boundary`, and the exact immutable per-invocation target evaluated by
+Trust is passed to that same captured boundary. Action and Message targets are
+derived from their real permits and inputs.
 
 These checks do not replace Action Grant consumption, authority revalidation,
 idempotency or downstream fencing. A concurrent Trust-state change after local

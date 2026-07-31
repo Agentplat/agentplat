@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runPublicAudit } from './audit-public.mjs';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 import {
   loadPublicPackageCatalog,
   publishablePackages,
@@ -36,7 +36,7 @@ export async function publishPackages({
     await readFile(path.join(root, 'package.json'), 'utf8')
   );
   const catalog = await loadPublicPackageCatalog(root);
-  await assertInferenceControlReleaseLine({
+  await assertReleaseLine({
     root,
     catalog,
     rootManifest,
@@ -1220,3 +1220,4 @@ if (isMain) {
     process.exitCode = 1;
   }
 }
+
