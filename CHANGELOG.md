@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0-alpha.2 - 2026-07-31
+
 - Added the detailed Agent Mesh Alpha 2 allocation and recovery implementation
   plan, evidence-based acceptance checklist and supporting industry glossary.
 - Added the first Alpha 2 protocol-contract slice for bounded Peer Cards,

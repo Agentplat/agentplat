@@ -206,6 +206,26 @@ export async function publishPackages({
         expectedRegistryIntegrity: existingIntegrity,
       });
     }
+    const distributionTagRollbackTargets = new Map(
+      artifacts.map((artifact) => {
+        const { name } = artifact.manifest;
+        const distributionTags = registryDistributionTags({
+          allowMissing: true,
+          environment,
+          packageName: name,
+          root,
+        });
+        return [name, distributionTags[distributionTag]];
+      })
+    );
+    console.log(
+      `Recorded ${distributionTag} rollback targets: ${artifacts
+        .map(({ manifest }) => {
+          const target = distributionTagRollbackTargets.get(manifest.name);
+          return `${manifest.name}=${target ?? '<absent>'}`;
+        })
+        .join(', ')}.`
+    );
 
     console.log(
       `${dryRun ? 'Dry-running' : 'Publishing'} ${artifacts.length} prepacked packages in dependency order with staging tag ${stagingTag}.`
@@ -272,16 +292,36 @@ export async function publishPackages({
           version,
         }),
     });
+    await promoteDistributionTagBatch({
+      packages: artifacts.map(({ manifest }) => ({
+        name: manifest.name,
+        version: manifest.version,
+      })),
+      previousTargets: distributionTagRollbackTargets,
+      tag: distributionTag,
+      addTag: ({ name, tag, version }) =>
+        addDistributionTag({
+          environment,
+          packageName: name,
+          root,
+          tag,
+          version,
+        }),
+      removeTag: ({ name, tag }) =>
+        removeDistributionTag({
+          environment,
+          packageName: name,
+          root,
+          tag,
+        }),
+      lookupTags: ({ name }) =>
+        registryDistributionTags({
+          environment,
+          packageName: name,
+          root,
+        }),
+    });
     const stagingCleanupFailures = [];
-    for (const artifact of artifacts) {
-      addDistributionTag({
-        environment,
-        packageName: artifact.manifest.name,
-        root,
-        tag: distributionTag,
-        version: artifact.manifest.version,
-      });
-    }
     for (const artifact of artifacts) {
       const { name, version } = artifact.manifest;
       const distributionTags = registryDistributionTags({
@@ -399,10 +439,20 @@ export function parseRegistryIntegrityResult(result, packageName, version) {
   return parsed;
 }
 
-export function parseRegistryDistributionTags(result, packageName) {
+export function parseRegistryDistributionTags(
+  result,
+  packageName,
+  { allowMissing = false } = {}
+) {
   if (result.error) throw result.error;
   if (result.status !== 0) {
     const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim();
+    if (
+      allowMissing &&
+      /\bE404\b|404 Not Found|is not in this registry/i.test(output)
+    ) {
+      return {};
+    }
     throw new Error(
       `Unable to inspect distribution tags for ${packageName}: ${output}`
     );
@@ -542,6 +592,159 @@ export async function waitForRegistryBatch({
     const delay = delays[Math.min(attempt, delays.length - 1)];
     await sleep(Math.min(delay, remaining));
     attempt += 1;
+  }
+}
+
+export async function waitForDistributionTagBatch({
+  delays = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000],
+  lookupTags,
+  maximumWaitMs = 600_000,
+  now = () => Date.now(),
+  packages,
+  sleep = (milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
+}) {
+  assert.ok(
+    Number.isSafeInteger(maximumWaitMs) && maximumWaitMs > 0,
+    'maximumWaitMs must be a positive safe integer'
+  );
+  assert.ok(
+    delays.length > 0,
+    'At least one registry polling delay is required'
+  );
+  for (const delay of delays) {
+    assert.ok(
+      Number.isSafeInteger(delay) && delay > 0,
+      'Registry polling delays must be positive safe integers'
+    );
+  }
+  const pending = new Map(
+    packages.map((packageEntry) => [packageEntry.name, packageEntry])
+  );
+  assert.equal(
+    pending.size,
+    packages.length,
+    'Distribution tag verification package names must be unique'
+  );
+  const deadline = now() + maximumWaitMs;
+  let attempt = 0;
+
+  while (pending.size > 0) {
+    for (const packageEntry of [...pending.values()]) {
+      const distributionTags = lookupTags(packageEntry);
+      if (distributionTags[packageEntry.tag] === packageEntry.expectedVersion) {
+        pending.delete(packageEntry.name);
+      }
+    }
+    if (pending.size === 0) return;
+
+    const remaining = deadline - now();
+    if (remaining <= 0) {
+      throw new Error(
+        `Distribution tags did not converge within ${maximumWaitMs}ms: ${[...pending.keys()].sort().join(', ')}`
+      );
+    }
+    const delay = delays[Math.min(attempt, delays.length - 1)];
+    await sleep(Math.min(delay, remaining));
+    attempt += 1;
+  }
+}
+
+export async function promoteDistributionTagBatch({
+  addTag,
+  lookupTags,
+  packages,
+  previousTargets,
+  removeTag,
+  tag,
+  waitOptions = {},
+}) {
+  assert.ok(previousTargets instanceof Map, 'previousTargets must be a Map');
+  assert.equal(
+    new Set(packages.map((packageEntry) => packageEntry.name)).size,
+    packages.length,
+    'Distribution tag promotion package names must be unique'
+  );
+  for (const packageEntry of packages) {
+    assert.equal(
+      previousTargets.has(packageEntry.name),
+      true,
+      `Missing rollback target for ${packageEntry.name}`
+    );
+  }
+  const assertUnchanged = (packageEntry) => {
+    const previousTarget = previousTargets.get(packageEntry.name);
+    const currentTarget = lookupTags(packageEntry)[tag];
+    assert.equal(
+      currentTarget,
+      previousTarget,
+      `${packageEntry.name} ${tag} changed after rollback targets were recorded`
+    );
+  };
+  for (const packageEntry of packages) assertUnchanged(packageEntry);
+
+  const attemptedPackages = [];
+  try {
+    for (const packageEntry of packages) {
+      assertUnchanged(packageEntry);
+      attemptedPackages.push(packageEntry);
+      addTag({ ...packageEntry, tag });
+    }
+    await waitForDistributionTagBatch({
+      ...waitOptions,
+      lookupTags,
+      packages: packages.map((packageEntry) => ({
+        name: packageEntry.name,
+        tag,
+        expectedVersion: packageEntry.version,
+      })),
+    });
+  } catch (promotionError) {
+    const rollbackFailures = [];
+    for (const packageEntry of [...attemptedPackages].reverse()) {
+      try {
+        const previousTarget = previousTargets.get(packageEntry.name);
+        const currentTarget = lookupTags(packageEntry)[tag];
+        if (currentTarget === previousTarget) continue;
+        if (currentTarget !== packageEntry.version) {
+          throw new Error(
+            `Refusing to overwrite concurrent ${tag} target ${currentTarget ?? '<absent>'} for ${packageEntry.name} during rollback`
+          );
+        }
+        if (previousTarget === undefined) {
+          removeTag({ name: packageEntry.name, tag });
+        } else {
+          addTag({
+            name: packageEntry.name,
+            tag,
+            version: previousTarget,
+          });
+        }
+      } catch (rollbackError) {
+        rollbackFailures.push(rollbackError);
+      }
+    }
+    try {
+      await waitForDistributionTagBatch({
+        ...waitOptions,
+        lookupTags,
+        packages: attemptedPackages.map((packageEntry) => ({
+          name: packageEntry.name,
+          tag,
+          expectedVersion: previousTargets.get(packageEntry.name),
+        })),
+      });
+    } catch (rollbackVerificationError) {
+      rollbackFailures.push(rollbackVerificationError);
+    }
+    throw new AggregateError(
+      [promotionError, ...rollbackFailures],
+      attemptedPackages.length === 0
+        ? `Unable to promote ${tag}; aborted before changing any distribution tag`
+        : rollbackFailures.length === 0
+          ? `Unable to promote ${tag}; restored every previous distribution tag target`
+          : `Unable to promote ${tag}; ${rollbackFailures.length} rollback operation or verification failures occurred`
+    );
   }
 }
 
@@ -914,7 +1117,12 @@ function registryIntegrity({ environment, packageName, root, version }) {
   return parseRegistryIntegrityResult(result, packageName, version);
 }
 
-function registryDistributionTags({ environment, packageName, root }) {
+function registryDistributionTags({
+  allowMissing = false,
+  environment,
+  packageName,
+  root,
+}) {
   const result = spawnSync(
     'npm',
     ['view', packageName, 'dist-tags', '--json', ...PUBLIC_NPM_READ_ARGUMENTS],
@@ -924,7 +1132,9 @@ function registryDistributionTags({ environment, packageName, root }) {
       env: environment,
     }
   );
-  return parseRegistryDistributionTags(result, packageName);
+  return parseRegistryDistributionTags(result, packageName, {
+    allowMissing,
+  });
 }
 
 function addDistributionTag({ environment, packageName, root, tag, version }) {

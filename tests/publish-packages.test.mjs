@@ -6,6 +6,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  readFile,
   rm,
   symlink,
   writeFile,
@@ -19,10 +20,12 @@ import {
   extractPackageTarball,
   parseRegistryDistributionTags,
   parseRegistryIntegrityResult,
+  promoteDistributionTagBatch,
   PUBLIC_NPM_READ_ARGUMENTS,
   PUBLIC_NPM_REGISTRY_ARGUMENTS,
   stagingTagsForVersion,
   topologicalPackages,
+  waitForDistributionTagBatch,
   waitForRegistryBatch,
 } from '../scripts/publish-packages.mjs';
 
@@ -296,6 +299,21 @@ test('publisher selects every staging tag for the promoted version', () => {
       ),
     /invalid registry distribution tags/
   );
+  const missingResult = {
+    status: 1,
+    stdout: '',
+    stderr: 'npm error code E404',
+  };
+  assert.deepEqual(
+    parseRegistryDistributionTags(missingResult, name, {
+      allowMissing: true,
+    }),
+    {}
+  );
+  assert.throws(
+    () => parseRegistryDistributionTags(missingResult, name),
+    /Unable to inspect distribution tags/
+  );
 });
 
 test('publisher pins both global and scoped operations to the public registry', () => {
@@ -309,6 +327,44 @@ test('publisher pins both global and scoped operations to the public registry', 
     '--prefer-online',
   ]);
   assert.equal(Object.isFrozen(PUBLIC_NPM_READ_ARGUMENTS), true);
+});
+
+test('release workflow defaults to dry-run and scopes the npm token to publishing', async () => {
+  const workflow = await readFile(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8'
+  );
+  assert.match(
+    workflow,
+    /dry_run:\n(?: {8}.+\n)* {8}default: true\n {8}type: boolean/
+  );
+  assert.match(workflow, /name: Dry-run package publication/);
+  assert.match(workflow, /name: Publish packages/);
+  assert.equal(workflow.match(/NODE_AUTH_TOKEN:/g)?.length, 1);
+  assert.match(
+    workflow,
+    /actions\/checkout@[0-9a-f]{40} # v7[\s\S]+actions\/setup-node@[0-9a-f]{40} # v7/
+  );
+  assert.match(
+    workflow,
+    /concurrency:\n {2}group: release-packages\n {2}cancel-in-progress: false/
+  );
+
+  const verificationStep = workflow.slice(
+    workflow.indexOf('name: Run release audit and full verification'),
+    workflow.indexOf('name: Dry-run package publication')
+  );
+  const dryRunStep = workflow.slice(
+    workflow.indexOf('name: Dry-run package publication'),
+    workflow.indexOf('name: Publish packages')
+  );
+  const publishStep = workflow.slice(
+    workflow.indexOf('name: Publish packages'),
+    workflow.indexOf('name: Verify exact packages')
+  );
+  assert.doesNotMatch(verificationStep, /NODE_AUTH_TOKEN/);
+  assert.doesNotMatch(dryRunStep, /NODE_AUTH_TOKEN/);
+  assert.match(publishStep, /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
 });
 
 test('publisher preserves tarball permission modes independently of the process umask', async () => {
@@ -407,4 +463,197 @@ test('publisher verifies registry visibility against one shared batch deadline',
     /within 5ms: @agentplat\/a, @agentplat\/b/
   );
   assert.equal(clock, 5);
+});
+
+test('publisher verifies coordinated distribution tags against one shared deadline', async () => {
+  const packages = [
+    {
+      name: '@agentplat/a',
+      tag: 'next',
+      expectedVersion: '1.0.0',
+    },
+    {
+      name: '@agentplat/b',
+      tag: 'next',
+      expectedVersion: '1.0.0',
+    },
+  ];
+  let clock = 0;
+  await waitForDistributionTagBatch({
+    packages,
+    maximumWaitMs: 10,
+    delays: [2],
+    now: () => clock,
+    sleep: async (milliseconds) => {
+      clock += milliseconds;
+    },
+    lookupTags: ({ name }) => ({
+      next: name === '@agentplat/a' || clock >= 4 ? '1.0.0' : '0.9.0',
+    }),
+  });
+  assert.equal(clock, 4);
+
+  clock = 0;
+  await assert.rejects(
+    waitForDistributionTagBatch({
+      packages,
+      maximumWaitMs: 5,
+      delays: [2],
+      now: () => clock,
+      sleep: async (milliseconds) => {
+        clock += milliseconds;
+      },
+      lookupTags: () => ({ next: '0.9.0' }),
+    }),
+    /within 5ms: @agentplat\/a, @agentplat\/b/
+  );
+  assert.equal(clock, 5);
+});
+
+test('publisher restores every previous distribution tag after partial promotion', async () => {
+  const packages = [
+    { name: '@agentplat/a', version: '1.0.0' },
+    { name: '@agentplat/b', version: '1.0.0' },
+  ];
+  const previousTargets = new Map([
+    ['@agentplat/a', '0.9.0'],
+    ['@agentplat/b', undefined],
+  ]);
+  const registryTags = new Map([
+    ['@agentplat/a', { next: '0.9.0' }],
+    ['@agentplat/b', {}],
+  ]);
+  const removed = [];
+
+  await assert.rejects(
+    promoteDistributionTagBatch({
+      packages,
+      previousTargets,
+      tag: 'next',
+      addTag: ({ name, tag, version }) => {
+        registryTags.get(name)[tag] = version;
+        if (name === '@agentplat/b' && version === '1.0.0') {
+          throw new Error('simulated partial promotion');
+        }
+      },
+      removeTag: ({ name, tag }) => {
+        delete registryTags.get(name)[tag];
+        removed.push(`${name}:${tag}`);
+      },
+      lookupTags: ({ name }) => ({ ...registryTags.get(name) }),
+      waitOptions: {
+        maximumWaitMs: 5,
+        delays: [1],
+      },
+    }),
+    (error) => {
+      assert.equal(error instanceof AggregateError, true);
+      assert.match(error.message, /restored every previous/);
+      assert.match(error.errors[0].message, /simulated partial promotion/);
+      return true;
+    }
+  );
+
+  assert.deepEqual(registryTags.get('@agentplat/a'), { next: '0.9.0' });
+  assert.deepEqual(registryTags.get('@agentplat/b'), {});
+  assert.deepEqual(removed, ['@agentplat/b:next']);
+});
+
+test('publisher aborts before promotion when a rollback target has drifted', async () => {
+  const packages = [
+    { name: '@agentplat/a', version: '1.0.0' },
+    { name: '@agentplat/b', version: '1.0.0' },
+  ];
+  const previousTargets = new Map([
+    ['@agentplat/a', '0.9.0'],
+    ['@agentplat/b', '0.9.0'],
+  ]);
+  const registryTags = new Map([
+    ['@agentplat/a', { next: '0.9.1-external' }],
+    ['@agentplat/b', { next: '0.9.0' }],
+  ]);
+  let mutationCount = 0;
+
+  await assert.rejects(
+    promoteDistributionTagBatch({
+      packages,
+      previousTargets,
+      tag: 'next',
+      addTag: () => {
+        mutationCount += 1;
+      },
+      removeTag: () => {
+        mutationCount += 1;
+      },
+      lookupTags: ({ name }) => ({ ...registryTags.get(name) }),
+    }),
+    /changed after rollback targets were recorded/
+  );
+
+  assert.equal(mutationCount, 0);
+  assert.deepEqual(registryTags.get('@agentplat/a'), {
+    next: '0.9.1-external',
+  });
+});
+
+test('publisher never overwrites concurrent tag drift during rollback', async () => {
+  const packages = [
+    { name: '@agentplat/a', version: '1.0.0' },
+    { name: '@agentplat/b', version: '1.0.0' },
+  ];
+  const previousTargets = new Map([
+    ['@agentplat/a', '0.9.0'],
+    ['@agentplat/b', '0.9.0'],
+  ]);
+  const registryTags = new Map([
+    ['@agentplat/a', { next: '0.9.0' }],
+    ['@agentplat/b', { next: '0.9.0' }],
+  ]);
+  let clock = 0;
+
+  await assert.rejects(
+    promoteDistributionTagBatch({
+      packages,
+      previousTargets,
+      tag: 'next',
+      addTag: ({ name, tag, version }) => {
+        registryTags.get(name)[tag] = version;
+        if (name === '@agentplat/b' && version === '1.0.0') {
+          registryTags.get('@agentplat/a').next = '0.9.1-external';
+          throw new Error('simulated concurrent change');
+        }
+      },
+      removeTag: ({ name, tag }) => {
+        delete registryTags.get(name)[tag];
+      },
+      lookupTags: ({ name }) => ({ ...registryTags.get(name) }),
+      waitOptions: {
+        maximumWaitMs: 1,
+        delays: [1],
+        now: () => clock,
+        sleep: async (milliseconds) => {
+          clock += milliseconds;
+        },
+      },
+    }),
+    (error) => {
+      assert.equal(error instanceof AggregateError, true);
+      assert.match(
+        error.message,
+        /rollback operation or verification failures/
+      );
+      assert.equal(
+        error.errors.some((entry) =>
+          /Refusing to overwrite concurrent next target/.test(entry.message)
+        ),
+        true
+      );
+      return true;
+    }
+  );
+
+  assert.deepEqual(registryTags.get('@agentplat/a'), {
+    next: '0.9.1-external',
+  });
+  assert.deepEqual(registryTags.get('@agentplat/b'), { next: '0.9.0' });
 });
