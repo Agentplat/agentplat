@@ -29,6 +29,8 @@ import type {
 } from "./coordination-allocation-contracts.js";
 import {
   createMeshAllocationRuntimeState,
+  meshAllocationRetainsMessageId,
+  meshAssignmentFenceKey,
   restoreMeshAllocationState,
 } from "./coordination-allocation-state.js";
 import { sha256Base64Url } from "./sha256.js";
@@ -141,7 +143,7 @@ function applyExecution(
       sameData(existing.envelope, envelope)
       ? acceptedDuplicate(state)
       : reject(state, "execution_duplicate_conflict");
-  if (executionMessageAlreadyRetained(state, envelope.messageId))
+  if (meshAllocationRetainsMessageId(state, envelope.messageId))
     return reject(state, "execution_duplicate_conflict");
   if (state.coordination.domainRecords[recordKey])
     return reject(state, "domain_record_conflict");
@@ -268,6 +270,12 @@ function applyExecution(
     terminalLeaseHead === undefined
       ? undefined
       : withoutLeaseTimer(terminalLeaseHead);
+  const terminalFence =
+    terminalLeaseProjection === undefined
+      ? undefined
+      : pendingState.allocation.assignmentFenceHeads[
+          meshAssignmentFenceKey(terminalLeaseProjection)
+        ];
   const allocation = restoreMeshAllocationState({
     ...pendingState.allocation,
     executionRecords: createFrozenRecord([
@@ -296,6 +304,22 @@ function applyExecution(
               Object.freeze({
                 ...terminalLeaseProjection,
                 status: "terminal" as const,
+              }),
+            ],
+          ]),
+        }),
+    ...(terminalFence === undefined
+      ? {}
+      : {
+          assignmentFenceHeads: createFrozenRecord([
+            ...recordEntries(
+              pendingState.allocation.assignmentFenceHeads,
+            ).filter(([key]) => key !== terminalFence.assignmentFenceKey),
+            [
+              terminalFence.assignmentFenceKey,
+              Object.freeze({
+                ...terminalFence,
+                phase: "terminal" as const,
               }),
             ],
           ]),
@@ -425,6 +449,7 @@ function resolveAuthority(
         leaseExpiresAt: localAward.leaseExpiresAt,
         leaseExpiresAtLogical: localAward.leaseExpiresAtLogical,
       }),
+      payload,
     );
   const localAuthority = state.allocation.assigneeAuthorities[payload.awardId];
   const response = state.allocation.localAssignmentResponses[payload.awardId];
@@ -451,6 +476,7 @@ function resolveAuthority(
         leaseExpiresAt: localAuthority.leaseExpiresAt,
         leaseExpiresAtLogical: localAuthority.leaseExpiresAtLogical,
       }),
+      payload,
     );
   const receivedAward = state.allocation.receivedAwards[payload.awardId];
   const receivedOffer =
@@ -517,10 +543,27 @@ function resolveAuthority(
 function currentLeaseAuthority(
   state: MeshAllocationRuntimeState,
   authority: ExecutionAuthority,
+  payload: MeshExecutionPayload,
 ): ExecutionAuthority | undefined {
   const head = state.allocation.leaseHeads[executionScopeKey(authority)];
+  const fence =
+    head === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[meshAssignmentFenceKey(head)];
+  const currentExpiredOwnerCancellation =
+    payload.type === "work.cancel" &&
+    payload.assignmentState === "active" &&
+    head?.status === "expired" &&
+    fence?.phase === "expired";
   if (
     head === undefined ||
+    fence === undefined ||
+    (fence.phase !== "active" && !currentExpiredOwnerCancellation) ||
+    fence.assignmentEpoch !== head.assignmentEpoch ||
+    fence.assignmentAuthorityId !== head.assignmentAuthorityId ||
+    fence.fencingToken !== head.fencingToken ||
+    fence.assigneePeerId !== head.assigneePeerId ||
+    fence.activeAwardId !== head.awardId ||
     head.acceptanceId !== authority.acceptanceId ||
     head.acceptanceMessageId !== authority.acceptanceMessageId ||
     head.assignmentAuthorityId !== authority.assignmentAuthorityId ||
@@ -541,18 +584,23 @@ function validTransition(
   authority: ExecutionAuthority,
 ): boolean {
   const payload = envelope.payload;
+  const resumeCheckpoint = recoveryResumeCheckpoint(state, authority);
+  const resumeCheckpointId = resumeCheckpoint?.checkpointId;
   if (prior && prior.phase !== "active") return false;
   if (payload.type === "work.progress")
     return (
       envelope.causationId === authority.acceptanceMessageId &&
       payload.progressSequence === (prior?.latestProgressSequence ?? 0) + 1 &&
-      (payload.checkpointId === undefined ||
-        payload.checkpointId === prior?.latestCheckpointId)
+      (prior?.latestCheckpointId === undefined
+        ? payload.checkpointId === resumeCheckpointId
+        : payload.checkpointId === undefined ||
+          payload.checkpointId === prior.latestCheckpointId)
     );
   if (payload.type === "work.checkpoint")
     return prior?.latestCheckpointId === undefined
-      ? payload.checkpointSequence === 1 &&
-          payload.previousCheckpointId === undefined &&
+      ? payload.checkpointSequence ===
+          (resumeCheckpoint?.checkpointSequence ?? 0) + 1 &&
+          payload.previousCheckpointId === resumeCheckpointId &&
           envelope.causationId === authority.acceptanceMessageId
       : payload.checkpointSequence ===
           (prior.latestCheckpointSequence ?? 0) + 1 &&
@@ -561,7 +609,8 @@ function validTransition(
             recordMessageId(state, prior.latestCheckpointId);
   if (payload.type === "work.result")
     return (
-      payload.checkpointId === prior?.latestCheckpointId &&
+      payload.checkpointId ===
+        (prior?.latestCheckpointId ?? resumeCheckpointId) &&
       envelope.causationId ===
         (prior?.latestCheckpointId === undefined
           ? authority.acceptanceMessageId
@@ -577,6 +626,35 @@ function validTransition(
     payload.assignmentState === "active" &&
     envelope.causationId === currentLeaseCausationMessageId(state, authority)
   );
+}
+
+function recoveryResumeCheckpoint(
+  state: MeshAllocationRuntimeState,
+  authority: ExecutionAuthority,
+): Readonly<{ checkpointId: string; checkpointSequence: number }> | undefined {
+  const payload =
+    state.allocation.localAwards[authority.awardId]?.recipientAward.envelope
+      .payload ??
+    state.allocation.receivedAwards[authority.awardId]?.envelope.payload;
+  const checkpointId =
+    payload?.authorityKind === "recovery_certificate"
+      ? payload.resumeCheckpointId
+      : undefined;
+  if (checkpointId === undefined) return undefined;
+  const record =
+    state.allocation.executionRecords[checkpointId] ??
+    Object.values(state.allocation.witnessAssignments)
+      .map((witness) => witness.latestCheckpoint)
+      .find((checkpoint) => checkpoint?.recordId === checkpointId);
+  if (
+    record?.envelope.payload.type !== "work.checkpoint" ||
+    record.recordId !== checkpointId
+  )
+    throw new TypeError("Mesh recovery checkpoint evidence is missing");
+  return Object.freeze({
+    checkpointId,
+    checkpointSequence: record.envelope.payload.checkpointSequence,
+  });
 }
 
 function currentLeaseCausationMessageId(
@@ -1044,45 +1122,6 @@ function contextCode(code: string): MeshAllocationRejectionCode {
 }
 function sameData(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
-}
-function executionMessageAlreadyRetained(
-  state: MeshAllocationRuntimeState,
-  messageId: string,
-): boolean {
-  return (
-    Object.values(state.coordination.domainRecords).some(
-      (record) => record.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localOffers).some((offer) =>
-      Object.values(offer.recipientOffers).some(
-        (prepared) => prepared.messageId === messageId,
-      ),
-    ) ||
-    Object.values(state.allocation.acceptedBidEvidence).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAwards).some(
-      (record) => record.recipientAward.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.assignmentResponses).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedOffers).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localBids).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedAwards).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAssignmentResponses).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.executionRecords).some(
-      (record) => record.envelope.messageId === messageId,
-    )
-  );
 }
 function acceptedDuplicate(
   state: MeshAllocationRuntimeState,

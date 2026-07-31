@@ -71,6 +71,12 @@ export interface MeshWorkObjectivePolicySnapshot {
   readonly expiresAt: MeshLogicalTime;
   readonly permittedCapabilityKeys: readonly string[];
   readonly maximumBudgetUnits: number;
+  readonly acceptanceWindowMs: number;
+  readonly maximumLeaseDurationMs: number;
+  readonly recoveryGraceMs: number;
+  readonly maximumLeaseRenewals: number;
+  readonly recoveryWitnessPeerIds: readonly string[];
+  readonly recoveryWitnessThreshold: number;
   readonly validUntil: string;
 }
 
@@ -140,7 +146,7 @@ export interface MeshObjectiveWorkLimits {
 
 /** Independently restorable Objective and Work Item projection. */
 export interface MeshObjectiveWorkState {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly identity: MeshPeerIdentity;
   readonly issuerAuthorities: Readonly<
     Record<string, MeshObjectiveIssuerAuthority>

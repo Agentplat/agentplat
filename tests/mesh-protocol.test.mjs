@@ -638,19 +638,48 @@ test('Alpha 2 Lease Takeover Proposal fixture freezes recovery intent', async ()
   assert.equal(Object.isFrozen(parsed.value.payload), true);
   assert.equal(validateSignedMeshEnvelope(proposal).ok, true);
 
+  const {
+    candidateConsentProposalId: _candidateConsentProposalId,
+    ...candidateProposal
+  } = proposal.payload;
   assert.equal(
     validateSignedMeshEnvelope({
       ...proposal,
       sender: { peerId: 'peer-c', instanceId: 'instance-c' },
       audience: { kind: 'peer', peerId: 'peer-b' },
       payload: {
-        ...proposal.payload,
+        ...candidateProposal,
         proposalAuthority: 'candidate',
         proposerPeerId: 'peer-c',
       },
     }).ok,
     true,
     'the proposed candidate may self-author the same recovery intent'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      sender: { peerId: 'peer-c', instanceId: 'instance-c' },
+      payload: {
+        ...proposal.payload,
+        proposalAuthority: 'candidate',
+        proposerPeerId: 'peer-c',
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["candidateConsentProposalId"]'
+  );
+  const {
+    candidateConsentProposalId: _missingCandidateConsentProposalId,
+    ...witnessProposalWithoutConsent
+  } = proposal.payload;
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...proposal,
+      payload: witnessProposalWithoutConsent,
+    }),
+    'invalid_identifier',
+    '$["payload"]["candidateConsentProposalId"]'
   );
   const {
     latestLeaseRenewalId: _latestLeaseRenewalId,
@@ -754,6 +783,11 @@ test('Alpha 2 Lease Takeover Proposal fixture freezes recovery intent', async ()
       { proposalAuthority: 'other' },
       'invalid_payload',
       '$["payload"]["proposalAuthority"]',
+    ],
+    [
+      { candidateConsentProposalId: '' },
+      'invalid_identifier',
+      '$["payload"]["candidateConsentProposalId"]',
     ],
     [
       {

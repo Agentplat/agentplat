@@ -8,6 +8,7 @@ import {
 } from "@agentplat/mesh-protocol";
 
 import type {
+  MeshAssignmentFenceHeadProjection,
   MeshAllocationDecision,
   MeshAllocationEffect,
   MeshAllocationRuntimeState,
@@ -17,9 +18,12 @@ import type {
   MeshLeaseRenewalEvidence,
   MeshLocalLeaseRenewalCommand,
   MeshVerifiedAllocationRequest,
+  MeshWitnessAssignmentProjection,
 } from "./coordination-allocation-contracts.js";
 import {
   createMeshAllocationRuntimeState,
+  meshAllocationRetainsMessageId,
+  meshAssignmentFenceKey,
   restoreMeshAllocationState,
 } from "./coordination-allocation-state.js";
 import { logicalDeadline } from "./coordination-objective-work-time.js";
@@ -127,7 +131,7 @@ function applyRenewal(
   const recordKey = domainKey(payload.leaseRenewalId);
   if (state.coordination.domainRecords[recordKey])
     return reject(state, "domain_record_conflict");
-  if (messageIdRetained(state, envelope.messageId))
+  if (meshAllocationRetainsMessageId(state, envelope.messageId))
     return reject(state, "lease_renewal_duplicate_conflict");
   const context = validateMeshEnvelopeContext(envelope, {
     tenantId: state.allocation.identity.tenantId,
@@ -148,7 +152,20 @@ function applyRenewal(
     return reject(state, "lease_renewal_authority_invalid");
   const scope = scopeKey(authority);
   const prior = state.allocation.leaseHeads[scope];
-  if (prior?.status !== "active")
+  const fence =
+    prior === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[meshAssignmentFenceKey(prior)];
+  if (
+    prior?.status !== "active" ||
+    fence === undefined ||
+    fence.phase !== "active" ||
+    fence.assignmentEpoch !== prior.assignmentEpoch ||
+    fence.assignmentAuthorityId !== prior.assignmentAuthorityId ||
+    fence.fencingToken !== prior.fencingToken ||
+    fence.assigneePeerId !== prior.assigneePeerId ||
+    fence.activeAwardId !== prior.awardId
+  )
     return reject(state, "lease_renewal_authority_invalid");
   const currentExpiry = prior.currentLeaseExpiresAt;
   const currentExpiryLogical = prior.currentLeaseExpiresAtLogical;
@@ -415,17 +432,35 @@ export function evaluateMeshLeaseExpiryTimer(
     });
   if (state.coordination.localEventSequence >= Number.MAX_SAFE_INTEGER)
     throw new RangeError("Mesh coordination event sequence exhausted");
-  const entry = Object.entries(state.allocation.leaseHeads).find(
+  const leaseEntry = Object.entries(state.allocation.leaseHeads).find(
     ([, head]) =>
       head.expiryTimerId === timer.timerId &&
       head.expiryTimerGeneration === timer.generation,
   );
-  if (!entry)
+  const witnessEntry = Object.entries(state.allocation.witnessAssignments).find(
+    ([, witness]) =>
+      witness.leaseHead?.expiryTimerId === timer.timerId &&
+      witness.leaseHead.expiryTimerGeneration === timer.generation,
+  );
+  if (!leaseEntry && !witnessEntry)
     return Object.freeze({ accepted: false, code: "timer_unknown", state });
-  const [scope, head] = entry;
+  const head = leaseEntry?.[1] ?? witnessEntry?.[1].leaseHead;
   if (
+    head === undefined ||
     head.status !== "active" ||
     head.currentLeaseExpiresAtLogical !== timer.dueAt
+  )
+    return Object.freeze({
+      accepted: false,
+      code: "timer_generation_stale",
+      state,
+    });
+  const fenceKey = meshAssignmentFenceKey(head);
+  const fence = state.allocation.assignmentFenceHeads[fenceKey];
+  if (
+    fence === undefined ||
+    fence.phase !== "active" ||
+    !fenceMatchesLease(fence, head)
   )
     return Object.freeze({
       accepted: false,
@@ -437,19 +472,49 @@ export function evaluateMeshLeaseExpiryTimer(
     expiryTimerGeneration: _expiryTimerGeneration,
     ...expiredHead
   } = head;
+  const expiredLeaseHead: MeshLeaseHeadProjection = Object.freeze({
+    ...expiredHead,
+    status: "expired" as const,
+  });
+  const expiredFence: MeshAssignmentFenceHeadProjection = Object.freeze({
+    ...fence,
+    phase: "expired" as const,
+  });
+  const witnessProjection: MeshWitnessAssignmentProjection | undefined =
+    witnessEntry === undefined
+      ? undefined
+      : Object.freeze({
+          ...witnessEntry[1],
+          observedAt: receivedAt,
+          leaseHead: expiredLeaseHead,
+        });
   const allocation = restoreMeshAllocationState({
     ...state.allocation,
-    leaseHeads: createFrozenRecord([
-      ...recordEntries(state.allocation.leaseHeads).filter(
-        ([key]) => key !== scope,
-      ),
-      [
-        scope,
-        Object.freeze({
-          ...expiredHead,
-          status: "expired" as const,
+    ...(leaseEntry === undefined
+      ? {}
+      : {
+          leaseHeads: createFrozenRecord([
+            ...recordEntries(state.allocation.leaseHeads).filter(
+              ([key]) => key !== leaseEntry[0],
+            ),
+            [leaseEntry[0], expiredLeaseHead],
+          ]),
         }),
-      ],
+    ...(witnessEntry === undefined || witnessProjection === undefined
+      ? {}
+      : {
+          witnessAssignments: createFrozenRecord([
+            ...recordEntries(state.allocation.witnessAssignments).filter(
+              ([key]) => key !== witnessEntry[0],
+            ),
+            [witnessEntry[0], witnessProjection],
+          ]),
+        }),
+    assignmentFenceHeads: createFrozenRecord([
+      ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+        ([key]) => key !== fenceKey,
+      ),
+      [fenceKey, expiredFence],
     ]),
     lastLogicalTime: receivedAt,
   });
@@ -592,6 +657,25 @@ function scopeKey(
 function leaseTimerId(scope: string): string {
   return `lease.expiry:${sha256Base64Url(new TextEncoder().encode(scope))}`;
 }
+function fenceMatchesLease(
+  fence: MeshAssignmentFenceHeadProjection,
+  lease: MeshLeaseHeadProjection,
+): boolean {
+  return (
+    fence.assignmentFenceKey === meshAssignmentFenceKey(lease) &&
+    fence.objectiveId === lease.objectiveId &&
+    fence.objectiveRevision === lease.objectiveRevision &&
+    fence.workItemId === lease.workItemId &&
+    fence.workItemRevision === lease.workItemRevision &&
+    fence.ownerPeerId === lease.ownerPeerId &&
+    fence.ownerEpoch === lease.ownerEpoch &&
+    fence.assignmentEpoch === lease.assignmentEpoch &&
+    fence.assignmentAuthorityId === lease.assignmentAuthorityId &&
+    fence.fencingToken === lease.fencingToken &&
+    fence.assigneePeerId === lease.assigneePeerId &&
+    fence.activeAwardId === lease.awardId
+  );
+}
 function domainKey(id: string): string {
   return JSON.stringify(["lease.renew", id]);
 }
@@ -611,48 +695,6 @@ function canonicalDigest(
 }
 function sameData(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
-}
-function messageIdRetained(
-  state: MeshAllocationRuntimeState,
-  messageId: string,
-): boolean {
-  return (
-    Object.values(state.coordination.domainRecords).some(
-      (record) => record.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.executionRecords).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.leaseRenewals).some(
-      (renewal) => renewal.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localOffers).some((offer) =>
-      Object.values(offer.recipientOffers).some(
-        (prepared) => prepared.messageId === messageId,
-      ),
-    ) ||
-    Object.values(state.allocation.acceptedBidEvidence).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAwards).some(
-      (record) => record.recipientAward.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.assignmentResponses).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedOffers).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localBids).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedAwards).some(
-      (record) => record.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAssignmentResponses).some(
-      (record) => record.envelope.messageId === messageId,
-    )
-  );
 }
 function reject(
   state: MeshAllocationRuntimeState,

@@ -109,11 +109,16 @@ try {
   const packageConsumerRoot = path.join(consumerRoot, 'consumers');
   const functionalConsumerRoot = path.join(consumerRoot, 'functional');
   const meshScenarioConsumerRoot = path.join(consumerRoot, 'mesh-three-peer');
+  const meshAllocationRecoveryConsumerRoot = path.join(
+    consumerRoot,
+    'mesh-allocation-recovery'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   await Promise.all([
     mkdir(packageConsumerRoot, { recursive: true }),
     mkdir(functionalConsumerRoot, { recursive: true }),
     mkdir(meshScenarioConsumerRoot, { recursive: true }),
+    mkdir(meshAllocationRecoveryConsumerRoot, { recursive: true }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
   ]);
   const workspaceWrites = [
@@ -146,6 +151,7 @@ try {
         "  - 'consumers/*'",
         "  - 'functional'",
         "  - 'mesh-three-peer'",
+        "  - 'mesh-allocation-recovery'",
         "  - 'typescript'",
         '',
       ].join('\n')
@@ -294,6 +300,27 @@ try {
     copyFile(
       path.join(root, 'scripts/pack-consumers/mesh-three-peer.mjs'),
       path.join(meshScenarioConsumerRoot, 'verify-mesh.mjs')
+    ),
+    writeFile(
+      path.join(meshAllocationRecoveryConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-mesh-allocation-recovery',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: meshDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/mesh-allocation-recovery.mjs'),
+      path.join(
+        meshAllocationRecoveryConsumerRoot,
+        'verify-allocation-recovery.mjs'
+      )
     )
   );
   await Promise.all(workspaceWrites);
@@ -340,6 +367,10 @@ try {
     cwd: meshScenarioConsumerRoot,
     stdio: 'inherit',
   });
+  execFileSync(process.execPath, ['verify-allocation-recovery.mjs'], {
+    cwd: meshAllocationRecoveryConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-functional.mjs'], {
     cwd: functionalConsumerRoot,
     stdio: 'inherit',
@@ -350,7 +381,7 @@ try {
     0
   );
   console.log(
-    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations and replayed the signed three-peer scenario before the unchanged functional smoke test.`
+    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations, replayed the signed three-peer scenario, and verified allocation plus recovery fencing before the unchanged functional smoke test.`
   );
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });

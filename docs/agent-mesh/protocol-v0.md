@@ -304,6 +304,19 @@ offer ID, award ID or certificate ID, that is identical in each recipient's
 envelope. Envelope message IDs deduplicate deliveries; domain record IDs
 deduplicate the logical state transition.
 
+Recovery has two distinct delivery claims. A locally prepared proposal, vote or
+certificate command contains the complete sorted direct-recipient set and is
+accepted only when every prepared envelope has identical recovery content,
+exact audience and expected recipient coverage. A received envelope is only a
+verifiable copy addressed to that receiver: it proves its own signature,
+audience, sender role and retained causal chain, not that another recipient
+received a copy. Proposal, vote and certificate records are evidence only; a
+certificate first advances the fence. The unchanged owner then sends a direct
+recovery award for the certified candidate, next epoch and `certificateId`
+authority/token, and the candidate accepts before execution resumes. The award
+names the latest accepted checkpoint; the first new checkpoint names it as
+parent and uses the previous sequence plus one.
+
 | Message type              | Authorized sender                           | Audience                                             | Objective                        | Required state rule                                             |
 | ------------------------- | ------------------------------------------- | ---------------------------------------------------- | -------------------------------- | --------------------------------------------------------------- |
 | `peer.hello`              | self, already bound or enrolled             | direct or `membership` topic                         | optional                         | Peer Card is unexpired                                          |
@@ -449,7 +462,12 @@ duration/count limits, terminality or idempotency; those are reducer rules.
 `lease.takeover_proposal` carries the accepted assignment authority, current
 lease expiry and a stable `takeoverProposalId`. It identifies a self-bound
 `proposerPeerId`, a closed `candidate` or `witness` `proposalAuthority`, a
-different `proposedAssigneePeerId`, and exactly the next declared assignment
+replacement `proposedAssigneePeerId` distinct from the current assignee, and
+exactly the next declared assignment epoch. A candidate proposal is the
+candidate's signed consent and therefore
+forbids `candidateConsentProposalId`. A witness proposal must name a previously
+accepted candidate proposal through `candidateConsentProposalId`; that
+referenced proposal must bind the same assignment, candidate and proposed
 epoch. It carries no proposed fencing token: only an accepted
 `lease.certificate` supplies the new authority ID and token.
 

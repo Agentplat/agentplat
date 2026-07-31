@@ -38,6 +38,8 @@ import type {
 } from "./coordination-allocation-contracts.js";
 import {
   createMeshAllocationRuntimeState,
+  meshAllocationRetainsMessageId,
+  meshAssignmentFenceKey,
   restoreMeshAllocationState,
 } from "./coordination-allocation-state.js";
 import type {
@@ -55,6 +57,11 @@ import {
   evaluateMeshLeaseRenewalCommand,
   evaluateVerifiedMeshLeaseRenewalEnvelope,
 } from "./coordination-lease-renewal.js";
+import {
+  evaluateMeshRecoveryCommand,
+  evaluateVerifiedMeshRecoveryEnvelope,
+  evaluateVerifiedMeshWitnessEnvelope,
+} from "./coordination-recovery.js";
 import { createMeshDiscoveryRuntimeState } from "./coordination-discovery-state.js";
 import { logicalDeadline } from "./coordination-objective-work-time.js";
 import { sha256Base64Url } from "./sha256.js";
@@ -83,6 +90,8 @@ export function evaluateMeshAllocationCommand(
       "allocation.assignment_response",
       "allocation.execution",
       "allocation.lease_renew",
+      "allocation.recovery",
+      "allocation.recovery_award",
     ].includes(command.kind)
   )
     throw new TypeError("Invalid Mesh allocation command");
@@ -106,6 +115,10 @@ export function evaluateMeshAllocationCommand(
       verifiedAt,
       receivedAt,
     );
+  if (command.kind === "allocation.recovery")
+    return evaluateMeshRecoveryCommand(state, command, verifiedAt, receivedAt);
+  if (command.kind === "allocation.recovery_award")
+    return evaluateRecoveryAwardCommand(state, command, verifiedAt, receivedAt);
   if (
     Object.keys(command).sort().join(",") !==
       "expectedWorkItemRevision,kind,objectiveId,recipients,workItemId" ||
@@ -717,6 +730,330 @@ function evaluateAwardCommand(
   });
 }
 
+function evaluateRecoveryAwardCommand(
+  state: MeshAllocationRuntimeState,
+  command: Extract<
+    MeshAllocationCommand,
+    { readonly kind: "allocation.recovery_award" }
+  >,
+  verifiedAt: string,
+  receivedAt: number,
+): MeshAllocationDecision {
+  if (
+    Object.keys(command).sort().join(",") !== "certificateId,kind,recipient" ||
+    !command.recipient ||
+    Object.keys(command.recipient).sort().join(",") !==
+      "envelope,preparedAt,recipientPeerId" ||
+    command.recipient.preparedAt !== receivedAt
+  )
+    throw new TypeError("invalid mesh local recovery award command");
+  const certificate =
+    state.allocation.recoveryCertificates[command.certificateId];
+  const proposal =
+    certificate === undefined
+      ? undefined
+      : state.allocation.takeoverProposals[certificate.takeoverProposalId];
+  if (certificate === undefined || proposal === undefined)
+    return reject(state, "recovery_invalid");
+  const proposed = proposal.envelope.payload;
+  const fenceKey = meshAssignmentFenceKey(proposed);
+  const fence = state.allocation.assignmentFenceHeads[fenceKey];
+  const work =
+    state.allocation.workAllocations[
+      workKey(proposed.objectiveId, proposed.workItemId)
+    ];
+  const reservation =
+    work?.reservationId === undefined
+      ? undefined
+      : state.allocation.reservations[work.reservationId];
+  const offer =
+    reservation === undefined
+      ? undefined
+      : state.allocation.localOffers[reservation.offerId];
+  const parsed = validateSignedMeshEnvelope(command.recipient.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "work.award")
+    return reject(state, "award_invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<WorkAwardPayload>;
+  const payload = envelope.payload;
+  const bid = Object.values(state.allocation.bidHeads).find(
+    (candidate) =>
+      candidate.offerId === payload.offerId &&
+      candidate.bidId === payload.bidId &&
+      candidate.bidRevision === payload.bidRevision &&
+      candidate.bidderPeerId === proposed.proposedAssigneePeerId,
+  );
+  const objective = state.objectives.objectives[proposed.objectiveId];
+  const acceptanceDeadlineAt = logicalDeadline(
+    payload.acceptanceDeadline,
+    verifiedAt,
+    receivedAt,
+  );
+  const leaseExpiresAtLogical = logicalDeadline(
+    payload.leaseExpiresAt,
+    verifiedAt,
+    receivedAt,
+  );
+  const signedAcceptanceDuration = logicalDeadline(
+    payload.acceptanceDeadline,
+    envelope.sentAt,
+    0,
+  );
+  const signedLeaseDuration = logicalDeadline(
+    payload.leaseExpiresAt,
+    payload.leaseStartsAt,
+    0,
+  );
+  const checkpointIds = new Set(
+    [
+      ...Object.values(state.allocation.executionHeads)
+        .filter(
+          (head) =>
+            meshAssignmentFenceKey(head) === fenceKey &&
+            head.assignmentEpoch === proposed.proposedAssignmentEpoch - 1,
+        )
+        .map((head) => head.latestCheckpointId),
+      state.allocation.witnessAssignments[fenceKey]?.latestCheckpoint?.recordId,
+    ].filter(
+      (checkpointId): checkpointId is string => checkpointId !== undefined,
+    ),
+  );
+  if (checkpointIds.size > 1)
+    return reject(state, "recovery_checkpoint_invalid");
+  const resumeCheckpointId = [...checkpointIds][0];
+  const context = validateMeshEnvelopeContext(envelope, {
+    tenantId: state.allocation.identity.tenantId,
+    meshId: state.allocation.identity.meshId,
+    peerId: proposed.proposedAssigneePeerId,
+    receivedAt: verifiedAt,
+  });
+  if (
+    !context.ok ||
+    !canonicalDigest(envelope) ||
+    fence === undefined ||
+    fence.phase !== "recovering" ||
+    fence.recoveryCertificateId !== certificate.certificateId ||
+    fence.assignmentEpoch !== proposed.proposedAssignmentEpoch ||
+    fence.assignmentAuthorityId !== certificate.certificateId ||
+    fence.fencingToken !== certificate.certificateId ||
+    fence.assigneePeerId !== proposed.proposedAssigneePeerId ||
+    fence.activeAwardId !== undefined ||
+    work === undefined ||
+    work.phase !== "recovering" ||
+    reservation === undefined ||
+    reservation.status !== "committed" ||
+    offer === undefined ||
+    bid === undefined ||
+    objective === undefined ||
+    objective.status !== "active" ||
+    receivedAt >= objective.expiresAt ||
+    compare(verifiedAt, objective.validUntil) >= 0 ||
+    acceptanceDeadlineAt === undefined ||
+    leaseExpiresAtLogical === undefined ||
+    signedAcceptanceDuration === undefined ||
+    signedLeaseDuration === undefined ||
+    acceptanceDeadlineAt <= receivedAt ||
+    leaseExpiresAtLogical <= receivedAt ||
+    signedAcceptanceDuration > work.objectivePolicy.acceptanceWindowMs ||
+    signedLeaseDuration > work.objectivePolicy.maximumLeaseDurationMs ||
+    leaseExpiresAtLogical > work.work.workDeadlineAt ||
+    leaseExpiresAtLogical > objective.expiresAt ||
+    envelope.sender.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.instanceId !== state.allocation.identity.instanceId ||
+    envelope.proof.keyId !== state.allocation.identity.keyId ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== proposed.proposedAssigneePeerId ||
+    command.recipient.recipientPeerId !== proposed.proposedAssigneePeerId ||
+    envelope.causationId !==
+      (
+        certificate.recipientEnvelopes?.[proposed.proposedAssigneePeerId] ??
+        certificate.envelope
+      ).messageId ||
+    payload.authorityKind !== "recovery_certificate" ||
+    payload.recoveryCertificateId !== certificate.certificateId ||
+    payload.assignmentAuthorityId !== certificate.certificateId ||
+    payload.fencingToken !== certificate.certificateId ||
+    payload.assignmentEpoch !== proposed.proposedAssignmentEpoch ||
+    payload.assigneePeerId !== proposed.proposedAssigneePeerId ||
+    payload.resumeCheckpointId !== resumeCheckpointId ||
+    payload.objectiveId !== proposed.objectiveId ||
+    payload.objectiveDocumentId !== proposed.objectiveDocumentId ||
+    payload.objectiveRevision !== proposed.objectiveRevision ||
+    payload.workItemId !== proposed.workItemId ||
+    payload.workItemRevision !== proposed.workItemRevision ||
+    payload.ownerPeerId !== proposed.ownerPeerId ||
+    payload.ownerEpoch !== proposed.ownerEpoch ||
+    payload.offerId !== offer.offerId ||
+    payload.offerAttempt !== offer.offerAttempt ||
+    payload.bidId !== bid.bidId ||
+    payload.bidRevision !== bid.bidRevision ||
+    payload.budgetReservationUnits !== reservation.budgetReservationUnits ||
+    payload.workDeadline !== work.work.workDeadline
+  )
+    return reject(state, "award_invalid");
+  if (
+    Object.values(state.allocation.localAwards).some(
+      (award) =>
+        meshAssignmentFenceKey({
+          objectiveId: award.objectiveId,
+          objectiveRevision: award.objectiveRevision,
+          workItemId: award.work.workItemId,
+          workItemRevision: award.work.workItemRevision,
+          ownerPeerId: award.work.ownerPeerId,
+          ownerEpoch: award.work.ownerEpoch,
+        }) === fenceKey &&
+        award.assignmentEpoch === proposed.proposedAssignmentEpoch,
+    ) ||
+    meshAllocationRetainsMessageId(state, envelope.messageId)
+  )
+    return reject(state, "award_duplicate_conflict");
+  const awardKey = awardDomainKey(payload.awardId);
+  const timerId = `allocation.acceptance.${payload.awardId}`;
+  if (state.coordination.domainRecords[awardKey])
+    return reject(state, "domain_record_conflict");
+  if (state.coordination.timers[timerId])
+    return reject(state, "timer_id_conflict");
+  if (
+    Object.keys(state.allocation.localAwards).length >=
+    state.allocation.limits.maximumAwards
+  )
+    return reject(state, "award_capacity_exceeded");
+  const capacity = allocationWriteCapacity(state, true);
+  if (capacity) return reject(state, capacity);
+  const award: MeshLocalAwardProjection = Object.freeze({
+    objectiveId: work.objectiveId,
+    objectiveDocumentId: work.objectiveDocumentId,
+    objectiveRevision: work.objectiveRevision,
+    objectivePolicy: work.objectivePolicy,
+    work: work.work,
+    awardId: payload.awardId,
+    offerId: payload.offerId,
+    bidId: payload.bidId,
+    bidRevision: payload.bidRevision,
+    offerAttempt: payload.offerAttempt,
+    assigneePeerId: payload.assigneePeerId,
+    assignmentEpoch: payload.assignmentEpoch,
+    assignmentAuthorityId: payload.assignmentAuthorityId,
+    fencingToken: payload.fencingToken,
+    budgetReservationUnits: payload.budgetReservationUnits,
+    workDeadline: payload.workDeadline,
+    leaseStartsAt: payload.leaseStartsAt,
+    leaseExpiresAt: payload.leaseExpiresAt,
+    leaseExpiresAtLogical,
+    acceptanceDeadline: payload.acceptanceDeadline,
+    acceptanceDeadlineAt,
+    acceptanceDeadlineTimerId: timerId,
+    acceptanceDeadlineTimerGeneration: 1,
+    createdAt: receivedAt,
+    validityVerifiedAt: verifiedAt,
+    reservationId: reservation.reservationId,
+    status: "awaiting_acceptance",
+    recipientAward: Object.freeze({
+      recipientPeerId: proposed.proposedAssigneePeerId,
+      messageId: envelope.messageId,
+      preparedAt: receivedAt,
+      envelope,
+    }),
+  });
+  const allocation = restoreMeshAllocationState({
+    ...state.allocation,
+    workAllocations: createFrozenRecord([
+      ...recordEntries(state.allocation.workAllocations).filter(
+        ([key]) => key !== work.workKey,
+      ),
+      [
+        work.workKey,
+        Object.freeze({
+          ...work,
+          phase: "award_pending" as const,
+          activeAwardId: payload.awardId,
+          activeAcceptanceId: undefined,
+          updatedAt: receivedAt,
+        }),
+      ],
+    ]),
+    localAwards: createFrozenRecord([
+      ...recordEntries(state.allocation.localAwards),
+      [payload.awardId, award],
+    ]),
+    assignmentFenceHeads: createFrozenRecord([
+      ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+        ([key]) => key !== fenceKey,
+      ),
+      [
+        fenceKey,
+        Object.freeze({
+          ...fence,
+          activeAwardId: payload.awardId,
+          phase: "award_pending" as const,
+        }),
+      ],
+    ]),
+    lastLogicalTime: receivedAt,
+  });
+  const sequence = state.coordination.localEventSequence + 1;
+  const coordination = Object.freeze({
+    ...state.coordination,
+    domainRecords: createFrozenRecord([
+      ...recordEntries(state.coordination.domainRecords),
+      [
+        awardKey,
+        Object.freeze({
+          recordKey: awardKey,
+          recordType: "work.award" as const,
+          recordId: payload.awardId,
+          contentDigest: payloadDigest(envelope),
+          messageId: envelope.messageId,
+          acceptedAt: receivedAt,
+          objectiveId: payload.objectiveId,
+        }),
+      ],
+    ]),
+    timers: createFrozenRecord([
+      ...recordEntries(state.coordination.timers),
+      [
+        timerId,
+        Object.freeze({
+          timerId,
+          kind: "work.acceptance_deadline" as const,
+          dueAt: acceptanceDeadlineAt,
+          generation: 1,
+          domainRecordKey: awardKey,
+        }),
+      ],
+    ]),
+    journal: Object.freeze([
+      ...state.coordination.journal,
+      Object.freeze({
+        sequence,
+        occurredAt: receivedAt,
+        kind: "command.accepted" as const,
+        domainRecordKey: awardKey,
+      }),
+    ]),
+    localEventSequence: sequence,
+    lastLogicalTime: receivedAt,
+  });
+  return Object.freeze({
+    accepted: true,
+    duplicate: false,
+    state: createMeshAllocationRuntimeState(
+      coordination,
+      Object.freeze({ ...state.discovery, lastLogicalTime: receivedAt }),
+      Object.freeze({ ...state.objectives, lastLogicalTime: receivedAt }),
+      allocation,
+    ),
+    effects: Object.freeze([
+      Object.freeze({
+        kind: "allocation.award.dispatch" as const,
+        awardId: payload.awardId,
+        recipientPeerId: proposed.proposedAssigneePeerId,
+        messageId: envelope.messageId,
+        envelope,
+      }),
+    ]),
+  });
+}
+
 function evaluateBidCommand(
   state: MeshAllocationRuntimeState,
   command: Extract<MeshAllocationCommand, { readonly kind: "allocation.bid" }>,
@@ -813,7 +1150,7 @@ function evaluateBidCommand(
       : reject(state, "local_bid_duplicate_conflict");
   const domainKey = bidDomainKey(payload.bidId);
   if (
-    messageAlreadyRetained(state, envelope.messageId) ||
+    meshAllocationRetainsMessageId(state, envelope.messageId) ||
     state.coordination.domainRecords[domainKey]
   )
     return reject(state, "local_bid_duplicate_conflict");
@@ -916,6 +1253,15 @@ function evaluateLocalAssignmentResponseCommand(
     ];
   const responseId =
     payload.type === "work.accept" ? payload.acceptanceId : payload.declineId;
+  const recoveryAward =
+    award.envelope.payload.authorityKind === "recovery_certificate";
+  const recoveryFenceKey = recoveryAward
+    ? meshAssignmentFenceKey(award.envelope.payload)
+    : undefined;
+  const recoveryFence =
+    recoveryFenceKey === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[recoveryFenceKey];
   const context = validateMeshEnvelopeContext(envelope, {
     tenantId: state.allocation.identity.tenantId,
     meshId: state.allocation.identity.meshId,
@@ -939,7 +1285,17 @@ function evaluateLocalAssignmentResponseCommand(
     envelope.audience.peerId !== award.envelope.sender.peerId ||
     envelope.causationId !== award.envelope.messageId ||
     !matchesAwardResponse(payload, award) ||
-    messageAlreadyRetained(state, envelope.messageId)
+    (recoveryAward &&
+      (recoveryFence === undefined ||
+        recoveryFence.phase !== "award_pending" ||
+        recoveryFence.activeAwardId !== award.awardId ||
+        recoveryFence.assignmentEpoch !== payload.assignmentEpoch ||
+        recoveryFence.assignmentAuthorityId !== payload.assignmentAuthorityId ||
+        recoveryFence.fencingToken !== payload.fencingToken ||
+        recoveryFence.assigneePeerId !== payload.assigneePeerId ||
+        recoveryFence.recoveryCertificateId !==
+          award.envelope.payload.recoveryCertificateId)) ||
+    meshAllocationRetainsMessageId(state, envelope.messageId)
   )
     return reject(state, "local_assignment_response_invalid");
   const domainKey = JSON.stringify([payload.type, responseId]);
@@ -999,7 +1355,7 @@ function evaluateLocalAssignmentResponseCommand(
           ownerPeerId: payload.ownerPeerId,
           ownerEpoch: payload.ownerEpoch,
           assigneePeerId: payload.assigneePeerId,
-          assignmentEpoch: 1,
+          assignmentEpoch: payload.assignmentEpoch,
           assignmentAuthorityId: payload.assignmentAuthorityId,
           fencingToken: payload.fencingToken,
           workDeadline: award.envelope.payload.workDeadline,
@@ -1063,6 +1419,25 @@ function evaluateLocalAssignmentResponseCommand(
               [leaseActivation.head.executionScopeKey, leaseActivation.head],
             ],
       ),
+      ...(recoveryFenceKey === undefined || recoveryFence === undefined
+        ? {}
+        : {
+            assignmentFenceHeads: createFrozenRecord([
+              ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+                ([key]) => key !== recoveryFenceKey,
+              ),
+              [
+                recoveryFenceKey,
+                Object.freeze({
+                  ...recoveryFence,
+                  activeAwardId: accepted ? award.awardId : undefined,
+                  phase: accepted
+                    ? ("active" as const)
+                    : ("recovering" as const),
+                }),
+              ],
+            ]),
+          }),
       lastLogicalTime: receivedAt,
     },
     Object.freeze({
@@ -1086,6 +1461,14 @@ export function evaluateVerifiedMeshAllocationEnvelope(
   assertRuntime(state, request.receivedAt);
   const context = validateContext(state, request);
   if (context) return reject(state, context);
+  if (
+    request.envelope.payload.type === "lease.takeover_proposal" ||
+    request.envelope.payload.type === "lease.vote" ||
+    request.envelope.payload.type === "lease.certificate"
+  )
+    return evaluateVerifiedMeshRecoveryEnvelope(state, request);
+  if (isWitnessCopy(state, request))
+    return evaluateVerifiedMeshWitnessEnvelope(state, request);
   if (request.envelope.payload.type === "work.offer")
     return evaluateReceivedOffer(state, request);
   if (request.envelope.payload.type === "work.award")
@@ -1427,7 +1810,7 @@ function evaluateReceivedOffer(
     return reject(state, "received_offer_invalid");
   const domainKey = offerDomainKey(payload.offerId);
   if (
-    messageAlreadyRetained(state, envelope.messageId) ||
+    meshAllocationRetainsMessageId(state, envelope.messageId) ||
     state.coordination.domainRecords[domainKey]
   )
     return reject(state, "received_offer_duplicate_conflict");
@@ -1478,6 +1861,14 @@ function evaluateReceivedAward(
 ): MeshAllocationDecision {
   const envelope = request.envelope as VerifiedMeshEnvelope<WorkAwardPayload>;
   const payload = envelope.payload;
+  if (payload.authorityKind === "recovery_certificate")
+    return evaluateReceivedRecoveryAward(
+      state,
+      request,
+      envelope as VerifiedMeshEnvelope<
+        Extract<WorkAwardPayload, { authorityKind: "recovery_certificate" }>
+      >,
+    );
   const offer = state.allocation.receivedOffers[payload.offerId];
   const bid = state.allocation.localBids[payload.bidId];
   if (!offer || !bid || bid.offerId !== offer.offerId)
@@ -1567,7 +1958,7 @@ function evaluateReceivedAward(
       : reject(state, "received_award_duplicate_conflict");
   const domainKey = awardDomainKey(payload.awardId);
   if (
-    messageAlreadyRetained(state, envelope.messageId) ||
+    meshAllocationRetainsMessageId(state, envelope.messageId) ||
     state.coordination.domainRecords[domainKey]
   )
     return reject(state, "received_award_duplicate_conflict");
@@ -1629,6 +2020,215 @@ function evaluateReceivedAward(
   );
 }
 
+function evaluateReceivedRecoveryAward(
+  state: MeshAllocationRuntimeState,
+  request: MeshVerifiedAllocationRequest,
+  envelope: VerifiedMeshEnvelope<
+    Extract<WorkAwardPayload, { authorityKind: "recovery_certificate" }>
+  >,
+): MeshAllocationDecision {
+  const payload = envelope.payload;
+  const certificate =
+    state.allocation.recoveryCertificates[payload.recoveryCertificateId];
+  const proposal =
+    certificate === undefined
+      ? undefined
+      : state.allocation.takeoverProposals[certificate.takeoverProposalId];
+  if (certificate === undefined || proposal === undefined)
+    return reject(state, "received_award_invalid");
+  const proposed = proposal.envelope.payload;
+  const fenceKey = meshAssignmentFenceKey(proposed);
+  const fence = state.allocation.assignmentFenceHeads[fenceKey];
+  const offer = state.allocation.receivedOffers[payload.offerId];
+  const bid = state.allocation.localBids[payload.bidId];
+  const objective = state.objectives.objectives[payload.objectiveId];
+  const policy =
+    state.objectives.objectivePolicies[
+      policyKey(payload.objectiveId, payload.objectiveRevision)
+    ];
+  const acceptanceDeadlineAt = logicalDeadline(
+    payload.acceptanceDeadline,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const leaseExpiresAtLogical = logicalDeadline(
+    payload.leaseExpiresAt,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const signedAcceptanceDuration = logicalDeadline(
+    payload.acceptanceDeadline,
+    envelope.sentAt,
+    0,
+  );
+  const signedLeaseDuration = logicalDeadline(
+    payload.leaseExpiresAt,
+    payload.leaseStartsAt,
+    0,
+  );
+  const checkpointIds = new Set(
+    [
+      ...Object.values(state.allocation.executionHeads)
+        .filter(
+          (head) =>
+            meshAssignmentFenceKey(head) === fenceKey &&
+            head.assignmentEpoch === proposed.proposedAssignmentEpoch - 1,
+        )
+        .map((head) => head.latestCheckpointId),
+      state.allocation.witnessAssignments[fenceKey]?.latestCheckpoint?.recordId,
+    ].filter(
+      (checkpointId): checkpointId is string => checkpointId !== undefined,
+    ),
+  );
+  const resumeCheckpointId =
+    checkpointIds.size === 1 ? [...checkpointIds][0] : undefined;
+  if (
+    checkpointIds.size > 1 ||
+    !canonicalDigest(envelope) ||
+    fence === undefined ||
+    fence.phase !== "recovering" ||
+    fence.recoveryCertificateId !== certificate.certificateId ||
+    fence.assignmentEpoch !== proposed.proposedAssignmentEpoch ||
+    fence.assignmentAuthorityId !== certificate.certificateId ||
+    fence.fencingToken !== certificate.certificateId ||
+    fence.assigneePeerId !== state.allocation.identity.peerId ||
+    fence.activeAwardId !== undefined ||
+    offer === undefined ||
+    bid === undefined ||
+    bid.offerId !== offer.offerId ||
+    bid.bidRevision !== payload.bidRevision ||
+    objective === undefined ||
+    objective.status !== "active" ||
+    policy === undefined ||
+    request.receivedAt >= policy.expiresAt ||
+    compare(request.verifiedAt, policy.validUntil) >= 0 ||
+    acceptanceDeadlineAt === undefined ||
+    leaseExpiresAtLogical === undefined ||
+    signedAcceptanceDuration === undefined ||
+    signedLeaseDuration === undefined ||
+    acceptanceDeadlineAt <= request.receivedAt ||
+    leaseExpiresAtLogical <= request.receivedAt ||
+    signedAcceptanceDuration > policy.acceptanceWindowMs ||
+    signedLeaseDuration > policy.maximumLeaseDurationMs ||
+    leaseExpiresAtLogical > offer.workDeadlineAt ||
+    leaseExpiresAtLogical > policy.expiresAt ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.peerId !== proposed.ownerPeerId ||
+    envelope.causationId !==
+      (
+        certificate.recipientEnvelopes?.[state.allocation.identity.peerId] ??
+        certificate.envelope
+      ).messageId ||
+    payload.recoveryCertificateId !== certificate.certificateId ||
+    payload.assignmentAuthorityId !== certificate.certificateId ||
+    payload.fencingToken !== certificate.certificateId ||
+    payload.assignmentEpoch !== proposed.proposedAssignmentEpoch ||
+    payload.assigneePeerId !== proposed.proposedAssigneePeerId ||
+    payload.assigneePeerId !== state.allocation.identity.peerId ||
+    payload.resumeCheckpointId !== resumeCheckpointId ||
+    payload.objectiveId !== proposed.objectiveId ||
+    payload.objectiveDocumentId !== proposed.objectiveDocumentId ||
+    payload.objectiveRevision !== proposed.objectiveRevision ||
+    payload.workItemId !== proposed.workItemId ||
+    payload.workItemRevision !== proposed.workItemRevision ||
+    payload.ownerPeerId !== proposed.ownerPeerId ||
+    payload.ownerEpoch !== proposed.ownerEpoch ||
+    payload.offerId !== offer.offerId ||
+    payload.offerAttempt !== offer.envelope.payload.offerAttempt ||
+    payload.bidId !== bid.bidId ||
+    payload.workDeadline !== offer.envelope.payload.workDeadline ||
+    payload.budgetReservationUnits !==
+      offer.envelope.payload.budgetReservationUnits
+  )
+    return reject(state, "received_award_invalid");
+  const existing = state.allocation.receivedAwards[payload.awardId];
+  if (existing)
+    return sameData(existing.envelope, envelope)
+      ? Object.freeze({
+          accepted: true,
+          duplicate: true,
+          state,
+          effects: Object.freeze([]),
+        })
+      : reject(state, "received_award_duplicate_conflict");
+  const domainKey = awardDomainKey(payload.awardId);
+  if (
+    meshAllocationRetainsMessageId(state, envelope.messageId) ||
+    state.coordination.domainRecords[domainKey]
+  )
+    return reject(state, "received_award_duplicate_conflict");
+  if (
+    Object.keys(state.allocation.receivedAwards).length >=
+    state.allocation.limits.maximumReceivedAwards
+  )
+    return reject(state, "received_award_capacity_exceeded");
+  const timerId = `allocation.assignee_response.${payload.awardId}`;
+  if (state.coordination.timers[timerId])
+    return reject(state, "timer_id_conflict");
+  const capacity = allocationWriteCapacity(state, true);
+  if (capacity) return reject(state, capacity);
+  const award: MeshReceivedAwardProjection = Object.freeze({
+    awardId: payload.awardId,
+    offerId: payload.offerId,
+    bidId: payload.bidId,
+    bidRevision: payload.bidRevision,
+    receivedAt: request.receivedAt,
+    validityVerifiedAt: request.verifiedAt,
+    ...(request.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...request.supportedCriticalExtensions,
+          ]),
+        }),
+    acceptanceDeadlineAt,
+    acceptanceDeadlineTimerId: timerId,
+    acceptanceDeadlineTimerGeneration: 1,
+    leaseExpiresAtLogical,
+    status: "awaiting_response",
+    envelope,
+  });
+  return acceptAssigneeWrite(
+    state,
+    request.receivedAt,
+    domainKey,
+    "work.award",
+    payload.awardId,
+    payload.objectiveId,
+    envelope,
+    {
+      ...state.allocation,
+      receivedAwards: createFrozenRecord([
+        ...recordEntries(state.allocation.receivedAwards),
+        [payload.awardId, award],
+      ]),
+      assignmentFenceHeads: createFrozenRecord([
+        ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+          ([key]) => key !== fenceKey,
+        ),
+        [
+          fenceKey,
+          Object.freeze({
+            ...fence,
+            activeAwardId: payload.awardId,
+            phase: "award_pending" as const,
+          }),
+        ],
+      ]),
+      lastLogicalTime: request.receivedAt,
+    },
+    undefined,
+    Object.freeze({
+      timerId,
+      kind: "work.acceptance_deadline" as const,
+      dueAt: acceptanceDeadlineAt,
+      generation: 1,
+      domainRecordKey: domainKey,
+    }),
+  );
+}
+
 function evaluateAssignmentResponse(
   state: MeshAllocationRuntimeState,
   request: MeshVerifiedAllocationRequest,
@@ -1659,6 +2259,16 @@ function evaluateAssignmentResponse(
   const reservation = state.allocation.reservations[award.reservationId];
   const timer = state.coordination.timers[award.acceptanceDeadlineTimerId];
   const objective = state.objectives.objectives[award.objectiveId];
+  const recoveryAward =
+    award.recipientAward.envelope.payload.authorityKind ===
+    "recovery_certificate";
+  const fenceKey = recoveryAward
+    ? meshAssignmentFenceKey(award.recipientAward.envelope.payload)
+    : undefined;
+  const fence =
+    fenceKey === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[fenceKey];
   if (
     request.receivedAt >= award.acceptanceDeadlineAt ||
     compare(request.verifiedAt, award.acceptanceDeadline) >= 0 ||
@@ -1676,7 +2286,7 @@ function evaluateAssignmentResponse(
     award.status !== "awaiting_acceptance" ||
     work.phase !== "award_pending" ||
     work.activeAwardId !== award.awardId ||
-    reservation.status !== "reserved" ||
+    reservation.status !== (recoveryAward ? "committed" : "reserved") ||
     timer.kind !== "work.acceptance_deadline" ||
     timer.generation !== award.acceptanceDeadlineTimerGeneration ||
     timer.dueAt !== award.acceptanceDeadlineAt ||
@@ -1691,16 +2301,28 @@ function evaluateAssignmentResponse(
     payload.workItemId !== award.work.workItemId ||
     payload.workItemRevision !== award.work.workItemRevision ||
     payload.ownerPeerId !== state.allocation.identity.peerId ||
-    payload.ownerEpoch !== 1 ||
+    payload.ownerEpoch !== award.work.ownerEpoch ||
     payload.assigneePeerId !== award.assigneePeerId ||
     payload.assignmentEpoch !== award.assignmentEpoch ||
     payload.assignmentAuthorityId !== award.assignmentAuthorityId ||
     payload.fencingToken !== award.fencingToken ||
     payload.acceptanceDeadline !== award.acceptanceDeadline ||
-    objective.reservedBudgetUnits < reservation.budgetReservationUnits ||
-    (payload.type === "work.accept" &&
+    (!recoveryAward &&
+      objective.reservedBudgetUnits < reservation.budgetReservationUnits) ||
+    (!recoveryAward &&
+      payload.type === "work.accept" &&
       objective.committedBudgetUnits >
-        Number.MAX_SAFE_INTEGER - reservation.budgetReservationUnits)
+        Number.MAX_SAFE_INTEGER - reservation.budgetReservationUnits) ||
+    (recoveryAward &&
+      (fence === undefined ||
+        fence.phase !== "award_pending" ||
+        fence.activeAwardId !== award.awardId ||
+        fence.assignmentEpoch !== award.assignmentEpoch ||
+        fence.assignmentAuthorityId !== award.assignmentAuthorityId ||
+        fence.fencingToken !== award.fencingToken ||
+        fence.assigneePeerId !== award.assigneePeerId ||
+        fence.recoveryCertificateId !==
+          award.recipientAward.envelope.payload.recoveryCertificateId))
   )
     return reject(state, "assignment_response_invalid");
   const domainKey = JSON.stringify([kind, responseId]);
@@ -1791,19 +2413,26 @@ function evaluateAssignmentResponse(
     return reject(state, "timer_id_conflict");
   const nextWork = Object.freeze({
     ...work,
-    phase: accepted ? ("active" as const) : ("ready" as const),
+    phase: accepted
+      ? ("active" as const)
+      : recoveryAward
+        ? ("recovering" as const)
+        : ("ready" as const),
     activeAwardId: accepted ? award.awardId : undefined,
     activeAcceptanceId: accepted ? responseId : undefined,
-    reservationId: accepted ? reservation.reservationId : undefined,
+    reservationId:
+      accepted || recoveryAward ? reservation.reservationId : undefined,
     updatedAt: request.receivedAt,
   });
-  const nextReservation = Object.freeze({
-    ...reservation,
-    status: accepted ? ("committed" as const) : ("released" as const),
-    ...(accepted
-      ? { committedAt: request.receivedAt }
-      : { releasedAt: request.receivedAt }),
-  });
+  const nextReservation = recoveryAward
+    ? reservation
+    : Object.freeze({
+        ...reservation,
+        status: accepted ? ("committed" as const) : ("released" as const),
+        ...(accepted
+          ? { committedAt: request.receivedAt }
+          : { releasedAt: request.receivedAt }),
+      });
   const allocation = restoreMeshAllocationState({
     ...state.allocation,
     workAllocations: createFrozenRecord([
@@ -1842,6 +2471,23 @@ function evaluateAssignmentResponse(
       ),
       [reservation.reservationId, nextReservation],
     ]),
+    ...(fenceKey === undefined || fence === undefined
+      ? {}
+      : {
+          assignmentFenceHeads: createFrozenRecord([
+            ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+              ([key]) => key !== fenceKey,
+            ),
+            [
+              fenceKey,
+              Object.freeze({
+                ...fence,
+                activeAwardId: accepted ? award.awardId : undefined,
+                phase: accepted ? ("active" as const) : ("recovering" as const),
+              }),
+            ],
+          ]),
+        }),
     lastLogicalTime: request.receivedAt,
   });
   const sequence = state.coordination.localEventSequence + 1;
@@ -1882,26 +2528,32 @@ function evaluateAssignmentResponse(
     localEventSequence: sequence,
     lastLogicalTime: request.receivedAt,
   });
-  const objectives = Object.freeze({
-    ...state.objectives,
-    objectives: createFrozenRecord([
-      ...recordEntries(state.objectives.objectives).filter(
-        ([key]) => key !== objective.objectiveId,
-      ),
-      [
-        objective.objectiveId,
-        Object.freeze({
-          ...objective,
-          reservedBudgetUnits:
-            objective.reservedBudgetUnits - reservation.budgetReservationUnits,
-          committedBudgetUnits:
-            objective.committedBudgetUnits +
-            (accepted ? reservation.budgetReservationUnits : 0),
-        }),
-      ],
-    ]),
-    lastLogicalTime: request.receivedAt,
-  });
+  const objectives = recoveryAward
+    ? Object.freeze({
+        ...state.objectives,
+        lastLogicalTime: request.receivedAt,
+      })
+    : Object.freeze({
+        ...state.objectives,
+        objectives: createFrozenRecord([
+          ...recordEntries(state.objectives.objectives).filter(
+            ([key]) => key !== objective.objectiveId,
+          ),
+          [
+            objective.objectiveId,
+            Object.freeze({
+              ...objective,
+              reservedBudgetUnits:
+                objective.reservedBudgetUnits -
+                reservation.budgetReservationUnits,
+              committedBudgetUnits:
+                objective.committedBudgetUnits +
+                (accepted ? reservation.budgetReservationUnits : 0),
+            }),
+          ],
+        ]),
+        lastLogicalTime: request.receivedAt,
+      });
   return Object.freeze({
     accepted: true,
     duplicate: false,
@@ -1916,6 +2568,36 @@ function evaluateAssignmentResponse(
     ),
     effects: Object.freeze([]),
   });
+}
+
+function isWitnessCopy(
+  state: MeshAllocationRuntimeState,
+  request: MeshVerifiedAllocationRequest,
+): boolean {
+  const payload = request.envelope.payload;
+  if (
+    request.envelope.audience.kind !== "peer" ||
+    request.envelope.audience.peerId !== state.allocation.identity.peerId ||
+    (payload.type !== "work.award" &&
+      payload.type !== "work.accept" &&
+      payload.type !== "lease.renew" &&
+      payload.type !== "work.checkpoint")
+  )
+    return false;
+  const policy =
+    state.objectives.objectivePolicies[
+      policyKey(payload.objectiveId, payload.objectiveRevision)
+    ];
+  if (
+    policy === undefined ||
+    !policy.recoveryWitnessPeerIds.includes(state.allocation.identity.peerId)
+  )
+    return false;
+  const semanticRecipientPeerId =
+    payload.type === "work.award"
+      ? payload.assigneePeerId
+      : payload.ownerPeerId;
+  return semanticRecipientPeerId !== state.allocation.identity.peerId;
 }
 
 /** Selects a currently valid bid deterministically while the window is open. */
@@ -2173,6 +2855,24 @@ function evaluateAssigneeAcceptanceDeadline(
     timer.domainRecordKey !== awardDomainKey(award.awardId)
   )
     throw new TypeError("Mesh assignee acceptance timer binding is invalid");
+  const recoveryAward =
+    award.envelope.payload.authorityKind === "recovery_certificate";
+  const fenceKey = recoveryAward
+    ? meshAssignmentFenceKey(award.envelope.payload)
+    : undefined;
+  const fence =
+    fenceKey === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[fenceKey];
+  if (
+    recoveryAward &&
+    (fence === undefined ||
+      fence.phase !== "award_pending" ||
+      fence.activeAwardId !== award.awardId ||
+      fence.recoveryCertificateId !==
+        award.envelope.payload.recoveryCertificateId)
+  )
+    throw new TypeError("Mesh recovery award timer binding is invalid");
   const allocation = restoreMeshAllocationState({
     ...state.allocation,
     receivedAwards: createFrozenRecord([
@@ -2184,6 +2884,23 @@ function evaluateAssigneeAcceptanceDeadline(
         Object.freeze({ ...award, status: "timed_out" as const }),
       ],
     ]),
+    ...(fenceKey === undefined || fence === undefined
+      ? {}
+      : {
+          assignmentFenceHeads: createFrozenRecord([
+            ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+              ([key]) => key !== fenceKey,
+            ),
+            [
+              fenceKey,
+              Object.freeze({
+                ...fence,
+                activeAwardId: undefined,
+                phase: "recovering" as const,
+              }),
+            ],
+          ]),
+        }),
     lastLogicalTime: logicalTime,
   });
   const sequence = state.coordination.localEventSequence + 1;
@@ -2236,14 +2953,31 @@ function evaluateAcceptanceDeadline(
     ];
   const reservation = state.allocation.reservations[award.reservationId];
   const objective = state.objectives.objectives[award.objectiveId];
+  const recoveryAward =
+    award.recipientAward.envelope.payload.authorityKind ===
+    "recovery_certificate";
+  const fenceKey = recoveryAward
+    ? meshAssignmentFenceKey(award.recipientAward.envelope.payload)
+    : undefined;
+  const fence =
+    fenceKey === undefined
+      ? undefined
+      : state.allocation.assignmentFenceHeads[fenceKey];
   if (
     !work ||
     !reservation ||
     !objective ||
     award.status !== "awaiting_acceptance" ||
     work.phase !== "award_pending" ||
-    reservation.status !== "reserved" ||
-    objective.reservedBudgetUnits < reservation.budgetReservationUnits
+    reservation.status !== (recoveryAward ? "committed" : "reserved") ||
+    (!recoveryAward &&
+      objective.reservedBudgetUnits < reservation.budgetReservationUnits) ||
+    (recoveryAward &&
+      (fence === undefined ||
+        fence.phase !== "award_pending" ||
+        fence.activeAwardId !== award.awardId ||
+        fence.recoveryCertificateId !==
+          award.recipientAward.envelope.payload.recoveryCertificateId))
   )
     throw new TypeError("Mesh acceptance deadline binding is invalid");
   const allocation = restoreMeshAllocationState({
@@ -2256,9 +2990,9 @@ function evaluateAcceptanceDeadline(
         work.workKey,
         Object.freeze({
           ...work,
-          phase: "ready" as const,
+          phase: recoveryAward ? ("recovering" as const) : ("ready" as const),
           activeAwardId: undefined,
-          reservationId: undefined,
+          reservationId: recoveryAward ? reservation.reservationId : undefined,
           updatedAt: logicalTime,
         }),
       ],
@@ -2272,19 +3006,38 @@ function evaluateAcceptanceDeadline(
         Object.freeze({ ...award, status: "timed_out" as const }),
       ],
     ]),
-    reservations: createFrozenRecord([
-      ...recordEntries(state.allocation.reservations).filter(
-        ([key]) => key !== reservation.reservationId,
-      ),
-      [
-        reservation.reservationId,
-        Object.freeze({
-          ...reservation,
-          status: "released" as const,
-          releasedAt: logicalTime,
+    reservations: recoveryAward
+      ? state.allocation.reservations
+      : createFrozenRecord([
+          ...recordEntries(state.allocation.reservations).filter(
+            ([key]) => key !== reservation.reservationId,
+          ),
+          [
+            reservation.reservationId,
+            Object.freeze({
+              ...reservation,
+              status: "released" as const,
+              releasedAt: logicalTime,
+            }),
+          ],
+        ]),
+    ...(fenceKey === undefined || fence === undefined
+      ? {}
+      : {
+          assignmentFenceHeads: createFrozenRecord([
+            ...recordEntries(state.allocation.assignmentFenceHeads).filter(
+              ([key]) => key !== fenceKey,
+            ),
+            [
+              fenceKey,
+              Object.freeze({
+                ...fence,
+                activeAwardId: undefined,
+                phase: "recovering" as const,
+              }),
+            ],
+          ]),
         }),
-      ],
-    ]),
     lastLogicalTime: logicalTime,
   });
   const sequence = state.coordination.localEventSequence + 1;
@@ -2308,23 +3061,26 @@ function evaluateAcceptanceDeadline(
     localEventSequence: sequence,
     lastLogicalTime: logicalTime,
   });
-  const objectives = Object.freeze({
-    ...state.objectives,
-    objectives: createFrozenRecord([
-      ...recordEntries(state.objectives.objectives).filter(
-        ([key]) => key !== objective.objectiveId,
-      ),
-      [
-        objective.objectiveId,
-        Object.freeze({
-          ...objective,
-          reservedBudgetUnits:
-            objective.reservedBudgetUnits - reservation.budgetReservationUnits,
-        }),
-      ],
-    ]),
-    lastLogicalTime: logicalTime,
-  });
+  const objectives = recoveryAward
+    ? Object.freeze({ ...state.objectives, lastLogicalTime: logicalTime })
+    : Object.freeze({
+        ...state.objectives,
+        objectives: createFrozenRecord([
+          ...recordEntries(state.objectives.objectives).filter(
+            ([key]) => key !== objective.objectiveId,
+          ),
+          [
+            objective.objectiveId,
+            Object.freeze({
+              ...objective,
+              reservedBudgetUnits:
+                objective.reservedBudgetUnits -
+                reservation.budgetReservationUnits,
+            }),
+          ],
+        ]),
+        lastLogicalTime: logicalTime,
+      });
   return Object.freeze({
     accepted: true,
     timer,
@@ -2716,43 +3472,6 @@ function allocationWriteCapacity(
   if (state.coordination.localEventSequence >= Number.MAX_SAFE_INTEGER)
     throw new RangeError("Mesh coordination event sequence exhausted");
   return undefined;
-}
-
-function messageAlreadyRetained(
-  state: MeshAllocationRuntimeState,
-  messageId: string,
-): boolean {
-  return (
-    Object.values(state.coordination.domainRecords).some(
-      (record) => record.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedOffers).some(
-      (entry) => entry.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localBids).some(
-      (entry) => entry.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.receivedAwards).some(
-      (entry) => entry.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAssignmentResponses).some(
-      (entry) => entry.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localOffers).some((entry) =>
-      Object.values(entry.recipientOffers).some(
-        (prepared) => prepared.messageId === messageId,
-      ),
-    ) ||
-    Object.values(state.allocation.acceptedBidEvidence).some(
-      (entry) => entry.envelope.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.localAwards).some(
-      (entry) => entry.recipientAward.messageId === messageId,
-    ) ||
-    Object.values(state.allocation.assignmentResponses).some(
-      (entry) => entry.envelope.messageId === messageId,
-    )
-  );
 }
 
 function acceptAssigneeWrite(

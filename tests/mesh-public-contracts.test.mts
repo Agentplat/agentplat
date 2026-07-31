@@ -72,6 +72,7 @@ import {
   selectMeshAllocationBid,
   type MeshAcceptedBidEvidence,
   type MeshAcceptedAssignmentResponseEvidence,
+  type MeshAssignmentFenceHeadProjection,
   type MeshAllocationBidSelection,
   type MeshAllocationBidSelectionReason,
   type MeshAllocationInboundDecision,
@@ -113,7 +114,11 @@ import {
   type MeshExecutionRecordProjection,
   type MeshExecutionRecordType,
   type MeshLeaseHeadProjection,
+  type MeshLeaseVoteProjection,
   type MeshLeaseRenewalEvidence,
+  type MeshLocalRecoveryAwardCommand,
+  type MeshLocalRecoveryCommand,
+  type MeshLocalRecoveryPreparedRecipient,
   type MeshLocalLeaseRenewalCommand,
   type MeshVerifiedDiscoveryRequest,
   type MeshCoordinationTopicClock,
@@ -155,7 +160,9 @@ import {
   type MeshPreparedOfferEnvelope,
   type MeshReceivedAwardProjection,
   type MeshReceivedOfferProjection,
+  type MeshRecoveryCertificateProjection,
   type MeshAssigneeAssignmentAuthorityProjection,
+  type MeshTakeoverProposalProjection,
   type MeshVerifiedAllocationRequest,
   type MeshWorkAllocationPhase,
   type MeshWorkAllocationProjection,
@@ -163,6 +170,7 @@ import {
   type MeshVerifiedObjectiveRequest,
   type MeshWorkObjectivePolicySnapshot,
   type MeshWorkItemProjection,
+  type MeshWitnessAssignmentProjection,
 } from '@agentplat/mesh/coordination';
 import * as meshCoordination from '@agentplat/mesh/coordination';
 import {
@@ -485,6 +493,7 @@ const leaseTakeoverProposalPayload: LeaseTakeoverProposalPayload = {
   type: 'lease.takeover_proposal',
   takeoverProposalId: 'takeover-proposal-a',
   proposalAuthority: 'witness',
+  candidateConsentProposalId: 'candidate-consent-a',
   proposerPeerId: 'peer-b',
   proposedAssigneePeerId: 'peer-c',
   proposedAssignmentEpoch: 2,
@@ -889,6 +898,27 @@ const localLeaseRenewalCommand: MeshLocalLeaseRenewalCommand = {
 };
 const allocationLeaseRenewalCommand: MeshAllocationCommand =
   localLeaseRenewalCommand;
+const localRecoveryPreparedRecipient: MeshLocalRecoveryPreparedRecipient = {
+  recipientPeerId: 'peer-b',
+  preparedAt: 0,
+  envelope: {} as SignedMeshEnvelope<LeaseTakeoverProposalPayload>,
+};
+const localRecoveryCommand: MeshLocalRecoveryCommand = {
+  kind: 'allocation.recovery',
+  recipients: [localRecoveryPreparedRecipient],
+};
+const allocationRecoveryCommand: MeshAllocationCommand = localRecoveryCommand;
+const localRecoveryAwardCommand: MeshLocalRecoveryAwardCommand = {
+  kind: 'allocation.recovery_award',
+  certificateId: 'certificate-a',
+  recipient: {
+    recipientPeerId: 'peer-b',
+    preparedAt: 0,
+    envelope: {} as SignedMeshEnvelope<WorkAwardPayload>,
+  },
+};
+const allocationRecoveryAwardCommand: MeshAllocationCommand =
+  localRecoveryAwardCommand;
 const allocationDecision: MeshAllocationDecision =
   evaluateMeshAllocationCommand(
     allocationRuntimeState,
@@ -911,9 +941,18 @@ const executionHeadProjection: MeshExecutionHeadProjection | undefined =
   undefined;
 const leaseRenewalEvidence: MeshLeaseRenewalEvidence | undefined = undefined;
 const leaseHeadProjection: MeshLeaseHeadProjection | undefined = undefined;
+const assignmentFenceHeadProjection:
+  MeshAssignmentFenceHeadProjection | undefined = undefined;
+const witnessAssignmentProjection: MeshWitnessAssignmentProjection | undefined =
+  undefined;
+const takeoverProposalProjection: MeshTakeoverProposalProjection | undefined =
+  undefined;
+const leaseVoteProjection: MeshLeaseVoteProjection | undefined = undefined;
+const recoveryCertificateProjection:
+  MeshRecoveryCertificateProjection | undefined = undefined;
 const allocationLimits: MeshAllocationLimits = DEFAULT_MESH_ALLOCATION_LIMITS;
 const allocationPayload: MeshAllocationPayload = leaseRenewPayload;
-const allocationSchemaVersion: 5 = restoredAllocationState.schemaVersion;
+const allocationSchemaVersion: 6 = restoredAllocationState.schemaVersion;
 const allocationRejectionCode: MeshAllocationRejectionCode = 'offer_invalid';
 const allocationPhase: MeshWorkAllocationPhase = 'ready';
 const allocationWorkBinding: MeshAllocationWorkBinding | undefined = undefined;

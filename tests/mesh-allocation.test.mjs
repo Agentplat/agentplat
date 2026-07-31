@@ -34,6 +34,53 @@ import {
   selectMeshAllocationBid,
 } from "@agentplat/mesh/coordination";
 
+function downgradeAllocationSnapshot(snapshot, schemaVersion) {
+  snapshot.schemaVersion = schemaVersion;
+  if (schemaVersion < 6) {
+    delete snapshot.assignmentFenceHeads;
+    delete snapshot.witnessAssignments;
+    delete snapshot.takeoverProposals;
+    delete snapshot.leaseVotes;
+    delete snapshot.recoveryCertificates;
+    delete snapshot.limits.maximumAssignmentFenceHeads;
+    delete snapshot.limits.maximumWitnessAssignments;
+    delete snapshot.limits.maximumTakeoverProposals;
+    delete snapshot.limits.maximumLeaseVotes;
+    delete snapshot.limits.maximumRecoveryCertificates;
+  }
+  if (schemaVersion < 5) {
+    delete snapshot.leaseRenewals;
+    delete snapshot.leaseHeads;
+    delete snapshot.limits.maximumLeaseRenewals;
+  }
+  if (schemaVersion < 4) {
+    delete snapshot.executionRecords;
+    delete snapshot.executionHeads;
+    delete snapshot.limits.maximumExecutionHeads;
+    delete snapshot.limits.maximumExecutionRecords;
+    delete snapshot.limits.maximumExecutionRecordsPerAssignment;
+  }
+  if (schemaVersion < 3) {
+    delete snapshot.receivedOffers;
+    delete snapshot.localBids;
+    delete snapshot.receivedAwards;
+    delete snapshot.localAssignmentResponses;
+    delete snapshot.assigneeAuthorities;
+    delete snapshot.limits.maximumReceivedOffers;
+    delete snapshot.limits.maximumLocalBids;
+    delete snapshot.limits.maximumReceivedAwards;
+    delete snapshot.limits.maximumLocalAssignmentResponses;
+    delete snapshot.limits.maximumAssignmentAuthorities;
+  }
+  if (schemaVersion < 2) {
+    delete snapshot.localAwards;
+    delete snapshot.assignmentResponses;
+    delete snapshot.limits.maximumAwards;
+    delete snapshot.limits.maximumAssignmentResponses;
+  }
+  return snapshot;
+}
+
 const fixtures = new URL(
   "../packages/mesh-protocol/fixtures/v0/",
   import.meta.url,
@@ -1020,20 +1067,12 @@ test("owner award atomically closes bids and a causal accept commits its reserva
     accepted.state.objectives.objectives["objective-a"].committedBudgetUnits,
     100,
   );
-  const populatedV2 = structuredClone(accepted.state.allocation);
-  populatedV2.schemaVersion = 2;
-  delete populatedV2.receivedOffers;
-  delete populatedV2.localBids;
-  delete populatedV2.receivedAwards;
-  delete populatedV2.localAssignmentResponses;
-  delete populatedV2.assigneeAuthorities;
-  delete populatedV2.limits.maximumReceivedOffers;
-  delete populatedV2.limits.maximumLocalBids;
-  delete populatedV2.limits.maximumReceivedAwards;
-  delete populatedV2.limits.maximumLocalAssignmentResponses;
-  delete populatedV2.limits.maximumAssignmentAuthorities;
+  const populatedV2 = downgradeAllocationSnapshot(
+    structuredClone(accepted.state.allocation),
+    2,
+  );
   const migratedV2 = restoreMeshAllocationState(populatedV2);
-  assert.equal(migratedV2.schemaVersion, 5);
+  assert.equal(migratedV2.schemaVersion, 6);
   assert.deepEqual(
     migratedV2.localOffers,
     accepted.state.allocation.localOffers,
@@ -1939,26 +1978,22 @@ test("a terminal award consumes its owner assignment epoch across a causal reoff
 });
 
 test("allocation v1 snapshots migrate and award restoration rejects forged bindings", async () => {
-  const v1 = structuredClone(createMeshAllocationState({ identity }));
-  v1.schemaVersion = 1;
+  const v1 = downgradeAllocationSnapshot(
+    structuredClone(createMeshAllocationState({ identity })),
+    1,
+  );
   v1.limits.maximumOffers = 7;
-  delete v1.localAwards;
-  delete v1.assignmentResponses;
-  delete v1.limits.maximumAwards;
-  delete v1.limits.maximumAssignmentResponses;
   const migrated = restoreMeshAllocationState(v1);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.equal(migrated.limits.maximumOffers, 7);
   assert.deepEqual(migrated.leaseHeads, Object.create(null));
   assert.deepEqual(migrated.leaseRenewals, Object.create(null));
 
   const { state, keys, resolver } = await awardableAllocation();
-  const populatedV1 = structuredClone(state.allocation);
-  populatedV1.schemaVersion = 1;
-  delete populatedV1.localAwards;
-  delete populatedV1.assignmentResponses;
-  delete populatedV1.limits.maximumAwards;
-  delete populatedV1.limits.maximumAssignmentResponses;
+  const populatedV1 = downgradeAllocationSnapshot(
+    structuredClone(state.allocation),
+    1,
+  );
   for (const offer of Object.values(populatedV1.localOffers))
     delete offer.validityVerifiedAt;
   const migratedPopulated = restoreMeshAllocationState(populatedV1);
@@ -2086,12 +2121,10 @@ test("allocation v1 migration preserves sub-millisecond bid deadlines without pr
     9,
   );
 
-  const v1 = structuredClone(offered.state.allocation);
-  v1.schemaVersion = 1;
-  delete v1.localAwards;
-  delete v1.assignmentResponses;
-  delete v1.limits.maximumAwards;
-  delete v1.limits.maximumAssignmentResponses;
+  const v1 = downgradeAllocationSnapshot(
+    structuredClone(offered.state.allocation),
+    1,
+  );
   delete v1.localOffers["offer-a"].validityVerifiedAt;
   const migrated = restoreMeshAllocationState(v1);
   assert.equal(migrated.localOffers["offer-a"].validityVerifiedAt, sentAt);
@@ -2723,15 +2756,12 @@ test("owner cancellation releases a pending reservation but active cancellation 
 });
 
 test("execution schema migration initializes empty retained evidence and strict restore catches tampering", () => {
-  const v3 = structuredClone(createMeshAllocationState({ identity }));
-  v3.schemaVersion = 3;
-  delete v3.executionRecords;
-  delete v3.executionHeads;
-  delete v3.limits.maximumExecutionRecords;
-  delete v3.limits.maximumExecutionHeads;
-  delete v3.limits.maximumExecutionRecordsPerAssignment;
+  const v3 = downgradeAllocationSnapshot(
+    structuredClone(createMeshAllocationState({ identity })),
+    3,
+  );
   const restored = restoreMeshAllocationState(v3);
-  assert.equal(restored.schemaVersion, 5);
+  assert.equal(restored.schemaVersion, 6);
   assert.deepEqual(restored.executionRecords, Object.create(null));
   assert.deepEqual(restored.executionHeads, Object.create(null));
   assert.deepEqual(restored.leaseRenewals, Object.create(null));

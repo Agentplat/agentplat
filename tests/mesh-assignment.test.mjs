@@ -1493,7 +1493,25 @@ test("assignee bounds, restore/migration and conflicting exact identifiers fail 
   delete v2.limits.maximumReceivedAwards;
   delete v2.limits.maximumLocalAssignmentResponses;
   delete v2.limits.maximumAssignmentAuthorities;
-  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 5);
+  delete v2.executionRecords;
+  delete v2.executionHeads;
+  delete v2.leaseRenewals;
+  delete v2.leaseHeads;
+  delete v2.assignmentFenceHeads;
+  delete v2.witnessAssignments;
+  delete v2.takeoverProposals;
+  delete v2.leaseVotes;
+  delete v2.recoveryCertificates;
+  delete v2.limits.maximumExecutionHeads;
+  delete v2.limits.maximumExecutionRecords;
+  delete v2.limits.maximumExecutionRecordsPerAssignment;
+  delete v2.limits.maximumLeaseRenewals;
+  delete v2.limits.maximumAssignmentFenceHeads;
+  delete v2.limits.maximumWitnessAssignments;
+  delete v2.limits.maximumTakeoverProposals;
+  delete v2.limits.maximumLeaseVotes;
+  delete v2.limits.maximumRecoveryCertificates;
+  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 6);
 });
 
 test("restore rejects a message identifier collision across retained owner and assignee evidence", async () => {
@@ -1712,7 +1730,7 @@ test("an active assignee appends a causally ordered execution trail and terminal
       at,
       9,
     ),
-    "execution_phase_invalid",
+    "execution_authority_invalid",
     completed.state,
   );
 });
@@ -2736,8 +2754,18 @@ test("lease authority, expiry, migration, and restore relations fail closed", as
   delete legacy.leaseHeads;
   delete legacy.leaseRenewals;
   delete legacy.limits.maximumLeaseRenewals;
+  delete legacy.assignmentFenceHeads;
+  delete legacy.witnessAssignments;
+  delete legacy.takeoverProposals;
+  delete legacy.leaseVotes;
+  delete legacy.recoveryCertificates;
+  delete legacy.limits.maximumAssignmentFenceHeads;
+  delete legacy.limits.maximumWitnessAssignments;
+  delete legacy.limits.maximumTakeoverProposals;
+  delete legacy.limits.maximumLeaseVotes;
+  delete legacy.limits.maximumRecoveryCertificates;
   const migrated = restoreMeshAllocationState(legacy);
-  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.schemaVersion, 6);
   assert.equal(migrated.leaseHeads[scope].leaseRenewalSequence, 0);
 
   const coordinationWithoutLeaseTimer = structuredClone(

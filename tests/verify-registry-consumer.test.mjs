@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   registryConsumerEnvironments,
   registryConsumerManifest,
+  REGISTRY_CONSUMER_SCRIPTS,
   REGISTRY_MESH_PACKAGES,
 } from '../scripts/verify-registry-consumer.mjs';
 
@@ -22,6 +23,21 @@ test('registry consumer pins every Mesh package to the exact release version', (
     () => registryConsumerManifest('workspace:^'),
     /must be SemVer/u
   );
+});
+
+test('registry consumer copies both executable Mesh verification scenarios', () => {
+  assert.deepEqual(REGISTRY_CONSUMER_SCRIPTS, [
+    {
+      source: 'scripts/pack-consumers/mesh-three-peer.mjs',
+      destination: 'verify-mesh.mjs',
+    },
+    {
+      source: 'scripts/pack-consumers/mesh-allocation-recovery.mjs',
+      destination: 'verify-allocation-recovery.mjs',
+    },
+  ]);
+  assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS), true);
+  assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS[0]), true);
 });
 
 test('registry consumer isolates install and execution environments', () => {

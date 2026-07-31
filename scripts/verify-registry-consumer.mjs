@@ -20,6 +20,17 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
   '@agentplat/mesh-sim',
 ]);
 
+export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
+  Object.freeze({
+    source: 'scripts/pack-consumers/mesh-three-peer.mjs',
+    destination: 'verify-mesh.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/mesh-allocation-recovery.mjs',
+    destination: 'verify-allocation-recovery.mjs',
+  }),
+]);
+
 const RUNTIME_ENVIRONMENT_KEYS = new Set([
   'COMSPEC',
   'LANG',
@@ -135,9 +146,8 @@ export async function verifyRegistryConsumer({
         path.join(root, 'scripts/pack-consumers/mesh-types.ts'),
         path.join(temporaryRoot, 'verify-types.ts')
       ),
-      copyFile(
-        path.join(root, 'scripts/pack-consumers/mesh-three-peer.mjs'),
-        path.join(temporaryRoot, 'verify-mesh.mjs')
+      ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
+        copyFile(path.join(root, source), path.join(temporaryRoot, destination))
       ),
       mkdir(path.join(temporaryRoot, 'store'), { recursive: true }),
     ]);
@@ -173,6 +183,11 @@ export async function verifyRegistryConsumer({
       }
     );
     execFileSync(process.execPath, ['verify-mesh.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
+    execFileSync(process.execPath, ['verify-allocation-recovery.mjs'], {
       cwd: temporaryRoot,
       env: cleanEnvironments.execution,
       stdio: 'inherit',
