@@ -8,8 +8,9 @@ awards and prepares one locally recorded accept/decline dispatch. The initial
 execution lifecycle implements progress, checkpoint, result, release and
 cancellation; bounded lease renewal and deterministic expiry are complete.
 Certified reassignment is implemented through proposal, vote, certificate,
-fence, owner-issued recovery award and replacement acceptance. Resilience
-simulation and release publication remain pending.
+fence, owner-issued recovery award and replacement acceptance. The closed
+fault model and all nine resilience scenarios are implemented and green.
+Release preparation and publication remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -209,7 +210,7 @@ Registry and Git mutations are checked only after independent verification.
       rejection and an exclusive response deadline;
 - [x] reassignment reuses the existing commitment without double charging;
 - [x] progress, checkpoint and result require accepted assignment authority;
-- [ ] duplicate and reordered records produce the same final projection;
+- [x] duplicate and reordered records produce the same final projection;
 - [x] result completion retains committed units as consumed Objective capacity;
 - [x] release and cancellation create terminal execution heads; active terminal
       accounting does not uncommit Objective budget;
@@ -382,52 +383,109 @@ recovered once, and resumes from its checkpoint` exercises expiry plus grace,
 
 ## Deterministic fault scenarios
 
-- [ ] capability allocation succeeds with partial, non-identical views;
-- [ ] false capability claim is recoverable without becoming trusted fact;
-- [ ] lost bid and lost acceptance release state only at their deadlines;
-- [ ] duplicates are idempotent across every Alpha 2 message family;
-- [ ] reordering never bypasses causal or authority checks;
-- [ ] assignee crash after checkpoint completes under a certified next epoch;
-- [ ] minority partition cannot certify or commit stale work;
-- [ ] majority side with owner, threshold and candidate can recover;
-- [ ] healed stale progress and result are rejected;
-- [ ] no-quorum scenario terminates without unauthorized progress;
-- [ ] owner-unavailable scenario matches the documented availability limit;
-- [ ] identical inputs reproduce configuration, trace and chain digests;
-- [ ] one controlled change reports the first replay divergence;
-- [ ] every scenario terminates within event, queue, time and internal-step
+- [x] capability allocation succeeds with partial, non-identical views;
+- [x] false capability claim is recoverable without becoming trusted fact;
+- [x] lost bid and lost acceptance release state only at their deadlines;
+- [x] duplicates are idempotent across every Alpha 2 message family;
+- [x] reordering never bypasses causal or authority checks;
+- [x] assignee crash after checkpoint completes under a certified next epoch;
+- [x] minority partition cannot certify or commit stale work;
+- [x] majority side with owner, threshold and candidate can recover;
+- [x] healed stale progress and result are rejected;
+- [x] no-quorum scenario terminates without unauthorized progress;
+- [x] owner-unavailable scenario matches the documented availability limit;
+- [x] identical inputs reproduce configuration, trace and chain digests;
+- [x] one controlled change reports the first replay divergence;
+- [x] every scenario terminates within event, queue, time and internal-step
       bounds.
+
+### Deterministic-fault evidence
+
+- `tests/mesh-alpha2-resilience.test.mjs` runs the nine numbered scenarios
+  through `runMeshReducerScenario()` and the public production coordination,
+  allocation, execution, timer and recovery reducers. Invariants run after
+  every event and enforce bounded queues, non-negative budget and at most one
+  authority for the current fence;
+- the canonical seed is `0xa12fa017`; checkpoint recovery, partition,
+  no-quorum, owner-unavailable and replay variants record fixed per-scenario
+  seeds in their versioned configurations and traces;
+- scenario 4 compares the complete ordered semantic projection with the
+  duplicate/reordered run. Scenarios 5–8 cover checkpoint recovery, majority
+  recovery, healed stale progress/result, insufficient quorum and owner
+  unavailability. Scenario 9 verifies identical configuration, fault and chain
+  digests and one controlled first divergence;
+- `tests/mesh-sim.test.mjs` covers the closed fault schema, crash/resume,
+  named loss, duplication, delay/reorder, directed partition/heal, clock
+  offsets, strict schema-version-2 snapshot restore, replay and event, queue,
+  time and internal-step limits;
+- focused gate:
+  `node --test tests/mesh-alpha2-resilience.test.mjs tests/mesh-sim.test.mjs`.
 
 ## Security and isolation
 
-- [ ] invalid input cannot reach a domain reducer;
-- [ ] tenant, Mesh, Objective and audience isolation fail before mutation;
-- [ ] issuer, owner, assignee and witness authority are resolved from accepted
+- [x] invalid input cannot reach a domain reducer;
+- [x] tenant, Mesh, Objective and audience isolation fail before mutation;
+- [x] issuer, owner, assignee and witness authority are resolved from accepted
       local state;
-- [ ] discovery never performs inbound key-resolution network I/O;
-- [ ] revoked or expired key state rejects live allocation messages;
-- [ ] domain ID reuse with different content is rejected;
-- [ ] queues, views, capabilities, bids, votes, journals and terminal retention
+- [x] discovery never performs inbound key-resolution network I/O;
+- [x] revoked or expired key state rejects live allocation messages;
+- [x] domain ID reuse with different content is rejected;
+- [x] queues, views, capabilities, bids, votes, journals and terminal retention
       are bounded;
-- [ ] resource exhaustion produces bounded rejection or backpressure;
-- [ ] telemetry failure does not change a decision;
-- [ ] telemetry contains no private keys, secrets, raw sensitive content or
+- [x] resource exhaustion produces bounded rejection or backpressure;
+- [x] telemetry failure does not change a decision;
+- [x] telemetry contains no private keys, secrets, raw sensitive content or
       private reasoning;
-- [ ] signatures are not documented as confidentiality or truth guarantees.
+- [x] signatures are not documented as confidentiality or truth guarantees.
+
+### Security and isolation evidence
+
+- the contextual, cryptographic, admission, replay and domain-order tests in
+  `tests/mesh-coordination-inbound.test.mjs`,
+  `tests/mesh-coordination-objective-inbound.test.mjs` and
+  `tests/mesh-coordination-allocation-inbound.test.mjs` prove that invalid
+  scope, audience, signature, admission and authority stop before the domain
+  reducer. The Allocation integration test explicitly rejects revoked and
+  expired keys before replay or domain mutation;
+- discovery, Objective, Allocation, Assignment and Recovery suites cover local
+  issuer/owner/assignee/witness authority, domain-record conflicts and
+  fail-closed capacity across views, capabilities, Work Items, bids, votes,
+  journals, timers and terminal evidence;
+- `tests/mesh-coordination-topic.test.mjs` and
+  `tests/mesh-coordination-objective-topic.test.mjs` freeze the public
+  diagnostic shape, prove that receiver errors containing sensitive markers
+  are not serialized and prove that a throwing diagnostic sink cannot change
+  receipt or state;
+- `tests/mesh-security-documentation.test.mjs` fixes the public distinction
+  between signature integrity/authentication and confidentiality or truth.
 
 ## Compatibility and regression
 
-- [ ] all Alpha 1 protocol fixtures remain readable;
-- [ ] Alpha 1 payload shapes and public entrypoints are unchanged;
-- [ ] Alpha 1 signed loopback and deterministic scenario remain green;
-- [ ] `wireVersion` remains `0`;
-- [ ] persistence and simulation snapshots carry explicit schema versions;
-- [ ] package import performs no migration, network I/O or global registration;
-- [ ] Runtime local provider dispatch is unchanged;
-- [ ] Sessions fixed round-robin defaults are unchanged;
-- [ ] Rooms durable aggregate behavior is unchanged;
-- [ ] Framework has no Mesh dependency or Mesh re-export;
-- [ ] existing browser entrypoint import closures remain valid.
+- [x] all Alpha 1 protocol fixtures remain readable;
+- [x] Alpha 1 payload shapes and public entrypoints are unchanged;
+- [x] Alpha 1 signed loopback and deterministic scenario remain green;
+- [x] `wireVersion` remains `0`;
+- [x] persistence and simulation snapshots carry explicit schema versions;
+- [x] package import performs no migration, network I/O or global registration;
+- [x] Runtime local provider dispatch is unchanged;
+- [x] Sessions fixed round-robin defaults are unchanged;
+- [x] Rooms durable aggregate behavior is unchanged;
+- [x] Framework has no Mesh dependency or Mesh re-export;
+- [x] existing browser entrypoint import closures remain valid.
+
+### Compatibility and regression evidence
+
+- `tests/mesh-protocol.test.mjs`, `tests/mesh-crypto.test.mjs`,
+  `tests/mesh-public-contracts.test.mts`, `tests/mesh-loopback.test.mjs` and
+  `tests/mesh-sim.test.mjs` preserve the Alpha 1 fixtures, payload contracts,
+  entrypoints, signed loopback and deterministic scenario at `wireVersion: 0`;
+- coordination, inbound, allocation and simulator snapshots restore only
+  explicit schema versions and reject open or malformed state;
+- `pnpm run verify:release` and `pnpm run verify:pack` exercise import closures,
+  dependency boundaries and every declared export from isolated consumers
+  without import-time migration or registration;
+- the unchanged Runtime, Sessions, Rooms and Framework suites remain part of
+  `pnpm run check`; Framework has neither a Mesh dependency nor Mesh re-export.
 
 ## Public candidate gates
 

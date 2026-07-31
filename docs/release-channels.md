@@ -15,10 +15,12 @@ but may change between prereleases. A preview is promoted to `latest` only after
 the public checks, package smoke test, reference examples and downstream
 integration validation are green.
 
-`0.3.0-alpha.1` is the coordinated Agent Mesh local-vertical-slice preview.
-Repository examples carry the same version as the coordinated package release;
-install packages from npm with `@next` when running an example outside this
-repository.
+`0.3.0-alpha.2` is the coordinated Agent Mesh allocation-and-recovery preview.
+It adds partial views, capability declarations, Objective/Work state,
+allocation, leased execution, certified fencing and deterministic resilience
+scenarios. Repository examples carry the same version as the coordinated
+package release; install packages from npm with `@next` when running an example
+outside this repository.
 
 ```sh
 pnpm add @agentplat/mesh@next @agentplat/mesh-crypto@next \
@@ -31,7 +33,7 @@ API review are all green for a promotion candidate. `latest` is intentionally
 not advanced merely because a preview release is published.
 
 New scoped packages can receive `latest` from npm on their first publication
-even when published with `next`; npm does not permit removing the only version's
-`latest` tag. This caveat applies to the four Agent Mesh packages in Alpha 1.
-Consumers should still install the coordinated channel explicitly while the
-framework is in preview.
+even when published with `next`; npm does not permit removing the only
+version's `latest` tag. This caveat applied when the four Agent Mesh packages
+were introduced in Alpha 1. Consumers should still install the coordinated
+channel explicitly while the framework is in preview.

@@ -377,6 +377,77 @@ test('receiver admission and subscription failures are coarsened but retained in
   }
 });
 
+test('public topic diagnostics are closed, redacted, and cannot change delivery', async () => {
+  const sensitiveMarkers = Object.freeze([
+    'private-material-must-not-serialize',
+    'credential-material-must-not-serialize',
+    'raw-sensitive-content-must-not-serialize',
+    'private-reasoning-must-not-serialize',
+  ]);
+  const failingReceiver = (peerId, processor) =>
+    peerId === 'peer-b'
+      ? {
+          process: async () => {
+            throw new Error(JSON.stringify(sensitiveMarkers));
+          },
+        }
+      : processor;
+  const observed = await setup({ processorFor: failingReceiver });
+  const beforeObserved = observed.endpoints['peer-b'].getState();
+  const observedReceipt = await observed.endpoints['peer-a'].publish({
+    envelope: await observed.signed(
+      'capability.advertise',
+      'peer-a',
+      35,
+      observed.keys['peer-a'].privateKey
+    ),
+  });
+
+  assert.deepEqual(
+    observedReceipt.map((receipt) => receipt.status),
+    ['rejected']
+  );
+  assert.equal(observed.endpoints['peer-b'].getState(), beforeObserved);
+  assert.equal(observed.diagnostics.length, 1);
+  const serialized = JSON.stringify(observed.diagnostics[0]);
+  assert.deepEqual(Object.keys(JSON.parse(serialized)).sort(), [
+    'code',
+    'messageId',
+    'status',
+    'target',
+  ]);
+  assert.deepEqual(Object.keys(JSON.parse(serialized).target).sort(), [
+    'instanceId',
+    'meshId',
+    'peerId',
+    'tenantId',
+  ]);
+  for (const value of sensitiveMarkers) {
+    assert.equal(serialized.includes(value), false);
+  }
+
+  const throwingSink = await setup({
+    onDiagnostic: () => {
+      throw new Error('sink failure');
+    },
+    processorFor: failingReceiver,
+  });
+  const beforeThrowing = throwingSink.endpoints['peer-b'].getState();
+  const throwingReceipt = await throwingSink.endpoints['peer-a'].publish({
+    envelope: await throwingSink.signed(
+      'capability.advertise',
+      'peer-a',
+      35,
+      throwingSink.keys['peer-a'].privateKey
+    ),
+  });
+  assert.deepEqual(throwingReceipt, observedReceipt);
+  assert.equal(throwingSink.endpoints['peer-b'].getState(), beforeThrowing);
+
+  await observed.driver.close();
+  await throwingSink.driver.close();
+});
+
 test('fanout batches are atomic, pinned to full instances, and close drains admitted work', async () => {
   const saturated = await setup({
     driverOptions: { maximumQueueDepth: 1, maximumQueuedBytes: 1 },

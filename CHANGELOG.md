@@ -97,8 +97,24 @@
   sequence. Local commands prove exact fanout, while received envelopes prove
   only their own verifiable direct causation. Allocation snapshots now use
   schema version 6 and migrate versions 1–5. If the owner is unavailable, the
-  certificate fences stale work but does not activate a replacement. Resilience
-  simulation and release publication remain pending.
+  certificate fences stale work but does not activate a replacement.
+- Added closed, bounded and versioned deterministic fault plans for peer
+  crash/resume, named message loss, duplication, delay, reorder, directed
+  partition/heal and peer-local clock offsets. Fault state, topology, queue,
+  PRNG substreams and outbound allocators now participate in strict
+  schema-version-2 snapshots, restore validation, trace digests and replay
+  divergence reporting.
+- Added a generic production-reducer scenario runner and the nine Alpha 2
+  resilience scenarios for partial-view allocation, false claims, lost
+  deadlines, duplicate/reorder equivalence, checkpoint recovery, minority
+  partition fencing, insufficient quorum, owner unavailability and controlled
+  replay divergence. A recovered terminal epoch may retain an older execution
+  head only when a valid fence strictly supersedes its epoch, authority and
+  token.
+- Added Allocation ingress coverage for revoked and expired keys, closed
+  redacted Mesh diagnostic coverage and an executable documentation contract
+  that distinguishes signature integrity/authentication from confidentiality
+  or truth.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

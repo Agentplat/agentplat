@@ -5,8 +5,9 @@ authenticated ingress are complete. The bounded owner and assignee allocation
 handshakes are complete, including the initial execution lifecycle for
 `work.progress`, `work.checkpoint`, `work.result`, `work.release` and
 `work.cancel`, and stateful bounded lease renewal/expiry is complete.
-Certified reassignment and recovery are complete. Resilience scenarios and
-release publication remain pending.
+Certified reassignment, recovery, deterministic fault injection and the nine
+resilience scenarios are complete. Release preparation and publication remain
+pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -56,12 +57,12 @@ The release keeps:
 
 No new public package is introduced.
 
-| Package                    | Alpha 2 responsibility                                                                                                                                                                                                      |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.                                                                                                      |
-| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                                                                                                                    |
-| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation, execution lifecycle, bounded lease renewal/expiry and certified reassignment; fault simulation and release publication remain pending. |
-| `@agentplat/mesh-sim`      | Planned crash, loss, duplicate, reorder and partition faults plus allocation and recovery invariant suites.                                                                                                                 |
+| Package                    | Alpha 2 responsibility                                                                                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.                                                                           |
+| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                                                                                         |
+| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation, execution lifecycle, bounded lease renewal/expiry and certified reassignment.                               |
+| `@agentplat/mesh-sim`      | Closed crash/resume, loss, duplicate, delay, reorder, partition, heal and clock-offset fault plans; strict snapshot restore; production-reducer scenarios, invariants, trace digests and replay. |
 
 Runtime dependencies continue to follow actual imports. Framework must not
 depend on or re-export an alpha Mesh package.
@@ -572,7 +573,7 @@ hooks:
 | Fault     | Simulator behavior                                                                                   |
 | --------- | ---------------------------------------------------------------------------------------------------- |
 | crash     | stop one peer driver and drop later volatile deliveries to that instance                             |
-| restart   | start an explicitly configured new instance from a supplied initial state or snapshot                |
+| resume    | make the same configured instance available with its retained state and outbound allocator           |
 | loss      | discard a named scheduled delivery and record the discard in the trace                               |
 | duplicate | enqueue the same signed envelope more than once with distinct simulation event IDs                   |
 | reorder   | change delivery time or priority while preserving the original signed envelope                       |
@@ -582,6 +583,12 @@ hooks:
 Fault schedules, topology changes, PRNG version, seed, logical times and limits
 participate in the configuration digest. Simulation never silently retries or
 heals a fault.
+
+`peer.resume` is deliberately not a fresh peer restart. A new `instanceId`,
+reset outbound allocator, new key/admission lifecycle or durable restore
+requires a new explicit configuration. Production readmission and durable
+storage policies remain outside Alpha 2, so the simulator rejects an unknown
+`peer.restart` fault instead of silently treating it as same-instance resume.
 
 ### Required resilience scenarios
 
@@ -855,15 +862,28 @@ pending.
 
 ### Increment 6: fault injection and resilience suite
 
-- add explicit crash, restart, loss, duplicate, reorder, partition and heal
-  events;
-- add invariant monitors after every simulation event;
-- implement all required resilience scenarios;
-- report seed, configuration digest, fault schedule and first divergence;
-- run canonical scenarios from packed tarballs.
+- [complete] add explicit crash/resume, loss, duplicate, delay, reorder,
+  partition, heal and clock-offset events;
+- [complete] add invariant monitors after every simulation event;
+- [complete] implement all required resilience scenarios with the production
+  coordination reducers;
+- [complete] report seed, configuration digest, fault schedule, chain digest
+  and first divergence;
+- [complete] compile the public simulator contracts from packed tarballs and
+  run the packed signed simulation plus allocation/recovery consumers.
 
 Exit criterion: all safety invariants hold under the fault catalog, and liveness
-holds only under the documented assumptions.
+holds only under the documented assumptions. Met by
+`tests/mesh-alpha2-resilience.test.mjs` and `tests/mesh-sim.test.mjs`. The
+canonical scenario seed is `0xa12fa017`; recovery and replay variants also
+record their fixed per-scenario seeds in each trace. Strict schema, fault,
+event, queue, time and state limits fail before unbounded work, and
+`replayMeshReducerScenario()` reports the first divergent record.
+
+The checkpoint-crash scenario exposed and now covers a production restoration
+invariant: a retained execution head from an older epoch may coexist with a
+later terminal Work Item only when an accepted fence strictly supersedes its
+epoch, authority and token. Missing or fabricated fences still fail closed.
 
 ### Increment 7: release preparation and publication
 

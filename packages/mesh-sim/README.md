@@ -6,7 +6,7 @@ The kernel uses the production `reduceMeshPeer` function for local commands and
 the production `processMeshEnvelope` boundary for every remote delivery. There
 is no simulation-only accepted-message path.
 
-Alpha 1 provides:
+The deterministic kernel provides:
 
 - integer logical time and a total-order priority queue;
 - versioned `xorshift32-v1` random substreams scoped by caller-defined names;
@@ -14,8 +14,79 @@ Alpha 1 provides:
 - signed message preparation and delivery across configured topology links;
 - immutable SHA-256 state and chained trace digests;
 - invariant monitors evaluated after every event;
-- restart snapshots containing queue, PRNG and outbound allocator state; and
+- restorable snapshots containing queue, PRNG and outbound allocator state; and
 - replay comparison reporting the first semantic divergence.
+
+Alpha 2 adds a closed, bounded fault-plan schema (`schemaVersion: 1`). Faults
+are ordinary serialized simulation events, participate in the configuration
+digest and are retained in the trace. The catalog covers peer crash/resume,
+named-delivery drop/duplicate/delay/reorder, directed partition/heal and
+peer-local wall-clock offsets. They are interpreted only at driver and
+transport boundaries: production reducers contain no fault branches, retries
+and healing are never implicit, and a crash drops later volatile deliveries.
+
+`peer.resume` means that the same configured peer instance becomes available
+again with its retained reducer state and outbound allocator. It is not a fresh
+instance restart. A new `instanceId`, reset allocator, key/admission lifecycle,
+or durable-state recovery must be supplied as a new explicit configuration;
+those production readmission and durable-storage policies remain outside Alpha
+2 and are never inferred by the simulator.
+
+## Coordination reducer scenarios
+
+`runMeshReducerScenario()` drives any closed, JSON-serializable event schedule
+through a version-identified reducer adapter. This is the Alpha 2 harness for
+`MeshAllocationRuntimeState`: adapters dispatch directly to the public
+coordination, allocation, execution, timer, and recovery reducers.
+
+```ts
+const trace = await runMeshReducerScenario(config, {
+  driverId: 'my-coordination-driver-v1',
+  projectionId: 'my-safety-projection-v1',
+  reduce({ state, action, logicalTime }) {
+    return dispatchToPublicMeshReducer(state, action, logicalTime);
+  },
+  project(state) {
+    return safetyProjection(state);
+  },
+});
+```
+
+The configuration digest binds the schema, seed, initial states, topology,
+events, bounds, complete fault plan, driver ID, projection ID, and invariant
+names. Runtime callbacks are handles and are excluded. State, effects, and
+semantic projections are converted to deeply frozen data before invariant
+evaluation and hashing. `replayMeshReducerScenario()` compares chained
+semantic records and reports the first divergent record.
+
+The canonical resilience suite covers all nine Alpha 2 cases: partial-view
+capability allocation; an untrusted false claim followed by reallocation;
+lost bid and acceptance deadlines; duplicate/reorder equivalence; checkpointed
+crash recovery; minority partition fencing; no quorum; owner-unavailable
+fencing; and identical replay plus controlled divergence. Every case reports a
+fixed seed, configuration/fault/chain digests, explicit bounds, and serialized
+faults.
+
+`snapshot()` now emits strict schema version 2 with the ordered queue, retained
+event IDs, PRNG substreams, fault cursor, current directed topology, peer
+availability, wall-clock offsets, peer states, outbound allocators, metrics,
+records and configuration/fault/trace digests. Restore is explicit:
+
+```ts
+const snapshot = kernel.snapshot();
+const resumed = await restoreMeshSimulationKernel(config, snapshot);
+const trace = await resumed.runUntilIdle();
+```
+
+Restore rejects unknown fields, wrong schemas or configuration/fault digests,
+over-limit queues and records, malformed topology/peer indexes, inconsistent
+metrics and broken trace chains. The original runtime configuration supplies
+cryptographic handles; no key material is serialized.
+
+Fault metrics distinguish applied fault events, crash/resume, drops,
+duplicates, delays, reorders, partition/heal operations, clock-offset changes
+and events suppressed by crashes or partitions. Full traces include the
+normalized fault plan and an applied-fault ledger.
 
 Cryptographic handles, private keys and callbacks are runtime dependencies and
 are excluded from configuration digests, snapshots and traces. Replays within
