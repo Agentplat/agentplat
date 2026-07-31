@@ -824,7 +824,8 @@ function validateAllocationFamily(
     type !== 'work.checkpoint' &&
     type !== 'work.result' &&
     type !== 'work.release' &&
-    type !== 'work.cancel'
+    type !== 'work.cancel' &&
+    type !== 'lease.renew'
   ) {
     return 'unsupported_message_type';
   }

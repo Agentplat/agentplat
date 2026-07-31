@@ -23,6 +23,7 @@ import type {
   MeshExecutionPayload,
   MeshExecutionRecordProjection,
   MeshExecutionRecordType,
+  MeshLeaseHeadProjection,
   MeshLocalExecutionCommand,
   MeshVerifiedAllocationRequest,
 } from "./coordination-allocation-contracts.js";
@@ -174,10 +175,12 @@ function applyExecution(
   const prior = state.allocation.executionHeads[scope];
   if (prior && !sameAuthority(prior, authority))
     return reject(state, "execution_authority_invalid");
+  const leaseBound = requiresActiveLease(payload);
   if (
-    recordedAt >= authority.leaseExpiresAtLogical ||
+    (leaseBound &&
+      (recordedAt >= authority.leaseExpiresAtLogical ||
+        compare(verifiedAt, authority.leaseExpiresAt) >= 0)) ||
     recordedAt >= authority.workDeadlineAt ||
-    compare(verifiedAt, authority.leaseExpiresAt) >= 0 ||
     compare(verifiedAt, authority.workDeadline) >= 0
   )
     return reject(state, "execution_deadline_elapsed");
@@ -257,6 +260,14 @@ function applyExecution(
       )
     : applyOperationalTransition(state, payload, recordedAt);
   if (!pendingState) return reject(state, "execution_authority_invalid");
+  const terminalLeaseHead =
+    nextHead !== undefined && nextHead.phase !== "active"
+      ? pendingState.allocation.leaseHeads[scope]
+      : undefined;
+  const terminalLeaseProjection =
+    terminalLeaseHead === undefined
+      ? undefined
+      : withoutLeaseTimer(terminalLeaseHead);
   const allocation = restoreMeshAllocationState({
     ...pendingState.allocation,
     executionRecords: createFrozenRecord([
@@ -273,11 +284,36 @@ function applyExecution(
             [scope, nextHead],
           ]),
         }),
+    ...(terminalLeaseProjection === undefined
+      ? {}
+      : {
+          leaseHeads: createFrozenRecord([
+            ...recordEntries(pendingState.allocation.leaseHeads).filter(
+              ([key]) => key !== scope,
+            ),
+            [
+              scope,
+              Object.freeze({
+                ...terminalLeaseProjection,
+                status: "terminal" as const,
+              }),
+            ],
+          ]),
+        }),
     lastLogicalTime: recordedAt,
   });
   const sequence = pendingState.coordination.localEventSequence + 1;
   const coordination = Object.freeze({
     ...pendingState.coordination,
+    ...(terminalLeaseHead?.expiryTimerId === undefined
+      ? {}
+      : {
+          timers: createFrozenRecord(
+            recordEntries(pendingState.coordination.timers).filter(
+              ([timerId]) => timerId !== terminalLeaseHead.expiryTimerId,
+            ),
+          ),
+        }),
     domainRecords: createFrozenRecord([
       ...recordEntries(pendingState.coordination.domainRecords),
       [
@@ -342,6 +378,17 @@ function applyExecution(
   });
 }
 
+function withoutLeaseTimer(
+  head: MeshLeaseHeadProjection,
+): Omit<MeshLeaseHeadProjection, "expiryTimerId" | "expiryTimerGeneration"> {
+  const {
+    expiryTimerId: _expiryTimerId,
+    expiryTimerGeneration: _expiryTimerGeneration,
+    ...withoutTimer
+  } = head;
+  return withoutTimer;
+}
+
 function resolveAuthority(
   state: MeshAllocationRuntimeState,
   payload: MeshExecutionPayload,
@@ -356,49 +403,55 @@ function resolveAuthority(
     reservation?.status === "committed" &&
     localAward.status === "accepted"
   )
-    return Object.freeze({
-      objectiveId: localAward.objectiveId,
-      objectiveDocumentId: localAward.objectiveDocumentId,
-      objectiveRevision: localAward.objectiveRevision,
-      workItemId: localAward.work.workItemId,
-      workItemRevision: localAward.work.workItemRevision,
-      ownerPeerId: localAward.work.ownerPeerId,
-      ownerEpoch: localAward.work.ownerEpoch,
-      assigneePeerId: localAward.assigneePeerId,
-      awardId: localAward.awardId,
-      assignmentEpoch: localAward.assignmentEpoch,
-      assignmentAuthorityId: localAward.assignmentAuthorityId,
-      fencingToken: localAward.fencingToken,
-      acceptanceId: accepted.responseId,
-      acceptanceMessageId: accepted.envelope.messageId,
-      workDeadline: localAward.workDeadline,
-      workDeadlineAt: localAward.work.workDeadlineAt,
-      leaseExpiresAt: localAward.leaseExpiresAt,
-      leaseExpiresAtLogical: localAward.leaseExpiresAtLogical,
-    });
+    return currentLeaseAuthority(
+      state,
+      Object.freeze({
+        objectiveId: localAward.objectiveId,
+        objectiveDocumentId: localAward.objectiveDocumentId,
+        objectiveRevision: localAward.objectiveRevision,
+        workItemId: localAward.work.workItemId,
+        workItemRevision: localAward.work.workItemRevision,
+        ownerPeerId: localAward.work.ownerPeerId,
+        ownerEpoch: localAward.work.ownerEpoch,
+        assigneePeerId: localAward.assigneePeerId,
+        awardId: localAward.awardId,
+        assignmentEpoch: localAward.assignmentEpoch,
+        assignmentAuthorityId: localAward.assignmentAuthorityId,
+        fencingToken: localAward.fencingToken,
+        acceptanceId: accepted.responseId,
+        acceptanceMessageId: accepted.envelope.messageId,
+        workDeadline: localAward.workDeadline,
+        workDeadlineAt: localAward.work.workDeadlineAt,
+        leaseExpiresAt: localAward.leaseExpiresAt,
+        leaseExpiresAtLogical: localAward.leaseExpiresAtLogical,
+      }),
+    );
   const localAuthority = state.allocation.assigneeAuthorities[payload.awardId];
   const response = state.allocation.localAssignmentResponses[payload.awardId];
   if (localAuthority && response?.kind === "work.accept")
-    return Object.freeze({
-      objectiveId: localAuthority.objectiveId,
-      objectiveDocumentId: localAuthority.objectiveDocumentId,
-      objectiveRevision: localAuthority.objectiveRevision,
-      workItemId: localAuthority.workItemId,
-      workItemRevision: localAuthority.workItemRevision,
-      ownerPeerId: localAuthority.ownerPeerId,
-      ownerEpoch: localAuthority.ownerEpoch,
-      assigneePeerId: localAuthority.assigneePeerId,
-      awardId: localAuthority.awardId,
-      assignmentEpoch: localAuthority.assignmentEpoch,
-      assignmentAuthorityId: localAuthority.assignmentAuthorityId,
-      fencingToken: localAuthority.fencingToken,
-      acceptanceId: localAuthority.acceptanceId,
-      acceptanceMessageId: response.envelope.messageId,
-      workDeadline: localAuthority.workDeadline,
-      workDeadlineAt: localAuthority.workDeadlineAt,
-      leaseExpiresAt: localAuthority.leaseExpiresAt,
-      leaseExpiresAtLogical: localAuthority.leaseExpiresAtLogical,
-    });
+    return currentLeaseAuthority(
+      state,
+      Object.freeze({
+        objectiveId: localAuthority.objectiveId,
+        objectiveDocumentId: localAuthority.objectiveDocumentId,
+        objectiveRevision: localAuthority.objectiveRevision,
+        workItemId: localAuthority.workItemId,
+        workItemRevision: localAuthority.workItemRevision,
+        ownerPeerId: localAuthority.ownerPeerId,
+        ownerEpoch: localAuthority.ownerEpoch,
+        assigneePeerId: localAuthority.assigneePeerId,
+        awardId: localAuthority.awardId,
+        assignmentEpoch: localAuthority.assignmentEpoch,
+        assignmentAuthorityId: localAuthority.assignmentAuthorityId,
+        fencingToken: localAuthority.fencingToken,
+        acceptanceId: localAuthority.acceptanceId,
+        acceptanceMessageId: response.envelope.messageId,
+        workDeadline: localAuthority.workDeadline,
+        workDeadlineAt: localAuthority.workDeadlineAt,
+        leaseExpiresAt: localAuthority.leaseExpiresAt,
+        leaseExpiresAtLogical: localAuthority.leaseExpiresAtLogical,
+      }),
+    );
   const receivedAward = state.allocation.receivedAwards[payload.awardId];
   const receivedOffer =
     receivedAward && state.allocation.receivedOffers[receivedAward.offerId];
@@ -460,6 +513,27 @@ function resolveAuthority(
   return undefined;
 }
 
+/** Resolves execution only through the current active lease projection. */
+function currentLeaseAuthority(
+  state: MeshAllocationRuntimeState,
+  authority: ExecutionAuthority,
+): ExecutionAuthority | undefined {
+  const head = state.allocation.leaseHeads[executionScopeKey(authority)];
+  if (
+    head === undefined ||
+    head.acceptanceId !== authority.acceptanceId ||
+    head.acceptanceMessageId !== authority.acceptanceMessageId ||
+    head.assignmentAuthorityId !== authority.assignmentAuthorityId ||
+    head.fencingToken !== authority.fencingToken
+  )
+    return undefined;
+  return Object.freeze({
+    ...authority,
+    leaseExpiresAt: head.currentLeaseExpiresAt,
+    leaseExpiresAtLogical: head.currentLeaseExpiresAtLogical,
+  });
+}
+
 function validTransition(
   state: MeshAllocationRuntimeState,
   prior: MeshExecutionHeadProjection | undefined,
@@ -495,12 +569,36 @@ function validTransition(
     );
   if (payload.type === "work.release")
     return (
-      envelope.causationId === authority.acceptanceMessageId &&
+      envelope.causationId ===
+        currentLeaseCausationMessageId(state, authority) &&
       payload.releaseDisposition === "close"
     );
   return (
     payload.assignmentState === "active" &&
-    envelope.causationId === authority.acceptanceMessageId
+    envelope.causationId === currentLeaseCausationMessageId(state, authority)
+  );
+}
+
+function currentLeaseCausationMessageId(
+  state: MeshAllocationRuntimeState,
+  authority: ExecutionAuthority,
+): string {
+  const leaseHead = state.allocation.leaseHeads[executionScopeKey(authority)];
+  if (leaseHead?.latestLeaseRenewalId === undefined)
+    return authority.acceptanceMessageId;
+  const renewal =
+    state.allocation.leaseRenewals[leaseHead.latestLeaseRenewalId];
+  if (renewal === undefined)
+    throw new TypeError("Mesh current lease renewal evidence is missing");
+  return renewal.envelope.messageId;
+}
+
+function requiresActiveLease(payload: MeshExecutionPayload): boolean {
+  return (
+    payload.type === "work.progress" ||
+    payload.type === "work.checkpoint" ||
+    payload.type === "work.result" ||
+    (payload.type === "work.release" && payload.releaseAuthority === "assignee")
   );
 }
 

@@ -11,6 +11,7 @@ import type {
   WorkResultPayload,
   WorkReleasePayload,
   WorkCancelPayload,
+  LeaseRenewPayload,
 } from "@agentplat/mesh-protocol";
 
 import type { MeshLogicalTime, MeshPeerIdentity } from "./contracts.js";
@@ -237,6 +238,51 @@ export interface MeshExecutionRecordProjection {
   readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
 }
 
+/** Immutable, signed evidence for one accepted extension of an assignment. */
+export interface MeshLeaseRenewalEvidence {
+  readonly leaseRenewalId: string;
+  readonly executionScopeKey: string;
+  readonly leaseRenewalSequence: number;
+  readonly previousLeaseRenewalId?: string;
+  readonly acceptedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly direction: "local" | "received";
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly renewedLeaseExpiresAtLogical: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<LeaseRenewPayload>;
+}
+
+/** Current, fenced lease lifecycle for one immutable accepted assignment. */
+export interface MeshLeaseHeadProjection {
+  readonly executionScopeKey: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assigneePeerId: string;
+  readonly awardId: string;
+  readonly assignmentEpoch: number;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly acceptanceId: string;
+  readonly acceptanceMessageId: string;
+  /** The award lease is retained as immutable authority evidence. */
+  readonly originalLeaseExpiresAt: string;
+  readonly originalLeaseExpiresAtLogical: MeshLogicalTime;
+  readonly workDeadline: string;
+  readonly workDeadlineAt: MeshLogicalTime;
+  readonly leaseRenewalSequence: number;
+  readonly latestLeaseRenewalId?: string;
+  readonly currentLeaseExpiresAt: string;
+  readonly currentLeaseExpiresAtLogical: MeshLogicalTime;
+  readonly status: "active" | "expired" | "terminal";
+  readonly expiryTimerId?: string;
+  readonly expiryTimerGeneration?: number;
+}
+
 /** Full accepted authority and current lifecycle heads for one assignment scope. */
 export interface MeshExecutionHeadProjection {
   readonly executionScopeKey: string;
@@ -321,11 +367,12 @@ export interface MeshAllocationLimits {
   readonly maximumExecutionRecords: number;
   readonly maximumExecutionHeads: number;
   readonly maximumExecutionRecordsPerAssignment: number;
+  readonly maximumLeaseRenewals: number;
 }
 
 /** Independently restorable offer, bid, award and response projection. */
 export interface MeshAllocationState {
-  readonly schemaVersion: 4;
+  readonly schemaVersion: 5;
   readonly identity: MeshPeerIdentity;
   readonly workAllocations: Readonly<
     Record<string, MeshWorkAllocationProjection>
@@ -368,6 +415,10 @@ export interface MeshAllocationState {
   readonly executionHeads: Readonly<
     Record<string, MeshExecutionHeadProjection>
   >;
+  /** Immutable renewal evidence keyed by leaseRenewalId. */
+  readonly leaseRenewals: Readonly<Record<string, MeshLeaseRenewalEvidence>>;
+  /** Current lease lifecycle heads keyed by execution scope. */
+  readonly leaseHeads: Readonly<Record<string, MeshLeaseHeadProjection>>;
   readonly reservations: Readonly<Record<string, MeshAllocationReservation>>;
   readonly limits: MeshAllocationLimits;
   readonly lastLogicalTime: MeshLogicalTime;
@@ -396,7 +447,8 @@ export type MeshAllocationPayload =
   | WorkCheckpointPayload
   | WorkResultPayload
   | WorkReleasePayload
-  | WorkCancelPayload;
+  | WorkCancelPayload
+  | LeaseRenewPayload;
 
 /** A verified remote bid or assignment response with receiver-controlled time. */
 export interface MeshVerifiedAllocationRequest {
@@ -454,6 +506,13 @@ export interface MeshLocalExecutionCommand {
   readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
 }
 
+/** Locally prepared lease extension; signing and delivery remain outside. */
+export interface MeshLocalLeaseRenewalCommand {
+  readonly kind: "allocation.lease_renew";
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<LeaseRenewPayload>;
+}
+
 export interface MeshLocalAwardPreparedRecipient {
   readonly recipientPeerId: string;
   readonly preparedAt: MeshLogicalTime;
@@ -471,7 +530,8 @@ export type MeshAllocationCommand =
   | MeshLocalAwardCommand
   | MeshLocalBidCommand
   | MeshLocalAssignmentResponseCommand
-  | MeshLocalExecutionCommand;
+  | MeshLocalExecutionCommand
+  | MeshLocalLeaseRenewalCommand;
 
 export type MeshAllocationBidSelectionReason =
   | "offer_missing"
@@ -528,6 +588,13 @@ export type MeshAllocationEffect =
       readonly recipientPeerId: string;
       readonly messageId: string;
       readonly envelope: SignedMeshEnvelope<MeshExecutionPayload>;
+    }
+  | {
+      readonly kind: "allocation.lease_renewal.dispatch";
+      readonly leaseRenewalId: string;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<LeaseRenewPayload>;
     };
 
 export type MeshAllocationRejectionCode =
@@ -579,6 +646,12 @@ export type MeshAllocationRejectionCode =
   | "execution_authority_invalid"
   | "execution_deadline_elapsed"
   | "execution_phase_invalid"
+  | "lease_renewal_invalid"
+  | "lease_renewal_duplicate_conflict"
+  | "lease_renewal_predecessor_invalid"
+  | "lease_renewal_deadline_elapsed"
+  | "lease_renewal_capacity_exceeded"
+  | "lease_renewal_authority_invalid"
   | "recipient_capacity_exceeded"
   | "bid_invalid"
   | "bid_duplicate_conflict"

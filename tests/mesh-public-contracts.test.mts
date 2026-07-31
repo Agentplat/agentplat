@@ -112,6 +112,9 @@ import {
   type MeshExecutionPayload,
   type MeshExecutionRecordProjection,
   type MeshExecutionRecordType,
+  type MeshLeaseHeadProjection,
+  type MeshLeaseRenewalEvidence,
+  type MeshLocalLeaseRenewalCommand,
   type MeshVerifiedDiscoveryRequest,
   type MeshCoordinationTopicClock,
   type MeshCoordinationTopicConfiguration,
@@ -879,6 +882,13 @@ const localExecutionCommand: MeshLocalExecutionCommand = {
   envelope: {} as SignedMeshEnvelope<MeshExecutionPayload>,
 };
 const allocationExecutionCommand: MeshAllocationCommand = localExecutionCommand;
+const localLeaseRenewalCommand: MeshLocalLeaseRenewalCommand = {
+  kind: 'allocation.lease_renew',
+  preparedAt: 0,
+  envelope: {} as SignedMeshEnvelope<LeaseRenewPayload>,
+};
+const allocationLeaseRenewalCommand: MeshAllocationCommand =
+  localLeaseRenewalCommand;
 const allocationDecision: MeshAllocationDecision =
   evaluateMeshAllocationCommand(
     allocationRuntimeState,
@@ -899,8 +909,11 @@ const executionRecordProjection: MeshExecutionRecordProjection | undefined =
   undefined;
 const executionHeadProjection: MeshExecutionHeadProjection | undefined =
   undefined;
+const leaseRenewalEvidence: MeshLeaseRenewalEvidence | undefined = undefined;
+const leaseHeadProjection: MeshLeaseHeadProjection | undefined = undefined;
 const allocationLimits: MeshAllocationLimits = DEFAULT_MESH_ALLOCATION_LIMITS;
-const allocationPayload: MeshAllocationPayload = workBidPayload;
+const allocationPayload: MeshAllocationPayload = leaseRenewPayload;
+const allocationSchemaVersion: 5 = restoredAllocationState.schemaVersion;
 const allocationRejectionCode: MeshAllocationRejectionCode = 'offer_invalid';
 const allocationPhase: MeshWorkAllocationPhase = 'ready';
 const allocationWorkBinding: MeshAllocationWorkBinding | undefined = undefined;
@@ -937,6 +950,8 @@ const verifiedAllocationEvaluator: typeof evaluateVerifiedMeshAllocationEnvelope
   evaluateVerifiedMeshAllocationEnvelope;
 // @ts-expect-error verified execution intake must pass through allocation admission
 meshCoordination.evaluateVerifiedMeshExecutionEnvelope;
+// @ts-expect-error lease renewal verified intake stays behind allocation admission
+meshCoordination.evaluateVerifiedMeshLeaseRenewalEnvelope;
 const objectivePolicyHistory: Readonly<
   Record<string, MeshWorkObjectivePolicySnapshot>
 > = restoredObjectiveWorkState.objectivePolicies;
@@ -1247,7 +1262,9 @@ const topicPeer: MeshCoordinationTopicPeer = topicDriver.register({
   processor: discoveryInboundProcessor,
 });
 const topicReceipts: Promise<readonly MeshCoordinationTopicReceipt[]> =
-  topicPeer.publish({ envelope: signedDiscoveryForContract });
+  topicPeer.publish({
+    envelope: signedDiscoveryForContract,
+  });
 const objectiveTopicClock: MeshCoordinationObjectiveTopicClock = {
   now: () => ({ verifiedAt: '2026-07-29T00:00:01Z', receivedAt: 1 }),
 };
@@ -1363,6 +1380,7 @@ void allocationDecision;
 void allocationEffect;
 void allocationLimits;
 void allocationPayload;
+void allocationSchemaVersion;
 void allocationRejectionCode;
 void allocationPhase;
 void allocationWorkBinding;
@@ -1375,6 +1393,10 @@ void bidHeadProjection;
 void allocationReservation;
 void verifiedAllocationEvaluator;
 void verifiedAllocationRequest;
+void localLeaseRenewalCommand;
+void allocationLeaseRenewalCommand;
+void leaseRenewalEvidence;
+void leaseHeadProjection;
 void evaluatedObjectiveRequest;
 void objectiveWorkRejectionCode;
 void workObjectivePolicy;
