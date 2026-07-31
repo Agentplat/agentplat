@@ -1015,6 +1015,27 @@ modify or select a Fusion policy. Policy versions increase by exactly one and
 bind the immediately preceding digest. Historical decisions remain bound to
 their original policy. A policy head affects only later evaluations.
 
+`TrustEligibilityRuleV1` is one closed, named request template and contains
+exactly:
+
+```text
+ruleId
+maximumProfileAgeMs
+requirements: sorted unique {
+  dimensionId,
+  minimumScoreBasisPoints,
+  maximumUncertaintyBasisPoints
+}[]
+```
+
+The requirement set is non-empty, every dimension is declared by the same
+policy, and `maximumProfileAgeMs` is positive and within the state ceiling.
+Rule IDs are unique within a policy. An eligibility request is policy-valid
+only when its `maximumProfileAgeMs` and complete requirement set exactly equal
+one registered rule; callers cannot omit a requirement or relax a threshold.
+The request remains self-contained and does not select a rule by an untrusted
+name.
+
 ### Dimension policy
 
 Each dimension declares:

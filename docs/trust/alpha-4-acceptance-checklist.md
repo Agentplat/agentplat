@@ -201,6 +201,8 @@ open until their corresponding transition is complete.
 - [ ] remote messages cannot install, select or relax policy;
 - [ ] dimensions, criteria, source bindings, groups, eligibility, quarantine,
       recovery, limits and redaction are all explicit;
+- [ ] eligibility rules are closed non-empty request templates, and requests
+      exactly match one policy rule without omitting or relaxing requirements;
 - [ ] dimension policy freezes priors, coverage, decay and uncertainty growth;
 - [ ] criterion policy freezes outcome values, weight caps, evidence age,
       group thresholds and quarantine/recovery eligibility;
