@@ -52,6 +52,7 @@ const checkpointFixture = fixture("work-checkpoint.json");
 const resultFixture = fixture("work-result.json");
 const releaseFixture = fixture("work-release.json");
 const cancelWorkFixture = fixture("work-cancel.json");
+const leaseRenewFixture = fixture("lease-renew.json");
 const at = "2026-07-30T00:00:01.000Z";
 const identity = Object.freeze({
   tenantId: "tenant-a",
@@ -472,6 +473,61 @@ async function preparedExecution(
   )
     delete envelope.payload.checkpointId;
   return signed(envelope, senderPeerId, keys, resolver);
+}
+
+async function preparedLeaseRenewal(
+  keys,
+  resolver,
+  {
+    messageId = "eAAAAAAAAAAAAAAAAAAAAA",
+    sequence = 42,
+    causationId = "RAAAAAAAAAAAAAAAAAAAAA",
+    leaseRenewalId = "lease-renewal-a",
+    leaseRenewalSequence = 1,
+    previousLeaseRenewalId,
+    leaseExpiresAt = "2026-07-30T00:00:25.000Z",
+    renewedLeaseExpiresAt = "2026-07-30T00:00:45.000Z",
+    audiencePeerId = "peer-a",
+    payloadPatch = {},
+  } = {},
+) {
+  const envelope = structuredClone(leaseRenewFixture);
+  Object.assign(envelope, {
+    messageId,
+    sequence,
+    sentAt: "2026-07-30T00:00:04.000Z",
+    expiresAt: "2026-07-30T00:00:14.000Z",
+    sender: { peerId: "peer-b", instanceId: "instance-b" },
+    audience: { kind: "peer", peerId: audiencePeerId },
+    causationId,
+  });
+  envelope.proof.keyId = "key-b";
+  Object.assign(envelope.payload, {
+    objectiveId: "objective-a",
+    objectiveDocumentId: "objective-document-a",
+    objectiveRevision: 1,
+    workItemId: "work-item-a",
+    workItemRevision: 1,
+    ownerPeerId: "peer-a",
+    ownerEpoch: 1,
+    assigneePeerId: "peer-b",
+    awardId: "award-a",
+    acceptanceId: "acceptance-a",
+    assignmentEpoch: 1,
+    assignmentAuthorityId: "award-a",
+    fencingToken: "award-a",
+    leaseRenewalId,
+    leaseRenewalSequence,
+    leaseExpiresAt,
+    renewedLeaseExpiresAt,
+    ...payloadPatch,
+  });
+  if (previousLeaseRenewalId === undefined) {
+    delete envelope.payload.previousLeaseRenewalId;
+  } else {
+    envelope.payload.previousLeaseRenewalId = previousLeaseRenewalId;
+  }
+  return signed(envelope, "peer-b", keys, resolver);
 }
 
 async function ownerOfferedAllocation(keys, resolver) {
@@ -1437,7 +1493,7 @@ test("assignee bounds, restore/migration and conflicting exact identifiers fail 
   delete v2.limits.maximumReceivedAwards;
   delete v2.limits.maximumLocalAssignmentResponses;
   delete v2.limits.maximumAssignmentAuthorities;
-  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 4);
+  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 5);
 });
 
 test("restore rejects a message identifier collision across retained owner and assignee evidence", async () => {
@@ -2024,5 +2080,724 @@ test("execution restore requires unique journal evidence and a final terminal se
         completed.state.allocation,
       ),
     /execution.*terminal|journal/u,
+  );
+});
+
+test("lease renewal chains sequence one and two, supersedes the expiry timer, and preserves execution authority", async () => {
+  const active = await activeAssignee();
+  const [scope] = Object.keys(active.state.allocation.leaseHeads);
+  const initialHead = active.state.allocation.leaseHeads[scope];
+  assert.equal(initialHead.leaseRenewalSequence, 0);
+  assert.equal(initialHead.currentLeaseExpiresAt, "2026-07-30T00:00:25.000Z");
+  const initialTimer =
+    active.state.coordination.timers[initialHead.expiryTimerId];
+  assert.equal(initialTimer.kind, "lease.expiry");
+
+  const first = await preparedLeaseRenewal(active.keys, active.resolver);
+  const renewed = evaluateMeshAllocationCommand(
+    active.state,
+    { kind: "allocation.lease_renew", preparedAt: 6, envelope: first.signed },
+    at,
+    6,
+  );
+  assert.equal(renewed.accepted, true, renewed.code);
+  assert.equal(renewed.effects[0].kind, "allocation.lease_renewal.dispatch");
+  const firstHead = renewed.state.allocation.leaseHeads[scope];
+  assert.equal(firstHead.leaseRenewalSequence, 1);
+  assert.equal(firstHead.latestLeaseRenewalId, "lease-renewal-a");
+  assert.equal(firstHead.currentLeaseExpiresAt, "2026-07-30T00:00:45.000Z");
+  assert.equal(
+    firstHead.expiryTimerGeneration,
+    initialHead.expiryTimerGeneration + 1,
+  );
+  const firstLeaseProgress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "gAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 43,
+      payloadPatch: {
+        progressId: "progress-first-renewal",
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  const progressed = evaluateMeshAllocationCommand(
+    renewed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 7,
+      envelope: firstLeaseProgress.signed,
+    },
+    at,
+    7,
+  );
+  assert.equal(progressed.accepted, true, progressed.code);
+
+  const second = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "fAAAAAAAAAAAAAAAAAAAAA",
+    sequence: 44,
+    causationId: first.signed.messageId,
+    leaseRenewalId: "lease-renewal-b",
+    leaseRenewalSequence: 2,
+    previousLeaseRenewalId: "lease-renewal-a",
+    leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+    renewedLeaseExpiresAt: "2026-07-30T00:01:00.000Z",
+  });
+  const chained = evaluateMeshAllocationCommand(
+    progressed.state,
+    { kind: "allocation.lease_renew", preparedAt: 7, envelope: second.signed },
+    at,
+    7,
+  );
+  assert.equal(chained.accepted, true, chained.code);
+  const secondHead = chained.state.allocation.leaseHeads[scope];
+  assert.equal(secondHead.leaseRenewalSequence, 2);
+  assert.equal(secondHead.currentLeaseExpiresAt, "2026-07-30T00:01:00.000Z");
+  assert.equal(Object.keys(chained.state.allocation.leaseRenewals).length, 2);
+  const afterSupersession = structuredClone(chained.state.allocation);
+  afterSupersession.executionRecords["progress-first-renewal"].recordedAt = 9;
+  assert.throws(
+    () => restoreMeshAllocationState(afterSupersession),
+    /execution (?:record projection|head relation)/u,
+  );
+  const secondLeaseProgress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "hAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 45,
+      payloadPatch: {
+        progressId: "progress-second-renewal",
+        progressSequence: 2,
+        leaseExpiresAt: "2026-07-30T00:01:00.000Z",
+      },
+    },
+  );
+  const progressedAgain = evaluateMeshAllocationCommand(
+    chained.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 7,
+      envelope: secondLeaseProgress.signed,
+    },
+    at,
+    7,
+  );
+  assert.equal(progressedAgain.accepted, true, progressedAgain.code);
+  assert.doesNotThrow(() =>
+    createMeshAllocationRuntimeState(
+      restoreMeshCoordinationState(
+        structuredClone(progressedAgain.state.coordination),
+      ),
+      progressedAgain.state.discovery,
+      progressedAgain.state.objectives,
+      restoreMeshAllocationState(
+        structuredClone(progressedAgain.state.allocation),
+      ),
+    ),
+  );
+  const equalityMisordered = structuredClone(
+    progressedAgain.state.coordination,
+  );
+  const renewalJournal = equalityMisordered.journal.find(
+    (entry) =>
+      entry.domainRecordKey ===
+      JSON.stringify(["lease.renew", "lease-renewal-b"]),
+  );
+  const progressJournal = equalityMisordered.journal.find(
+    (entry) =>
+      entry.domainRecordKey ===
+      JSON.stringify(["work.progress", "progress-second-renewal"]),
+  );
+  [renewalJournal.sequence, progressJournal.sequence] = [
+    progressJournal.sequence,
+    renewalJournal.sequence,
+  ];
+  equalityMisordered.journal.sort(
+    (left, right) => left.sequence - right.sequence,
+  );
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        restoreMeshCoordinationState(equalityMisordered),
+        progressedAgain.state.discovery,
+        progressedAgain.state.objectives,
+        progressedAgain.state.allocation,
+      ),
+    /execution lease journal ordering/u,
+  );
+
+  const stale = evaluateMeshAllocationTimer(
+    progressedAgain.state,
+    {
+      kind: "timer.fired",
+      timerId: initialTimer.timerId,
+      generation: initialTimer.generation,
+    },
+    initialTimer.dueAt,
+  );
+  assert.equal(stale.accepted, false);
+  assert.equal(stale.code, "timer_generation_stale");
+  const due = evaluateMeshAllocationTimer(
+    progressedAgain.state,
+    {
+      kind: "timer.fired",
+      timerId: secondHead.expiryTimerId,
+      generation: secondHead.expiryTimerGeneration,
+    },
+    secondHead.currentLeaseExpiresAtLogical,
+  );
+  assert.equal(due.accepted, true, due.code);
+  assert.equal(due.state.allocation.leaseHeads[scope].status, "expired");
+  assert.equal(
+    evaluateMeshAllocationTimer(
+      due.state,
+      {
+        kind: "timer.fired",
+        timerId: secondHead.expiryTimerId,
+        generation: secondHead.expiryTimerGeneration,
+      },
+      secondHead.currentLeaseExpiresAtLogical,
+    ).code,
+    "timer_unknown",
+  );
+});
+
+test("lease renewal rejects causal forks, stale expiry, and policy limits without mutating state", async () => {
+  const active = await activeAssignee();
+  const [initialScope] = Object.keys(active.state.allocation.leaseHeads);
+  const elapsed = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "uAAAAAAAAAAAAAAAAAAAAA",
+  });
+  rejected(
+    evaluateMeshAllocationCommand(
+      active.state,
+      {
+        kind: "allocation.lease_renew",
+        preparedAt: 6,
+        envelope: elapsed.signed,
+      },
+      at,
+      active.state.allocation.leaseHeads[initialScope]
+        .currentLeaseExpiresAtLogical,
+    ),
+    "lease_renewal_deadline_elapsed",
+    active.state,
+  );
+  const first = await preparedLeaseRenewal(active.keys, active.resolver);
+  const renewed = evaluateMeshAllocationCommand(
+    active.state,
+    { kind: "allocation.lease_renew", preparedAt: 6, envelope: first.signed },
+    at,
+    6,
+  );
+  assert.equal(renewed.accepted, true, renewed.code);
+
+  const forgedLogicalClock = structuredClone(renewed.state.allocation);
+  forgedLogicalClock.leaseRenewals[
+    "lease-renewal-a"
+  ].renewedLeaseExpiresAtLogical += 1;
+  forgedLogicalClock.leaseHeads[initialScope].currentLeaseExpiresAtLogical += 1;
+  assert.throws(
+    () => restoreMeshAllocationState(forgedLogicalClock),
+    /lease renewal predecessor|current head/u,
+  );
+  const wrongAuthority = await preparedLeaseRenewal(
+    active.keys,
+    active.resolver,
+    {
+      messageId: "vAAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: {
+        assignmentAuthorityId: "authority-other",
+        fencingToken: "authority-other",
+      },
+    },
+  );
+  const forgedAuthority = structuredClone(renewed.state.allocation);
+  forgedAuthority.leaseRenewals["lease-renewal-a"].envelope =
+    wrongAuthority.signed;
+  assert.throws(
+    () => restoreMeshAllocationState(forgedAuthority),
+    /lease renewal relation/u,
+  );
+
+  const fork = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "YAAAAAAAAAAAAAAAAAAAAA",
+    leaseRenewalId: "lease-renewal-fork",
+    leaseRenewalSequence: 1,
+  });
+  const forkDecision = evaluateMeshAllocationCommand(
+    renewed.state,
+    { kind: "allocation.lease_renew", preparedAt: 7, envelope: fork.signed },
+    at,
+    7,
+  );
+  assert.equal(forkDecision.accepted, false);
+  assert.equal(forkDecision.state, renewed.state);
+  const duplicate = evaluateMeshAllocationCommand(
+    renewed.state,
+    { kind: "allocation.lease_renew", preparedAt: 7, envelope: first.signed },
+    at,
+    7,
+  );
+  assert.equal(duplicate.accepted, true);
+  assert.equal(duplicate.duplicate, true);
+});
+
+test("renewed execution accepts only the current expiry, preserves prior evidence, and retires its timer on terminal work", async () => {
+  const active = await activeAssignee();
+  const progress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    { messageId: "jAAAAAAAAAAAAAAAAAAAAA" },
+  );
+  const progressed = evaluateMeshAllocationCommand(
+    active.state,
+    { kind: "allocation.execution", preparedAt: 6, envelope: progress.signed },
+    at,
+    6,
+  );
+  assert.equal(progressed.accepted, true, progressed.code);
+  const checkpoint = await preparedExecution(
+    "work.checkpoint",
+    active.keys,
+    active.resolver,
+    { messageId: "kAAAAAAAAAAAAAAAAAAAAA", sequence: 41 },
+  );
+  const checkpointed = evaluateMeshAllocationCommand(
+    progressed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 7,
+      envelope: checkpoint.signed,
+    },
+    at,
+    7,
+  );
+  assert.equal(checkpointed.accepted, true, checkpointed.code);
+  const renewal = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "lAAAAAAAAAAAAAAAAAAAAA",
+    sequence: 42,
+  });
+  const renewed = evaluateMeshAllocationCommand(
+    checkpointed.state,
+    { kind: "allocation.lease_renew", preparedAt: 8, envelope: renewal.signed },
+    at,
+    8,
+  );
+  assert.equal(renewed.accepted, true, renewed.code);
+  const delayedHistoricalProgress = structuredClone(renewed.state.allocation);
+  delayedHistoricalProgress.executionRecords["progress-a"].recordedAt =
+    active.state.allocation.leaseHeads[
+      Object.keys(active.state.allocation.leaseHeads)[0]
+    ].currentLeaseExpiresAtLogical;
+  delayedHistoricalProgress.lastLogicalTime =
+    delayedHistoricalProgress.executionRecords["progress-a"].recordedAt;
+  assert.throws(
+    () => restoreMeshAllocationState(delayedHistoricalProgress),
+    /execution head relation/u,
+  );
+
+  const staleProgress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "mAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 43,
+      payloadPatch: {
+        progressId: "progress-b",
+        progressSequence: 2,
+      },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      renewed.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 9,
+        envelope: staleProgress.signed,
+      },
+      at,
+      9,
+    ),
+    "execution_authority_invalid",
+    renewed.state,
+  );
+  const currentProgress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "nAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 44,
+      payloadPatch: {
+        progressId: "progress-b",
+        progressSequence: 2,
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  const continued = evaluateMeshAllocationCommand(
+    renewed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 9,
+      envelope: currentProgress.signed,
+    },
+    at,
+    9,
+  );
+  assert.equal(continued.accepted, true, continued.code);
+  const beforeRenewalAcceptance = structuredClone(continued.state.allocation);
+  beforeRenewalAcceptance.executionRecords["progress-b"].recordedAt = 7;
+  assert.throws(
+    () => restoreMeshAllocationState(beforeRenewalAcceptance),
+    /execution head relation/u,
+  );
+  const result = await preparedExecution(
+    "work.result",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "oAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 45,
+      causationId: checkpoint.signed.messageId,
+      payloadPatch: {
+        checkpointId: "checkpoint-a",
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  const completed = evaluateMeshAllocationCommand(
+    continued.state,
+    { kind: "allocation.execution", preparedAt: 10, envelope: result.signed },
+    at,
+    10,
+  );
+  assert.equal(completed.accepted, true, completed.code);
+  const [scope] = Object.keys(completed.state.allocation.leaseHeads);
+  assert.equal(completed.state.allocation.leaseHeads[scope].status, "terminal");
+  assert.equal(
+    completed.state.allocation.leaseHeads[scope].expiryTimerId,
+    undefined,
+  );
+  assert.equal(
+    completed.state.allocation.executionRecords["progress-a"].envelope.payload
+      .leaseExpiresAt,
+    "2026-07-30T00:00:25.000Z",
+  );
+  assert.doesNotThrow(() =>
+    createMeshAllocationRuntimeState(
+      restoreMeshCoordinationState(completed.state.coordination),
+      completed.state.discovery,
+      completed.state.objectives,
+      restoreMeshAllocationState(completed.state.allocation),
+    ),
+  );
+});
+
+test("renewed release and owner cancellation use the current causal head, while the owner can close after expiry", async () => {
+  const releasable = await activeAssignee();
+  const releaseRenewal = await preparedLeaseRenewal(
+    releasable.keys,
+    releasable.resolver,
+    {
+      messageId: "wAAAAAAAAAAAAAAAAAAAAA",
+    },
+  );
+  const renewedForRelease = evaluateMeshAllocationCommand(
+    releasable.state,
+    {
+      kind: "allocation.lease_renew",
+      preparedAt: 6,
+      envelope: releaseRenewal.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(renewedForRelease.accepted, true, renewedForRelease.code);
+  const staleRelease = await preparedExecution(
+    "work.release",
+    releasable.keys,
+    releasable.resolver,
+    {
+      messageId: "xAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 43,
+      payloadPatch: {
+        releaseId: "release-stale-cause",
+        releaseDisposition: "close",
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      renewedForRelease.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 7,
+        envelope: staleRelease.signed,
+      },
+      at,
+      7,
+    ),
+    "execution_phase_invalid",
+    renewedForRelease.state,
+  );
+  const currentRelease = await preparedExecution(
+    "work.release",
+    releasable.keys,
+    releasable.resolver,
+    {
+      messageId: "yAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 44,
+      causationId: releaseRenewal.signed.messageId,
+      payloadPatch: {
+        releaseId: "release-current-cause",
+        releaseDisposition: "close",
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  const released = evaluateMeshAllocationCommand(
+    renewedForRelease.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 7,
+      envelope: currentRelease.signed,
+    },
+    at,
+    7,
+  );
+  assert.equal(released.accepted, true, released.code);
+  assert.doesNotThrow(() =>
+    createMeshAllocationRuntimeState(
+      released.state.coordination,
+      released.state.discovery,
+      released.state.objectives,
+      restoreMeshAllocationState(released.state.allocation),
+    ),
+  );
+
+  const cancellable = await activeAssignee();
+  const cancelRenewal = await preparedLeaseRenewal(
+    cancellable.keys,
+    cancellable.resolver,
+    {
+      messageId: "zAAAAAAAAAAAAAAAAAAAAA",
+    },
+  );
+  const renewedForCancel = evaluateMeshAllocationCommand(
+    cancellable.state,
+    {
+      kind: "allocation.lease_renew",
+      preparedAt: 6,
+      envelope: cancelRenewal.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(renewedForCancel.accepted, true, renewedForCancel.code);
+  const [scope] = Object.keys(renewedForCancel.state.allocation.leaseHeads);
+  const leaseHead = renewedForCancel.state.allocation.leaseHeads[scope];
+  const expired = evaluateMeshAllocationTimer(
+    renewedForCancel.state,
+    {
+      kind: "timer.fired",
+      timerId: leaseHead.expiryTimerId,
+      generation: leaseHead.expiryTimerGeneration,
+    },
+    leaseHead.currentLeaseExpiresAtLogical,
+  );
+  assert.equal(expired.accepted, true, expired.code);
+  const ownerCancel = await preparedExecution(
+    "work.cancel",
+    cancellable.keys,
+    cancellable.resolver,
+    {
+      messageId: "6AAAAAAAAAAAAAAAAAAAAA",
+      sequence: 45,
+      causationId: cancelRenewal.signed.messageId,
+      senderPeerId: "peer-a",
+      audiencePeerId: "peer-b",
+      payloadPatch: {
+        cancellationId: "cancel-after-renewed-expiry",
+        assignmentState: "active",
+        leaseExpiresAt: "2026-07-30T00:00:45.000Z",
+      },
+    },
+  );
+  const cancelled = evaluateVerifiedMeshAllocationEnvelope(expired.state, {
+    envelope: ownerCancel.verified,
+    verifiedAt: at,
+    receivedAt: leaseHead.currentLeaseExpiresAtLogical + 1,
+  });
+  assert.equal(cancelled.accepted, true, cancelled.code);
+  assert.equal(
+    cancelled.state.allocation.executionHeads[scope].phase,
+    "cancelled",
+  );
+  assert.doesNotThrow(() =>
+    createMeshAllocationRuntimeState(
+      cancelled.state.coordination,
+      cancelled.state.discovery,
+      cancelled.state.objectives,
+      restoreMeshAllocationState(cancelled.state.allocation),
+    ),
+  );
+});
+
+test("lease authority, expiry, migration, and restore relations fail closed", async () => {
+  const active = await activeAssignee();
+  for (const options of [
+    {
+      messageId: "pAAAAAAAAAAAAAAAAAAAAA",
+      audiencePeerId: "peer-b",
+    },
+    {
+      messageId: "qAAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: { acceptanceId: "acceptance-other" },
+    },
+    {
+      messageId: "rAAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: {
+        assignmentAuthorityId: "authority-other",
+        fencingToken: "authority-other",
+      },
+    },
+  ]) {
+    const envelope = await preparedLeaseRenewal(
+      active.keys,
+      active.resolver,
+      options,
+    );
+    const decision = evaluateMeshAllocationCommand(
+      active.state,
+      {
+        kind: "allocation.lease_renew",
+        preparedAt: 6,
+        envelope: envelope.signed,
+      },
+      at,
+      6,
+    );
+    assert.equal(decision.accepted, false);
+    assert.equal(decision.state, active.state);
+  }
+
+  const [scope] = Object.keys(active.state.allocation.leaseHeads);
+  const timer =
+    active.state.coordination.timers[
+      active.state.allocation.leaseHeads[scope].expiryTimerId
+    ];
+  const expired = evaluateMeshAllocationTimer(
+    active.state,
+    {
+      kind: "timer.fired",
+      timerId: timer.timerId,
+      generation: timer.generation,
+    },
+    timer.dueAt,
+  );
+  assert.equal(expired.accepted, true, expired.code);
+  const late = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "sAAAAAAAAAAAAAAAAAAAAA",
+  });
+  rejected(
+    evaluateMeshAllocationCommand(
+      expired.state,
+      {
+        kind: "allocation.lease_renew",
+        preparedAt: timer.dueAt,
+        envelope: late.signed,
+      },
+      at,
+      timer.dueAt,
+    ),
+    "lease_renewal_authority_invalid",
+    expired.state,
+  );
+
+  const missingHead = structuredClone(active.state.allocation);
+  missingHead.leaseHeads = {};
+  assert.throws(
+    () => restoreMeshAllocationState(missingHead),
+    /initial lease head/u,
+  );
+
+  const legacy = structuredClone(active.state.allocation);
+  legacy.schemaVersion = 4;
+  delete legacy.leaseHeads;
+  delete legacy.leaseRenewals;
+  delete legacy.limits.maximumLeaseRenewals;
+  const migrated = restoreMeshAllocationState(legacy);
+  assert.equal(migrated.schemaVersion, 5);
+  assert.equal(migrated.leaseHeads[scope].leaseRenewalSequence, 0);
+
+  const coordinationWithoutLeaseTimer = structuredClone(
+    active.state.coordination,
+  );
+  delete coordinationWithoutLeaseTimer.timers[timer.timerId];
+  const migratedRuntime = createMeshAllocationRuntimeState(
+    restoreMeshCoordinationState(coordinationWithoutLeaseTimer),
+    active.state.discovery,
+    active.state.objectives,
+    migrated,
+  );
+  assert.equal(
+    migratedRuntime.coordination.timers[timer.timerId].kind,
+    "lease.expiry",
+  );
+  const coordinationAtTimerCapacity = structuredClone(
+    coordinationWithoutLeaseTimer,
+  );
+  coordinationAtTimerCapacity.limits.maximumTimers = Object.keys(
+    coordinationAtTimerCapacity.timers,
+  ).length;
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        restoreMeshCoordinationState(coordinationAtTimerCapacity),
+        active.state.discovery,
+        active.state.objectives,
+        migrated,
+      ),
+    /initial lease timers exceed/u,
+  );
+
+  const renewal = await preparedLeaseRenewal(active.keys, active.resolver, {
+    messageId: "tAAAAAAAAAAAAAAAAAAAAA",
+  });
+  const renewed = evaluateMeshAllocationCommand(
+    active.state,
+    { kind: "allocation.lease_renew", preparedAt: 6, envelope: renewal.signed },
+    at,
+    6,
+  );
+  assert.equal(renewed.accepted, true, renewed.code);
+  const orphaned = structuredClone(renewed.state.allocation);
+  orphaned.leaseRenewals = {};
+  orphaned.leaseHeads[scope].leaseRenewalSequence = 0;
+  delete orphaned.leaseHeads[scope].latestLeaseRenewalId;
+  orphaned.leaseHeads[scope].currentLeaseExpiresAt =
+    orphaned.leaseHeads[scope].originalLeaseExpiresAt;
+  orphaned.leaseHeads[scope].currentLeaseExpiresAtLogical =
+    orphaned.leaseHeads[scope].originalLeaseExpiresAtLogical;
+  orphaned.leaseHeads[scope].expiryTimerGeneration = 1;
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        renewed.state.coordination,
+        renewed.state.discovery,
+        renewed.state.objectives,
+        restoreMeshAllocationState(orphaned),
+      ),
+    /renewal domain record is orphaned|timer/u,
   );
 });

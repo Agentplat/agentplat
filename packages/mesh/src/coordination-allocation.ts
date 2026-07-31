@@ -30,6 +30,7 @@ import type {
   MeshLocalAssignmentResponseEvidence,
   MeshLocalBidProjection,
   MeshLocalAwardProjection,
+  MeshLeaseHeadProjection,
   MeshReceivedAwardProjection,
   MeshReceivedOfferProjection,
   MeshVerifiedAllocationRequest,
@@ -49,6 +50,11 @@ import {
   evaluateMeshExecutionCommand,
   evaluateVerifiedMeshExecutionEnvelope,
 } from "./coordination-execution.js";
+import {
+  evaluateMeshLeaseExpiryTimer,
+  evaluateMeshLeaseRenewalCommand,
+  evaluateVerifiedMeshLeaseRenewalEnvelope,
+} from "./coordination-lease-renewal.js";
 import { createMeshDiscoveryRuntimeState } from "./coordination-discovery-state.js";
 import { logicalDeadline } from "./coordination-objective-work-time.js";
 import { sha256Base64Url } from "./sha256.js";
@@ -76,6 +82,7 @@ export function evaluateMeshAllocationCommand(
       "allocation.bid",
       "allocation.assignment_response",
       "allocation.execution",
+      "allocation.lease_renew",
     ].includes(command.kind)
   )
     throw new TypeError("Invalid Mesh allocation command");
@@ -92,6 +99,13 @@ export function evaluateMeshAllocationCommand(
     );
   if (command.kind === "allocation.execution")
     return evaluateMeshExecutionCommand(state, command, verifiedAt, receivedAt);
+  if (command.kind === "allocation.lease_renew")
+    return evaluateMeshLeaseRenewalCommand(
+      state,
+      command,
+      verifiedAt,
+      receivedAt,
+    );
   if (
     Object.keys(command).sort().join(",") !==
       "expectedWorkItemRevision,kind,objectiveId,recipients,workItemId" ||
@@ -942,6 +956,12 @@ function evaluateLocalAssignmentResponseCommand(
       state.allocation.limits.maximumAssignmentAuthorities
   )
     return reject(state, "assignment_authority_capacity_exceeded");
+  if (
+    payload.type === "work.accept" &&
+    Object.keys(state.allocation.leaseHeads).length >=
+      state.allocation.limits.maximumExecutionHeads
+  )
+    return reject(state, "execution_head_capacity_exceeded");
   const capacity = allocationWriteCapacity(state);
   if (capacity) return reject(state, capacity);
   const response: MeshLocalAssignmentResponseEvidence = Object.freeze({
@@ -989,6 +1009,18 @@ function evaluateLocalAssignmentResponseCommand(
           leaseExpiresAtLogical: award.leaseExpiresAtLogical,
           activatedAt: receivedAt,
         });
+  const leaseActivation =
+    authority === undefined
+      ? undefined
+      : createInitialLeaseActivation({
+          ...authority,
+          acceptanceMessageId: response.envelope.messageId,
+        });
+  if (
+    leaseActivation !== undefined &&
+    state.coordination.timers[leaseActivation.timer.timerId] !== undefined
+  )
+    return reject(state, "timer_id_conflict");
   return acceptAssigneeWrite(
     state,
     receivedAt,
@@ -1023,6 +1055,14 @@ function evaluateLocalAssignmentResponseCommand(
             ]
           : recordEntries(state.allocation.assigneeAuthorities),
       ),
+      leaseHeads: createFrozenRecord(
+        leaseActivation === undefined
+          ? recordEntries(state.allocation.leaseHeads)
+          : [
+              ...recordEntries(state.allocation.leaseHeads),
+              [leaseActivation.head.executionScopeKey, leaseActivation.head],
+            ],
+      ),
       lastLogicalTime: receivedAt,
     },
     Object.freeze({
@@ -1033,7 +1073,7 @@ function evaluateLocalAssignmentResponseCommand(
       messageId: envelope.messageId,
       envelope,
     }),
-    undefined,
+    leaseActivation?.timer,
     award.acceptanceDeadlineTimerId,
   );
 }
@@ -1063,6 +1103,8 @@ export function evaluateVerifiedMeshAllocationEnvelope(
     request.envelope.payload.type === "work.cancel"
   )
     return evaluateVerifiedMeshExecutionEnvelope(state, request);
+  if (request.envelope.payload.type === "lease.renew")
+    return evaluateVerifiedMeshLeaseRenewalEnvelope(state, request);
   if (request.envelope.payload.type !== "work.bid")
     return reject(state, "invalid_verified_envelope");
   const envelope = request.envelope as VerifiedMeshEnvelope<WorkBidPayload>;
@@ -1687,6 +1729,12 @@ function evaluateAssignmentResponse(
   )
     return reject(state, "assignment_response_capacity_exceeded");
   if (
+    kind === "work.accept" &&
+    Object.keys(state.allocation.leaseHeads).length >=
+      state.allocation.limits.maximumExecutionHeads
+  )
+    return reject(state, "execution_head_capacity_exceeded");
+  if (
     Object.keys(state.coordination.domainRecords).length >=
     state.coordination.limits.maximumDomainRecords
   )
@@ -1714,6 +1762,33 @@ function evaluateAssignmentResponse(
     envelope,
   });
   const accepted = kind === "work.accept";
+  const leaseActivation = accepted
+    ? createInitialLeaseActivation({
+        objectiveId: award.objectiveId,
+        objectiveDocumentId: award.objectiveDocumentId,
+        objectiveRevision: award.objectiveRevision,
+        workItemId: award.work.workItemId,
+        workItemRevision: award.work.workItemRevision,
+        ownerPeerId: award.work.ownerPeerId,
+        ownerEpoch: award.work.ownerEpoch,
+        assigneePeerId: award.assigneePeerId,
+        awardId: award.awardId,
+        assignmentEpoch: award.assignmentEpoch,
+        assignmentAuthorityId: award.assignmentAuthorityId,
+        fencingToken: award.fencingToken,
+        acceptanceId: responseId,
+        acceptanceMessageId: evidence.envelope.messageId,
+        workDeadline: award.workDeadline,
+        workDeadlineAt: award.work.workDeadlineAt,
+        leaseExpiresAt: award.leaseExpiresAt,
+        leaseExpiresAtLogical: award.leaseExpiresAtLogical,
+      })
+    : undefined;
+  if (
+    leaseActivation !== undefined &&
+    state.coordination.timers[leaseActivation.timer.timerId] !== undefined
+  )
+    return reject(state, "timer_id_conflict");
   const nextWork = Object.freeze({
     ...work,
     phase: accepted ? ("active" as const) : ("ready" as const),
@@ -1753,6 +1828,14 @@ function evaluateAssignmentResponse(
       ...recordEntries(state.allocation.assignmentResponses),
       [award.awardId, evidence],
     ]),
+    leaseHeads: createFrozenRecord(
+      leaseActivation === undefined
+        ? recordEntries(state.allocation.leaseHeads)
+        : [
+            ...recordEntries(state.allocation.leaseHeads),
+            [leaseActivation.head.executionScopeKey, leaseActivation.head],
+          ],
+    ),
     reservations: createFrozenRecord([
       ...recordEntries(state.allocation.reservations).filter(
         ([key]) => key !== reservation.reservationId,
@@ -1779,11 +1862,14 @@ function evaluateAssignmentResponse(
         }),
       ],
     ]),
-    timers: createFrozenRecord(
-      recordEntries(state.coordination.timers).filter(
+    timers: createFrozenRecord([
+      ...recordEntries(state.coordination.timers).filter(
         ([key]) => key !== timer.timerId,
       ),
-    ),
+      ...(leaseActivation === undefined
+        ? []
+        : [[leaseActivation.timer.timerId, leaseActivation.timer] as const]),
+    ]),
     journal: Object.freeze([
       ...state.coordination.journal,
       Object.freeze({
@@ -1941,6 +2027,8 @@ export function evaluateMeshAllocationTimer(
     });
   if (logicalTime < timer.dueAt)
     return Object.freeze({ accepted: false, code: "timer_not_due", state });
+  if (timer.kind === "lease.expiry")
+    return evaluateMeshLeaseExpiryTimer(state, input, logicalTime);
   if (
     state.coordination.journal.length >=
     state.coordination.limits.maximumJournalEntries
@@ -2857,6 +2945,80 @@ function sameInput(
     payload.inputSummary === work.inputSummary &&
     payload.inputReference === work.inputReference
   );
+}
+function createInitialLeaseActivation(
+  authority: Readonly<{
+    objectiveId: string;
+    objectiveDocumentId: string;
+    objectiveRevision: number;
+    workItemId: string;
+    workItemRevision: number;
+    ownerPeerId: string;
+    ownerEpoch: number;
+    assigneePeerId: string;
+    awardId: string;
+    assignmentEpoch: number;
+    assignmentAuthorityId: string;
+    fencingToken: string;
+    acceptanceId: string;
+    acceptanceMessageId: string;
+    workDeadline: string;
+    workDeadlineAt: number;
+    leaseExpiresAt: string;
+    leaseExpiresAtLogical: number;
+  }>,
+): Readonly<{
+  head: MeshLeaseHeadProjection;
+  timer: MeshCoordinationTimer;
+}> {
+  const scope = JSON.stringify([
+    authority.objectiveId,
+    authority.objectiveRevision,
+    authority.workItemId,
+    authority.workItemRevision,
+    authority.ownerPeerId,
+    authority.ownerEpoch,
+    authority.awardId,
+    authority.assignmentEpoch,
+  ]);
+  const timerId = `lease.expiry:${sha256Base64Url(utf8Encoder.encode(scope))}`;
+  const head: MeshLeaseHeadProjection = Object.freeze({
+    executionScopeKey: scope,
+    objectiveId: authority.objectiveId,
+    objectiveDocumentId: authority.objectiveDocumentId,
+    objectiveRevision: authority.objectiveRevision,
+    workItemId: authority.workItemId,
+    workItemRevision: authority.workItemRevision,
+    ownerPeerId: authority.ownerPeerId,
+    ownerEpoch: authority.ownerEpoch,
+    assigneePeerId: authority.assigneePeerId,
+    awardId: authority.awardId,
+    assignmentEpoch: authority.assignmentEpoch,
+    assignmentAuthorityId: authority.assignmentAuthorityId,
+    fencingToken: authority.fencingToken,
+    acceptanceId: authority.acceptanceId,
+    acceptanceMessageId: authority.acceptanceMessageId,
+    originalLeaseExpiresAt: authority.leaseExpiresAt,
+    originalLeaseExpiresAtLogical: authority.leaseExpiresAtLogical,
+    workDeadline: authority.workDeadline,
+    workDeadlineAt: authority.workDeadlineAt,
+    leaseRenewalSequence: 0,
+    currentLeaseExpiresAt: authority.leaseExpiresAt,
+    currentLeaseExpiresAtLogical: authority.leaseExpiresAtLogical,
+    status: "active",
+    expiryTimerId: timerId,
+    expiryTimerGeneration: 1,
+  });
+  return Object.freeze({
+    head,
+    timer: Object.freeze({
+      timerId,
+      kind: "lease.expiry",
+      dueAt: authority.leaseExpiresAtLogical,
+      generation: 1,
+      domainRecordKey: JSON.stringify(["work.accept", authority.acceptanceId]),
+    }),
+  });
 }
 function workKey(objectiveId: string, workItemId: string): string {
   return JSON.stringify([objectiveId, workItemId]);

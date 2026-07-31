@@ -51,9 +51,9 @@ stale or duplicate generation cannot mutate state, and journal exhaustion
 fails closed before a due timer is consumed.
 
 The generic coordination timer evaluator refuses workflow-owned
-`objective.expiry` and `work.deadline` timers. Those timers are evaluated only
-by the Objective/Work workflow evaluator, so the generic path cannot consume
-or reinterpret them.
+`objective.expiry`, `work.deadline` and `lease.expiry` timers. Those timers are
+evaluated only by their Objective/Work or Allocation workflow evaluator, so
+the generic path cannot consume or reinterpret them.
 
 The foundation does not schedule host timers. Driver integration is added only
 with the workflow increment that first creates each timer, so a public effect
@@ -212,8 +212,8 @@ reuse the original attempt.
 
 This owner-side state-machine increment establishes allocation. A later
 execution-lifecycle slice consumes its accepted assignment authority; a valid
-signature or admission entry alone never grants execution authority. Lease
-renewal, reassignment and recovery remain deferred.
+signature or admission entry alone never grants execution authority.
+Reassignment and recovery remain deferred.
 
 The paired assignee-side allocation slice accepts an already-verified direct
 `work.award` only for the local peer and only when it proves the peer's retained
@@ -236,27 +236,42 @@ The execution-lifecycle slice accepts locally prepared or authenticated inbound
 `work.cancel` records. It retains bounded signed records and an assignment-scope
 head, enforces direct audience and role authority, exact Objective/Work and
 assignment bindings, current epoch and fencing token, causation and sequence
-rules, and trusted Work/initial-lease deadlines. Progress and checkpoints are
+rules, and trusted Work/current-lease deadlines. Progress and checkpoints are
 append-only; a result, release or cancellation is terminal and later ordinary
 records are rejected. Exact replay is idempotent while identifier or canonical
 content reuse conflicts fail closed. Owner cancellation of a pending award
 releases its reservation; terminal active execution does not reverse committed
 Objective budget accounting.
 
-Allocation snapshots now use schema version 4. Restore migrates versions 1–3
-deterministically, adds empty bounded execution-record and execution-head
-indexes, and derives conservative execution limits from legacy offer limits.
-Strict restore revalidates retained envelopes, causal/domain bindings,
-authority, terminal heads and accounting before exposing the immutable snapshot.
+Accepted assignments immediately materialize a sequence-zero lease head and a
+generation-fenced expiry timer. A locally prepared or authenticated direct
+`lease.renew` record may extend only the current active lease while preserving
+its assignee, epoch, authority and fencing token. Renewals form one exact
+bounded predecessor chain, obey Objective duration/count and Work deadlines,
+and replace the active timer generation atomically. Expiry is terminal for that
+authority but retains all original assignment and renewal evidence. Terminal
+execution retires the active lease timer and head without rewriting historical
+records. Release and active cancellation causally name the latest accepted
+renewal when one exists. Assignee execution and release remain lease-bound; the
+owner may still close or cancel an expired assignment before the Work deadline.
+
+Allocation snapshots now use schema version 5. Restore migrates versions 1–4
+deterministically, derives sequence-zero lease heads and missing initial expiry
+timers for legacy accepted assignments, and derives conservative bounded
+limits. Strict restore revalidates retained envelopes, causal/domain bindings,
+each signed renewal's complete authority and derived logical deadline, current
+lease heads, historical execution deadlines, timer generations, terminal heads
+and accounting before exposing the immutable snapshot.
 
 `createMeshAllocationInboundProcessor` authenticates Allocation traffic before
 domain evaluation. It construction-binds key resolution and cryptographic
 policy, then orders context, signature verification, exact admission and
 instance authority, replay accounting and the allocation transition. A signed
 execution record rejected by the domain still consumes normal replay security
-accounting; diagnostics remain local. This slice does not implement lease
-renewal, recovery certificates, reassignment, durable execution storage or
-external-action authority.
+accounting; diagnostics remain local. The same boundary accepts authenticated
+`lease.renew` records only after replay and admission checks. This slice does
+not implement recovery certificates, reassignment, durable execution storage
+or external-action authority.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite

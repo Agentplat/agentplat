@@ -1033,7 +1033,7 @@ test("owner award atomically closes bids and a causal accept commits its reserva
   delete populatedV2.limits.maximumLocalAssignmentResponses;
   delete populatedV2.limits.maximumAssignmentAuthorities;
   const migratedV2 = restoreMeshAllocationState(populatedV2);
-  assert.equal(migratedV2.schemaVersion, 4);
+  assert.equal(migratedV2.schemaVersion, 5);
   assert.deepEqual(
     migratedV2.localOffers,
     accepted.state.allocation.localOffers,
@@ -1054,6 +1054,8 @@ test("owner award atomically closes bids and a causal accept commits its reserva
     migratedV2.reservations,
     accepted.state.allocation.reservations,
   );
+  assert.equal(Object.keys(migratedV2.leaseHeads).length, 1);
+  assert.deepEqual(migratedV2.leaseRenewals, Object.create(null));
   const mismatchedCommitTime = structuredClone(accepted.state.allocation);
   mismatchedCommitTime.reservations[
     "allocation.reservation.offer-a"
@@ -1945,8 +1947,10 @@ test("allocation v1 snapshots migrate and award restoration rejects forged bindi
   delete v1.limits.maximumAwards;
   delete v1.limits.maximumAssignmentResponses;
   const migrated = restoreMeshAllocationState(v1);
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, 5);
   assert.equal(migrated.limits.maximumOffers, 7);
+  assert.deepEqual(migrated.leaseHeads, Object.create(null));
+  assert.deepEqual(migrated.leaseRenewals, Object.create(null));
 
   const { state, keys, resolver } = await awardableAllocation();
   const populatedV1 = structuredClone(state.allocation);
@@ -2727,9 +2731,11 @@ test("execution schema migration initializes empty retained evidence and strict 
   delete v3.limits.maximumExecutionHeads;
   delete v3.limits.maximumExecutionRecordsPerAssignment;
   const restored = restoreMeshAllocationState(v3);
-  assert.equal(restored.schemaVersion, 4);
+  assert.equal(restored.schemaVersion, 5);
   assert.deepEqual(restored.executionRecords, Object.create(null));
   assert.deepEqual(restored.executionHeads, Object.create(null));
+  assert.deepEqual(restored.leaseRenewals, Object.create(null));
+  assert.deepEqual(restored.leaseHeads, Object.create(null));
 
   const invalid = structuredClone(restored);
   invalid.executionRecords = { forged: {} };

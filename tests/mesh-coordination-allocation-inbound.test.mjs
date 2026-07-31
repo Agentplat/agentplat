@@ -43,6 +43,7 @@ const offerFixture = fixture('work-offer.json');
 const awardFixture = fixture('work-award.json');
 const acceptFixture = fixture('work-accept.json');
 const progressFixture = fixture('work-progress.json');
+const leaseRenewFixture = fixture('lease-renew.json');
 const cardFixture = fixture('peer-card.json');
 const capabilityFixture = fixture('capability-advertise.json');
 const verifiedAt = '2026-07-30T00:00:01.000Z';
@@ -125,15 +126,16 @@ async function signedBid(sequence, number) {
   const envelope = structuredClone(bidFixture);
   envelope.sequence = sequence;
   envelope.messageId = messageId(number);
-  return signMeshEnvelope({ envelope, privateKey: keyPairs['peer-a'].privateKey });
+  return signMeshEnvelope({
+    envelope,
+    privateKey: keyPairs['peer-a'].privateKey,
+  });
 }
 
 function hashed(envelope) {
   const copy = structuredClone(envelope);
   const canonical = canonicalizeMeshPayload(copy.payload);
-  copy.payloadHash = `sha256:${createHash('sha256')
-    .update(canonical.value)
-    .digest('base64url')}`;
+  copy.payloadHash = `sha256:${createHash('sha256').update(canonical.value).digest('base64url')}`;
   return copy;
 }
 
@@ -252,7 +254,9 @@ async function activeOwnerRuntime() {
     },
     5
   );
-  assert.deepEqual(matching.evaluations, [{ peerId: 'peer-a', reason: 'eligible' }]);
+  assert.deepEqual(matching.evaluations, [
+    { peerId: 'peer-a', reason: 'eligible' },
+  ]);
   const offered = evaluateMeshAllocationCommand(
     state,
     {
@@ -289,7 +293,7 @@ async function activeOwnerRuntime() {
   });
   bid.proof.keyId = 'key-a';
   const bidded = evaluateVerifiedMeshAllocationEnvelope(offered.state, {
-    envelope: (await signed(bid, 'peer-a')),
+    envelope: await signed(bid, 'peer-a'),
     receivedAt: 6,
     verifiedAt,
   });
@@ -385,6 +389,22 @@ async function signedProgress(messageId = 'NAAAAAAAAAAAAAAAAAAAAA') {
   return signed(progress, 'peer-a');
 }
 
+async function signedLeaseRenew(messageId = 'LAAAAAAAAAAAAAAAAAAAAA') {
+  const renewal = structuredClone(leaseRenewFixture);
+  Object.assign(renewal, {
+    messageId,
+    sequence: 51,
+    sentAt: '2026-07-30T00:00:04.000Z',
+    expiresAt: '2026-07-30T00:00:14.000Z',
+    causationId: 'RAAAAAAAAAAAAAAAAAAAAA',
+  });
+  Object.assign(renewal.payload, {
+    leaseExpiresAt: '2026-07-30T00:00:25.000Z',
+    renewedLeaseExpiresAt: '2026-07-30T00:00:45.000Z',
+  });
+  return signed(renewal, 'peer-a');
+}
+
 function request(envelope) {
   return { envelope, receivedAt: 1_000, verifiedAt };
 }
@@ -460,6 +480,25 @@ test('allocation inbound accepts a signed assignee progress record for an active
     1
   );
   assert.equal(result.state.inbound.lastLogicalTime, 1_000);
+});
+
+test('allocation inbound accepts a signed lease renewal once and retains replay protection', async () => {
+  const initial = await activeOwnerRuntime();
+  const envelope = await signedLeaseRenew();
+  const accepted = await processor.process(initial, request(envelope));
+  assert.equal(accepted.accepted, true, accepted.code);
+  assert.equal(
+    accepted.state.allocation.leaseRenewals['lease-renewal-a'].direction,
+    'received'
+  );
+  const [scope] = Object.keys(accepted.state.allocation.leaseHeads);
+  assert.equal(
+    accepted.state.allocation.leaseHeads[scope].currentLeaseExpiresAt,
+    '2026-07-30T00:00:45.000Z'
+  );
+  const replay = await processor.process(accepted.state, request(envelope));
+  assert.equal(replay.accepted, false);
+  assert.equal(replay.code, 'message_replayed');
 });
 
 test('execution domain rejections retain replay accounting before rejecting the replay', async () => {

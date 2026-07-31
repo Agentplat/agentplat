@@ -4,8 +4,9 @@ Status: Increments 0 and 1 are complete. Increment 2 Objective/Work and its
 authenticated ingress are complete. The bounded owner and assignee allocation
 handshakes are complete, including the initial execution lifecycle for
 `work.progress`, `work.checkpoint`, `work.result`, `work.release` and
-`work.cancel`. Lease renewal, reassignment, certified recovery, resilience
-simulation and release publication remain pending.
+`work.cancel`, and stateful bounded lease renewal/expiry is complete.
+Reassignment, certified recovery, resilience simulation and release
+publication remain pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -55,12 +56,12 @@ The release keeps:
 
 No new public package is introduced.
 
-| Package                    | Alpha 2 responsibility                                                                                                                                                        |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.                                                        |
-| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                                                                      |
-| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation and initial execution lifecycle; lease renewal, reassignment and recovery remain pending. |
-| `@agentplat/mesh-sim`      | Planned crash, loss, duplicate, reorder and partition faults plus allocation and recovery invariant suites.                                                                   |
+| Package                    | Alpha 2 responsibility                                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.                                                               |
+| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                                                                             |
+| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation, execution lifecycle and bounded lease renewal/expiry; reassignment and recovery remain pending. |
+| `@agentplat/mesh-sim`      | Planned crash, loss, duplicate, reorder and partition faults plus allocation and recovery invariant suites.                                                                          |
 
 Runtime dependencies continue to follow actual imports. Framework must not
 depend on or re-export an alpha Mesh package.
@@ -79,8 +80,9 @@ the corresponding increment has local state, authority and reducer support:
 - `work.offer`, `work.bid`, `work.award`, `work.accept` and `work.decline`;
 - `work.progress`, `work.checkpoint`, `work.result`, `work.release` and
   `work.cancel`;
-- `lease.renew`, `lease.takeover_proposal`, `lease.vote` and
-  `lease.certificate` remain unsupported at the runtime boundary.
+- `lease.renew`;
+- `lease.takeover_proposal`, `lease.vote` and `lease.certificate` remain
+  unsupported at the runtime boundary.
 
 Alpha 1 `peer.hello`, `peer.ping` and `peer.ping_ack` behavior remains
 unchanged.
@@ -260,9 +262,8 @@ is rejected.
 The reducer records append-only decision events and projects current state from
 them. It never treats message arrival order as authority.
 
-Lease renewal and certified-reassignment transitions are not enabled in this
-state machine; their protocol records remain unsupported at the runtime
-boundary.
+Lease renewal and deterministic lease expiry are enabled in this state machine.
+Certified-reassignment transitions remain unsupported at the runtime boundary.
 
 ## Allocation protocol
 
@@ -407,8 +408,9 @@ does not infer receipt by the owner.
 This assignee-side increment establishes award intake and response
 preparation/dispatch, and records the resulting initial local assignment
 authority. The execution-lifecycle slice uses that authority for progress,
-checkpoints, results, release and cancellation. It does not renew a lease,
-transfer external-action authority, or perform reassignment or recovery.
+checkpoints, results, release and cancellation. The later lease slice extends
+that same authority without transferring external-action authority or
+performing reassignment or recovery.
 
 ### Progress, checkpoint and result
 
@@ -443,6 +445,18 @@ concern.
   verification time is strictly before the signed deadline or lease expiry.
 - A timer fires at or after its deadline. Witness recovery becomes eligible at
   or after lease expiry plus recovery grace.
+
+The implemented Allocation projection retains the immutable initial lease
+alongside a mutable current lease head. Each accepted assignment creates a
+sequence-zero head and expiry timer. Every accepted renewal names the exact
+current expiry and predecessor, advances the renewal sequence once, preserves
+the assignment authority, replaces the timer generation atomically and becomes
+the only lease deadline accepted by later execution records. It also becomes
+the causal head for release and active cancellation. Assignee execution remains
+lease-bound, while the owner can close or cancel an expired assignment before
+the Work deadline. Schema version 5 strictly restores complete authority,
+derived logical deadlines and those causal relations, and deterministically
+derives bounded sequence-zero heads and timers when reading versions 1–4.
 
 ### Recovery policy
 
@@ -754,12 +768,13 @@ The packed-consumer, reordered-delivery and release gates remain pending.
 
 ### Increment 4: leases, epochs and fencing
 
-- enforce signed initial-lease and acceptance deadlines for the execution
+- [complete] enforce signed initial-lease and acceptance deadlines for the execution
   lifecycle;
-- implement bounded renewal;
-- retain the implemented initial epoch/token binding and stale/expired
+- [complete] implement bounded renewal and generation-fenced deterministic
+  expiry;
+- [complete] retain the implemented initial epoch/token binding and stale/expired
   authority rejection;
-- expose redacted transition and rejection events.
+- [complete] expose redacted transition and rejection events.
 
 Wire conformance for renewal covers a closed accepted-assignment payload,
 stable renewal IDs and predecessor sequences, assignee self-binding, direct
@@ -771,6 +786,13 @@ Objective duration/count policy, terminality and idempotency.
 
 Exit criterion: no stale or expired executor record changes Work Item, journal
 or budget state.
+
+Evidence: Allocation schema version 5 retains immutable renewal evidence and
+one current lease head per assignment. Focused assignment and authenticated
+ingress tests cover chained renewal, exact duplicates, forks, stale timers,
+current-expiry execution, terminal timer retirement, authority mismatches,
+expiry, post-renewal terminal causality, owner close after expiry, capacity, v4
+migration and adversarial restore relations.
 
 ### Increment 5: certified reassignment
 

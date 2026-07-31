@@ -6,8 +6,9 @@ Allocation handshake is implemented through award, acceptance, decline and
 acceptance timeout. The paired assignee-side slice accepts verified direct
 awards and prepares one locally recorded accept/decline dispatch. The initial
 execution lifecycle implements progress, checkpoint, result, release and
-cancellation; lease renewal, reassignment, recovery, resilience simulation and
-release publication remain pending.
+cancellation; bounded lease renewal and deterministic expiry are complete.
+Reassignment, recovery, resilience simulation and release publication remain
+pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -270,7 +271,7 @@ Registry and Git mutations are checked only after independent verification.
 - `tests/mesh-assignment.test.mjs` covers causal offer chains, intake, dispatch,
   exclusive deadline, capacity/restore/migration, mismatch rejection and exact
   idempotency;
-- lease renewal, reassignment and recovery remain explicitly out of scope.
+- reassignment and recovery remain explicitly out of scope.
 
 ### Execution-lifecycle sub-slice evidence
 
@@ -279,11 +280,11 @@ Registry and Git mutations are checked only after independent verification.
   immutable head per assignment scope, and rejects stale role, audience,
   Objective/Work, epoch, token, causation, sequence and deadline bindings
   before mutation;
-- `packages/mesh/src/coordination-allocation-state.ts` moves the separately
-  restorable Allocation snapshot to schema version 4. Versions 1–3 migrate
-  deterministically with empty execution indexes and conservative derived
-  limits; strict restore binds heads, terminal evidence and coordination domain
-  records;
+- `packages/mesh/src/coordination-allocation-state.ts` now exposes the
+  separately restorable Allocation snapshot as schema version 5. Versions 1–4
+  migrate deterministically with conservative derived limits and sequence-zero
+  lease heads for accepted assignments; strict restore binds execution and
+  lease heads, terminal evidence, timers and coordination domain records;
 - `packages/mesh/src/coordination-inbound.ts` enables authenticated Allocation
   ingress, ordering context, cryptographic verification, admission and
   instance checks, replay accounting, then execution domain evaluation;
@@ -295,6 +296,28 @@ Registry and Git mutations are checked only after independent verification.
   inbound progress and replay accounting retained after an execution-domain
   rejection.
 
+### Lease-renewal and expiry sub-slice evidence
+
+- accepted assignments materialize a sequence-zero current lease head and
+  generation-fenced expiry timer without rewriting the signed initial lease;
+- locally prepared and authenticated inbound `lease.renew` records require the
+  exact assignee, owner, Objective/Work revision, assignment authority, current
+  expiry, sequence, predecessor and causation before mutation;
+- each accepted renewal atomically retains immutable signed evidence, advances
+  the current head and replaces the timer generation; exact replay is
+  idempotent while causal forks and identifier/content conflicts fail closed;
+- execution accepts only the current expiry, expiry removes authority without
+  erasing history, release/cancel use the latest renewal as their causal head,
+  owner close remains available after expiry, and terminal execution retires
+  the current lease timer;
+- Allocation schema version 5 strictly validates renewal/domain/timer
+  relations, complete renewal authority, re-derived logical deadlines and each
+  historical execution deadline, and deterministically migrates versions 1–4
+  with bounded sequence-zero heads and missing legacy initial timers;
+- focused assignment and authenticated ingress tests cover chained renewal,
+  policy and authority rejection, stale timer generations, current-expiry
+  execution, terminality, capacity, migration and adversarial restore.
+
 ## Lease, epoch and fencing
 
 - [x] the initial assignment epoch is `1`;
@@ -302,12 +325,12 @@ Registry and Git mutations are checked only after independent verification.
 - [x] one epoch has exactly one stable assignment authority ID and token;
 - [x] initial fencing token equals `awardId`;
 - [ ] recovered fencing token equals `certificateId`;
-- [ ] renewals preserve assignee, epoch and token;
-- [ ] renewals stay within Objective duration and count limits;
+- [x] renewals preserve assignee, epoch and token;
+- [x] renewals stay within Objective duration and count limits;
 - [x] the initial expired lease authorizes no new progress;
 - [ ] a higher accepted epoch permanently fences lower epochs;
 - [x] a same-epoch record with a different token is rejected;
-- [ ] stale rejection does not mutate projection, journal, reservation or
+- [x] stale rejection does not mutate projection, journal, reservation or
       idempotency decisions beyond normal replay accounting.
 
 ## Certified recovery

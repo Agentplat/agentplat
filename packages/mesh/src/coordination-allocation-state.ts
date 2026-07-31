@@ -13,6 +13,7 @@ import {
   type WorkResultPayload,
   type WorkReleasePayload,
   type WorkCancelPayload,
+  type LeaseRenewPayload,
   type WorkOfferPayload,
 } from "@agentplat/mesh-protocol";
 
@@ -37,11 +38,16 @@ import type {
   MeshReceivedAwardProjection,
   MeshReceivedOfferProjection,
   MeshExecutionHeadProjection,
+  MeshLeaseHeadProjection,
+  MeshLeaseRenewalEvidence,
   MeshExecutionPayload,
   MeshExecutionRecordProjection,
   MeshWorkAllocationProjection,
 } from "./coordination-allocation-contracts.js";
-import type { MeshCoordinationState } from "./coordination-contracts.js";
+import type {
+  MeshCoordinationState,
+  MeshCoordinationTimer,
+} from "./coordination-contracts.js";
 import type { MeshDiscoveryState } from "./coordination-discovery-contracts.js";
 import type {
   MeshObjectiveWorkState,
@@ -57,6 +63,7 @@ import {
   assertMeshLogicalTime,
   assertMeshMessageId,
   createFrozenRecord,
+  recordEntries,
 } from "./state.js";
 
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
@@ -76,6 +83,7 @@ const limitKeys = [
   "maximumExecutionHeads",
   "maximumExecutionRecords",
   "maximumExecutionRecordsPerAssignment",
+  "maximumLeaseRenewals",
   "maximumAwards",
   "maximumBidHeads",
   "maximumBidsPerOffer",
@@ -97,6 +105,7 @@ export const DEFAULT_MESH_ALLOCATION_LIMITS: Readonly<MeshAllocationLimits> =
     maximumExecutionHeads: 8_192,
     maximumExecutionRecords: 32_768,
     maximumExecutionRecordsPerAssignment: 1_024,
+    maximumLeaseRenewals: 8_192,
     maximumAwards: 8_192,
     maximumOffers: 8_192,
     maximumOffersPerWorkItem: 32,
@@ -117,7 +126,7 @@ export function createMeshAllocationState(
   assertPlainRecord(options, "allocation state options");
   assertExactKeys(options, ["identity", "limits"], ["identity"]);
   return Object.freeze({
-    schemaVersion: 4,
+    schemaVersion: 5,
     identity: freezeIdentity(options.identity),
     workAllocations: createFrozenRecord<MeshWorkAllocationProjection>([]),
     localOffers: createFrozenRecord<MeshLocalOfferProjection>([]),
@@ -135,6 +144,8 @@ export function createMeshAllocationState(
       createFrozenRecord<MeshAssigneeAssignmentAuthorityProjection>([]),
     executionRecords: createFrozenRecord<MeshExecutionRecordProjection>([]),
     executionHeads: createFrozenRecord<MeshExecutionHeadProjection>([]),
+    leaseRenewals: createFrozenRecord<MeshLeaseRenewalEvidence>([]),
+    leaseHeads: createFrozenRecord<MeshLeaseHeadProjection>([]),
     reservations: createFrozenRecord<MeshAllocationReservation>([]),
     limits: resolveLimits(options.limits, false),
     lastLogicalTime: 0,
@@ -239,8 +250,20 @@ export function restoreMeshAllocationState(
       freezeExecutionHead(value, parsed.lastLogicalTime, parsed.limits),
     ]),
   );
-  const state = Object.freeze({
-    schemaVersion: 4 as const,
+  const leaseRenewals = createFrozenRecord(
+    parsed.leaseRenewals.map(([key, value]) => [
+      key,
+      freezeLeaseRenewal(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
+  const leaseHeads = createFrozenRecord(
+    parsed.leaseHeads.map(([key, value]) => [
+      key,
+      freezeLeaseHead(value, parsed.lastLogicalTime, parsed.limits),
+    ]),
+  );
+  const baseState: MeshAllocationState = Object.freeze({
+    schemaVersion: 5 as const,
     identity: freezeIdentity(parsed.identity),
     workAllocations,
     localOffers,
@@ -255,10 +278,36 @@ export function restoreMeshAllocationState(
     assigneeAuthorities,
     executionRecords,
     executionHeads,
+    leaseRenewals,
+    leaseHeads,
     reservations,
     limits: Object.freeze({ ...parsed.limits }),
     lastLogicalTime: parsed.lastLogicalTime,
   });
+  const migratedLeaseHeadEntries = parsed.migrateInitialLeaseHeads
+    ? collectInitialLeaseHeads(baseState)
+    : undefined;
+  if (
+    migratedLeaseHeadEntries !== undefined &&
+    migratedLeaseHeadEntries.length > parsed.limits.maximumExecutionHeads
+  )
+    throw new RangeError("Mesh migrated lease heads exceed their limit");
+  const state =
+    migratedLeaseHeadEntries === undefined
+      ? baseState
+      : Object.freeze({
+          ...baseState,
+          leaseHeads: createFrozenRecord(
+            migratedLeaseHeadEntries.map(([key, value]) => {
+              if (key !== value.executionScopeKey)
+                throw new TypeError("Mesh migrated lease head key is invalid");
+              return [
+                key,
+                freezeLeaseHead(value, parsed.lastLogicalTime, parsed.limits),
+              ] as const;
+            }),
+          ),
+        });
   validateStateRelations(state, false);
   return state;
 }
@@ -284,6 +333,8 @@ export function assertFrozenMeshAllocationState(
     !Object.isFrozen(state.assigneeAuthorities) ||
     !Object.isFrozen(state.executionRecords) ||
     !Object.isFrozen(state.executionHeads) ||
+    !Object.isFrozen(state.leaseRenewals) ||
+    !Object.isFrozen(state.leaseHeads) ||
     !Object.isFrozen(state.reservations) ||
     !Object.isFrozen(state.limits) ||
     [
@@ -300,6 +351,8 @@ export function assertFrozenMeshAllocationState(
       state.assigneeAuthorities,
       state.executionRecords,
       state.executionHeads,
+      state.leaseRenewals,
+      state.leaseHeads,
       state.reservations,
     ].some((record) => Object.getPrototypeOf(record) !== null) ||
     Object.values(state.workAllocations).some(
@@ -339,7 +392,11 @@ export function assertFrozenMeshAllocationState(
     ) ||
     Object.values(state.executionHeads).some(
       (value) => !isDeepFrozenData(value),
-    )
+    ) ||
+    Object.values(state.leaseRenewals).some(
+      (value) => !isDeepFrozenData(value),
+    ) ||
+    Object.values(state.leaseHeads).some((value) => !isDeepFrozenData(value))
   )
     throw new TypeError(
       "Mesh allocation reservation state must be an immutable snapshot",
@@ -375,6 +432,10 @@ export function createMeshAllocationRuntimeState(
     coordination.lastLogicalTime !== allocation.lastLogicalTime
   )
     throw new TypeError("Mesh allocation runtime snapshots are not aligned");
+  ({ coordination, allocation } = materializeInitialLeaseState(
+    coordination,
+    allocation,
+  ));
   const domainKeysByMessageId = new Map(
     Object.entries(coordination.domainRecords).map(([key, record]) => [
       record.messageId,
@@ -415,7 +476,9 @@ export function createMeshAllocationRuntimeState(
     executionJournalSequences.set(record.recordId, journal.sequence);
     const recordIds = executionRecordIdsByScope.get(executionScopeKey(payload));
     if (recordIds === undefined)
-      executionRecordIdsByScope.set(executionScopeKey(payload), [record.recordId]);
+      executionRecordIdsByScope.set(executionScopeKey(payload), [
+        record.recordId,
+      ]);
     else recordIds.push(record.recordId);
   }
 
@@ -429,17 +492,17 @@ export function createMeshAllocationRuntimeState(
       (terminalSequence !== undefined &&
         executionRecordIdsByScope
           .get(head.executionScopeKey)
-          ?.some(
-            (recordId) => {
-              const sequence = executionJournalSequences.get(recordId);
-              return (
-                recordId !== head.terminalRecordId &&
-                (sequence === undefined || sequence >= terminalSequence)
-              );
-            },
-          ))
+          ?.some((recordId) => {
+            const sequence = executionJournalSequences.get(recordId);
+            return (
+              recordId !== head.terminalRecordId &&
+              (sequence === undefined || sequence >= terminalSequence)
+            );
+          }))
     )
-      throw new TypeError("Mesh execution terminal journal ordering is invalid");
+      throw new TypeError(
+        "Mesh execution terminal journal ordering is invalid",
+      );
     const localAward = allocation.localAwards[head.awardId];
     if (localAward === undefined) continue;
     const currentWork =
@@ -561,6 +624,150 @@ export function createMeshAllocationRuntimeState(
     ) {
       throw new TypeError("Mesh allocation acceptance timer is orphaned");
     }
+    if (
+      timer.kind === "lease.expiry" &&
+      !Object.values(allocation.leaseHeads).some(
+        (head) =>
+          head.status === "active" &&
+          head.expiryTimerId === timer.timerId &&
+          head.expiryTimerGeneration === timer.generation &&
+          head.currentLeaseExpiresAtLogical === timer.dueAt,
+      )
+    )
+      throw new TypeError("Mesh lease expiry timer is orphaned");
+  }
+  const leaseRenewalJournalSequences = new Map<string, number>();
+  for (const renewal of Object.values(allocation.leaseRenewals)) {
+    const payload = renewal.envelope.payload;
+    const key = domainRecordKey("lease.renew", renewal.leaseRenewalId);
+    const domain = coordination.domainRecords[key];
+    const objectiveKey = JSON.stringify([
+      payload.objectiveId,
+      payload.objectiveRevision,
+    ]);
+    const objectiveDocument = objectives.objectiveDocuments[objectiveKey];
+    const objectivePolicy = objectives.objectivePolicies[objectiveKey];
+    const signedExtension = logicalDeadline(
+      payload.renewedLeaseExpiresAt,
+      payload.leaseExpiresAt,
+      0,
+    );
+    const journal = coordination.journal.filter(
+      (entry) =>
+        entry.domainRecordKey === key &&
+        (entry.kind === "command.accepted" || entry.kind === "domain.accepted"),
+    );
+    if (
+      !domain ||
+      journal.length !== 1 ||
+      domain.recordType !== "lease.renew" ||
+      domain.recordId !== renewal.leaseRenewalId ||
+      domain.messageId !== renewal.envelope.messageId ||
+      domain.acceptedAt !== renewal.acceptedAt ||
+      domain.objectiveId !== payload.objectiveId ||
+      domain.contentDigest !==
+        renewal.envelope.payloadHash.slice("sha256:".length) ||
+      journal[0]!.occurredAt !== renewal.acceptedAt ||
+      journal[0]!.kind !==
+        (renewal.direction === "local"
+          ? "command.accepted"
+          : "domain.accepted") ||
+      !objectiveDocument ||
+      !objectivePolicy ||
+      objectiveDocument.envelope.payload.objectiveDocumentId !==
+        payload.objectiveDocumentId ||
+      objectivePolicy.objectiveDocumentId !== payload.objectiveDocumentId ||
+      !signedExtension ||
+      signedExtension >
+        objectiveDocument.envelope.payload.maximumLeaseDurationMs ||
+      payload.leaseRenewalSequence >
+        objectiveDocument.envelope.payload.maximumLeaseRenewals ||
+      renewal.acceptedAt >= objectivePolicy.expiresAt ||
+      renewal.renewedLeaseExpiresAtLogical > objectivePolicy.expiresAt ||
+      compareTimestamp(
+        renewal.validityVerifiedAt,
+        objectivePolicy.validUntil,
+      ) >= 0 ||
+      compareTimestamp(
+        payload.renewedLeaseExpiresAt,
+        objectivePolicy.validUntil,
+      ) > 0
+    )
+      throw new TypeError("Mesh lease renewal domain binding is invalid");
+    leaseRenewalJournalSequences.set(
+      renewal.leaseRenewalId,
+      journal[0]!.sequence,
+    );
+  }
+  for (const record of Object.values(coordination.domainRecords))
+    if (
+      record.recordType === "lease.renew" &&
+      allocation.leaseRenewals[record.recordId] === undefined
+    )
+      throw new TypeError("Mesh lease renewal domain record is orphaned");
+  for (const executionRecord of Object.values(allocation.executionRecords)) {
+    if (!executionRecordRequiresActiveLease(executionRecord.envelope.payload))
+      continue;
+    const executionSequence = executionJournalSequences.get(
+      executionRecord.recordId,
+    );
+    const scope = executionScopeKey(executionRecord.envelope.payload);
+    const leaseHead = allocation.leaseHeads[scope];
+    if (executionSequence === undefined || leaseHead === undefined)
+      throw new TypeError("Mesh execution lease journal evidence is missing");
+    const renewals = Object.values(allocation.leaseRenewals)
+      .filter((renewal) => renewal.executionScopeKey === scope)
+      .sort(
+        (left, right) => left.leaseRenewalSequence - right.leaseRenewalSequence,
+      );
+    const claimedExpiry = executionRecord.envelope.payload.leaseExpiresAt;
+    const renewalIndex = renewals.findIndex(
+      (renewal) =>
+        renewal.envelope.payload.renewedLeaseExpiresAt === claimedExpiry,
+    );
+    const current = renewalIndex < 0 ? undefined : renewals[renewalIndex];
+    const successor =
+      renewalIndex < 0 ? renewals[0] : renewals[renewalIndex + 1];
+    const currentSequence =
+      current === undefined
+        ? undefined
+        : leaseRenewalJournalSequences.get(current.leaseRenewalId);
+    const successorSequence =
+      successor === undefined
+        ? undefined
+        : leaseRenewalJournalSequences.get(successor.leaseRenewalId);
+    if (
+      (claimedExpiry !== leaseHead.originalLeaseExpiresAt &&
+        (current === undefined ||
+          currentSequence === undefined ||
+          (executionRecord.recordedAt === current.acceptedAt &&
+            executionSequence <= currentSequence))) ||
+      (successor !== undefined &&
+        (successorSequence === undefined ||
+          (executionRecord.recordedAt === successor.acceptedAt &&
+            executionSequence >= successorSequence)))
+    )
+      throw new TypeError("Mesh execution lease journal ordering is invalid");
+  }
+  for (const head of Object.values(allocation.leaseHeads)) {
+    const timer =
+      head.expiryTimerId === undefined
+        ? undefined
+        : coordination.timers[head.expiryTimerId];
+    const expectedDomainRecordKey =
+      head.leaseRenewalSequence === 0
+        ? domainRecordKey("work.accept", head.acceptanceId)
+        : domainRecordKey("lease.renew", head.latestLeaseRenewalId!);
+    if (
+      head.status === "active"
+        ? !timer ||
+          timer.kind !== "lease.expiry" ||
+          timer.generation !== head.expiryTimerGeneration ||
+          timer.dueAt !== head.currentLeaseExpiresAtLogical ||
+          timer.domainRecordKey !== expectedDomainRecordKey
+        : timer !== undefined
+    )
+      throw new TypeError("Mesh lease head timer binding is invalid");
   }
   for (const evidence of Object.values(allocation.acceptedBidEvidence)) {
     const domainKey = domainRecordKey("work.bid", evidence.bidId);
@@ -855,6 +1062,213 @@ export function createMeshAllocationRuntimeState(
   return Object.freeze({ coordination, discovery, objectives, allocation });
 }
 
+/**
+ * Allocation v4 snapshots predate lease heads and fresh acceptance paths also
+ * compose their allocation and coordination projections independently. This
+ * deterministic normalization installs the sequence-zero lease head and its
+ * generation-fenced expiry timer atomically before the runtime is exposed.
+ */
+function materializeInitialLeaseState(
+  coordination: MeshCoordinationState,
+  allocation: MeshAllocationState,
+): Readonly<{
+  coordination: MeshCoordinationState;
+  allocation: MeshAllocationState;
+}> {
+  const candidates = new Map(collectInitialLeaseHeads(allocation));
+  const missing = [...candidates].filter(
+    ([scope]) => allocation.leaseHeads[scope] === undefined,
+  );
+  const heads = createFrozenRecord([
+    ...recordEntries(allocation.leaseHeads),
+    ...missing,
+  ]);
+  const timers = new Map(recordEntries(coordination.timers));
+  for (const head of Object.values(heads)) {
+    if (head.status !== "active") continue;
+    if (head.expiryTimerId !== undefined && timers.has(head.expiryTimerId))
+      continue;
+    if (head.leaseRenewalSequence !== 0) continue;
+    const timer = initialLeaseTimer(head);
+    timers.set(timer.timerId, timer);
+  }
+  if (
+    missing.length === 0 &&
+    timers.size === Object.keys(coordination.timers).length
+  )
+    return Object.freeze({ coordination, allocation });
+  if (timers.size > coordination.limits.maximumTimers)
+    throw new RangeError("Mesh initial lease timers exceed their limit");
+
+  const normalizedAllocation =
+    missing.length === 0
+      ? allocation
+      : restoreMeshAllocationState({
+          ...allocation,
+          leaseHeads: heads,
+        });
+  const normalizedCoordination = Object.freeze({
+    ...coordination,
+    timers: createFrozenRecord([...timers]),
+  });
+  assertFrozenMeshCoordinationState(normalizedCoordination);
+  return Object.freeze({
+    coordination: normalizedCoordination,
+    allocation: normalizedAllocation,
+  });
+}
+
+function collectInitialLeaseHeads(
+  allocation: MeshAllocationState,
+): readonly (readonly [string, MeshLeaseHeadProjection])[] {
+  const candidates = new Map<string, MeshLeaseHeadProjection>();
+  for (const award of Object.values(allocation.localAwards)) {
+    const response = allocation.assignmentResponses[award.awardId];
+    if (award.status !== "accepted" || response?.kind !== "work.accept")
+      continue;
+    const scope = executionScopeKey({
+      objectiveId: award.objectiveId,
+      objectiveRevision: award.objectiveRevision,
+      workItemId: award.work.workItemId,
+      workItemRevision: award.work.workItemRevision,
+      ownerPeerId: award.work.ownerPeerId,
+      ownerEpoch: award.work.ownerEpoch,
+      awardId: award.awardId,
+      assignmentEpoch: award.assignmentEpoch,
+    });
+    candidates.set(
+      scope,
+      initialLeaseHead(
+        scope,
+        {
+          objectiveId: award.objectiveId,
+          objectiveDocumentId: award.objectiveDocumentId,
+          objectiveRevision: award.objectiveRevision,
+          workItemId: award.work.workItemId,
+          workItemRevision: award.work.workItemRevision,
+          ownerPeerId: award.work.ownerPeerId,
+          ownerEpoch: award.work.ownerEpoch,
+          assigneePeerId: award.assigneePeerId,
+          awardId: award.awardId,
+          assignmentEpoch: award.assignmentEpoch,
+          assignmentAuthorityId: award.assignmentAuthorityId,
+          fencingToken: award.fencingToken,
+          acceptanceId: response.responseId,
+          acceptanceMessageId: response.envelope.messageId,
+          leaseExpiresAt: award.leaseExpiresAt,
+          leaseExpiresAtLogical: award.leaseExpiresAtLogical,
+          workDeadline: award.workDeadline,
+          workDeadlineAt: award.work.workDeadlineAt,
+        },
+        allocation,
+      ),
+    );
+  }
+  for (const authority of Object.values(allocation.assigneeAuthorities)) {
+    const response = allocation.localAssignmentResponses[authority.awardId];
+    if (response?.kind !== "work.accept") continue;
+    const scope = executionScopeKey(authority);
+    const candidate = initialLeaseHead(
+      scope,
+      {
+        ...authority,
+        acceptanceMessageId: response.envelope.messageId,
+      },
+      allocation,
+    );
+    const existing = candidates.get(scope);
+    if (existing !== undefined && !sameData(existing, candidate))
+      throw new TypeError("Mesh initial lease authority is ambiguous");
+    candidates.set(scope, candidate);
+  }
+  return Object.freeze([...candidates]);
+}
+
+function initialLeaseHead(
+  scope: string,
+  authority: Readonly<{
+    objectiveId: string;
+    objectiveDocumentId: string;
+    objectiveRevision: number;
+    workItemId: string;
+    workItemRevision: number;
+    ownerPeerId: string;
+    ownerEpoch: number;
+    assigneePeerId: string;
+    awardId: string;
+    assignmentEpoch: number;
+    assignmentAuthorityId: string;
+    fencingToken: string;
+    acceptanceId: string;
+    acceptanceMessageId: string;
+    leaseExpiresAt: string;
+    leaseExpiresAtLogical: number;
+    workDeadline: string;
+    workDeadlineAt: number;
+  }>,
+  allocation: MeshAllocationState,
+): MeshLeaseHeadProjection {
+  const execution = allocation.executionHeads[scope];
+  const terminal = execution !== undefined && execution.phase !== "active";
+  const expired =
+    !terminal && allocation.lastLogicalTime >= authority.leaseExpiresAtLogical;
+  const status = terminal ? "terminal" : expired ? "expired" : "active";
+  const timerId = leaseExpiryTimerId(scope);
+  return Object.freeze({
+    executionScopeKey: scope,
+    objectiveId: authority.objectiveId,
+    objectiveDocumentId: authority.objectiveDocumentId,
+    objectiveRevision: authority.objectiveRevision,
+    workItemId: authority.workItemId,
+    workItemRevision: authority.workItemRevision,
+    ownerPeerId: authority.ownerPeerId,
+    ownerEpoch: authority.ownerEpoch,
+    assigneePeerId: authority.assigneePeerId,
+    awardId: authority.awardId,
+    assignmentEpoch: authority.assignmentEpoch,
+    assignmentAuthorityId: authority.assignmentAuthorityId,
+    fencingToken: authority.fencingToken,
+    acceptanceId: authority.acceptanceId,
+    acceptanceMessageId: authority.acceptanceMessageId,
+    originalLeaseExpiresAt: authority.leaseExpiresAt,
+    originalLeaseExpiresAtLogical: authority.leaseExpiresAtLogical,
+    workDeadline: authority.workDeadline,
+    workDeadlineAt: authority.workDeadlineAt,
+    leaseRenewalSequence: 0,
+    currentLeaseExpiresAt: authority.leaseExpiresAt,
+    currentLeaseExpiresAtLogical: authority.leaseExpiresAtLogical,
+    status,
+    ...(status === "active"
+      ? { expiryTimerId: timerId, expiryTimerGeneration: 1 }
+      : {}),
+  });
+}
+
+function initialLeaseTimer(
+  head: MeshLeaseHeadProjection,
+): MeshCoordinationTimer {
+  if (
+    head.expiryTimerId === undefined ||
+    head.expiryTimerGeneration === undefined
+  )
+    throw new TypeError("Mesh active lease head has no expiry timer");
+  return Object.freeze({
+    timerId: head.expiryTimerId,
+    kind: "lease.expiry",
+    dueAt: head.currentLeaseExpiresAtLogical,
+    generation: head.expiryTimerGeneration,
+    domainRecordKey: domainRecordKey("work.accept", head.acceptanceId),
+  });
+}
+
+function leaseExpiryTimerId(scope: string): string {
+  return `lease.expiry:${sha256Base64Url(utf8Encoder.encode(scope))}`;
+}
+
+function sameData(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function validateAssigneeObjectiveRelations(
   objectives: MeshObjectiveWorkState,
   allocation: MeshAllocationState,
@@ -1052,6 +1466,7 @@ function validateSnapshot(snapshot: unknown): ParsedState {
   const legacy = version === 1 || version === 2;
   const legacyV1 = version === 1;
   const legacyV3 = version === 3;
+  const legacyV4 = version === 4;
   assertExactKeys(
     snapshot,
     [
@@ -1060,6 +1475,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       "assignmentResponses",
       "bidHeads",
       "executionHeads",
+      "leaseHeads",
+      "leaseRenewals",
       "executionRecords",
       "identity",
       "lastLogicalTime",
@@ -1119,31 +1536,57 @@ function validateSnapshot(snapshot: unknown): ParsedState {
               "schemaVersion",
               "workAllocations",
             ]
-          : [
-              "acceptedBidEvidence",
-              "assigneeAuthorities",
-              "assignmentResponses",
-              "bidHeads",
-              "identity",
-              "lastLogicalTime",
-              "limits",
-              "localAssignmentResponses",
-              "localBids",
-              "localAwards",
-              "localOffers",
-              "receivedAwards",
-              "receivedOffers",
-              "reservations",
-              "schemaVersion",
-              "workAllocations",
-            ],
+          : legacyV4
+            ? [
+                "acceptedBidEvidence",
+                "assigneeAuthorities",
+                "assignmentResponses",
+                "bidHeads",
+                "executionHeads",
+                "executionRecords",
+                "identity",
+                "lastLogicalTime",
+                "limits",
+                "localAssignmentResponses",
+                "localBids",
+                "localAwards",
+                "localOffers",
+                "receivedAwards",
+                "receivedOffers",
+                "reservations",
+                "schemaVersion",
+                "workAllocations",
+              ]
+            : [
+                "acceptedBidEvidence",
+                "assigneeAuthorities",
+                "assignmentResponses",
+                "bidHeads",
+                "executionHeads",
+                "executionRecords",
+                "identity",
+                "leaseHeads",
+                "leaseRenewals",
+                "lastLogicalTime",
+                "limits",
+                "localAssignmentResponses",
+                "localBids",
+                "localAwards",
+                "localOffers",
+                "receivedAwards",
+                "receivedOffers",
+                "reservations",
+                "schemaVersion",
+                "workAllocations",
+              ],
   );
   const raw = snapshot as Record<string, unknown>;
   if (
     raw.schemaVersion !== 1 &&
     raw.schemaVersion !== 2 &&
     raw.schemaVersion !== 3 &&
-    raw.schemaVersion !== 4
+    raw.schemaVersion !== 4 &&
+    raw.schemaVersion !== 5
   )
     throw new TypeError("Mesh allocation schema version is unsupported");
   const assigneeRecords = {
@@ -1165,6 +1608,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
   const executionRecords = {
     executionRecords: Object.create(null),
     executionHeads: Object.create(null),
+    leaseRenewals: Object.create(null),
+    leaseHeads: Object.create(null),
   };
   const executionLimits = {
     maximumExecutionHeads: (raw.limits as MeshAllocationLimits).maximumOffers,
@@ -1173,11 +1618,12 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       (raw.limits as MeshAllocationLimits).maximumOffers,
       DEFAULT_MESH_ALLOCATION_LIMITS.maximumExecutionRecordsPerAssignment,
     ),
+    maximumLeaseRenewals: (raw.limits as MeshAllocationLimits).maximumOffers,
   };
   const candidate = (legacyV1
     ? {
         ...raw,
-        schemaVersion: 4,
+        schemaVersion: 5,
         localOffers: migrateLegacyOffers(raw.localOffers),
         localAwards: Object.create(null),
         assignmentResponses: Object.create(null),
@@ -1195,7 +1641,7 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     : version === 2
       ? {
           ...raw,
-          schemaVersion: 4,
+          schemaVersion: 5,
           ...assigneeRecords,
           ...executionRecords,
           limits: {
@@ -1207,14 +1653,28 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       : version === 3
         ? {
             ...raw,
-            schemaVersion: 4,
+            schemaVersion: 5,
             ...executionRecords,
             limits: {
               ...(raw.limits as object),
               ...executionLimits,
             },
           }
-        : raw) as unknown as MeshAllocationState;
+        : legacyV4
+          ? {
+              ...raw,
+              schemaVersion: 5,
+              leaseRenewals: Object.create(null),
+              leaseHeads: Object.create(null),
+              limits: {
+                ...(raw.limits as object),
+                maximumLeaseRenewals: Math.min(
+                  (raw.limits as MeshAllocationLimits).maximumExecutionRecords,
+                  DEFAULT_MESH_ALLOCATION_LIMITS.maximumLeaseRenewals,
+                ),
+              },
+            }
+          : raw) as unknown as MeshAllocationState;
   const identity = freezeIdentity(candidate.identity);
   const limits = resolveLimits(candidate.limits, true);
   assertMeshLogicalTime(candidate.lastLogicalTime);
@@ -1232,6 +1692,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     assigneeAuthorities: candidate.assigneeAuthorities,
     executionRecords: candidate.executionRecords,
     executionHeads: candidate.executionHeads,
+    leaseRenewals: candidate.leaseRenewals,
+    leaseHeads: candidate.leaseHeads,
     reservations: candidate.reservations,
   }))
     assertRecord(record, name);
@@ -1239,6 +1701,7 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     identity,
     limits,
     lastLogicalTime: candidate.lastLogicalTime,
+    migrateInitialLeaseHeads: version !== 5,
     workAllocations: Object.entries(candidate.workAllocations),
     localOffers: Object.entries(candidate.localOffers),
     bidHeads: Object.entries(candidate.bidHeads),
@@ -1254,6 +1717,8 @@ function validateSnapshot(snapshot: unknown): ParsedState {
     assigneeAuthorities: Object.entries(candidate.assigneeAuthorities),
     executionRecords: Object.entries(candidate.executionRecords),
     executionHeads: Object.entries(candidate.executionHeads),
+    leaseRenewals: Object.entries(candidate.leaseRenewals),
+    leaseHeads: Object.entries(candidate.leaseHeads),
     reservations: Object.entries(candidate.reservations),
   };
   if (
@@ -1268,7 +1733,9 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       limits.maximumLocalAssignmentResponses ||
     parsed.assigneeAuthorities.length > limits.maximumAssignmentAuthorities ||
     parsed.executionRecords.length > limits.maximumExecutionRecords ||
-    parsed.executionHeads.length > limits.maximumExecutionHeads
+    parsed.executionHeads.length > limits.maximumExecutionHeads ||
+    parsed.leaseRenewals.length > limits.maximumLeaseRenewals ||
+    parsed.leaseHeads.length > limits.maximumExecutionHeads
   )
     throw new RangeError("Mesh allocation snapshot exceeds its limits");
   for (const [key, value] of parsed.workAllocations) {
@@ -1341,7 +1808,17 @@ function validateSnapshot(snapshot: unknown): ParsedState {
       throw new TypeError("Mesh execution head key is invalid");
     freezeExecutionHead(value, parsed.lastLogicalTime, limits);
   }
-  if (!legacyV1) validateStateRelations(candidate, false);
+  for (const [key, value] of parsed.leaseRenewals) {
+    if (key !== value.leaseRenewalId)
+      throw new TypeError("Mesh lease renewal key is invalid");
+    freezeLeaseRenewal(value, parsed.lastLogicalTime, limits);
+  }
+  for (const [key, value] of parsed.leaseHeads) {
+    if (key !== value.executionScopeKey)
+      throw new TypeError("Mesh lease head key is invalid");
+    freezeLeaseHead(value, parsed.lastLogicalTime, limits);
+  }
+  if (!legacyV1) validateStateRelations(candidate, false, version !== 5);
   return parsed;
 }
 
@@ -1349,6 +1826,7 @@ interface ParsedState {
   readonly identity: MeshPeerIdentity;
   readonly limits: MeshAllocationLimits;
   readonly lastLogicalTime: number;
+  readonly migrateInitialLeaseHeads: boolean;
   readonly workAllocations: readonly (readonly [
     string,
     MeshWorkAllocationProjection,
@@ -1399,11 +1877,17 @@ interface ParsedState {
     string,
     MeshExecutionHeadProjection,
   ])[];
+  readonly leaseRenewals: readonly (readonly [
+    string,
+    MeshLeaseRenewalEvidence,
+  ])[];
+  readonly leaseHeads: readonly (readonly [string, MeshLeaseHeadProjection])[];
 }
 
 function validateStateRelations(
   state: MeshAllocationState,
   requireFrozen: boolean,
+  allowMissingInitialLeaseHeads = false,
 ): void {
   const offerCounts = new Map<string, number>();
   const recipientMessageIds = new Set<string>();
@@ -1879,12 +2363,17 @@ function validateStateRelations(
       }
     }
   }
-  validateAssigneeStateRelations(state, requireFrozen);
+  validateAssigneeStateRelations(
+    state,
+    requireFrozen,
+    allowMissingInitialLeaseHeads,
+  );
 }
 
 function validateAssigneeStateRelations(
   state: MeshAllocationState,
   requireFrozen: boolean,
+  allowMissingInitialLeaseHeads: boolean,
 ): void {
   const messageIds = new Set<string>();
   const retainMessageId = (messageId: string): void => {
@@ -2138,6 +2627,13 @@ function validateAssigneeStateRelations(
     if (award.status !== "accepted" && state.assigneeAuthorities[award.awardId])
       throw new TypeError("Mesh non-accepted award has local authority");
   }
+  if (
+    !allowMissingInitialLeaseHeads &&
+    collectInitialLeaseHeads(state).some(
+      ([scope]) => state.leaseHeads[scope] === undefined,
+    )
+  )
+    throw new TypeError("Mesh accepted assignment has no initial lease head");
   validateExecutionStateRelations(state, messageIds, requireFrozen);
 }
 
@@ -2146,6 +2642,132 @@ function validateExecutionStateRelations(
   retainedMessageIds: Set<string>,
   requireFrozen: boolean,
 ): void {
+  const renewalsByScope = new Map<string, MeshLeaseRenewalEvidence[]>();
+  for (const renewal of Object.values(state.leaseRenewals)) {
+    const payload = renewal.envelope.payload;
+    const head = state.leaseHeads[renewal.executionScopeKey];
+    const context =
+      head === undefined
+        ? undefined
+        : validateMeshEnvelopeContext(renewal.envelope, {
+            tenantId: state.identity.tenantId,
+            meshId: state.identity.meshId,
+            peerId: head.ownerPeerId,
+            receivedAt: renewal.validityVerifiedAt,
+            ...(renewal.supportedCriticalExtensions === undefined
+              ? {}
+              : {
+                  supportedCriticalExtensions:
+                    renewal.supportedCriticalExtensions,
+                }),
+          });
+    if (
+      !head ||
+      !context?.ok ||
+      renewal.executionScopeKey !== executionScopeKey(payload) ||
+      !leaseRenewalAuthorityMatchesHead(payload, head) ||
+      renewal.envelope.tenantId !== state.identity.tenantId ||
+      renewal.envelope.meshId !== state.identity.meshId ||
+      renewal.envelope.objectiveId !== payload.objectiveId ||
+      renewal.envelope.sender.peerId !== head.assigneePeerId ||
+      renewal.envelope.audience.kind !== "peer" ||
+      renewal.envelope.audience.peerId !== head.ownerPeerId ||
+      retainedMessageIds.has(renewal.envelope.messageId) ||
+      (renewal.direction === "local" &&
+        (state.identity.peerId !== head.assigneePeerId ||
+          renewal.envelope.sender.peerId !== state.identity.peerId ||
+          renewal.envelope.sender.instanceId !== state.identity.instanceId ||
+          renewal.envelope.proof.keyId !== state.identity.keyId)) ||
+      (renewal.direction === "received" &&
+        (state.identity.peerId !== head.ownerPeerId ||
+          renewal.envelope.audience.peerId !== state.identity.peerId))
+    )
+      throw new TypeError("Mesh lease renewal relation is invalid");
+    retainedMessageIds.add(renewal.envelope.messageId);
+    const chain = renewalsByScope.get(renewal.executionScopeKey) ?? [];
+    chain.push(renewal);
+    renewalsByScope.set(renewal.executionScopeKey, chain);
+  }
+  for (const [scope, chain] of renewalsByScope) {
+    const head = state.leaseHeads[scope];
+    chain.sort(
+      (left, right) => left.leaseRenewalSequence - right.leaseRenewalSequence,
+    );
+    if (!head || chain.length !== head.leaseRenewalSequence)
+      throw new TypeError("Mesh lease renewal head is missing");
+    let previousExpiry = head.originalLeaseExpiresAt;
+    let previousExpiryLogical = head.originalLeaseExpiresAtLogical;
+    let previousAcceptedAt = activationAtForLeaseHead(head, state);
+    if (previousAcceptedAt === undefined)
+      throw new TypeError("Mesh lease renewal authority activation is missing");
+    for (let index = 0; index < chain.length; index += 1) {
+      const current = chain[index]!;
+      const previous = chain[index - 1];
+      const payload = current.envelope.payload;
+      const renewedLogical = logicalDeadline(
+        payload.renewedLeaseExpiresAt,
+        previousExpiry,
+        previousExpiryLogical,
+      );
+      if (
+        current.leaseRenewalSequence !== index + 1 ||
+        current.previousLeaseRenewalId !== previous?.leaseRenewalId ||
+        payload.leaseExpiresAt !== previousExpiry ||
+        current.envelope.causationId !==
+          (previous === undefined
+            ? head.acceptanceMessageId
+            : previous.envelope.messageId) ||
+        current.acceptedAt < previousAcceptedAt ||
+        current.acceptedAt >= previousExpiryLogical ||
+        current.acceptedAt >= head.workDeadlineAt ||
+        compareTimestamp(current.validityVerifiedAt, previousExpiry) >= 0 ||
+        compareTimestamp(current.validityVerifiedAt, head.workDeadline) >= 0 ||
+        renewedLogical === undefined ||
+        renewedLogical !== current.renewedLeaseExpiresAtLogical ||
+        renewedLogical <= previousExpiryLogical ||
+        renewedLogical > head.workDeadlineAt ||
+        compareTimestamp(payload.renewedLeaseExpiresAt, head.workDeadline) > 0
+      )
+        throw new TypeError("Mesh lease renewal predecessor is invalid");
+      previousExpiry = payload.renewedLeaseExpiresAt;
+      previousExpiryLogical = current.renewedLeaseExpiresAtLogical;
+      previousAcceptedAt = current.acceptedAt;
+    }
+    const latest = chain.at(-1)!;
+    if (
+      head.latestLeaseRenewalId !== latest.leaseRenewalId ||
+      head.currentLeaseExpiresAt !==
+        latest.envelope.payload.renewedLeaseExpiresAt ||
+      head.currentLeaseExpiresAtLogical !== latest.renewedLeaseExpiresAtLogical
+    )
+      throw new TypeError("Mesh lease renewal current head is invalid");
+  }
+  for (const head of Object.values(state.leaseHeads)) {
+    const executionHead = state.executionHeads[head.executionScopeKey];
+    if (
+      !leaseHeadHasAcceptedAuthority(head, state) ||
+      (head.leaseRenewalSequence > 0 &&
+        !renewalsByScope.has(head.executionScopeKey)) ||
+      (head.leaseRenewalSequence === 0 &&
+        (head.latestLeaseRenewalId !== undefined ||
+          head.currentLeaseExpiresAt !== head.originalLeaseExpiresAt ||
+          head.currentLeaseExpiresAtLogical !==
+            head.originalLeaseExpiresAtLogical)) ||
+      (head.status === "expired" &&
+        state.lastLogicalTime < head.currentLeaseExpiresAtLogical) ||
+      (head.status === "terminal" &&
+        (executionHead === undefined || executionHead.phase === "active")) ||
+      (executionHead !== undefined &&
+        (executionHead.acceptanceId !== head.acceptanceId ||
+          executionHead.acceptanceMessageId !== head.acceptanceMessageId ||
+          executionHead.assignmentAuthorityId !== head.assignmentAuthorityId ||
+          executionHead.fencingToken !== head.fencingToken ||
+          executionHead.leaseExpiresAt !== head.currentLeaseExpiresAt ||
+          executionHead.leaseExpiresAtLogical !==
+            head.currentLeaseExpiresAtLogical))
+    )
+      throw new TypeError("Mesh lease head authority relation is invalid");
+  }
   const recordsByScope = new Map<string, MeshExecutionRecordProjection[]>();
   for (const record of Object.values(state.executionRecords)) {
     const envelope = record.envelope;
@@ -2170,8 +2792,9 @@ function validateExecutionStateRelations(
       envelope.audience.kind !== "peer" ||
       envelope.sender.peerId !== expectedSender ||
       envelope.audience.peerId !== expectedRecipient ||
-      compareTimestamp(record.validityVerifiedAt, payload.leaseExpiresAt) >=
-        0 ||
+      (executionRecordRequiresActiveLease(payload) &&
+        compareTimestamp(record.validityVerifiedAt, payload.leaseExpiresAt) >=
+          0) ||
       retainedMessageIds.has(envelope.messageId) ||
       (record.direction === "local" &&
         (envelope.sender.peerId !== state.identity.peerId ||
@@ -2209,7 +2832,7 @@ function validateExecutionStateRelations(
     }
     for (const record of records)
       if (
-        !executionRecordMatchesHead(record, head) ||
+        !executionRecordMatchesHead(record, head, state) ||
         compareTimestamp(record.validityVerifiedAt, head.workDeadline) >= 0
       )
         throw new TypeError("Mesh execution authority binding is invalid");
@@ -2260,6 +2883,7 @@ function validateExecutionStateRelations(
           localResponse,
           ownerResponse,
         ),
+        state,
       )
     )
       throw new TypeError("Mesh execution head relation is invalid");
@@ -2268,19 +2892,128 @@ function validateExecutionStateRelations(
   }
 }
 
+function leaseHeadHasAcceptedAuthority(
+  head: MeshLeaseHeadProjection,
+  state: MeshAllocationState,
+): boolean {
+  const localAward = state.localAwards[head.awardId];
+  const ownerResponse = state.assignmentResponses[head.awardId];
+  const assigneeAuthority = state.assigneeAuthorities[head.awardId];
+  const localResponse = state.localAssignmentResponses[head.awardId];
+  const common =
+    head.originalLeaseExpiresAtLogical <= head.currentLeaseExpiresAtLogical &&
+    head.currentLeaseExpiresAtLogical <= head.workDeadlineAt;
+  if (!common) return false;
+  if (
+    localAward?.status === "accepted" &&
+    ownerResponse?.kind === "work.accept"
+  )
+    return (
+      ownerResponse.responseId === head.acceptanceId &&
+      ownerResponse.envelope.messageId === head.acceptanceMessageId &&
+      head.objectiveId === localAward.objectiveId &&
+      head.objectiveDocumentId === localAward.objectiveDocumentId &&
+      head.objectiveRevision === localAward.objectiveRevision &&
+      head.workItemId === localAward.work.workItemId &&
+      head.workItemRevision === localAward.work.workItemRevision &&
+      head.ownerPeerId === localAward.work.ownerPeerId &&
+      head.ownerEpoch === localAward.work.ownerEpoch &&
+      head.assigneePeerId === localAward.assigneePeerId &&
+      head.assignmentEpoch === localAward.assignmentEpoch &&
+      head.assignmentAuthorityId === localAward.assignmentAuthorityId &&
+      head.fencingToken === localAward.fencingToken &&
+      head.originalLeaseExpiresAt === localAward.leaseExpiresAt &&
+      head.originalLeaseExpiresAtLogical === localAward.leaseExpiresAtLogical &&
+      head.workDeadline === localAward.workDeadline &&
+      head.workDeadlineAt === localAward.work.workDeadlineAt
+    );
+  return (
+    assigneeAuthority !== undefined &&
+    localResponse?.kind === "work.accept" &&
+    localResponse.responseId === head.acceptanceId &&
+    localResponse.envelope.messageId === head.acceptanceMessageId &&
+    head.objectiveId === assigneeAuthority.objectiveId &&
+    head.objectiveDocumentId === assigneeAuthority.objectiveDocumentId &&
+    head.objectiveRevision === assigneeAuthority.objectiveRevision &&
+    head.workItemId === assigneeAuthority.workItemId &&
+    head.workItemRevision === assigneeAuthority.workItemRevision &&
+    head.ownerPeerId === assigneeAuthority.ownerPeerId &&
+    head.ownerEpoch === assigneeAuthority.ownerEpoch &&
+    head.assigneePeerId === assigneeAuthority.assigneePeerId &&
+    head.assignmentEpoch === assigneeAuthority.assignmentEpoch &&
+    head.assignmentAuthorityId === assigneeAuthority.assignmentAuthorityId &&
+    head.fencingToken === assigneeAuthority.fencingToken &&
+    head.originalLeaseExpiresAt === assigneeAuthority.leaseExpiresAt &&
+    head.originalLeaseExpiresAtLogical ===
+      assigneeAuthority.leaseExpiresAtLogical &&
+    head.workDeadline === assigneeAuthority.workDeadline &&
+    head.workDeadlineAt === assigneeAuthority.workDeadlineAt
+  );
+}
+
+function leaseRenewalAuthorityMatchesHead(
+  payload: LeaseRenewPayload,
+  head: MeshLeaseHeadProjection,
+): boolean {
+  return (
+    payload.objectiveId === head.objectiveId &&
+    payload.objectiveDocumentId === head.objectiveDocumentId &&
+    payload.objectiveRevision === head.objectiveRevision &&
+    payload.workItemId === head.workItemId &&
+    payload.workItemRevision === head.workItemRevision &&
+    payload.ownerPeerId === head.ownerPeerId &&
+    payload.ownerEpoch === head.ownerEpoch &&
+    payload.assigneePeerId === head.assigneePeerId &&
+    payload.awardId === head.awardId &&
+    payload.acceptanceId === head.acceptanceId &&
+    payload.assignmentEpoch === head.assignmentEpoch &&
+    payload.assignmentAuthorityId === head.assignmentAuthorityId &&
+    payload.fencingToken === head.fencingToken
+  );
+}
+
+function activationAtForLeaseHead(
+  head: MeshLeaseHeadProjection,
+  state: MeshAllocationState,
+): number | undefined {
+  const ownerResponse = state.assignmentResponses[head.awardId];
+  if (
+    ownerResponse?.kind === "work.accept" &&
+    ownerResponse.responseId === head.acceptanceId
+  )
+    return ownerResponse.acceptedAt;
+  const localResponse = state.localAssignmentResponses[head.awardId];
+  if (
+    localResponse?.kind === "work.accept" &&
+    localResponse.responseId === head.acceptanceId
+  )
+    return localResponse.preparedAt;
+  return undefined;
+}
+
 function executionLifecycleMatchesHead(
   head: MeshExecutionHeadProjection,
   records: readonly MeshExecutionRecordProjection[],
   activatedAt: number | undefined,
+  state: MeshAllocationState,
 ): boolean {
   if (activatedAt === undefined) return false;
   if (
-    records.some(
-      (record) =>
+    records.some((record) => {
+      const leaseDeadline = executionRecordLeaseDeadline(record, head, state);
+      return (
         record.recordedAt < activatedAt ||
-        record.recordedAt >= head.leaseExpiresAtLogical ||
-        record.recordedAt >= head.workDeadlineAt,
-    )
+        record.recordedAt >= head.workDeadlineAt ||
+        (executionRecordRequiresActiveLease(record.envelope.payload) &&
+          (leaseDeadline === undefined ||
+            record.recordedAt < leaseDeadline.currentFrom ||
+            (leaseDeadline.supersededAt !== undefined &&
+              record.recordedAt > leaseDeadline.supersededAt) ||
+            record.recordedAt >= leaseDeadline.logical ||
+            compareTimestamp(record.validityVerifiedAt, leaseDeadline.wall) >=
+              0))
+      );
+    })
   )
     return false;
   const progress = records
@@ -2396,7 +3129,8 @@ function executionLifecycleMatchesHead(
   if (
     terminal !== undefined &&
     terminal.recordType !== "result" &&
-    (terminal.envelope.causationId !== head.acceptanceMessageId ||
+    (terminal.envelope.causationId !==
+      currentLeaseCausationMessageIdForHead(head, state) ||
       (terminal.envelope.payload.type === "work.release" &&
         terminal.envelope.payload.releaseDisposition !== "close") ||
       (terminal.envelope.payload.type === "work.cancel" &&
@@ -2404,6 +3138,17 @@ function executionLifecycleMatchesHead(
   )
     return false;
   return true;
+}
+
+function currentLeaseCausationMessageIdForHead(
+  head: MeshExecutionHeadProjection,
+  state: MeshAllocationState,
+): string | undefined {
+  const leaseHead = state.leaseHeads[head.executionScopeKey];
+  if (leaseHead?.latestLeaseRenewalId === undefined)
+    return head.acceptanceMessageId;
+  return state.leaseRenewals[leaseHead.latestLeaseRenewalId]?.envelope
+    .messageId;
 }
 
 function activationAtForExecutionHead(
@@ -2423,6 +3168,7 @@ function activationAtForExecutionHead(
 function executionRecordMatchesHead(
   record: MeshExecutionRecordProjection,
   head: MeshExecutionHeadProjection,
+  state: MeshAllocationState,
 ): boolean {
   const payload = record.envelope.payload;
   return (
@@ -2438,11 +3184,88 @@ function executionRecordMatchesHead(
     payload.assignmentEpoch === head.assignmentEpoch &&
     payload.assignmentAuthorityId === head.assignmentAuthorityId &&
     payload.fencingToken === head.fencingToken &&
-    payload.leaseExpiresAt === head.leaseExpiresAt &&
+    leaseExpiryBelongsToHead(payload.leaseExpiresAt, head, state) &&
     (payload.type === "work.cancel" &&
     payload.assignmentState === "award_pending"
       ? head.phase === "cancelled"
       : payload.acceptanceId === head.acceptanceId)
+  );
+}
+
+function executionRecordRequiresActiveLease(
+  payload: MeshExecutionPayload,
+): boolean {
+  return (
+    payload.type === "work.progress" ||
+    payload.type === "work.checkpoint" ||
+    payload.type === "work.result" ||
+    (payload.type === "work.release" && payload.releaseAuthority === "assignee")
+  );
+}
+
+function executionRecordLeaseDeadline(
+  record: MeshExecutionRecordProjection,
+  head: MeshExecutionHeadProjection,
+  state: MeshAllocationState,
+):
+  | Readonly<{
+      wall: string;
+      logical: number;
+      currentFrom: number;
+      supersededAt?: number;
+    }>
+  | undefined {
+  const leaseHead = state.leaseHeads[head.executionScopeKey];
+  if (leaseHead === undefined) return undefined;
+  const claimedExpiry = record.envelope.payload.leaseExpiresAt;
+  const scopeRenewals = Object.values(state.leaseRenewals)
+    .filter((entry) => entry.executionScopeKey === head.executionScopeKey)
+    .sort(
+      (left, right) => left.leaseRenewalSequence - right.leaseRenewalSequence,
+    );
+  if (claimedExpiry === leaseHead.originalLeaseExpiresAt) {
+    const firstRenewal = scopeRenewals[0];
+    return Object.freeze({
+      wall: leaseHead.originalLeaseExpiresAt,
+      logical: leaseHead.originalLeaseExpiresAtLogical,
+      currentFrom: 0,
+      ...(firstRenewal === undefined
+        ? {}
+        : { supersededAt: firstRenewal.acceptedAt }),
+    });
+  }
+  const renewalIndex = scopeRenewals.findIndex(
+    (entry) => entry.envelope.payload.renewedLeaseExpiresAt === claimedExpiry,
+  );
+  const renewal = scopeRenewals[renewalIndex];
+  const successor = scopeRenewals[renewalIndex + 1];
+  return renewal === undefined
+    ? undefined
+    : Object.freeze({
+        wall: claimedExpiry,
+        logical: renewal.renewedLeaseExpiresAtLogical,
+        currentFrom: renewal.acceptedAt,
+        ...(successor === undefined
+          ? {}
+          : { supersededAt: successor.acceptedAt }),
+      });
+}
+
+function leaseExpiryBelongsToHead(
+  leaseExpiresAt: string,
+  head: MeshExecutionHeadProjection,
+  state: MeshAllocationState,
+): boolean {
+  const leaseHead = state.leaseHeads[head.executionScopeKey];
+  return (
+    leaseExpiresAt === head.leaseExpiresAt ||
+    (leaseHead !== undefined &&
+      (leaseExpiresAt === leaseHead.originalLeaseExpiresAt ||
+        Object.values(state.leaseRenewals).some(
+          (renewal) =>
+            renewal.executionScopeKey === head.executionScopeKey &&
+            renewal.envelope.payload.renewedLeaseExpiresAt === leaseExpiresAt,
+        )))
   );
 }
 
@@ -2540,8 +3363,8 @@ function executionHeadHasAcceptedAuthority(
     head.fencingToken === assigneeAuthority.fencingToken &&
     head.workDeadline === assigneeAuthority.workDeadline &&
     head.workDeadlineAt === assigneeAuthority.workDeadlineAt &&
-    head.leaseExpiresAt === assigneeAuthority.leaseExpiresAt &&
-    head.leaseExpiresAtLogical === assigneeAuthority.leaseExpiresAtLogical
+    head.leaseExpiresAtLogical >= assigneeAuthority.leaseExpiresAtLogical &&
+    head.leaseExpiresAtLogical <= head.workDeadlineAt
   )
     return (
       localResponse?.kind === "work.accept" &&
@@ -2566,8 +3389,8 @@ function executionHeadHasAcceptedAuthority(
     head.fencingToken === localAward.fencingToken &&
     head.workDeadline === localAward.workDeadline &&
     head.workDeadlineAt === localAward.work.workDeadlineAt &&
-    head.leaseExpiresAt === localAward.leaseExpiresAt &&
-    head.leaseExpiresAtLogical === localAward.leaseExpiresAtLogical
+    head.leaseExpiresAtLogical >= localAward.leaseExpiresAtLogical &&
+    head.leaseExpiresAtLogical <= head.workDeadlineAt
   );
 }
 
@@ -4150,6 +4973,200 @@ function freezeExecutionHead(
   return frozen;
 }
 
+function freezeLeaseRenewal(
+  value: MeshLeaseRenewalEvidence,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshLeaseRenewalEvidence {
+  assertPlainRecord(value, "lease renewal");
+  assertExactKeys(
+    value,
+    [
+      "acceptedAt",
+      "direction",
+      "envelope",
+      "executionScopeKey",
+      "leaseRenewalId",
+      "leaseRenewalSequence",
+      "previousLeaseRenewalId",
+      "renewedLeaseExpiresAtLogical",
+      "supportedCriticalExtensions",
+      "validityVerifiedAt",
+    ],
+    [
+      "acceptedAt",
+      "direction",
+      "envelope",
+      "executionScopeKey",
+      "leaseRenewalId",
+      "leaseRenewalSequence",
+      "renewedLeaseExpiresAtLogical",
+      "validityVerifiedAt",
+    ],
+  );
+  assertIdentifier(value.leaseRenewalId, "leaseRenewalId");
+  assertOptionalIdentifier(
+    value.previousLeaseRenewalId,
+    "previousLeaseRenewalId",
+  );
+  assertMeshLogicalTime(value.acceptedAt);
+  assertMeshLogicalTime(value.renewedLeaseExpiresAtLogical);
+  assertTimestamp(value.validityVerifiedAt, "lease renewal validityVerifiedAt");
+  if (
+    !Number.isSafeInteger(value.leaseRenewalSequence) ||
+    value.leaseRenewalSequence < 1 ||
+    value.leaseRenewalSequence > limits.maximumLeaseRenewals ||
+    !["local", "received"].includes(value.direction) ||
+    value.acceptedAt > last
+  )
+    throw new TypeError("Mesh lease renewal is invalid");
+  assertCriticalExtensions(value.supportedCriticalExtensions, "lease renewal");
+  const parsed = validateSignedMeshEnvelope(value.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "lease.renew")
+    throw new TypeError("Mesh signed lease renewal is invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<LeaseRenewPayload>;
+  assertCanonicalPayloadDigest(envelope);
+  if (
+    envelope.payload.leaseRenewalId !== value.leaseRenewalId ||
+    envelope.payload.leaseRenewalSequence !== value.leaseRenewalSequence ||
+    envelope.payload.previousLeaseRenewalId !== value.previousLeaseRenewalId ||
+    executionScopeKey(envelope.payload) !== value.executionScopeKey ||
+    value.renewedLeaseExpiresAtLogical <= value.acceptedAt
+  )
+    throw new TypeError("Mesh lease renewal projection is invalid");
+  const frozen = Object.freeze({
+    ...value,
+    ...(value.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...value.supportedCriticalExtensions,
+          ]),
+        }),
+    envelope: deepFreezeCopy(envelope) as SignedMeshEnvelope<LeaseRenewPayload>,
+  });
+  assertByteBound(frozen, limits.maximumProjectionBytes, "lease renewal");
+  return frozen;
+}
+
+function freezeLeaseHead(
+  value: MeshLeaseHeadProjection,
+  last: number,
+  limits: MeshAllocationLimits,
+): MeshLeaseHeadProjection {
+  assertPlainRecord(value, "lease head");
+  assertExactKeys(
+    value,
+    [
+      "acceptanceId",
+      "acceptanceMessageId",
+      "assignmentAuthorityId",
+      "assignmentEpoch",
+      "assigneePeerId",
+      "awardId",
+      "currentLeaseExpiresAt",
+      "currentLeaseExpiresAtLogical",
+      "executionScopeKey",
+      "expiryTimerGeneration",
+      "expiryTimerId",
+      "fencingToken",
+      "latestLeaseRenewalId",
+      "leaseRenewalSequence",
+      "objectiveDocumentId",
+      "objectiveId",
+      "objectiveRevision",
+      "originalLeaseExpiresAt",
+      "originalLeaseExpiresAtLogical",
+      "ownerEpoch",
+      "ownerPeerId",
+      "status",
+      "workDeadline",
+      "workDeadlineAt",
+      "workItemId",
+      "workItemRevision",
+    ],
+    [
+      "acceptanceId",
+      "acceptanceMessageId",
+      "assignmentAuthorityId",
+      "assignmentEpoch",
+      "assigneePeerId",
+      "awardId",
+      "currentLeaseExpiresAt",
+      "currentLeaseExpiresAtLogical",
+      "executionScopeKey",
+      "fencingToken",
+      "leaseRenewalSequence",
+      "objectiveDocumentId",
+      "objectiveId",
+      "objectiveRevision",
+      "originalLeaseExpiresAt",
+      "originalLeaseExpiresAtLogical",
+      "ownerEpoch",
+      "ownerPeerId",
+      "status",
+      "workDeadline",
+      "workDeadlineAt",
+      "workItemId",
+      "workItemRevision",
+    ],
+  );
+  for (const field of [
+    "acceptanceId",
+    "acceptanceMessageId",
+    "assignmentAuthorityId",
+    "assigneePeerId",
+    "awardId",
+    "fencingToken",
+    "objectiveDocumentId",
+    "objectiveId",
+    "ownerPeerId",
+    "workItemId",
+  ])
+    assertIdentifier((value as Record<string, unknown>)[field], field);
+  assertOptionalIdentifier(value.latestLeaseRenewalId, "latest leaseRenewalId");
+  for (const time of [
+    value.originalLeaseExpiresAt,
+    value.currentLeaseExpiresAt,
+    value.workDeadline,
+  ])
+    assertTimestamp(time, "lease timestamp");
+  for (const time of [
+    value.originalLeaseExpiresAtLogical,
+    value.currentLeaseExpiresAtLogical,
+    value.workDeadlineAt,
+  ])
+    assertMeshLogicalTime(time);
+  if (
+    value.executionScopeKey !== executionScopeKey(value) ||
+    !Number.isSafeInteger(value.objectiveRevision) ||
+    value.objectiveRevision < 1 ||
+    !Number.isSafeInteger(value.workItemRevision) ||
+    value.workItemRevision < 1 ||
+    !Number.isSafeInteger(value.ownerEpoch) ||
+    value.ownerEpoch < 1 ||
+    !Number.isSafeInteger(value.assignmentEpoch) ||
+    value.assignmentEpoch < 1 ||
+    !Number.isSafeInteger(value.leaseRenewalSequence) ||
+    value.leaseRenewalSequence < 0 ||
+    value.leaseRenewalSequence > limits.maximumLeaseRenewals ||
+    value.currentLeaseExpiresAtLogical < value.originalLeaseExpiresAtLogical ||
+    value.currentLeaseExpiresAtLogical > value.workDeadlineAt ||
+    !["active", "expired", "terminal"].includes(value.status) ||
+    (value.leaseRenewalSequence === 0) !==
+      (value.latestLeaseRenewalId === undefined) ||
+    (value.expiryTimerId === undefined) !==
+      (value.expiryTimerGeneration === undefined) ||
+    (value.expiryTimerGeneration !== undefined &&
+      (!Number.isSafeInteger(value.expiryTimerGeneration) ||
+        value.expiryTimerGeneration < 1))
+  )
+    throw new TypeError("Mesh lease head is invalid");
+  const frozen = Object.freeze({ ...value });
+  assertByteBound(frozen, limits.maximumProjectionBytes, "lease head");
+  return frozen;
+}
+
 function isExecutionPayload(payload: unknown): payload is MeshExecutionPayload {
   return (
     !!payload &&
@@ -4243,6 +5260,7 @@ function assertCanonicalPayloadDigest(
     | WorkResultPayload
     | WorkReleasePayload
     | WorkCancelPayload
+    | LeaseRenewPayload
   >,
 ): void {
   const canonical = canonicalizeMeshPayload(envelope.payload);

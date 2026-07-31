@@ -22,8 +22,9 @@
   Work Release and Work Cancel contracts with structural lease and assignment
   bindings.
 - Added closed, bounded Alpha 2 Lease Renewal, Lease Takeover Proposal, Lease
-  Vote and Lease Certificate contracts with stable causal records. They remain
-  unsupported at the Mesh runtime boundary pending lease and recovery reducers.
+  Vote and Lease Certificate contracts with stable causal records. Lease
+  Renewal now has runtime support; recovery records remain unsupported pending
+  certified-reassignment reducers.
 - Added the additive `@agentplat/mesh/coordination` runtime foundation with
   strict schema-versioned snapshots, hard local bounds, redacted domain-record
   metadata, generation-fenced trusted timer evaluation and fail-closed journal
@@ -80,11 +81,18 @@
 - Added the bounded Allocation execution lifecycle for `work.progress`,
   `work.checkpoint`, `work.result`, `work.release` and `work.cancel`.
   Authenticated inbound and locally prepared records enforce exact assignment
-  authority, fencing token, causality, sequencing and initial-lease/Work
-  deadlines; terminal heads preserve committed-budget accounting. Allocation
-  snapshots now use schema version 4 and deterministically migrate versions
-  1–3 with empty execution evidence. Lease renewal, reassignment, recovery,
-  resilience simulation and release publication remain pending.
+  authority, fencing token, causality, sequencing and current-lease/Work
+  deadlines; terminal heads preserve committed-budget accounting.
+- Added bounded stateful Lease Renewal and deterministic Lease Expiry. Accepted
+  assignments create sequence-zero lease heads and generation-fenced timers;
+  renewal preserves assignee, epoch and token, forms one exact causal chain,
+  obeys Objective duration/count and Work bounds, replaces timer generations
+  atomically and retains immutable signed evidence. Release/cancel follow the
+  latest renewal causal head, while owner close remains possible after expiry.
+  Allocation snapshots now use schema version 5, re-derive renewal and
+  historical execution deadlines during strict restore, and migrate versions
+  1–4 with bounded derived initial lease heads and timers. Reassignment,
+  recovery, resilience simulation and release publication remain pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 
