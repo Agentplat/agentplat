@@ -1,7 +1,8 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
-Status: Increment 0 and Increment 1 complete; runtime implementation continues
-with Increment 2.
+Status: Increments 0 and 1 are complete. Increment 2 Objective/Work and its
+authenticated ingress are complete; the first bounded Allocation sub-slice is
+complete, while award, execution, lease and recovery work remains pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -273,6 +274,24 @@ Topic-audience parsing and subscription are supported, but the canonical
 allocation scenario uses explicit direct fanout so every intended recipient is
 visible in the trace.
 
+#### Implemented first-offer sub-slice
+
+The first executable Allocation sub-slice deliberately stops before award. A
+local Work Item owner opens only its first offer attempt and supplies one
+already-signed direct envelope for each candidate. Each envelope has its own
+recipient and `messageId`; a later bid from that recipient must name that exact
+`messageId` as its causation ID. The reducer verifies the prepared envelopes'
+closed structure, canonical payload equality, local sender/key binding, direct
+audience and recipient set against the owner's bounded local capability match.
+Signing and transport remain outside the reducer's trusted local driver
+boundary.
+
+Opening the offer immediately reserves the Work Item's budget units and starts
+the generation-fenced bid-deadline timer. The reservation is attached to the
+Objective, Work Item and offer, not to a bidder or a selection. A due bid
+deadline closes the offer and releases that reservation exactly once. Award,
+acceptance and their deadline are not part of this sub-slice.
+
 ### Bid
 
 A bidder may submit at most one current bid per `offerId`. A replacement bid
@@ -290,6 +309,17 @@ then orders by lowest budget units, earliest expected completion, canonical
 peer ID and canonical bid ID. Applications may inject another pure,
 version-identified policy; its identifier and configuration participate in the
 simulation digest.
+
+In the implemented sub-slice, the owner accepts only already-verified,
+admitted, direct bids from a selected recipient. The bid must bind the current
+offer, Objective, Work Item, capability declaration and that recipient's exact
+offer-envelope causation ID. A replacement keeps that exact envelope
+causation, names the bidder's current bid in `previousBidId` and advances its
+revision. Accepted signed evidence is retained under bounded limits. Selection
+is a pure read-only operation while the bid window and the chosen bid are both
+still valid: it chooses by budget units, expected completion timestamp, peer ID
+and bid ID. Expiry is exclusive. Selection creates neither an award nor a new
+reservation.
 
 ### Award
 
@@ -628,9 +658,11 @@ Objective, its limits or its local owner authority.
 
 ### Increment 3: allocation handshake
 
-- implement offer attempts and bounded direct fanout;
-- implement bid submission, revision, expiry and deterministic selection;
-- implement award preparation, budget reservation, acceptance and decline;
+- [complete] implement the first local offer attempt with bounded direct
+  recipient-specific signed envelopes and immediate budget reservation;
+- [complete] implement verified bid submission, causal replacement, bounded
+  evidence retention, pure deterministic selection and bid-deadline release;
+- implement later offer attempts, award preparation, acceptance and decline;
 - implement progress, checkpoint, result, release and cancellation;
 - add timeout and idempotency component scenarios.
 

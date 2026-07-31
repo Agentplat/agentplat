@@ -4,6 +4,7 @@ export * from './coordination-inbound-contracts.js';
 export * from './coordination-topic-contracts.js';
 export * from './coordination-objective-topic-contracts.js';
 export * from './coordination-objective-work-contracts.js';
+export * from './coordination-allocation-contracts.js';
 export {
   DEFAULT_MESH_COORDINATION_LIMITS,
   createMeshCoordinationState,
@@ -52,3 +53,15 @@ export {
   DEFAULT_MESH_COORDINATION_OBJECTIVE_TOPIC_LIMITS,
   createMeshCoordinationObjectiveTopicDriver,
 } from './coordination-objective-topic.js';
+export {
+  DEFAULT_MESH_ALLOCATION_LIMITS,
+  createMeshAllocationRuntimeState,
+  createMeshAllocationState,
+  restoreMeshAllocationState,
+} from './coordination-allocation-state.js';
+export {
+  evaluateMeshAllocationCommand,
+  evaluateMeshAllocationTimer,
+  evaluateVerifiedMeshAllocationEnvelope,
+  selectMeshAllocationBid,
+} from './coordination-allocation.js';
