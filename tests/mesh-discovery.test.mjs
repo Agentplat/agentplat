@@ -303,6 +303,11 @@ test('matching is pure, stable, bounded and never grants execution authority', (
   );
   capabilityC.payload.advertisementId = 'advertisement-c';
   state = evaluate(state, cardC, 102).state;
+  assert.deepEqual(
+    selectMeshDiscoveryTopicRecipients(state, 'capability', 102, 2),
+    ['peer-a', 'peer-c'],
+    'a view-only peer can receive its first capability advertisement'
+  );
   state = evaluate(state, capabilityC, 103).state;
 
   const requirement = {

@@ -38,6 +38,7 @@ import {
   createMeshCoordinationState,
   createMeshCoordinationInboundState,
   createMeshDiscoveryInboundProcessor,
+  createMeshCoordinationTopicDriver,
   createMeshDiscoveryInboundRuntimeState,
   createMeshDiscoveryRuntimeState,
   createMeshDiscoveryState,
@@ -62,6 +63,12 @@ import {
   type MeshDiscoveryPayload,
   type MeshDiscoveryState,
   type MeshVerifiedDiscoveryRequest,
+  type MeshCoordinationTopicClock,
+  type MeshCoordinationTopicConfiguration,
+  type MeshCoordinationTopicDriver,
+  type MeshCoordinationTopicDriverOptions,
+  type MeshCoordinationTopicPeer,
+  type MeshCoordinationTopicReceipt,
 } from '@agentplat/mesh/coordination';
 import {
   createMeshSimulationKernel,
@@ -883,6 +890,24 @@ const discoveryInboundPromise: Promise<MeshDiscoveryInboundDecision> =
     discoveryInboundRuntimeState,
     discoveryInboundRequest
   );
+const topicClock: MeshCoordinationTopicClock = {
+  now: () => ({ verifiedAt: '2026-07-29T00:00:01Z', receivedAt: 1 }),
+};
+const topicDriverOptions: MeshCoordinationTopicDriverOptions = {
+  tenantId: 'tenant-a',
+  meshId: 'mesh-a',
+  clock: topicClock,
+};
+const topicDriver: MeshCoordinationTopicDriver =
+  createMeshCoordinationTopicDriver(topicDriverOptions);
+const topicConfiguration: MeshCoordinationTopicConfiguration =
+  topicDriver.configuration;
+const topicPeer: MeshCoordinationTopicPeer = topicDriver.register({
+  state: discoveryInboundRuntimeState,
+  processor: discoveryInboundProcessor,
+});
+const topicReceipts: Promise<readonly MeshCoordinationTopicReceipt[]> =
+  topicPeer.publish({ envelope: signedDiscoveryForContract });
 const verificationPromise = verifyMeshEnvelope({
   envelope: signedForContract,
   resolver: staticResolver,
@@ -935,6 +960,8 @@ void revocationBypassPolicy;
 void incompleteRevokedRecord;
 void staticResolverClass;
 void discoveryInboundPromise;
+void topicConfiguration;
+void topicReceipts;
 void referenceSigner;
 void referenceVerifier;
 void digestPromise;

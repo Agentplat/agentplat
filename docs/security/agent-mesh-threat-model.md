@@ -62,6 +62,17 @@ normal replay accounting before a later domain predecessor, revision or
 capacity rejection, but that rejection cannot change domain or discovery
 projection. Receiving a topic envelope never relays it.
 
+The Increment 1 topic driver is a bounded in-memory reference coordination
+component, not a membership service or durable transport. Its process-local
+endpoint registry is used only as a route table after a sender-local active
+Peer View has selected recipients and joined them to exact current instances.
+It takes one atomic, bounded queue admission decision for the entire recipient
+snapshot, copies the exact signed envelope, and serializes FIFO processing
+through construction-bound receiver clocks and inbound processors. It provides
+no global fanout, implicit forwarding, complete membership knowledge or
+recipient oracle. Public receipts coarsen failures; detailed codes are emitted
+only to local diagnostics so remote senders cannot probe validation outcomes.
+
 Detailed cryptographic rejection codes are local diagnostics. Transports must
 not echo them to untrusted senders, and must apply bounded queues and ingress
 rate limits so pre-admission verification cannot become a key-status oracle or
@@ -81,26 +92,26 @@ unbounded CPU-amplification path.
 
 ## Threats, mitigations and verification
 
-| Threat                            | Required mitigation                                                                                        | Verification                                       |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Identity or audience spoofing     | Signed scope, sender, instance and audience; local key binding                                             | Tamper and cross-audience conformance fixtures     |
-| Unauthorized identity bootstrap   | Preprovisioned binding or trust-anchor-attested enrollment before ordinary message acceptance              | Unknown, self-signed and admitted-card scenarios   |
-| Cross-tenant or cross-mesh replay | Signed tenant/mesh plus early local scope checks                                                           | Isolation tests before reducer invocation          |
-| Duplicate or reordered delivery   | Message IDs, bounded sequence windows and idempotent reducers                                              | Duplicate/reorder scenarios                        |
-| Version downgrade                 | Exact supported versions and critical feature negotiation                                                  | Unknown and downgrade fixtures                     |
-| Algorithm substitution            | Signed algorithm/key ID and local suite allowlist                                                          | Unsupported algorithm tests                        |
-| Revoked-key reuse                 | Fresh local revocation state; live rejection independent of sender-provided time                           | Rotation, backdating and archival replay scenarios |
-| Stale executor commit             | Assignment epoch, lease and fencing token                                                                  | Crash/reassignment action test                     |
-| Gossip amplification              | Sender-only bounded fanout, expiry, queue limits and backpressure; no transitive envelope forwarding       | Saturation and cyclic topology scenarios           |
-| Parser resource exhaustion        | Pre-parse byte limits, strict JSON limits and bounded errors                                               | Fuzz and oversized input tests                     |
-| Capability spoofing               | Treat capabilities as self-claims; verify outcomes separately                                              | False-advertisement scenario                       |
-| Evidence poisoning                | Signed provenance, contradiction sets and diversity policies                                               | Conflicting evidence scenarios                     |
-| Trust manipulation                | Local scoped profiles, decay, uncertainty and low third-party weight                                       | False-report and recovery scenarios                |
-| Context injection                 | Trust zones and structured peer content; no implicit instruction promotion                                 | Inference control fixtures                         |
-| Tool or action escalation         | Action Gateway, short-lived grants and local atomic grant consumption; downstream idempotency or fencing   | Must-deny, stale-grant and duplicate-effect tests  |
-| Payload disclosure                | Protected transport, minimal disclosure, authorized content references and optional application encryption | Transport and telemetry disclosure tests           |
-| Telemetry exfiltration            | Redacted structured events; raw content disabled by default                                                | Audit fixture and sink failure tests               |
-| Control-plane outage              | Locally available accepted Objective, journal, policies, keys, content and peer view                       | Offline control-plane scenario                     |
+| Threat                            | Required mitigation                                                                                                          | Verification                                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Identity or audience spoofing     | Signed scope, sender, instance and audience; local key binding                                                               | Tamper and cross-audience conformance fixtures                                                  |
+| Unauthorized identity bootstrap   | Preprovisioned binding or trust-anchor-attested enrollment before ordinary message acceptance                                | Unknown, self-signed and admitted-card scenarios                                                |
+| Cross-tenant or cross-mesh replay | Signed tenant/mesh plus early local scope checks                                                                             | Isolation tests before reducer invocation                                                       |
+| Duplicate or reordered delivery   | Message IDs, bounded sequence windows and idempotent reducers                                                                | Duplicate/reorder scenarios                                                                     |
+| Version downgrade                 | Exact supported versions and critical feature negotiation                                                                    | Unknown and downgrade fixtures                                                                  |
+| Algorithm substitution            | Signed algorithm/key ID and local suite allowlist                                                                            | Unsupported algorithm tests                                                                     |
+| Revoked-key reuse                 | Fresh local revocation state; live rejection independent of sender-provided time                                             | Rotation, backdating and archival replay scenarios                                              |
+| Stale executor commit             | Assignment epoch, lease and fencing token                                                                                    | Crash/reassignment action test                                                                  |
+| Gossip amplification              | Sender-local active-view snapshot, atomic bounded FIFO admission and backpressure; no global fanout or transitive forwarding | Signed three-peer A-to-B and explicit B-to-C scenario, saturation and cyclic topology scenarios |
+| Parser resource exhaustion        | Pre-parse byte limits, strict JSON limits and bounded errors                                                                 | Fuzz and oversized input tests                                                                  |
+| Capability spoofing               | Treat capabilities as self-claims; verify outcomes separately                                                                | False-advertisement scenario                                                                    |
+| Evidence poisoning                | Signed provenance, contradiction sets and diversity policies                                                                 | Conflicting evidence scenarios                                                                  |
+| Trust manipulation                | Local scoped profiles, decay, uncertainty and low third-party weight                                                         | False-report and recovery scenarios                                                             |
+| Context injection                 | Trust zones and structured peer content; no implicit instruction promotion                                                   | Inference control fixtures                                                                      |
+| Tool or action escalation         | Action Gateway, short-lived grants and local atomic grant consumption; downstream idempotency or fencing                     | Must-deny, stale-grant and duplicate-effect tests                                               |
+| Payload disclosure                | Protected transport, minimal disclosure, authorized content references and optional application encryption                   | Transport and telemetry disclosure tests                                                        |
+| Telemetry exfiltration            | Redacted structured events; raw content disabled by default                                                                  | Audit fixture and sink failure tests                                                            |
+| Control-plane outage              | Locally available accepted Objective, journal, policies, keys, content and peer view                                         | Offline control-plane scenario                                                                  |
 
 ## Required invariants
 
