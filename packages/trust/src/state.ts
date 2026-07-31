@@ -8,6 +8,10 @@ import {
 } from "./canonical.js";
 import type {
   EvidenceTrustLimitsV1,
+  EvidenceFusionPolicyV1,
+  EvidenceTrustPolicyHeadV1,
+  EvidenceTrustDependencyBindingV1,
+  EvidenceTrustDependencyBindingHeadV1,
   EvidenceTrustRollbackAnchorV1,
   EvidenceTrustSnapshotIntegrityProofV1,
   EvidenceTrustSnapshotProtectorV1,
@@ -15,6 +19,12 @@ import type {
   EvidenceTrustStateV1,
   EvidenceTrustRestoreOptionsV1,
 } from "./types.js";
+import {
+  dependencyBindingHeadV1,
+  digestEvidenceFusionPolicyV1,
+  validateEvidenceFusionPolicyV1,
+  validateEvidenceTrustDependencyBindingV1,
+} from "./policy.js";
 import {
   assertExactKeys,
   assertIdentifier,
@@ -111,6 +121,7 @@ const stateKeys = [
   "policyHeads",
   "sourceBindings",
   "dependencyBindings",
+  "dependencyBindingHeads",
   "records",
   "contentResolutions",
   "contentInvalidations",
@@ -139,6 +150,7 @@ export function createEvidenceTrustStateV1(input: {
     policyHeads: [],
     sourceBindings: [],
     dependencyBindings: [],
+    dependencyBindingHeads: [],
     records: [],
     contentResolutions: [],
     contentInvalidations: [],
@@ -170,10 +182,7 @@ export function validateEvidenceTrustStateV1(
   assertTrustDigest(state.traceDigest, "traceDigest");
   assertSafeInteger(state.encodedBytes, "encodedBytes");
   for (const key of [
-    "policies",
-    "policyHeads",
     "sourceBindings",
-    "dependencyBindings",
     "fusionDecisions",
     "profiles",
     "quarantines",
@@ -183,6 +192,213 @@ export function validateEvidenceTrustStateV1(
         `${key} is unavailable before its increment`,
       );
   }
+  if (!Array.isArray(state.policies) || !Array.isArray(state.policyHeads))
+    throw new TrustValidationError("policy state arrays are invalid");
+  const policies = state.policies.map((policy) =>
+    validateEvidenceFusionPolicyV1(policy, limits),
+  );
+  if (policies.length > limits.maximumPolicies)
+    throw new TrustValidationError("policy capacity exceeded");
+  assertCanonicalOrder(
+    policies.map(
+      (policy) =>
+        `${policy.policyId}\u0000${String(policy.policyVersion).padStart(16, "0")}\u0000${digestEvidenceFusionPolicyV1(policy)}`,
+    ),
+    "policies",
+  );
+  const policyByDigest = new Map(
+    policies.map((policy) => [digestEvidenceFusionPolicyV1(policy), policy]),
+  );
+  const policyVersions = new Set<string>();
+  for (const policy of policies) {
+    const digest = digestEvidenceFusionPolicyV1(policy);
+    const versionKey = `${policy.policyId}\u0000${policy.policyVersion}`;
+    if (policyVersions.has(versionKey))
+      throw new TrustValidationError("policy version is duplicated");
+    policyVersions.add(versionKey);
+    if ((policy.policyVersion === 1) !== (policy.parentPolicyDigest === null))
+      throw new TrustValidationError("policy lineage is invalid");
+    if (policy.parentPolicyDigest !== null) {
+      const parent = policyByDigest.get(policy.parentPolicyDigest);
+      if (
+        !parent ||
+        parent.policyId !== policy.policyId ||
+        parent.policyVersion + 1 !== policy.policyVersion ||
+        digest === policy.parentPolicyDigest
+      )
+        throw new TrustValidationError("policy lineage is invalid");
+    }
+  }
+  const policyHeads = state.policyHeads.map((head) => {
+    assertExactKeys(
+      head,
+      ["policyId", "policyVersion", "policyDigest"],
+      "policy head",
+    );
+    const value = head as Record<string, unknown>;
+    assertIdentifier(value.policyId, "policyHead.policyId");
+    assertSafeInteger(value.policyVersion, "policyHead.policyVersion", 1);
+    assertTrustDigest(value.policyDigest, "policyHead.policyDigest");
+    return value as unknown as EvidenceTrustPolicyHeadV1;
+  });
+  assertCanonicalOrder(
+    policyHeads.map((head) => head.policyId),
+    "policy heads",
+  );
+  const expectedPolicyHeads = policies
+    .reduce((heads, policy) => {
+      const prior = heads.get(policy.policyId);
+      if (!prior || prior.policyVersion < policy.policyVersion)
+        heads.set(policy.policyId, {
+          policyId: policy.policyId,
+          policyVersion: policy.policyVersion,
+          policyDigest: digestEvidenceFusionPolicyV1(policy),
+        });
+      return heads;
+    }, new Map<string, EvidenceTrustPolicyHeadV1>())
+    .values();
+  const canonicalPolicyHeads = [...expectedPolicyHeads].sort((a, b) =>
+    compareUnicode(a.policyId, b.policyId),
+  );
+  if (
+    policyHeads.length !== canonicalPolicyHeads.length ||
+    policyHeads.some(
+      (head, index) =>
+        head.policyId !== canonicalPolicyHeads[index].policyId ||
+        head.policyVersion !== canonicalPolicyHeads[index].policyVersion ||
+        head.policyDigest !== canonicalPolicyHeads[index].policyDigest,
+    )
+  )
+    throw new TrustValidationError("policy heads do not match policy history");
+  if (
+    !Array.isArray(state.dependencyBindings) ||
+    !Array.isArray(state.dependencyBindingHeads)
+  )
+    throw new TrustValidationError(
+      "dependency binding state arrays are invalid",
+    );
+  const dependencyBindings = state.dependencyBindings.map(
+    validateEvidenceTrustDependencyBindingV1,
+  );
+  if (dependencyBindings.length > limits.maximumDependencyBindingVersions)
+    throw new TrustValidationError("dependency binding capacity exceeded");
+  assertCanonicalOrder(
+    dependencyBindings.map(
+      (binding) =>
+        `${binding.bindingKind}\u0000${binding.bindingName}\u0000${String(binding.bindingVersion).padStart(16, "0")}\u0000${binding.bindingDigest}`,
+    ),
+    "dependency bindings",
+  );
+  const policyDigests = new Set(policies.map(digestEvidenceFusionPolicyV1));
+  const bindingByDigest = new Map(
+    dependencyBindings.map((binding) => [binding.bindingDigest, binding]),
+  );
+  const bindingVersions = new Set<string>();
+  for (const binding of dependencyBindings) {
+    if (
+      binding.policyDigest !== null &&
+      !policyDigests.has(binding.policyDigest)
+    )
+      throw new TrustValidationError(
+        "dependency binding policy is unregistered",
+      );
+    const versionKey = `${binding.bindingKind}\u0000${binding.bindingName}\u0000${binding.bindingVersion}`;
+    if (bindingVersions.has(versionKey))
+      throw new TrustValidationError(
+        "dependency binding version is duplicated",
+      );
+    bindingVersions.add(versionKey);
+    if (
+      (binding.bindingVersion === 1) !==
+      (binding.parentBindingDigest === null)
+    )
+      throw new TrustValidationError("dependency binding lineage is invalid");
+    if (binding.parentBindingDigest !== null) {
+      const parent = bindingByDigest.get(binding.parentBindingDigest);
+      if (
+        !parent ||
+        parent.bindingKind !== binding.bindingKind ||
+        parent.bindingName !== binding.bindingName ||
+        parent.bindingVersion + 1 !== binding.bindingVersion
+      )
+        throw new TrustValidationError("dependency binding lineage is invalid");
+    }
+    if (
+      binding.upstreamBindingDigest !== null &&
+      !bindingByDigest.has(binding.upstreamBindingDigest)
+    )
+      throw new TrustValidationError(
+        "dependency binding upstream is unregistered",
+      );
+  }
+  const dependencyBindingHeads = state.dependencyBindingHeads.map((head) => {
+    assertExactKeys(
+      head,
+      ["bindingKind", "bindingName", "bindingVersion", "bindingDigest"],
+      "dependency binding head",
+    );
+    const value = head as Record<string, unknown>;
+    if (
+      ![
+        "content_resolver",
+        "mesh_ingress",
+        "mesh_eligibility",
+        "profile_resolver",
+        "snapshot_protector",
+        "verified_mesh_origin_verifier",
+        "model_boundary",
+        "action_dispatcher",
+        "message_dispatcher",
+      ].includes(value.bindingKind as string)
+    )
+      throw new TrustValidationError("dependency binding head kind is invalid");
+    assertIdentifier(value.bindingName, "dependencyBindingHead.bindingName");
+    assertSafeInteger(
+      value.bindingVersion,
+      "dependencyBindingHead.bindingVersion",
+      1,
+    );
+    assertTrustDigest(
+      value.bindingDigest,
+      "dependencyBindingHead.bindingDigest",
+    );
+    return value as unknown as EvidenceTrustDependencyBindingHeadV1;
+  });
+  assertCanonicalOrder(
+    dependencyBindingHeads.map(
+      (head) => `${head.bindingKind}\u0000${head.bindingName}`,
+    ),
+    "dependency binding heads",
+  );
+  const expectedDependencyHeads = dependencyBindings
+    .reduce((heads, binding) => {
+      const key = `${binding.bindingKind}\u0000${binding.bindingName}`;
+      const prior = heads.get(key);
+      if (!prior || prior.bindingVersion < binding.bindingVersion)
+        heads.set(key, dependencyBindingHeadV1(binding));
+      return heads;
+    }, new Map<string, EvidenceTrustDependencyBindingHeadV1>())
+    .values();
+  const canonicalDependencyHeads = [...expectedDependencyHeads].sort((a, b) =>
+    compareUnicode(
+      `${a.bindingKind}\u0000${a.bindingName}`,
+      `${b.bindingKind}\u0000${b.bindingName}`,
+    ),
+  );
+  if (
+    dependencyBindingHeads.length !== canonicalDependencyHeads.length ||
+    dependencyBindingHeads.some(
+      (head, index) =>
+        head.bindingKind !== canonicalDependencyHeads[index].bindingKind ||
+        head.bindingName !== canonicalDependencyHeads[index].bindingName ||
+        head.bindingVersion !==
+          canonicalDependencyHeads[index].bindingVersion ||
+        head.bindingDigest !== canonicalDependencyHeads[index].bindingDigest,
+    )
+  )
+    throw new TrustValidationError(
+      "dependency binding heads do not match binding history",
+    );
   if (
     !Array.isArray(state.records) ||
     !Array.isArray(state.contentResolutions) ||
@@ -377,6 +593,10 @@ export function validateEvidenceTrustStateV1(
   const cloned = structuredClone({
     ...state,
     limits,
+    policies,
+    policyHeads,
+    dependencyBindings,
+    dependencyBindingHeads,
     records,
     contentResolutions: resolutions,
     contentInvalidations: invalidations,

@@ -318,6 +318,176 @@ export interface EvidenceTrustLimitsV1 {
   readonly maximumReviewIntervalMs: number;
 }
 
+export type EvidenceSourceRoleV1 = "claim" | "attest" | "challenge" | "observe";
+export type ClaimSourceRelationV1 =
+  | "subject_self"
+  | "work_assignee"
+  | "work_owner"
+  | "objective_observer"
+  | "recovery_witness"
+  | "local_system";
+export type ChallengeSourceRelationV1 = ClaimSourceRelationV1 | "target_author";
+export interface EvidenceBasisRuleV1 {
+  readonly kind: EvidenceReferenceKindV1;
+  readonly referenceType: string;
+  readonly minimumCount: number;
+  readonly maximumCount: number;
+}
+export interface ClaimAuthorityRuleV1 {
+  readonly allowedSourceRelations: readonly ClaimSourceRelationV1[];
+  readonly allowedBasisReferences: readonly EvidenceBasisRuleV1[];
+}
+export interface ChallengeAuthorityRuleV1 {
+  readonly allowedSourceRelations: readonly ChallengeSourceRelationV1[];
+  readonly allowedBasisReferences: readonly EvidenceBasisRuleV1[];
+  readonly requireResolvedBasis: true;
+}
+export interface ChallengeResolutionPolicyV1 {
+  readonly minimumCorroboratingGroups: number;
+  readonly minimumCorroboratingWeightBasisPoints: number;
+  readonly minimumOpposingGroups: number;
+  readonly minimumOpposingWeightBasisPoints: number;
+}
+export interface TrustDimensionPolicyV1 {
+  readonly dimensionId: string;
+  readonly priorScoreBasisPoints: number;
+  readonly priorWeightBasisPoints: number;
+  readonly minimumUncertaintyBasisPoints: number;
+  readonly coverageTargetBasisPoints: number;
+  readonly decayIntervalMs: number;
+  readonly decayBasisPointsPerInterval: number;
+  readonly uncertaintyGrowthBasisPointsPerInterval: number;
+  readonly minimumRetainedWeightBasisPoints: number;
+  readonly contradictionUncertaintyBasisPointsPerClaim: number;
+  readonly maximumContradictionUncertaintyBasisPoints: number;
+  readonly degradedScoreAtOrBelowBasisPoints: number;
+  readonly degradedUncertaintyAtOrAboveBasisPoints: number;
+}
+export interface EvidenceCriterionPolicyV1 {
+  readonly criterionId: string;
+  readonly dimensionId: string;
+  readonly satisfiedValueBasisPoints: number;
+  readonly violatedValueBasisPoints: number;
+  readonly inconclusiveValueBasisPoints: number | null;
+  readonly baseWeightBasisPoints: number;
+  readonly maximumClaimWeightBasisPoints: number;
+  readonly maximumSourceGroupContributionWeightBasisPoints: number;
+  readonly minimumSupportGroups: number;
+  readonly minimumSupportWeightBasisPoints: number;
+  readonly minimumContradictionGroups: number;
+  readonly minimumContradictionWeightBasisPoints: number;
+  readonly allowClaimSourceAttestation: boolean;
+  readonly contentRequired: boolean;
+  readonly quarantineEligible: boolean;
+  readonly recoveryEligible: boolean;
+  readonly maximumAgeMs: number;
+  readonly claimAuthority: ClaimAuthorityRuleV1;
+  readonly challengeAuthority: ChallengeAuthorityRuleV1;
+  readonly challengeResolution: ChallengeResolutionPolicyV1;
+}
+export interface EvidenceSourceBindingV1 {
+  readonly sourceId: string;
+  readonly sourceKind: EvidenceSourceKindV1;
+  readonly dependencyGroupId: string;
+  readonly roles: readonly EvidenceSourceRoleV1[];
+  readonly maximumWeightBasisPoints: number;
+  readonly validFromLogicalMs: number;
+  readonly validUntilLogicalMs: number;
+}
+export interface DependencyGroupPolicyV1 {
+  readonly dependencyGroupId: string;
+  readonly maximumAttestationWeightPerClaimBasisPoints: number;
+  readonly maximumProfileWeightPerDimensionCriterionBasisPoints: number;
+}
+export interface TrustEligibilityRequirementV1 {
+  readonly dimensionId: string;
+  readonly minimumScoreBasisPoints: number;
+  readonly maximumUncertaintyBasisPoints: number;
+}
+export interface TrustEligibilityRuleV1 {
+  readonly ruleId: string;
+  readonly maximumProfileAgeMs: number;
+  readonly requirements: readonly TrustEligibilityRequirementV1[];
+}
+export interface QuarantinePolicyRuleV1 {
+  readonly dimensionId: string;
+  readonly activationScoreAtOrBelowBasisPoints: number;
+  readonly minimumNegativeClaimSourceGroups: number;
+  readonly minimumNegativeWeightBasisPoints: number;
+  readonly reviewIntervalMs: number;
+}
+export interface QuarantinePolicyV1 {
+  readonly enabled: boolean;
+  readonly rules: readonly QuarantinePolicyRuleV1[];
+  readonly maximumActiveRecords: number;
+}
+export interface RecoveryPolicyRuleV1 {
+  readonly dimensionId: string;
+  readonly recoveryScoreAtOrAboveBasisPoints: number;
+  readonly maximumRecoveryUncertaintyBasisPoints: number;
+  readonly minimumRecoveryClaimSourceGroups: number;
+  readonly minimumRecoveryWeightBasisPoints: number;
+  readonly maximumRecoveryEvidenceAgeMs: number;
+}
+export interface RecoveryPolicyV1 {
+  readonly rules: readonly RecoveryPolicyRuleV1[];
+}
+/** The digest is derived from this closed structure; it is deliberately not a field. */
+export interface EvidenceFusionPolicyV1 {
+  readonly schemaVersion: 1;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly parentPolicyDigest: string | null;
+  readonly mode: "observe" | "restrict";
+  readonly dimensions: readonly TrustDimensionPolicyV1[];
+  readonly criteria: readonly EvidenceCriterionPolicyV1[];
+  readonly sourceBindings: readonly EvidenceSourceBindingV1[];
+  readonly dependencyGroups: readonly DependencyGroupPolicyV1[];
+  readonly eligibilityRules: readonly TrustEligibilityRuleV1[];
+  readonly quarantinePolicy: QuarantinePolicyV1;
+  readonly recoveryPolicy: RecoveryPolicyV1;
+  readonly limits: EvidenceTrustLimitsV1;
+  readonly diagnosticsPolicyId: string;
+  readonly redactionPolicyId: string;
+}
+export interface EvidenceTrustPolicyHeadV1 {
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+}
+export type EvidenceTrustDependencyBindingKindV1 =
+  | "content_resolver"
+  | "mesh_ingress"
+  | "mesh_eligibility"
+  | "profile_resolver"
+  | "snapshot_protector"
+  | "verified_mesh_origin_verifier"
+  | "model_boundary"
+  | "action_dispatcher"
+  | "message_dispatcher";
+export interface EvidenceTrustDependencyBindingV1 {
+  readonly schemaVersion: 1;
+  readonly bindingName: string;
+  readonly bindingVersion: number;
+  readonly parentBindingDigest: string | null;
+  readonly bindingKind: EvidenceTrustDependencyBindingKindV1;
+  readonly implementationId: string;
+  readonly implementationDigest: string;
+  readonly configurationDigest: string;
+  readonly policyDigest: string | null;
+  readonly subjectMappingDigest: string | null;
+  readonly upstreamBindingDigest: string | null;
+  readonly validFromLogicalMs: number;
+  readonly validUntilLogicalMs: number | null;
+  readonly bindingDigest: string;
+}
+export interface EvidenceTrustDependencyBindingHeadV1 {
+  readonly bindingKind: EvidenceTrustDependencyBindingKindV1;
+  readonly bindingName: string;
+  readonly bindingVersion: number;
+  readonly bindingDigest: string;
+}
+
 export type EvidenceRecordKindV1 =
   "claim" | "attestation" | "challenge" | "retraction";
 export type EvidenceRecordStatusV1 =
@@ -416,6 +586,18 @@ export interface EvidenceTrustRestoreOptionsV1 {
 export type EvidenceTrustInputV1 =
   | {
       readonly schemaVersion: 1;
+      readonly kind: "policy_registered";
+      readonly policy: EvidenceFusionPolicyV1;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "dependency_binding_registered";
+      readonly binding: EvidenceTrustDependencyBindingV1;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
       readonly kind: "record_admitted";
       readonly record: EvidenceRecordV1;
       readonly origin: EvidenceRecordOriginV1;
@@ -453,6 +635,8 @@ export type EvidenceTrustInputV1 =
 export interface EvidenceTrustEffectV1 {
   readonly schemaVersion: 1;
   readonly kind:
+    | "policy_registered"
+    | "dependency_binding_registered"
     | "record_accepted"
     | "record_duplicate"
     | "record_status_changed"
@@ -473,10 +657,12 @@ export interface EvidenceTrustStateV1 {
   readonly stateId: string;
   readonly limits: EvidenceTrustLimitsV1;
   readonly logicalTimeHighWaterMs: number;
-  readonly policies: readonly JsonValue[];
-  readonly policyHeads: readonly JsonValue[];
-  readonly sourceBindings: readonly JsonValue[];
-  readonly dependencyBindings: readonly JsonValue[];
+  readonly policies: readonly EvidenceFusionPolicyV1[];
+  readonly policyHeads: readonly EvidenceTrustPolicyHeadV1[];
+  /** No duplicate source authority: bindings are canonical only inside policies. */
+  readonly sourceBindings: readonly [];
+  readonly dependencyBindings: readonly EvidenceTrustDependencyBindingV1[];
+  readonly dependencyBindingHeads: readonly EvidenceTrustDependencyBindingHeadV1[];
   readonly records: readonly EvidenceRecordStateV1[];
   readonly contentResolutions: readonly EvidenceContentResolutionV1[];
   readonly contentInvalidations: readonly EvidenceContentResolutionInvalidationV1[];

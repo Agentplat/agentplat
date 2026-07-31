@@ -13,6 +13,12 @@ import {
   validateEvidenceRetractionV1,
 } from "./evidence.js";
 import { validateEvidenceTrustStateV1 } from "./state.js";
+import {
+  dependencyBindingHeadV1,
+  digestEvidenceFusionPolicyV1,
+  validateEvidenceFusionPolicyV1,
+  validateEvidenceTrustDependencyBindingV1,
+} from "./policy.js";
 import type {
   EvidenceContentResolutionInvalidationV1,
   EvidenceContentProjectionStatusV1,
@@ -839,6 +845,18 @@ function validateInputShape(input: unknown): EvidenceTrustInputV1 {
       ],
       "record admission input",
     );
+  else if (candidate.kind === "policy_registered")
+    assertExactKeys(
+      candidate,
+      ["schemaVersion", "kind", "policy", "logicalTimeMs"],
+      "policy registration input",
+    );
+  else if (candidate.kind === "dependency_binding_registered")
+    assertExactKeys(
+      candidate,
+      ["schemaVersion", "kind", "binding", "logicalTimeMs"],
+      "dependency binding registration input",
+    );
   else if (candidate.kind === "content_resolution_recorded")
     assertExactKeys(
       candidate,
@@ -958,9 +976,109 @@ export function reduceEvidenceTrustStateV1(
     throw new TrustValidationError("logical time rollback");
   let records = [...state.records],
     resolutions = [...state.contentResolutions],
-    invalidations = [...state.contentInvalidations];
+    invalidations = [...state.contentInvalidations],
+    policies = [...state.policies],
+    dependencyBindings = [...state.dependencyBindings];
   const effects: EvidenceTrustEffectV1[] = [];
-  if (input.kind === "record_admitted") {
+  if (input.kind === "policy_registered") {
+    const policy = validateEvidenceFusionPolicyV1(input.policy, state.limits);
+    const policyDigest = digestEvidenceFusionPolicyV1(policy);
+    const existing = policies.find(
+      (candidate) =>
+        candidate.policyId === policy.policyId &&
+        candidate.policyVersion === policy.policyVersion,
+    );
+    if (existing) {
+      if (digestEvidenceFusionPolicyV1(existing) !== policyDigest)
+        throw new TrustValidationError(
+          "policy version conflicts with existing content",
+        );
+      effects.push(effect("record_duplicate", null, "duplicate"));
+    } else {
+      if (policies.length >= state.limits.maximumPolicies)
+        throw new TrustValidationError("policy capacity exceeded");
+      if ((policy.policyVersion === 1) !== (policy.parentPolicyDigest === null))
+        throw new TrustValidationError("policy lineage is invalid");
+      if (policy.parentPolicyDigest !== null) {
+        const parent = policies.find(
+          (candidate) =>
+            digestEvidenceFusionPolicyV1(candidate) ===
+            policy.parentPolicyDigest,
+        );
+        if (
+          !parent ||
+          parent.policyId !== policy.policyId ||
+          parent.policyVersion + 1 !== policy.policyVersion
+        )
+          throw new TrustValidationError("policy lineage is invalid");
+      }
+      policies.push(policy);
+      effects.push(effect("policy_registered", null, "accepted"));
+    }
+  } else if (input.kind === "dependency_binding_registered") {
+    const binding = validateEvidenceTrustDependencyBindingV1(input.binding);
+    const existing = dependencyBindings.find(
+      (candidate) =>
+        candidate.bindingKind === binding.bindingKind &&
+        candidate.bindingName === binding.bindingName &&
+        candidate.bindingVersion === binding.bindingVersion,
+    );
+    if (existing) {
+      if (existing.bindingDigest !== binding.bindingDigest)
+        throw new TrustValidationError(
+          "dependency binding version conflicts with existing content",
+        );
+      effects.push(effect("record_duplicate", null, "duplicate"));
+    } else {
+      if (
+        dependencyBindings.length >=
+        state.limits.maximumDependencyBindingVersions
+      )
+        throw new TrustValidationError("dependency binding capacity exceeded");
+      if (
+        binding.policyDigest !== null &&
+        !policies.some(
+          (policy) =>
+            digestEvidenceFusionPolicyV1(policy) === binding.policyDigest,
+        )
+      )
+        throw new TrustValidationError(
+          "dependency binding policy is unregistered",
+        );
+      if (
+        (binding.bindingVersion === 1) !==
+        (binding.parentBindingDigest === null)
+      )
+        throw new TrustValidationError("dependency binding lineage is invalid");
+      if (binding.parentBindingDigest !== null) {
+        const parent = dependencyBindings.find(
+          (candidate) =>
+            candidate.bindingDigest === binding.parentBindingDigest,
+        );
+        if (
+          !parent ||
+          parent.bindingKind !== binding.bindingKind ||
+          parent.bindingName !== binding.bindingName ||
+          parent.bindingVersion + 1 !== binding.bindingVersion
+        )
+          throw new TrustValidationError(
+            "dependency binding lineage is invalid",
+          );
+      }
+      if (
+        binding.upstreamBindingDigest !== null &&
+        !dependencyBindings.some(
+          (candidate) =>
+            candidate.bindingDigest === binding.upstreamBindingDigest,
+        )
+      )
+        throw new TrustValidationError(
+          "dependency binding upstream is unregistered",
+        );
+      dependencyBindings.push(binding);
+      effects.push(effect("dependency_binding_registered", null, "accepted"));
+    }
+  } else if (input.kind === "record_admitted") {
     const record = validateEvidenceRecordV1(input.record),
       digest = digestEvidenceRecordV1(record),
       id = recordId(record);
@@ -1238,6 +1356,48 @@ export function reduceEvidenceTrustStateV1(
   const nextBase = {
     ...state,
     logicalTimeHighWaterMs: input.logicalTimeMs,
+    policies: policies.sort((a, b) =>
+      compareUnicode(
+        `${a.policyId}\u0000${String(a.policyVersion).padStart(16, "0")}\u0000${digestEvidenceFusionPolicyV1(a)}`,
+        `${b.policyId}\u0000${String(b.policyVersion).padStart(16, "0")}\u0000${digestEvidenceFusionPolicyV1(b)}`,
+      ),
+    ),
+    policyHeads: [
+      ...[...policies]
+        .reduce((heads, policy) => {
+          const prior = heads.get(policy.policyId);
+          if (!prior || prior.policyVersion < policy.policyVersion)
+            heads.set(policy.policyId, {
+              policyId: policy.policyId,
+              policyVersion: policy.policyVersion,
+              policyDigest: digestEvidenceFusionPolicyV1(policy),
+            });
+          return heads;
+        }, new Map<string, EvidenceTrustStateV1["policyHeads"][number]>())
+        .values(),
+    ].sort((a, b) => compareUnicode(a.policyId, b.policyId)),
+    dependencyBindings: dependencyBindings.sort((a, b) =>
+      compareUnicode(
+        `${a.bindingKind}\u0000${a.bindingName}\u0000${String(a.bindingVersion).padStart(16, "0")}\u0000${a.bindingDigest}`,
+        `${b.bindingKind}\u0000${b.bindingName}\u0000${String(b.bindingVersion).padStart(16, "0")}\u0000${b.bindingDigest}`,
+      ),
+    ),
+    dependencyBindingHeads: [
+      ...[...dependencyBindings]
+        .reduce((heads, binding) => {
+          const key = `${binding.bindingKind}\u0000${binding.bindingName}`;
+          const prior = heads.get(key);
+          if (!prior || prior.bindingVersion < binding.bindingVersion)
+            heads.set(key, dependencyBindingHeadV1(binding));
+          return heads;
+        }, new Map<string, EvidenceTrustStateV1["dependencyBindingHeads"][number]>())
+        .values(),
+    ].sort((a, b) =>
+      compareUnicode(
+        `${a.bindingKind}\u0000${a.bindingName}`,
+        `${b.bindingKind}\u0000${b.bindingName}`,
+      ),
+    ),
     records: derived.records,
     contentResolutions: ordered(resolutions),
     contentInvalidations: ordered(invalidations),
