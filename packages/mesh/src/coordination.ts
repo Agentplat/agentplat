@@ -38,11 +38,13 @@ export {
   DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
   createMeshCoordinationInboundState,
   createMeshDiscoveryInboundRuntimeState,
+  createMeshAllocationInboundRuntimeState,
   createMeshObjectiveInboundRuntimeState,
   restoreMeshCoordinationInboundState,
 } from './coordination-inbound-state.js';
 export {
   createMeshDiscoveryInboundProcessor,
+  createMeshAllocationInboundProcessor,
   createMeshObjectiveInboundProcessor,
 } from './coordination-inbound.js';
 export {

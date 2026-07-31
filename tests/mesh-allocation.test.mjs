@@ -945,6 +945,40 @@ test("owner award atomically closes bids and a causal accept commits its reserva
     accepted.state.objectives.objectives["objective-a"].committedBudgetUnits,
     100,
   );
+  const populatedV2 = structuredClone(accepted.state.allocation);
+  populatedV2.schemaVersion = 2;
+  delete populatedV2.receivedOffers;
+  delete populatedV2.localBids;
+  delete populatedV2.receivedAwards;
+  delete populatedV2.localAssignmentResponses;
+  delete populatedV2.assigneeAuthorities;
+  delete populatedV2.limits.maximumReceivedOffers;
+  delete populatedV2.limits.maximumLocalBids;
+  delete populatedV2.limits.maximumReceivedAwards;
+  delete populatedV2.limits.maximumLocalAssignmentResponses;
+  delete populatedV2.limits.maximumAssignmentAuthorities;
+  const migratedV2 = restoreMeshAllocationState(populatedV2);
+  assert.equal(migratedV2.schemaVersion, 3);
+  assert.deepEqual(
+    migratedV2.localOffers,
+    accepted.state.allocation.localOffers,
+  );
+  assert.deepEqual(
+    migratedV2.localAwards,
+    accepted.state.allocation.localAwards,
+  );
+  assert.deepEqual(
+    migratedV2.assignmentResponses,
+    accepted.state.allocation.assignmentResponses,
+  );
+  assert.deepEqual(
+    migratedV2.workAllocations,
+    accepted.state.allocation.workAllocations,
+  );
+  assert.deepEqual(
+    migratedV2.reservations,
+    accepted.state.allocation.reservations,
+  );
   const mismatchedCommitTime = structuredClone(accepted.state.allocation);
   mismatchedCommitTime.reservations[
     "allocation.reservation.offer-a"
@@ -1659,6 +1693,174 @@ test("decline and acceptance timeout release a pending award exactly once", asyn
   );
 });
 
+test("a terminal award consumes its owner assignment epoch across a causal reoffer", async () => {
+  const pending = await pendingAward();
+  const decline = await preparedResponse(
+    "work.decline",
+    pending.keys,
+    pending.resolver,
+    pending.award.signed.messageId,
+  );
+  const declined = evaluateVerifiedMeshAllocationEnvelope(pending.state, {
+    envelope: decline.verified,
+    verifiedAt: at,
+    receivedAt: 10,
+  });
+  assert.equal(declined.accepted, true);
+  assert.equal(
+    declined.state.allocation.localAwards["award-a"].status,
+    "declined",
+  );
+
+  const firstOffer = declined.state.allocation.localOffers["offer-a"];
+  const recipients = await Promise.all(
+    [
+      ["peer-a", "TAAAAAAAAAAAAAAAAAAAAA", 40],
+      ["peer-c", "UAAAAAAAAAAAAAAAAAAAAA", 41],
+    ].map(async ([peerId, messageId, sequence]) => {
+      const envelope = structuredClone(offerFixture);
+      envelope.messageId = messageId;
+      envelope.sequence = sequence;
+      envelope.sender = { peerId: "peer-b", instanceId: "instance-b" };
+      envelope.audience = { kind: "peer", peerId };
+      envelope.proof.keyId = "key-b";
+      envelope.causationId = firstOffer.recipientOffers[peerId].messageId;
+      Object.assign(envelope.payload, {
+        offerId: "offer-b",
+        offerAttempt: 2,
+        previousOfferId: "offer-a",
+        ownerPeerId: "peer-b",
+      });
+      return {
+        recipientPeerId: peerId,
+        preparedAt: 11,
+        envelope: (
+          await signed(envelope, "peer-b", pending.keys, pending.resolver)
+        ).signed,
+      };
+    }),
+  );
+  const reoffered = evaluateMeshAllocationCommand(
+    declined.state,
+    {
+      kind: "allocation.offer",
+      objectiveId: "objective-a",
+      workItemId: "work-item-a",
+      expectedWorkItemRevision: 1,
+      recipients,
+    },
+    at,
+    11,
+  );
+  assert.equal(reoffered.accepted, true, reoffered.code);
+
+  const bid = structuredClone(bidFixture);
+  Object.assign(bid, {
+    messageId: "VAAAAAAAAAAAAAAAAAAAAA",
+    sequence: 42,
+    sender: { peerId: "peer-a", instanceId: "instance-a" },
+    audience: { kind: "peer", peerId: "peer-b" },
+    causationId: recipients[0].envelope.messageId,
+    proof: { ...bid.proof, keyId: "key-a" },
+  });
+  Object.assign(bid.payload, {
+    bidId: "bid-b",
+    offerId: "offer-b",
+    offerAttempt: 2,
+    bidderPeerId: "peer-a",
+  });
+  const signedBid = await signed(bid, "peer-a", pending.keys, pending.resolver);
+  const bidded = evaluateVerifiedMeshAllocationEnvelope(reoffered.state, {
+    envelope: signedBid.verified,
+    verifiedAt: at,
+    receivedAt: 12,
+  });
+  assert.equal(bidded.accepted, true, bidded.code);
+
+  const replacementAward = structuredClone(awardFixture);
+  Object.assign(replacementAward, {
+    messageId: "WAAAAAAAAAAAAAAAAAAAAA",
+    sequence: 43,
+    sentAt: "2026-07-30T00:00:02.000Z",
+    expiresAt: "2026-07-30T00:00:12.000Z",
+    sender: { peerId: "peer-b", instanceId: "instance-b" },
+    audience: { kind: "peer", peerId: "peer-a" },
+    causationId: signedBid.signed.messageId,
+    proof: { ...replacementAward.proof, keyId: "key-b" },
+  });
+  Object.assign(replacementAward.payload, {
+    awardId: "award-b",
+    offerId: "offer-b",
+    bidId: "bid-b",
+    bidRevision: 1,
+    offerAttempt: 2,
+    ownerPeerId: "peer-b",
+    assigneePeerId: "peer-a",
+    assignmentEpoch: 1,
+    authorityKind: "award",
+    assignmentAuthorityId: "award-b",
+    fencingToken: "award-b",
+    leaseStartsAt: "2026-07-30T00:00:02.000Z",
+    acceptanceDeadline: "2026-07-30T00:00:15.000Z",
+    leaseExpiresAt: "2026-07-30T00:00:25.000Z",
+  });
+  const signedReplacement = await signed(
+    replacementAward,
+    "peer-b",
+    pending.keys,
+    pending.resolver,
+  );
+  const rejected = evaluateMeshAllocationCommand(
+    bidded.state,
+    {
+      kind: "allocation.award",
+      offerId: "offer-b",
+      bidId: "bid-b",
+      bidRevision: 1,
+      recipient: {
+        recipientPeerId: "peer-a",
+        preparedAt: 13,
+        envelope: signedReplacement.signed,
+      },
+    },
+    at,
+    13,
+  );
+  assert.equal(rejected.accepted, false);
+  assert.equal(rejected.code, "award_invalid");
+
+  const forged = structuredClone(bidded.state.allocation);
+  const forgedAward = structuredClone(forged.localAwards["award-a"]);
+  Object.assign(forgedAward, {
+    awardId: "award-b",
+    offerId: "offer-b",
+    bidId: "bid-b",
+    bidRevision: 1,
+    offerAttempt: 2,
+    assignmentAuthorityId: "award-b",
+    fencingToken: "award-b",
+    reservationId: "allocation.reservation.offer-b",
+    acceptanceDeadlineAt: 14_013,
+    acceptanceDeadlineTimerId: "allocation.acceptance.award-b",
+    leaseExpiresAtLogical: 24_013,
+    createdAt: 13,
+    validityVerifiedAt: at,
+    status: "timed_out",
+    recipientAward: {
+      recipientPeerId: "peer-a",
+      messageId: signedReplacement.signed.messageId,
+      preparedAt: 13,
+      envelope: signedReplacement.signed,
+    },
+  });
+  forged.localAwards["award-b"] = forgedAward;
+  forged.lastLogicalTime = 13;
+  assert.throws(
+    () => restoreMeshAllocationState(forged),
+    /local award assignment scope is not unique/u,
+  );
+});
+
 test("allocation v1 snapshots migrate and award restoration rejects forged bindings", async () => {
   const v1 = structuredClone(createMeshAllocationState({ identity }));
   v1.schemaVersion = 1;
@@ -1668,7 +1870,7 @@ test("allocation v1 snapshots migrate and award restoration rejects forged bindi
   delete v1.limits.maximumAwards;
   delete v1.limits.maximumAssignmentResponses;
   const migrated = restoreMeshAllocationState(v1);
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.limits.maximumOffers, 7);
 
   const { state, keys, resolver } = await awardableAllocation();

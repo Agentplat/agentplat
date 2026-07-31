@@ -7,8 +7,11 @@ import type {
   MeshCoordinationInboundState,
   MeshCoordinationInboundStateOptions,
   MeshDiscoveryInboundRuntimeState,
+  MeshAllocationInboundRuntimeState,
   MeshObjectiveInboundRuntimeState,
 } from './coordination-inbound-contracts.js';
+import type { MeshAllocationState } from './coordination-allocation-contracts.js';
+import { createMeshAllocationRuntimeState } from './coordination-allocation-state.js';
 import type { MeshDiscoveryState } from './coordination-discovery-contracts.js';
 import type { MeshCoordinationState } from './coordination-contracts.js';
 import type { MeshObjectiveWorkState } from './coordination-objective-work-contracts.js';
@@ -172,6 +175,42 @@ export function createMeshObjectiveInboundRuntimeState(
     )
   );
   return Object.freeze({ coordination, discovery, objectives, inbound });
+}
+
+/** Composes aligned allocation and inbound security snapshots. */
+export function createMeshAllocationInboundRuntimeState(
+  coordination: MeshCoordinationState,
+  discovery: MeshDiscoveryState,
+  objectives: MeshObjectiveWorkState,
+  allocation: MeshAllocationState,
+  inbound: MeshCoordinationInboundState
+): MeshAllocationInboundRuntimeState {
+  createMeshAllocationRuntimeState(
+    coordination,
+    discovery,
+    objectives,
+    allocation
+  );
+  assertFrozenMeshCoordinationInboundState(inbound);
+  if (!identitiesEqual(coordination.identity, inbound.identity)) {
+    throw new TypeError('Mesh allocation inbound snapshots are not aligned');
+  }
+  for (const replayKey of Object.keys(inbound.replay)) {
+    const [peerId, instanceId] = parseReplayKey(replayKey);
+    const admission = discovery.admittedPeers[peerId];
+    if (!admission || !admission.instanceIds.includes(instanceId)) {
+      throw new TypeError(
+        'Mesh allocation inbound replay window is not admitted'
+      );
+    }
+  }
+  return Object.freeze({
+    coordination,
+    discovery,
+    objectives,
+    allocation,
+    inbound,
+  });
 }
 
 /**

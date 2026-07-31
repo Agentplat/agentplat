@@ -215,6 +215,23 @@ assignee responses, activates execution, accepts progress/checkpoints/results,
 renews leases or performs recovery. A valid signature or admission entry alone
 does not grant any of those deferred authorities.
 
+The paired assignee-side allocation slice accepts an already-verified direct
+`work.award` only for the local peer and only when it proves the peer's retained
+prepared bid and recipient-specific offer-envelope causation. Offer and award
+intake independently enforce the current accepted Objective document and its
+budget, capability and timing limits. Later offers preserve immutable Work
+terms and require the exact predecessor offer and envelope causation after
+predecessor closure. Its separately restorable bounded
+projection retains the signed award, epoch, authority, fencing token, lease and
+exclusive response deadline. Before that deadline, the local peer can commit
+one prepared signed `work.accept` or `work.decline` and emit its dispatch
+effect; exact retries are idempotent and conflicting reuse is rejected without
+mutation. A successful local acceptance may retain assignment authority. A due
+generation-fenced local response deadline closes the local award without
+sending a response. This slice does not implement execution records for
+progress, checkpoints, results, renewal, reassignment, recovery or external
+actions, and dispatch is not evidence that the owner received a response.
+
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite
 tenant/Mesh/peer routing, bounded FIFO delivery and per-peer serialization.

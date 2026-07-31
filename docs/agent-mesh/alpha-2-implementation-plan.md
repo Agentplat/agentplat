@@ -3,8 +3,9 @@
 Status: Increments 0 and 1 are complete. Increment 2 Objective/Work and its
 authenticated ingress are complete. The bounded owner-side allocation handshake
 is complete through offer, bid, award, acceptance, decline and acceptance
-timeout; execution, assignee-side response preparation/delivery, lease and
-recovery work remains pending.
+timeout. The paired assignee-side offer, bid, award and local response
+handshake is also complete; execution, lease, reassignment and recovery work
+remains pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -360,14 +361,53 @@ The assignee cannot emit authorized progress, checkpoints or results until it
 has accepted the award locally. A decline or acceptance timeout releases the
 reservation and permits a later offer attempt.
 
+Issuing an award consumes its assignment epoch even when the assignee declines
+or the acceptance deadline expires. A later offer therefore cannot be awarded
+with another authority ID at that same epoch; ordinary reassignment must advance
+exactly to the next epoch. Until that reassignment transition is implemented,
+the initial-award reducer fails closed instead of reusing epoch `1`.
+
 The owner-side runtime accepts already-verified direct `work.accept` and
 `work.decline` records only from the awarded assignee, with exact award-envelope
 causation, Objective/Work binding, epoch, authority, fencing token and deadline.
 The acceptance deadline is exclusive. Acceptance atomically moves the Work Item
 to `active` and the budget from reserved to committed; decline or the trusted
 acceptance timer moves it to `ready` and releases the reservation exactly once.
-Assignee-side response preparation, actual delivery and execution authority are
-deferred to later slices.
+
+#### Assignee-side intake and response preparation
+
+The complementary assignee projection accepts an already-verified, direct
+`work.offer` only under the current accepted Objective document and its
+capability, budget and timing limits. A direct `work.award` must address the
+local peer, remain within that policy, and exactly bind the locally prepared
+bid and its recipient-specific offer-envelope causation. The projection
+retains the signed award under hard count and byte limits, records the initial
+epoch, assignment authority, fencing token, lease and exclusive acceptance
+deadline, and installs a generation-fenced local response-deadline timer.
+Replaying the exact signed award is idempotent; reuse of an award or message ID
+with different signed content is a conflict. Invalid scope, audience,
+causation, Objective/Work binding, epoch, token, lease or deadline inputs leave
+the assignee projection unchanged.
+
+Later offers for an unchanged Work revision form one exact predecessor chain.
+They retain every immutable Work term, advance `offerAttempt` by one, name and
+causally reference the previous offer, and arrive only after its bid window
+closes or its award becomes terminal.
+
+Before that deadline, the local assignee may commit exactly one prepared,
+signed direct `work.accept` or `work.decline` envelope. The reducer validates
+the response's self-binding, award-envelope causation and complete assignment
+binding, then emits one dispatch effect. The response is locally recorded
+before delivery and exact retry is idempotent; a conflicting response cannot
+replace it. A due response deadline closes the local award without emitting a
+response. Signing and transport remain trusted driver boundaries; this slice
+does not infer receipt by the owner.
+
+This assignee-side increment establishes only award intake and response
+preparation/dispatch and may record the resulting local assignment authority.
+It does not implement an execution-record lifecycle for progress, checkpoints
+or results, renew a lease, transfer external-action authority, or perform
+reassignment or recovery.
 
 ### Progress, checkpoint and result
 
@@ -690,7 +730,9 @@ Objective, its limits or its local owner authority.
   bid-window close and exactly-once reservation accounting;
 - [complete] implement causal, monotonic later offer attempts after a released
   reservation;
-- implement assignee-side response preparation and delivery;
+- [complete] implement assignee-side verified direct award intake, bounded
+  prepared-bid provenance, local accept/decline preparation and dispatch, and
+  exclusive local response-deadline closure;
 - implement progress, checkpoint, result, release and cancellation;
 - add timeout and idempotency component scenarios.
 

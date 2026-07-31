@@ -71,6 +71,13 @@
   deadline and exactly-once reserved-to-committed or released Objective budget
   accounting, plus causal monotonic later offer attempts. Assignee-side
   response delivery, execution, lease and recovery remain pending.
+- Added the complementary assignee-side allocation handshake and authenticated
+  allocation ingress: policy-bound direct Offer intake, locally prepared causal
+  Bids, verified Award intake, exclusive response timers, signed Accept/Decline
+  dispatch, immutable causal reoffers and one bounded local assignment
+  authority per Work epoch. A terminal Award consumes its epoch; the initial
+  reducer does not reuse it with a different token. Execution records, lease
+  renewal and recovery remain pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

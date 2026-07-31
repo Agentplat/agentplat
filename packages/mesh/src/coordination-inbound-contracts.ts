@@ -21,6 +21,11 @@ import type {
   MeshObjectiveWorkRejectionCode,
   MeshObjectiveWorkState,
 } from './coordination-objective-work-contracts.js';
+import type {
+  MeshAllocationPayload,
+  MeshAllocationRejectionCode,
+  MeshAllocationState,
+} from './coordination-allocation-contracts.js';
 
 /** One bounded replay window for an admitted peer and instance pair. */
 export interface MeshCoordinationInboundReplayWindow {
@@ -164,4 +169,64 @@ export interface MeshObjectiveInboundProcessor {
     state: MeshObjectiveInboundRuntimeState,
     request: MeshObjectiveInboundRequest
   ): Promise<MeshObjectiveInboundDecision>;
+}
+
+/** Allocation messages authenticated at the common coordination boundary. */
+export type MeshAllocationInboundPayload = MeshAllocationPayload;
+
+/** Composite state used by the signed allocation acceptance boundary. */
+export interface MeshAllocationInboundRuntimeState {
+  readonly coordination: MeshCoordinationState;
+  readonly discovery: MeshDiscoveryState;
+  readonly objectives: MeshObjectiveWorkState;
+  readonly allocation: MeshAllocationState;
+  readonly inbound: MeshCoordinationInboundState;
+}
+
+/** Trusted construction-time dependencies for the allocation inbound boundary. */
+export interface MeshAllocationInboundProcessorOptions {
+  readonly resolver: MeshKeyResolver;
+  readonly cryptoPolicy: MeshCryptoPolicy;
+  readonly crypto?: Crypto;
+  readonly protocolOptions?: MeshProtocolOptions;
+  readonly supportedCriticalExtensions?: readonly string[];
+}
+
+/** Remote allocation message data accepted by a configured inbound boundary. */
+export interface MeshAllocationInboundRequest {
+  readonly envelope: SignedMeshEnvelope<MeshAllocationInboundPayload>;
+  readonly verifiedAt: string;
+  readonly receivedAt: MeshLogicalTime;
+}
+
+/** Stable fail-closed outcomes from the signed allocation boundary. */
+export type MeshAllocationInboundRejectionCode =
+  | MeshCryptoRejectionCode
+  | MeshAllocationRejectionCode
+  | 'logical_time_regressed'
+  | 'message_replayed'
+  | 'sequence_outside_window'
+  | 'replay_capacity_exceeded'
+  | 'unsupported_message_type';
+
+/** Result of verifying and applying one signed allocation coordination message. */
+export type MeshAllocationInboundDecision =
+  | {
+      readonly accepted: true;
+      readonly duplicate: boolean;
+      readonly envelope: VerifiedMeshEnvelope<MeshAllocationInboundPayload>;
+      readonly state: MeshAllocationInboundRuntimeState;
+    }
+  | {
+      readonly accepted: false;
+      readonly code: MeshAllocationInboundRejectionCode;
+      readonly state: MeshAllocationInboundRuntimeState;
+    };
+
+/** Authenticated boundary with immutable construction-time trust dependencies. */
+export interface MeshAllocationInboundProcessor {
+  process(
+    state: MeshAllocationInboundRuntimeState,
+    request: MeshAllocationInboundRequest
+  ): Promise<MeshAllocationInboundDecision>;
 }

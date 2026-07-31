@@ -15,6 +15,7 @@ import {
 import type {
   MeshAcceptedBidEvidence,
   MeshAcceptedAssignmentResponseEvidence,
+  MeshAssigneeAssignmentAuthorityProjection,
   MeshAllocationBidSelection,
   MeshAllocationCommand,
   MeshAllocationDecision,
@@ -26,7 +27,11 @@ import type {
   MeshAllocationTimerInput,
   MeshBidHeadProjection,
   MeshLocalOfferProjection,
+  MeshLocalAssignmentResponseEvidence,
+  MeshLocalBidProjection,
   MeshLocalAwardProjection,
+  MeshReceivedAwardProjection,
+  MeshReceivedOfferProjection,
   MeshVerifiedAllocationRequest,
   MeshWorkAllocationProjection,
 } from "./coordination-allocation-contracts.js";
@@ -61,11 +66,25 @@ export function evaluateMeshAllocationCommand(
   assertRuntime(state, receivedAt);
   if (
     !command ||
-    (command.kind !== "allocation.offer" && command.kind !== "allocation.award")
+    ![
+      "allocation.offer",
+      "allocation.award",
+      "allocation.bid",
+      "allocation.assignment_response",
+    ].includes(command.kind)
   )
     throw new TypeError("Invalid Mesh allocation command");
   if (command.kind === "allocation.award")
     return evaluateAwardCommand(state, command, verifiedAt, receivedAt);
+  if (command.kind === "allocation.bid")
+    return evaluateBidCommand(state, command, verifiedAt, receivedAt);
+  if (command.kind === "allocation.assignment_response")
+    return evaluateLocalAssignmentResponseCommand(
+      state,
+      command,
+      verifiedAt,
+      receivedAt,
+    );
   if (
     Object.keys(command).sort().join(",") !==
       "expectedWorkItemRevision,kind,objectiveId,recipients,workItemId" ||
@@ -386,6 +405,16 @@ function evaluateAwardCommand(
     throw new TypeError("invalid mesh local award command");
   const offer = state.allocation.localOffers[command.offerId];
   if (!offer) return reject(state, "offer_missing");
+  if (
+    Object.values(state.allocation.localAwards).some(
+      (award) =>
+        award.objectiveId === offer.objectiveId &&
+        award.work.workItemId === offer.work.workItemId &&
+        award.work.workItemRevision === offer.work.workItemRevision &&
+        award.assignmentEpoch === 1,
+    )
+  )
+    return reject(state, "award_invalid");
   const selected = selectMeshAllocationBid(state, {
     offerId: offer.offerId,
     evaluatedAt: receivedAt,
@@ -667,6 +696,341 @@ function evaluateAwardCommand(
   });
 }
 
+function evaluateBidCommand(
+  state: MeshAllocationRuntimeState,
+  command: Extract<MeshAllocationCommand, { readonly kind: "allocation.bid" }>,
+  verifiedAt: string,
+  receivedAt: number,
+): MeshAllocationDecision {
+  if (
+    Object.keys(command).sort().join(",") !==
+      "envelope,kind,offerId,preparedAt" ||
+    typeof command.offerId !== "string" ||
+    !Number.isSafeInteger(command.preparedAt) ||
+    command.preparedAt < 0
+  )
+    throw new TypeError("invalid mesh local bid command");
+  const offer = state.allocation.receivedOffers[command.offerId];
+  if (!offer) return reject(state, "offer_missing");
+  if (
+    Object.values(state.allocation.receivedAwards).some(
+      (award) => award.offerId === offer.offerId,
+    )
+  )
+    return reject(state, "local_bid_invalid");
+  const objective =
+    state.objectives.objectives[offer.envelope.payload.objectiveId];
+  if (
+    !objective ||
+    objective.status !== "active" ||
+    objective.objectiveDocumentId !==
+      offer.envelope.payload.objectiveDocumentId ||
+    objective.objectiveRevision !== offer.envelope.payload.objectiveRevision ||
+    receivedAt >= objective.expiresAt ||
+    compare(verifiedAt, objective.validUntil) >= 0
+  )
+    return reject(state, "local_bid_invalid");
+  if (
+    receivedAt >= offer.bidDeadlineAt ||
+    compare(verifiedAt, offer.envelope.payload.bidDeadline) >= 0
+  )
+    return reject(state, "bid_deadline_elapsed");
+  const parsed = validateSignedMeshEnvelope(command.envelope);
+  if (!parsed.ok || parsed.value.payload.type !== "work.bid")
+    return reject(state, "local_bid_invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<WorkBidPayload>;
+  const payload = envelope.payload;
+  const bidExpiresAtLogical = logicalDeadline(
+    payload.bidExpiresAt,
+    verifiedAt,
+    receivedAt,
+  );
+  const context = validateMeshEnvelopeContext(envelope, {
+    tenantId: state.allocation.identity.tenantId,
+    meshId: state.allocation.identity.meshId,
+    peerId: offer.envelope.sender.peerId,
+    receivedAt: verifiedAt,
+  });
+  if (
+    !context.ok ||
+    !canonicalDigest(envelope) ||
+    command.preparedAt !== receivedAt ||
+    !bidExpiresAtLogical ||
+    bidExpiresAtLogical <= receivedAt ||
+    bidExpiresAtLogical > offer.workDeadlineAt ||
+    payload.budgetUnits > offer.envelope.payload.budgetReservationUnits ||
+    envelope.sender.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.instanceId !== state.allocation.identity.instanceId ||
+    envelope.proof.keyId !== state.allocation.identity.keyId ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== offer.envelope.sender.peerId ||
+    envelope.causationId !== offer.envelope.messageId ||
+    payload.bidderPeerId !== state.allocation.identity.peerId ||
+    !matchesReceivedOffer(payload, offer)
+  )
+    return reject(state, "local_bid_invalid");
+  const prior = Object.values(state.allocation.localBids)
+    .filter((bid) => bid.offerId === offer.offerId)
+    .sort((left, right) => left.bidRevision - right.bidRevision)
+    .at(-1);
+  if (
+    payload.bidRevision !== (prior?.bidRevision ?? 0) + 1 ||
+    payload.previousBidId !== prior?.bidId
+  )
+    return reject(state, "bid_predecessor_invalid");
+  if (state.allocation.localBids[payload.bidId])
+    return sameData(
+      state.allocation.localBids[payload.bidId]!.envelope,
+      envelope,
+    )
+      ? Object.freeze({
+          accepted: true,
+          duplicate: true,
+          state,
+          effects: Object.freeze([]),
+        })
+      : reject(state, "local_bid_duplicate_conflict");
+  const domainKey = bidDomainKey(payload.bidId);
+  if (
+    messageAlreadyRetained(state, envelope.messageId) ||
+    state.coordination.domainRecords[domainKey]
+  )
+    return reject(state, "local_bid_duplicate_conflict");
+  if (
+    Object.keys(state.allocation.localBids).length >=
+    state.allocation.limits.maximumLocalBids
+  )
+    return reject(state, "local_bid_capacity_exceeded");
+  const capacity = allocationWriteCapacity(state);
+  if (capacity) return reject(state, capacity);
+  const bid: MeshLocalBidProjection = Object.freeze({
+    bidId: payload.bidId,
+    offerId: payload.offerId,
+    bidRevision: payload.bidRevision,
+    ...(payload.previousBidId === undefined
+      ? {}
+      : { previousBidId: payload.previousBidId }),
+    preparedAt: receivedAt,
+    validityVerifiedAt: verifiedAt,
+    bidExpiresAt: payload.bidExpiresAt,
+    bidExpiresAtLogical,
+    envelope,
+  });
+  return acceptAssigneeWrite(
+    state,
+    receivedAt,
+    domainKey,
+    "work.bid",
+    payload.bidId,
+    payload.objectiveId,
+    envelope,
+    {
+      ...state.allocation,
+      localBids: createFrozenRecord([
+        ...recordEntries(state.allocation.localBids),
+        [payload.bidId, bid],
+      ]),
+      lastLogicalTime: receivedAt,
+    },
+    Object.freeze({
+      kind: "allocation.bid.dispatch" as const,
+      bidId: payload.bidId,
+      recipientPeerId: offer.envelope.sender.peerId,
+      messageId: envelope.messageId,
+      envelope,
+    }),
+  );
+}
+
+function evaluateLocalAssignmentResponseCommand(
+  state: MeshAllocationRuntimeState,
+  command: Extract<
+    MeshAllocationCommand,
+    { readonly kind: "allocation.assignment_response" }
+  >,
+  verifiedAt: string,
+  receivedAt: number,
+): MeshAllocationDecision {
+  if (
+    Object.keys(command).sort().join(",") !==
+      "awardId,envelope,kind,preparedAt" ||
+    typeof command.awardId !== "string" ||
+    !Number.isSafeInteger(command.preparedAt) ||
+    command.preparedAt < 0
+  )
+    throw new TypeError("invalid mesh local assignment response command");
+  const award = state.allocation.receivedAwards[command.awardId];
+  if (!award) return reject(state, "award_missing");
+  const existing = state.allocation.localAssignmentResponses[award.awardId];
+  if (existing)
+    return sameData(existing.envelope, command.envelope)
+      ? Object.freeze({
+          accepted: true,
+          duplicate: true,
+          state,
+          effects: Object.freeze([]),
+        })
+      : reject(state, "local_assignment_response_duplicate_conflict");
+  if (
+    award.status !== "awaiting_response" ||
+    receivedAt >= award.acceptanceDeadlineAt ||
+    compare(verifiedAt, award.envelope.payload.acceptanceDeadline) >= 0
+  )
+    return reject(state, "local_assignment_response_deadline_elapsed");
+  const parsed = validateSignedMeshEnvelope(command.envelope);
+  if (
+    !parsed.ok ||
+    (parsed.value.payload.type !== "work.accept" &&
+      parsed.value.payload.type !== "work.decline")
+  )
+    return reject(state, "local_assignment_response_invalid");
+  const envelope = parsed.value as SignedMeshEnvelope<
+    WorkAcceptPayload | WorkDeclinePayload
+  >;
+  const payload = envelope.payload;
+  const objective = state.objectives.objectives[payload.objectiveId];
+  const policy =
+    state.objectives.objectivePolicies[
+      JSON.stringify([payload.objectiveId, payload.objectiveRevision])
+    ];
+  const responseId =
+    payload.type === "work.accept" ? payload.acceptanceId : payload.declineId;
+  const context = validateMeshEnvelopeContext(envelope, {
+    tenantId: state.allocation.identity.tenantId,
+    meshId: state.allocation.identity.meshId,
+    peerId: award.envelope.sender.peerId,
+    receivedAt: verifiedAt,
+  });
+  if (
+    !context.ok ||
+    !canonicalDigest(envelope) ||
+    !objective ||
+    objective.status !== "active" ||
+    !policy ||
+    policy.objectiveDocumentId !== payload.objectiveDocumentId ||
+    receivedAt >= policy.expiresAt ||
+    compare(verifiedAt, policy.validUntil) >= 0 ||
+    command.preparedAt !== receivedAt ||
+    envelope.sender.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.instanceId !== state.allocation.identity.instanceId ||
+    envelope.proof.keyId !== state.allocation.identity.keyId ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== award.envelope.sender.peerId ||
+    envelope.causationId !== award.envelope.messageId ||
+    !matchesAwardResponse(payload, award) ||
+    messageAlreadyRetained(state, envelope.messageId)
+  )
+    return reject(state, "local_assignment_response_invalid");
+  const domainKey = JSON.stringify([payload.type, responseId]);
+  if (state.coordination.domainRecords[domainKey])
+    return reject(state, "domain_record_conflict");
+  if (
+    Object.keys(state.allocation.localAssignmentResponses).length >=
+    state.allocation.limits.maximumLocalAssignmentResponses
+  )
+    return reject(state, "local_assignment_response_capacity_exceeded");
+  if (
+    payload.type === "work.accept" &&
+    Object.keys(state.allocation.assigneeAuthorities).length >=
+      state.allocation.limits.maximumAssignmentAuthorities
+  )
+    return reject(state, "assignment_authority_capacity_exceeded");
+  const capacity = allocationWriteCapacity(state);
+  if (capacity) return reject(state, capacity);
+  const response: MeshLocalAssignmentResponseEvidence = Object.freeze({
+    awardId: award.awardId,
+    responseId,
+    kind: payload.type,
+    preparedAt: receivedAt,
+    validityVerifiedAt: verifiedAt,
+    envelope,
+  });
+  const accepted = payload.type === "work.accept";
+  if (
+    accepted &&
+    Object.values(state.allocation.assigneeAuthorities).some(
+      (authority) =>
+        authority.objectiveId === payload.objectiveId &&
+        authority.workItemId === payload.workItemId &&
+        authority.workItemRevision === payload.workItemRevision &&
+        authority.assignmentEpoch === payload.assignmentEpoch &&
+        authority.assignmentAuthorityId !== payload.assignmentAuthorityId,
+    )
+  )
+    return reject(state, "local_assignment_response_invalid");
+  const authority: MeshAssigneeAssignmentAuthorityProjection | undefined =
+    !accepted
+      ? undefined
+      : Object.freeze({
+          awardId: award.awardId,
+          acceptanceId: responseId,
+          objectiveId: payload.objectiveId,
+          objectiveDocumentId: payload.objectiveDocumentId,
+          objectiveRevision: payload.objectiveRevision,
+          workItemId: payload.workItemId,
+          workItemRevision: payload.workItemRevision,
+          ownerPeerId: payload.ownerPeerId,
+          ownerEpoch: payload.ownerEpoch,
+          assigneePeerId: payload.assigneePeerId,
+          assignmentEpoch: 1,
+          assignmentAuthorityId: payload.assignmentAuthorityId,
+          fencingToken: payload.fencingToken,
+          workDeadline: award.envelope.payload.workDeadline,
+          workDeadlineAt:
+            state.allocation.receivedOffers[award.offerId]!.workDeadlineAt,
+          leaseExpiresAt: award.envelope.payload.leaseExpiresAt,
+          leaseExpiresAtLogical: award.leaseExpiresAtLogical,
+          activatedAt: receivedAt,
+        });
+  return acceptAssigneeWrite(
+    state,
+    receivedAt,
+    domainKey,
+    payload.type,
+    responseId,
+    payload.objectiveId,
+    envelope,
+    {
+      ...state.allocation,
+      receivedAwards: createFrozenRecord([
+        ...recordEntries(state.allocation.receivedAwards).filter(
+          ([key]) => key !== award.awardId,
+        ),
+        [
+          award.awardId,
+          Object.freeze({
+            ...award,
+            status: accepted ? ("accepted" as const) : ("declined" as const),
+          }),
+        ],
+      ]),
+      localAssignmentResponses: createFrozenRecord([
+        ...recordEntries(state.allocation.localAssignmentResponses),
+        [award.awardId, response],
+      ]),
+      assigneeAuthorities: createFrozenRecord(
+        accepted
+          ? [
+              ...recordEntries(state.allocation.assigneeAuthorities),
+              [award.awardId, authority!],
+            ]
+          : recordEntries(state.allocation.assigneeAuthorities),
+      ),
+      lastLogicalTime: receivedAt,
+    },
+    Object.freeze({
+      kind: "allocation.assignment_response.dispatch" as const,
+      awardId: award.awardId,
+      responseId,
+      recipientPeerId: award.envelope.sender.peerId,
+      messageId: envelope.messageId,
+      envelope,
+    }),
+    undefined,
+    award.acceptanceDeadlineTimerId,
+  );
+}
+
 /** Evaluates a verified direct bid at the local offer owner. */
 export function evaluateVerifiedMeshAllocationEnvelope(
   state: MeshAllocationRuntimeState,
@@ -675,6 +1039,10 @@ export function evaluateVerifiedMeshAllocationEnvelope(
   assertRuntime(state, request.receivedAt);
   const context = validateContext(state, request);
   if (context) return reject(state, context);
+  if (request.envelope.payload.type === "work.offer")
+    return evaluateReceivedOffer(state, request);
+  if (request.envelope.payload.type === "work.award")
+    return evaluateReceivedAward(state, request);
   if (
     request.envelope.payload.type === "work.accept" ||
     request.envelope.payload.type === "work.decline"
@@ -902,6 +1270,306 @@ export function evaluateVerifiedMeshAllocationEnvelope(
     ),
     effects: Object.freeze([]),
   });
+}
+
+function evaluateReceivedOffer(
+  state: MeshAllocationRuntimeState,
+  request: MeshVerifiedAllocationRequest,
+): MeshAllocationDecision {
+  const envelope = request.envelope as VerifiedMeshEnvelope<WorkOfferPayload>;
+  const payload = envelope.payload;
+  const objective = state.objectives.objectives[payload.objectiveId];
+  const bidDeadlineAt = logicalDeadline(
+    payload.bidDeadline,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const workDeadlineAt = logicalDeadline(
+    payload.workDeadline,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const signedBidWindow = logicalDeadline(
+    payload.bidDeadline,
+    envelope.sentAt,
+    0,
+  );
+  if (
+    !canonicalDigest(envelope) ||
+    !objective ||
+    objective.status !== "active" ||
+    objective.objectiveDocumentId !== payload.objectiveDocumentId ||
+    objective.objectiveRevision !== payload.objectiveRevision ||
+    request.receivedAt >= objective.expiresAt ||
+    compare(request.verifiedAt, objective.validUntil) >= 0 ||
+    !bidDeadlineAt ||
+    !workDeadlineAt ||
+    !signedBidWindow ||
+    bidDeadlineAt <= request.receivedAt ||
+    workDeadlineAt <= request.receivedAt ||
+    bidDeadlineAt > workDeadlineAt ||
+    signedBidWindow > objective.bidWindowMs ||
+    workDeadlineAt > objective.expiresAt ||
+    compare(payload.workDeadline, objective.validUntil) > 0 ||
+    payload.budgetReservationUnits > objective.maximumBudgetUnits ||
+    payload.requiredCapabilityKeys.some(
+      (key) => !objective.permittedCapabilityKeys.includes(key),
+    ) ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.peerId !== payload.ownerPeerId ||
+    payload.ownerPeerId === state.allocation.identity.peerId
+  )
+    return reject(state, "received_offer_invalid");
+  const existing = state.allocation.receivedOffers[payload.offerId];
+  if (existing)
+    return sameData(existing.envelope, envelope)
+      ? Object.freeze({
+          accepted: true,
+          duplicate: true,
+          state,
+          effects: Object.freeze([]),
+        })
+      : reject(state, "received_offer_duplicate_conflict");
+  const priorOffers = Object.values(state.allocation.receivedOffers)
+    .filter((offer) => sameReceivedOfferScope(offer.envelope.payload, payload))
+    .sort(
+      (left, right) =>
+        left.envelope.payload.offerAttempt -
+        right.envelope.payload.offerAttempt,
+    );
+  const predecessor = priorOffers.at(-1);
+  const predecessorAwards =
+    predecessor === undefined
+      ? []
+      : Object.values(state.allocation.receivedAwards).filter(
+          (award) => award.offerId === predecessor.offerId,
+        );
+  const predecessorIsTerminal = predecessorAwards.some(
+    (award) => award.status === "declined" || award.status === "timed_out",
+  );
+  if (
+    payload.offerAttempt !==
+      (predecessor?.envelope.payload.offerAttempt ?? 0) + 1 ||
+    payload.previousOfferId !== predecessor?.offerId ||
+    (predecessor === undefined
+      ? envelope.causationId !== undefined
+      : envelope.causationId !== predecessor.envelope.messageId) ||
+    (predecessor !== undefined &&
+      !sameReceivedOfferWorkTerms(predecessor.envelope.payload, payload)) ||
+    (predecessor !== undefined &&
+      request.receivedAt < predecessor.receivedAt) ||
+    predecessorAwards.some(
+      (award) =>
+        award.status === "awaiting_response" || award.status === "accepted",
+    ) ||
+    (predecessor !== undefined &&
+      !predecessorIsTerminal &&
+      request.receivedAt < predecessor.bidDeadlineAt)
+  )
+    return reject(state, "received_offer_invalid");
+  const domainKey = offerDomainKey(payload.offerId);
+  if (
+    messageAlreadyRetained(state, envelope.messageId) ||
+    state.coordination.domainRecords[domainKey]
+  )
+    return reject(state, "received_offer_duplicate_conflict");
+  if (
+    Object.keys(state.allocation.receivedOffers).length >=
+    state.allocation.limits.maximumReceivedOffers
+  )
+    return reject(state, "received_offer_capacity_exceeded");
+  const capacity = allocationWriteCapacity(state);
+  if (capacity) return reject(state, capacity);
+  const offer: MeshReceivedOfferProjection = Object.freeze({
+    offerId: payload.offerId,
+    receivedAt: request.receivedAt,
+    validityVerifiedAt: request.verifiedAt,
+    ...(request.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...request.supportedCriticalExtensions,
+          ]),
+        }),
+    bidDeadlineAt,
+    workDeadlineAt,
+    envelope,
+  });
+  return acceptAssigneeWrite(
+    state,
+    request.receivedAt,
+    domainKey,
+    "work.offer",
+    payload.offerId,
+    payload.objectiveId,
+    envelope,
+    {
+      ...state.allocation,
+      receivedOffers: createFrozenRecord([
+        ...recordEntries(state.allocation.receivedOffers),
+        [payload.offerId, offer],
+      ]),
+      lastLogicalTime: request.receivedAt,
+    },
+  );
+}
+
+function evaluateReceivedAward(
+  state: MeshAllocationRuntimeState,
+  request: MeshVerifiedAllocationRequest,
+): MeshAllocationDecision {
+  const envelope = request.envelope as VerifiedMeshEnvelope<WorkAwardPayload>;
+  const payload = envelope.payload;
+  const offer = state.allocation.receivedOffers[payload.offerId];
+  const bid = state.allocation.localBids[payload.bidId];
+  if (!offer || !bid || bid.offerId !== offer.offerId)
+    return reject(state, "received_award_invalid");
+  const currentBid = Object.values(state.allocation.localBids)
+    .filter((candidate) => candidate.offerId === offer.offerId)
+    .sort((left, right) => left.bidRevision - right.bidRevision)
+    .at(-1);
+  if (!currentBid || currentBid.bidId !== bid.bidId)
+    return reject(state, "received_award_invalid");
+  const objective = state.objectives.objectives[payload.objectiveId];
+  const acceptanceDeadlineAt = logicalDeadline(
+    payload.acceptanceDeadline,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const leaseExpiresAtLogical = logicalDeadline(
+    payload.leaseExpiresAt,
+    request.verifiedAt,
+    request.receivedAt,
+  );
+  const signedAcceptanceDuration = logicalDeadline(
+    payload.acceptanceDeadline,
+    envelope.sentAt,
+    0,
+  );
+  const signedLeaseDuration = logicalDeadline(
+    payload.leaseExpiresAt,
+    payload.leaseStartsAt,
+    0,
+  );
+  if (
+    !canonicalDigest(envelope) ||
+    !objective ||
+    objective.status !== "active" ||
+    objective.objectiveDocumentId !== payload.objectiveDocumentId ||
+    objective.objectiveRevision !== payload.objectiveRevision ||
+    request.receivedAt >= objective.expiresAt ||
+    compare(request.verifiedAt, objective.validUntil) >= 0 ||
+    !acceptanceDeadlineAt ||
+    !leaseExpiresAtLogical ||
+    !signedAcceptanceDuration ||
+    !signedLeaseDuration ||
+    acceptanceDeadlineAt <= request.receivedAt ||
+    leaseExpiresAtLogical <= request.receivedAt ||
+    request.receivedAt >= bid.bidExpiresAtLogical ||
+    compare(request.verifiedAt, bid.bidExpiresAt) >= 0 ||
+    signedAcceptanceDuration > objective.acceptanceWindowMs ||
+    signedLeaseDuration > objective.maximumLeaseDurationMs ||
+    leaseExpiresAtLogical > offer.workDeadlineAt ||
+    leaseExpiresAtLogical > objective.expiresAt ||
+    envelope.audience.kind !== "peer" ||
+    envelope.audience.peerId !== state.allocation.identity.peerId ||
+    envelope.sender.peerId !== offer.envelope.sender.peerId ||
+    envelope.causationId !== bid.envelope.messageId ||
+    payload.assigneePeerId !== state.allocation.identity.peerId ||
+    payload.assignmentEpoch !== 1 ||
+    payload.authorityKind !== "award" ||
+    payload.assignmentAuthorityId !== payload.awardId ||
+    payload.fencingToken !== payload.awardId ||
+    payload.bidId !== bid.bidId ||
+    payload.bidRevision !== bid.bidRevision ||
+    !matchesAwardOffer(payload, offer)
+  )
+    return reject(state, "received_award_invalid");
+  const conflictingScopeAward = Object.values(
+    state.allocation.receivedAwards,
+  ).find(
+    (award) =>
+      award.envelope.payload.objectiveId === payload.objectiveId &&
+      award.envelope.payload.workItemId === payload.workItemId &&
+      award.envelope.payload.workItemRevision === payload.workItemRevision &&
+      award.envelope.payload.assignmentEpoch === payload.assignmentEpoch &&
+      award.awardId !== payload.awardId,
+  );
+  if (conflictingScopeAward)
+    return reject(state, "received_award_duplicate_conflict");
+  const existing = state.allocation.receivedAwards[payload.awardId];
+  if (existing)
+    return sameData(existing.envelope, envelope)
+      ? Object.freeze({
+          accepted: true,
+          duplicate: true,
+          state,
+          effects: Object.freeze([]),
+        })
+      : reject(state, "received_award_duplicate_conflict");
+  const domainKey = awardDomainKey(payload.awardId);
+  if (
+    messageAlreadyRetained(state, envelope.messageId) ||
+    state.coordination.domainRecords[domainKey]
+  )
+    return reject(state, "received_award_duplicate_conflict");
+  if (
+    Object.keys(state.allocation.receivedAwards).length >=
+    state.allocation.limits.maximumReceivedAwards
+  )
+    return reject(state, "received_award_capacity_exceeded");
+  const award: MeshReceivedAwardProjection = Object.freeze({
+    awardId: payload.awardId,
+    offerId: payload.offerId,
+    bidId: payload.bidId,
+    bidRevision: payload.bidRevision,
+    receivedAt: request.receivedAt,
+    validityVerifiedAt: request.verifiedAt,
+    ...(request.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...request.supportedCriticalExtensions,
+          ]),
+        }),
+    acceptanceDeadlineAt,
+    acceptanceDeadlineTimerId: `allocation.assignee_response.${payload.awardId}`,
+    acceptanceDeadlineTimerGeneration: 1,
+    leaseExpiresAtLogical,
+    status: "awaiting_response",
+    envelope,
+  });
+  const timerId = `allocation.assignee_response.${payload.awardId}`;
+  if (state.coordination.timers[timerId])
+    return reject(state, "timer_id_conflict");
+  const capacity = allocationWriteCapacity(state, true);
+  if (capacity) return reject(state, capacity);
+  return acceptAssigneeWrite(
+    state,
+    request.receivedAt,
+    domainKey,
+    "work.award",
+    payload.awardId,
+    payload.objectiveId,
+    envelope,
+    {
+      ...state.allocation,
+      receivedAwards: createFrozenRecord([
+        ...recordEntries(state.allocation.receivedAwards),
+        [payload.awardId, award],
+      ]),
+      lastLogicalTime: request.receivedAt,
+    },
+    undefined,
+    Object.freeze({
+      timerId,
+      kind: "work.acceptance_deadline" as const,
+      dueAt: acceptanceDeadlineAt,
+      generation: 1,
+      domainRecordKey: domainKey,
+    }),
+  );
 }
 
 function evaluateAssignmentResponse(
@@ -1269,6 +1937,16 @@ export function evaluateMeshAllocationTimer(
     });
   if (state.coordination.localEventSequence >= Number.MAX_SAFE_INTEGER)
     throw new RangeError("Mesh coordination event sequence exhausted");
+  if (
+    timer.kind === "work.acceptance_deadline" &&
+    Object.values(state.allocation.receivedAwards).some(
+      (award) =>
+        award.status === "awaiting_response" &&
+        award.acceptanceDeadlineTimerId === timer.timerId &&
+        award.acceptanceDeadlineTimerGeneration === timer.generation,
+    )
+  )
+    return evaluateAssigneeAcceptanceDeadline(state, timer, logicalTime);
   if (timer.kind === "work.acceptance_deadline")
     return evaluateAcceptanceDeadline(state, timer, logicalTime);
   if (timer.kind !== "work.bid_deadline")
@@ -1369,6 +2047,70 @@ export function evaluateMeshAllocationTimer(
       coordination,
       Object.freeze({ ...state.discovery, lastLogicalTime: logicalTime }),
       objectives,
+      allocation,
+    ),
+  });
+}
+
+function evaluateAssigneeAcceptanceDeadline(
+  state: MeshAllocationRuntimeState,
+  timer: MeshCoordinationTimer,
+  logicalTime: number,
+): MeshAllocationTimerDecision {
+  const award = Object.values(state.allocation.receivedAwards).find(
+    (entry) =>
+      entry.status === "awaiting_response" &&
+      entry.acceptanceDeadlineTimerId === timer.timerId &&
+      entry.acceptanceDeadlineTimerGeneration === timer.generation,
+  );
+  if (!award) throw new TypeError("Mesh assignee acceptance timer is orphaned");
+  if (
+    timer.kind !== "work.acceptance_deadline" ||
+    timer.dueAt !== award.acceptanceDeadlineAt ||
+    timer.domainRecordKey !== awardDomainKey(award.awardId)
+  )
+    throw new TypeError("Mesh assignee acceptance timer binding is invalid");
+  const allocation = restoreMeshAllocationState({
+    ...state.allocation,
+    receivedAwards: createFrozenRecord([
+      ...recordEntries(state.allocation.receivedAwards).filter(
+        ([key]) => key !== award.awardId,
+      ),
+      [
+        award.awardId,
+        Object.freeze({ ...award, status: "timed_out" as const }),
+      ],
+    ]),
+    lastLogicalTime: logicalTime,
+  });
+  const sequence = state.coordination.localEventSequence + 1;
+  const coordination = Object.freeze({
+    ...state.coordination,
+    timers: createFrozenRecord(
+      recordEntries(state.coordination.timers).filter(
+        ([key]) => key !== timer.timerId,
+      ),
+    ),
+    journal: Object.freeze([
+      ...state.coordination.journal,
+      Object.freeze({
+        sequence,
+        occurredAt: logicalTime,
+        kind: "timer.fired" as const,
+        timerId: timer.timerId,
+        domainRecordKey: timer.domainRecordKey,
+      }),
+    ]),
+    localEventSequence: sequence,
+    lastLogicalTime: logicalTime,
+  });
+  return Object.freeze({
+    accepted: true,
+    timer,
+    state: createMeshAllocationRuntimeState(
+      coordination,
+      Object.freeze({ ...state.discovery, lastLogicalTime: logicalTime }),
+      Object.freeze({ ...state.objectives, lastLogicalTime: logicalTime }),
       allocation,
     ),
   });
@@ -1755,6 +2497,234 @@ function hasEligibleCapabilityAt(
   );
 }
 
+function matchesReceivedOffer(
+  bid: WorkBidPayload,
+  offer: MeshReceivedOfferProjection,
+): boolean {
+  const payload = offer.envelope.payload;
+  return (
+    bid.offerId === offer.offerId &&
+    bid.objectiveId === payload.objectiveId &&
+    bid.objectiveDocumentId === payload.objectiveDocumentId &&
+    bid.objectiveRevision === payload.objectiveRevision &&
+    bid.workItemId === payload.workItemId &&
+    bid.workItemRevision === payload.workItemRevision &&
+    bid.ownerPeerId === payload.ownerPeerId &&
+    bid.ownerEpoch === payload.ownerEpoch &&
+    bid.offerAttempt === payload.offerAttempt &&
+    bid.bidDeadline === payload.bidDeadline &&
+    bid.workDeadline === payload.workDeadline
+  );
+}
+
+function sameReceivedOfferScope(
+  left: WorkOfferPayload,
+  right: WorkOfferPayload,
+): boolean {
+  return (
+    left.objectiveId === right.objectiveId &&
+    left.objectiveRevision === right.objectiveRevision &&
+    left.workItemId === right.workItemId &&
+    left.workItemRevision === right.workItemRevision &&
+    left.ownerPeerId === right.ownerPeerId &&
+    left.ownerEpoch === right.ownerEpoch
+  );
+}
+
+function sameReceivedOfferWorkTerms(
+  left: WorkOfferPayload,
+  right: WorkOfferPayload,
+): boolean {
+  return (
+    left.objectiveDocumentId === right.objectiveDocumentId &&
+    sameReceivedOfferScope(left, right) &&
+    sameArray(left.requiredCapabilityKeys, right.requiredCapabilityKeys) &&
+    sameRecord(left.matchingAttributes, right.matchingAttributes) &&
+    sameArray(left.completionCriteria, right.completionCriteria) &&
+    left.inputSummary === right.inputSummary &&
+    left.inputReference === right.inputReference &&
+    left.budgetReservationUnits === right.budgetReservationUnits &&
+    left.workDeadline === right.workDeadline
+  );
+}
+
+function matchesAwardOffer(
+  award: WorkAwardPayload,
+  offer: MeshReceivedOfferProjection,
+): boolean {
+  const payload = offer.envelope.payload;
+  return (
+    award.offerId === offer.offerId &&
+    award.objectiveId === payload.objectiveId &&
+    award.objectiveDocumentId === payload.objectiveDocumentId &&
+    award.objectiveRevision === payload.objectiveRevision &&
+    award.workItemId === payload.workItemId &&
+    award.workItemRevision === payload.workItemRevision &&
+    award.ownerPeerId === payload.ownerPeerId &&
+    award.ownerEpoch === payload.ownerEpoch &&
+    award.offerAttempt === payload.offerAttempt &&
+    award.workDeadline === payload.workDeadline &&
+    award.budgetReservationUnits === payload.budgetReservationUnits
+  );
+}
+
+function matchesAwardResponse(
+  response: WorkAcceptPayload | WorkDeclinePayload,
+  award: MeshReceivedAwardProjection,
+): boolean {
+  const payload = award.envelope.payload;
+  return (
+    response.awardId === award.awardId &&
+    response.objectiveId === payload.objectiveId &&
+    response.objectiveDocumentId === payload.objectiveDocumentId &&
+    response.objectiveRevision === payload.objectiveRevision &&
+    response.workItemId === payload.workItemId &&
+    response.workItemRevision === payload.workItemRevision &&
+    response.ownerPeerId === payload.ownerPeerId &&
+    response.ownerEpoch === payload.ownerEpoch &&
+    response.assigneePeerId === payload.assigneePeerId &&
+    response.assignmentEpoch === payload.assignmentEpoch &&
+    response.assignmentAuthorityId === payload.assignmentAuthorityId &&
+    response.fencingToken === payload.fencingToken &&
+    response.acceptanceDeadline === payload.acceptanceDeadline
+  );
+}
+
+function allocationWriteCapacity(
+  state: MeshAllocationRuntimeState,
+  requiresTimer = false,
+): MeshAllocationRejectionCode | undefined {
+  if (
+    Object.keys(state.coordination.domainRecords).length >=
+    state.coordination.limits.maximumDomainRecords
+  )
+    return "domain_capacity_exceeded";
+  if (
+    state.coordination.journal.length >=
+    state.coordination.limits.maximumJournalEntries
+  )
+    return "journal_capacity_exceeded";
+  if (
+    requiresTimer &&
+    Object.keys(state.coordination.timers).length >=
+      state.coordination.limits.maximumTimers
+  )
+    return "timer_capacity_exceeded";
+  if (state.coordination.localEventSequence >= Number.MAX_SAFE_INTEGER)
+    throw new RangeError("Mesh coordination event sequence exhausted");
+  return undefined;
+}
+
+function messageAlreadyRetained(
+  state: MeshAllocationRuntimeState,
+  messageId: string,
+): boolean {
+  return (
+    Object.values(state.coordination.domainRecords).some(
+      (record) => record.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.receivedOffers).some(
+      (entry) => entry.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localBids).some(
+      (entry) => entry.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.receivedAwards).some(
+      (entry) => entry.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localAssignmentResponses).some(
+      (entry) => entry.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localOffers).some((entry) =>
+      Object.values(entry.recipientOffers).some(
+        (prepared) => prepared.messageId === messageId,
+      ),
+    ) ||
+    Object.values(state.allocation.acceptedBidEvidence).some(
+      (entry) => entry.envelope.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.localAwards).some(
+      (entry) => entry.recipientAward.messageId === messageId,
+    ) ||
+    Object.values(state.allocation.assignmentResponses).some(
+      (entry) => entry.envelope.messageId === messageId,
+    )
+  );
+}
+
+function acceptAssigneeWrite(
+  state: MeshAllocationRuntimeState,
+  logicalTime: number,
+  domainRecordKey: string,
+  recordType:
+    "work.offer" | "work.bid" | "work.award" | "work.accept" | "work.decline",
+  recordId: string,
+  objectiveId: string,
+  envelope: SignedMeshEnvelope<
+    | WorkOfferPayload
+    | WorkBidPayload
+    | WorkAwardPayload
+    | WorkAcceptPayload
+    | WorkDeclinePayload
+  >,
+  allocationSnapshot: unknown,
+  effect?: MeshAllocationEffect,
+  timer?: MeshCoordinationTimer,
+  removeTimerId?: string,
+): MeshAllocationDecision {
+  const allocation = restoreMeshAllocationState(allocationSnapshot);
+  const sequence = state.coordination.localEventSequence + 1;
+  const coordination = Object.freeze({
+    ...state.coordination,
+    domainRecords: createFrozenRecord([
+      ...recordEntries(state.coordination.domainRecords),
+      [
+        domainRecordKey,
+        Object.freeze({
+          recordKey: domainRecordKey,
+          recordType,
+          recordId,
+          contentDigest: payloadDigest(envelope),
+          messageId: envelope.messageId,
+          acceptedAt: logicalTime,
+          objectiveId,
+        }),
+      ],
+    ]),
+    timers:
+      timer === undefined && removeTimerId === undefined
+        ? state.coordination.timers
+        : createFrozenRecord([
+            ...recordEntries(state.coordination.timers).filter(
+              ([key]) => key !== removeTimerId,
+            ),
+            ...(timer === undefined ? [] : [[timer.timerId, timer] as const]),
+          ]),
+    journal: Object.freeze([
+      ...state.coordination.journal,
+      Object.freeze({
+        sequence,
+        occurredAt: logicalTime,
+        kind: "domain.accepted" as const,
+        domainRecordKey,
+      }),
+    ]),
+    localEventSequence: sequence,
+    lastLogicalTime: logicalTime,
+  });
+  return Object.freeze({
+    accepted: true,
+    duplicate: false,
+    state: createMeshAllocationRuntimeState(
+      coordination,
+      Object.freeze({ ...state.discovery, lastLogicalTime: logicalTime }),
+      Object.freeze({ ...state.objectives, lastLogicalTime: logicalTime }),
+      allocation,
+    ),
+    effects: Object.freeze(effect === undefined ? [] : [effect]),
+  });
+}
+
 function assertRuntime(state: MeshAllocationRuntimeState, time: number): void {
   if (
     !state ||
@@ -1814,7 +2784,11 @@ function sameData(left: unknown, right: unknown): boolean {
 }
 function canonicalDigest(
   envelope: SignedMeshEnvelope<
-    WorkOfferPayload | WorkBidPayload | WorkAwardPayload
+    | WorkOfferPayload
+    | WorkBidPayload
+    | WorkAwardPayload
+    | WorkAcceptPayload
+    | WorkDeclinePayload
   >,
 ): boolean {
   const canonical = canonicalizeMeshPayload(envelope.payload);
