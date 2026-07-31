@@ -29,6 +29,10 @@ documentation, examples, release notes and protocol fixtures.
 | Quarantine               | Temporary, scoped isolation after locally verifiable policy conditions are satisfied.                        |
 | Inference Control        | Local context, output and action evaluation around an agent execution.                                       |
 | Inference Assessment     | A structured allow, revise, retry, abstain, escalate or deny result.                                         |
+| Context Zone             | A closed local classification that separates trusted instructions and policies from untrusted data.          |
+| Control Checkpoint       | A configured pre-run, streaming, post-run, pre-tool or pre-message assessment boundary.                      |
+| Release Mode             | Off, observe, buffered or incremental local handling of provider output.                                     |
+| Control Capability       | A declared provider-wrapper control point such as input inspection, output assessment or tool interception.  |
 | Action Gateway           | The local enforcement boundary for tools and other external effects.                                         |
 | Action Grant             | Short-lived, scoped authority to execute one action under a valid epoch and policy.                          |
 | Control Plane            | Optional services that configure, start or observe a Mesh without owning steady-state coordination.          |

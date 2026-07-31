@@ -46,6 +46,15 @@ evidence is tracked in the
 - Action Gateway and scoped action grants;
 - provider capability validation.
 
+The detailed scope, invariants and implementation increments are in the
+[Alpha 3 implementation plan](../inference-control/alpha-3-implementation-plan.md).
+Release evidence is tracked in the
+[Alpha 3 acceptance checklist](../inference-control/alpha-3-acceptance-checklist.md),
+and its local enforcement boundary is defined by the
+[Inference Control threat model](../security/inference-control-threat-model.md).
+The design-freeze evidence is recorded in the
+[Alpha 3 design review](../inference-control/alpha-3-design-review.md).
+
 ### `0.3.0-alpha.4`: evidence and trust
 
 - claims, attestations and fusion policies;

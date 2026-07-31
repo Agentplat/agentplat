@@ -21,6 +21,52 @@ Alpha work does not add required fields to existing interfaces, extend existing
 closed unions or change default behavior. New packages and explicit subpath
 exports are the preferred extension mechanism.
 
+## Alpha 3 inference-control boundary
+
+`@agentplat/inference-control` is an additive opt-in package. Its root exports
+closed policies, context zones, assessments, limits, immutable state and pure
+evaluation. Its explicit `/model` and `/runtime` executors use stronger
+controlled request/event contracts instead of implementing existing interfaces
+that cannot carry context zones or provenance. `/tools` exposes an Action
+Gateway rather than a transparently authorized `ToolHandler`; `/messages`
+exposes an outbound-message gateway. None changes existing package root
+interfaces or defaults.
+
+Control capabilities are separate from `ModelAdapterCapabilities`. Existing
+feature declarations for streaming, tools, structured output or vision do not
+become enforcement claims. A wrapper must explicitly declare the input,
+output, local release-interruption and tool-interception boundaries it exposes.
+
+`AgentStreamEvent` remains unchanged. Controlled runtime wrappers expose a new
+event union from the inference-control package; the generic Streaming/SSE
+contracts can carry it without extending the existing closed runtime union.
+
+The package does not use `RuntimeExecutionContext.metadata`,
+`RuntimeExecutionContext.policies`, `AgentDefinition.capabilities` or tool
+metadata as action authority. Action Grants are resolved from a local strict
+ledger and typed authority resolver. A direct reference to an unwrapped
+provider, adapter, handler or message dispatcher remains outside the opt-in
+boundary. The grant input digest is mandatory, and gateway callers cannot
+supply the action, handler, assessment or resolver as request data.
+
+The initial grant ledger is local and snapshot-restorable, not a durable
+multi-process transaction log or bearer-token protocol. A timeout after action
+dispatch becomes indeterminate and is not retried automatically. Exactly-once
+external effects remain dependent on a downstream idempotency or fencing
+contract. In particular, authority revalidation and reservation authorize the
+local dispatch attempt at that instant; preventing a race with a newer
+coordinated authority requires atomic downstream fence validation.
+
+Strict inference-control snapshots contain context, buffered content and
+authorization state and are classified as sensitive application data. They are
+not telemetry and are not persisted by default. Redacted support projections
+cannot be restored as authority.
+
+Inference Control is independent of Agent Mesh. Standalone scopes require no
+Mesh dependency. A coordinated action policy requires the complete accepted
+Objective, Work Item, lease, assignment epoch and fencing-token binding and
+revalidates it at grant consumption.
+
 Alpha 2 coordination state, discovery projection, inbound replay security state
 and Objective/Work projection are separate schema-versioned contracts exposed
 only from `@agentplat/mesh/coordination`. They do not extend the closed Alpha 1
