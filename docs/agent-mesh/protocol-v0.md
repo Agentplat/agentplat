@@ -346,10 +346,10 @@ parent and uses the previous sequence plus one.
 | `lease.takeover_proposal` | eligible recovery candidate or witness      | one direct envelope per witness                      | required                         | Current lease has expired under local policy                    |
 | `lease.vote`              | configured witness self                     | one direct envelope per recovery participant         | required                         | One vote per witness, Work Item and proposed epoch              |
 | `lease.certificate`       | certificate assembler                       | one direct envelope per affected peer                | required                         | Names one proposal and required distinct witness votes          |
-| `evidence.claim`          | claim source self                           | direct or `evidence` topic                           | required for work-derived claims | Provenance is in an authorized scope                            |
-| `evidence.attest`         | attester self                               | direct or `evidence` topic                           | same scope as claim              | References an accepted claim                                    |
-| `evidence.challenge`      | admitted participant in claim scope         | direct or `evidence` topic                           | same scope as claim              | References an accepted claim or attestation                     |
-| `evidence.retract`        | original claim or attestation author        | same as original scope                               | same scope as original           | Adds a retraction; never deletes history                        |
+| `evidence.claim`          | claim source self                           | direct or `evidence` topic                           | required for work-derived claims | Criterion authorizes source/subject role and exact provenance   |
+| `evidence.attest`         | attester self                               | direct or `evidence` topic                           | declared claim scope             | Active only after exact accepted claim resolution               |
+| `evidence.challenge`      | admitted participant in declared scope      | direct or `evidence` topic                           | declared target scope            | Active only after exact claim or attestation resolution         |
+| `evidence.retract`        | declared original author                    | same as declared target scope                        | declared target scope            | Active only after exact target author and scope resolution      |
 | `trust.observation`       | observer self                               | direct by default                                    | optional when explicitly scoped  | References locally inspectable evidence and grants no authority |
 
 ## Normative state and lifetime matrix
@@ -520,6 +520,269 @@ proposal, sets `certificateId` as both assignment authority ID and fencing
 token, and moves the Work Item to `recovering`. It does not activate the
 candidate or grant execution authority; the owner must still issue a matching
 recovery award that the candidate accepts.
+
+### Evidence and Trust wire boundary
+
+Alpha 4 implements the five Evidence/Trust discriminants already reserved by
+wire v0. Their payloads are closed. They do not accept a generic statement,
+extension or unknown-field fallback.
+
+An Evidence subject is exactly one of:
+
+```text
+{ kind: "peer", peerId }
+{
+  kind: "peer_capability",
+  peerId,
+  capabilityKey,
+  capabilityVersion,
+  capabilityRevision
+}
+```
+
+An Evidence wire scope is exactly one of:
+
+```text
+{ kind: "mesh" }
+{ kind: "objective", objectiveRevision }
+{
+  kind: "work",
+  objectiveRevision,
+  workItemId,
+  workItemRevision,
+  assignmentEpoch,
+  assignmentAuthorityId,
+  fencingToken
+}
+```
+
+Tenant and Mesh come from the signed envelope. Objective and Work scopes require
+the envelope `objectiveId`; Mesh scope forbids it unless another message-family
+rule explicitly requires it. The pure Trust normalizer expands the wire scope
+from signed fields before content-bound ID validation. Mutable accepted state is
+consulted only later for authorization and cannot change normalization bytes.
+
+Optional Claim content is either `null` or exactly one of:
+
+```text
+{
+  kind: "inline_summary",
+  mediaType,
+  summary,
+  contentDigest,
+  encodedBytes
+}
+{
+  kind: "reference",
+  mediaType,
+  reference: exact Evidence reference,
+  contentDigest,
+  encodedBytes
+}
+```
+
+The inline summary and reference are each at most 4,096 UTF-8 bytes. For an
+inline summary, `encodedBytes` equals its exact UTF-8 byte length and
+`contentDigest` equals lowercase SHA-256 of those bytes. For a reference,
+`encodedBytes` is the exact expected resolved byte count; the bound resolver
+must later match it, media type, immutable version and digest. The protocol does
+not fetch, authorize or interpret a reference.
+
+A causal or basis reference contains exactly:
+
+```text
+schemaVersion: 1
+kind: "evidence" | "mesh_record" | "control_record" | "external"
+referenceType
+referenceId
+referenceDigest
+```
+
+The reference digest grammar is selected by `kind`: `evidence` uses the
+lowercase 64-character Trust record digest; `mesh_record` uses the existing
+`sha256:<canonical base64url>` payload hash; `control_record` uses the existing
+`sha256:<64 lowercase hex>` Control digest; and `external` uses lowercase
+64-character SHA-256 hex over immutable bytes. Encodings are never normalized
+or substituted across kinds.
+
+Reference arrays are unique and sorted by the complete tuple in Unicode
+code-unit order. A bare ID is not sufficient. Mesh Evidence may use
+`mesh_record`, `evidence` and `external`; `control_record` is reserved for local
+conversion and is rejected on this wire boundary.
+The Claim content `reference` must be one exact `mesh_record` or `external`
+reference from this contract; an `evidence` reference cannot stand in for
+content bytes. A later local resolution must copy its `referenceId` and
+`referenceDigest` exactly.
+
+`evidence.claim` contains exactly:
+
+```text
+type: "evidence.claim"
+claimId
+subject
+scope
+criterionId
+outcome: "satisfied" | "violated" | "inconclusive"
+assertionDigest
+content
+basisReferences
+observedAt: RFC 3339 string | null
+```
+
+The sender is the Claim source. `basisReferences` is a sorted unique array of at
+most 32 exact references. `assertionDigest` is recomputed from subject, expanded
+scope, criterion, outcome, content digest and references by the shared Trust
+normalizer.
+
+A Work Claim requires one `mesh_record` reference of type `work.result` or
+`work.checkpoint`; its ID is the accepted producing envelope message ID and its
+digest is that envelope's payload hash. The Claim envelope `causationId` equals
+that message ID. Stateful ingress resolves the immutable historical execution
+record and compares Objective, Work revision, epoch, authority, fence, assignee
+and policy-authorized subject relation. The authority need not remain the live
+head when delayed Evidence arrives. `observedAt` is Evidence only and never
+controls local freshness, decay or recovery.
+
+The criterion's local closed Claim-authority rule names permitted sender/subject
+relations and basis types. Default peer/capability Claims are self-subject
+Claims; owner, observer or witness Claims about another peer require an
+explicit permitted historical role. An unrelated admitted peer cannot cite a
+valid checkpoint to make a third-party Claim effective.
+
+`evidence.attest` contains exactly:
+
+```text
+type: "evidence.attest"
+attestationId
+scope
+claimId
+claimDigest
+disposition: "support" | "contradict" | "inconclusive"
+confidenceBasisPoints
+basisReferences
+observedAt: RFC 3339 string | null
+```
+
+It declares one exact Claim digest in the same scope. Confidence is a safe
+integer from zero through 10,000 and remains subject to local source and
+dependency-group caps. A signature does not make the Attestation independent or
+correct.
+
+`evidence.challenge` contains exactly:
+
+```text
+type: "evidence.challenge"
+challengeId
+scope
+targetKind: "claim" | "attestation"
+targetId
+targetDigest
+reasonCode
+basisReferences
+observedAt: RFC 3339 string | null
+```
+
+Its basis is non-empty. The sender must be an admitted participant authorized
+for the exact scope. The local criterion's Challenge-authority rule must also
+permit the sender/subject relation and every typed basis. All bases must resolve
+with exact digest, scope and configured type before the Challenge can block its
+target; an unavailable or unrelated basis leaves the Challenge unavailable.
+Only one Challenge per target and challenger dependency group is effective. A
+local group projection aggregates its sorted Challenge records and uses the
+minimum of their resolved-basis effective-time cutoffs, so another identity
+cannot move the cutoff forward or create a second blocker and opposite arrival
+orders converge. A Challenge does not create a negative fact, Trust penalty or
+quarantine by itself.
+
+`evidence.retract` contains exactly:
+
+```text
+type: "evidence.retract"
+retractionId
+scope
+targetKind: "claim" | "attestation"
+targetId
+targetDigest
+reasonCode
+observedAt: RFC 3339 string | null
+```
+
+The sender must resolve as the original author of the exact target before the
+Retraction becomes active. Retraction appends history; it never deletes or
+alters the target or a third-party Challenge. Expired Fusion weight or source
+role does not prevent an otherwise live admitted author from retracting its own
+historical target.
+
+`trust.observation` is a redacted projection and contains exactly:
+
+```text
+type: "trust.observation"
+observationId
+subject
+scope
+policyId
+policyVersion
+policyDigest
+profileDigest
+fusionDecisionDigest
+dimensionId
+scoreBand: "unknown" | "low" | "medium" | "high"
+uncertaintyBand: "low" | "medium" | "high"
+disposition: "eligible" | "restricted" | "quarantined" | "unavailable"
+evidenceIds
+observedAt
+validUntil
+reasonCodes
+```
+
+The sender is the observer. Evidence IDs and reason codes are sorted unique
+arrays of at most 32 entries. `validUntil` is later than `observedAt` and no
+more than 24 hours later. The envelope TTL is still at most five minutes.
+
+Score bands are fixed at low 0–3,333, medium 3,334–6,666 and high
+6,667–10,000; `unknown` means no effective score. Uncertainty uses the same
+three numeric boundaries. A receiver may retain an opaque observation as
+`remote_unverified`. It labels it `locally_correlated` only when Evidence,
+policy, profile and Fusion digests exactly match local inspectable records.
+Neither label makes it a local decision. Wire v0 never uses a remote Trust
+observation as a Fusion input, admission fact, authority, profile replacement
+or quarantine-recovery input.
+
+Each logical ID is content-bound under the Alpha 4 domain rules. The protocol
+calls the pure `@agentplat/trust/mesh-records` normalizer with exactly
+`schemaVersion`, tenant, Mesh, Objective or `null`, sender peer and causation or
+`null`, plus the closed payload. The normalizer injects local `sourceId`,
+`sourceKind: "peer"`, explicit envelope `causationId` or `null`, expanded scope,
+assertion, root-basis and relationship digests, then derives the same root
+record ID and digest used by
+`@agentplat/trust`. No parallel wire digest representation exists.
+
+ID mismatch fails after structural envelope validation and before
+signature-authorized state transition. Exact duplicate content is idempotent;
+conflicting reuse of one author/target relationship is permanent bounded
+equivocation Evidence and cannot contribute. Cross-package fixtures cover every
+family and single-byte/byte-count/digest mutations.
+
+After strict parse, signature, admission, declared-scope and replay checks, an
+Attestation, Challenge or Retraction whose target is not yet present may enter
+only a bounded pending relationship index. The receiver preserves the signed
+sender, declared scope, target ID and target digest. It performs no Fusion,
+profile, quarantine or recovery transition from that record. Target arrival
+resolves exact digest, same-scope authorization and original authorship where
+required, then deterministically marks the relationship active, conflicted or
+unavailable. This is the only reorder-tolerant exception to the authority
+matrix's active-state target rule.
+
+All five families require a causation ID when their target or Work-derived basis
+is an accepted Mesh envelope. Relationship resolution, source admission,
+dependency-group policy, historical Work authority, content availability, Fusion,
+profile, quarantine and recovery remain stateful local rules. No Evidence or
+Trust message changes admission, Objective authority, Work assignment, lease,
+epoch, fencing or Action Grant state.
+
+The validator applies a five-minute maximum envelope lifetime specifically to
+each of these five types, independently of the protocol's general ten-minute
+ceiling.
 
 Every message has exactly one matching authority rule. There is no generic
 remote command, implicit issuer authority or permissive fallback for an unknown

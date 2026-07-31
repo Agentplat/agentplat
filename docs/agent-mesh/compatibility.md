@@ -67,6 +67,48 @@ Mesh dependency. A coordinated action policy requires the complete accepted
 Objective, Work Item, lease, assignment epoch and fencing-token binding and
 revalidates it at grant consumption.
 
+## Alpha 4 Evidence and Trust boundary
+
+`@agentplat/trust` is a new additive, provider-neutral package. Its browser-safe
+root exposes strict local Evidence records, frozen Fusion policies, immutable
+state, deterministic Fusion Decisions, multidimensional Trust Profiles,
+eligibility, quarantine and recovery. It does not import Mesh or Inference
+Control and performs no network, persistence, clock, random, migration,
+registration or telemetry work on import.
+
+Mesh and Inference Control integrate only through explicit new subpaths. The
+Mesh Trust subpath composes existing signature, admission, replay,
+Objective/Work, epoch and fencing state with the local Trust reducer. Existing
+Mesh root, loopback and coordination processors do not handle Evidence messages
+unless the application constructs the Alpha 4 boundary. The Inference Control
+Trust subpath wraps already explicit model, action-dispatcher and
+message-dispatcher dependencies; it does not add fields to
+`InferenceControlPolicyV1`, change Action Grants or re-export Trust from the
+package root.
+
+A signature proves record integrity and key possession, not truth. A Trust
+Profile is a local, subject-and-scope projection under one exact policy. There
+is no global score. Source independence is supplied by locally configured
+dependency groups and cannot be inferred from the number of peer IDs.
+
+Trust may only restrict an explicitly bound adapter. It never creates peer
+admission, Objective authority, Work assignment, lease, epoch, fencing token,
+permission, Action Grant or trusted Context. Missing, stale, excessively
+uncertain or mismatched Trust state is `unavailable`; direct legacy APIs remain
+outside the opt-in boundary and receive no Trust-derived authority.
+
+Trust state and snapshots begin at independent schema version `1`. They are not
+inserted into existing Mesh or Inference Control snapshots. Full snapshots and
+unredacted Fusion Decisions are sensitive application data. Redacted audit
+projections are non-restorable.
+
+Mesh wire version remains `0`. Alpha 4 implements the already reserved
+`evidence.claim`, `evidence.attest`, `evidence.challenge`, `evidence.retract`
+and `trust.observation` discriminants with closed schemas. Older nodes reject
+them explicitly; no downgrade or generic extension fallback is introduced.
+Remote Trust observations are audit-only in V1 and do not recursively
+contribute to Fusion.
+
 Alpha 2 coordination state, discovery projection, inbound replay security state
 and Objective/Work projection are separate schema-versioned contracts exposed
 only from `@agentplat/mesh/coordination`. They do not extend the closed Alpha 1
