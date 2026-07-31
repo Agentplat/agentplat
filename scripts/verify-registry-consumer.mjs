@@ -12,12 +12,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
+import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
 
 export const REGISTRY_MESH_PACKAGES = Object.freeze([
   '@agentplat/mesh',
   '@agentplat/mesh-crypto',
   '@agentplat/mesh-protocol',
   '@agentplat/mesh-sim',
+]);
+export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
+  '@agentplat/inference-control';
+export const REGISTRY_PACKAGES = Object.freeze([
+  ...REGISTRY_MESH_PACKAGES,
+  REGISTRY_INFERENCE_CONTROL_PACKAGE,
 ]);
 
 export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
@@ -28,6 +35,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/mesh-allocation-recovery.mjs',
     destination: 'verify-allocation-recovery.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/inference-control-alpha3.mjs',
+    destination: 'verify-inference-control.mjs',
   }),
 ]);
 
@@ -64,8 +75,8 @@ export function registryConsumerManifest(version) {
     packageManager: 'pnpm@8.10.0',
     dependencies: Object.freeze(
       Object.fromEntries(
-        REGISTRY_MESH_PACKAGES.map((packageName) => [packageName, version])
-      )
+        REGISTRY_PACKAGES.map((packageName) => [packageName, version]),
+      ),
     ),
     devDependencies: Object.freeze({ typescript: '^5.3.0' }),
   });
@@ -74,11 +85,11 @@ export function registryConsumerManifest(version) {
 export function registryConsumerEnvironments(environment, userConfigPath) {
   assert.ok(
     path.isAbsolute(userConfigPath),
-    'Registry consumer npm configuration path must be absolute'
+    'Registry consumer npm configuration path must be absolute',
   );
 
   const execution = Object.freeze(
-    selectEnvironment(environment, RUNTIME_ENVIRONMENT_KEYS)
+    selectEnvironment(environment, RUNTIME_ENVIRONMENT_KEYS),
   );
   const install = Object.freeze({
     ...selectEnvironment(environment, INSTALL_ENVIRONMENT_KEYS),
@@ -93,23 +104,24 @@ export async function verifyRegistryConsumer({
   root = process.cwd(),
 } = {}) {
   const rootManifest = JSON.parse(
-    await readFile(path.join(root, 'package.json'), 'utf8')
+    await readFile(path.join(root, 'package.json'), 'utf8'),
   );
+  await assertInferenceControlReleaseLine({ root, rootManifest });
   const manifest = registryConsumerManifest(rootManifest.version);
   const temporaryRoot = await mkdtemp(
-    path.join(os.tmpdir(), 'agentplat-registry-consumer-')
+    path.join(os.tmpdir(), 'agentplat-registry-consumer-'),
   );
   const npmConfigurationPath = path.join(temporaryRoot, '.npmrc');
   const cleanEnvironments = registryConsumerEnvironments(
     environment,
-    npmConfigurationPath
+    npmConfigurationPath,
   );
 
   try {
     await Promise.all([
       writeFile(
         path.join(temporaryRoot, 'package.json'),
-        `${JSON.stringify(manifest, null, 2)}\n`
+        `${JSON.stringify(manifest, null, 2)}\n`,
       ),
       writeFile(
         npmConfigurationPath,
@@ -120,7 +132,7 @@ export async function verifyRegistryConsumer({
           'hoist=false',
           'strict-peer-dependencies=true',
           '',
-        ].join('\n')
+        ].join('\n'),
       ),
       writeFile(
         path.join(temporaryRoot, 'tsconfig.json'),
@@ -136,18 +148,25 @@ export async function verifyRegistryConsumer({
               types: [],
               lib: ['ES2022', 'DOM'],
             },
-            include: ['verify-types.ts'],
+            include: ['verify-types.ts', 'verify-inference-control-types.ts'],
           },
           null,
-          2
-        )}\n`
+          2,
+        )}\n`,
       ),
       copyFile(
         path.join(root, 'scripts/pack-consumers/mesh-types.ts'),
-        path.join(temporaryRoot, 'verify-types.ts')
+        path.join(temporaryRoot, 'verify-types.ts'),
+      ),
+      copyFile(
+        path.join(root, 'scripts/pack-consumers/inference-control-types.ts'),
+        path.join(temporaryRoot, 'verify-inference-control-types.ts'),
       ),
       ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
-        copyFile(path.join(root, source), path.join(temporaryRoot, destination))
+        copyFile(
+          path.join(root, source),
+          path.join(temporaryRoot, destination),
+        ),
       ),
       mkdir(path.join(temporaryRoot, 'store'), { recursive: true }),
     ]);
@@ -167,7 +186,7 @@ export async function verifyRegistryConsumer({
         cwd: temporaryRoot,
         env: cleanEnvironments.install,
         stdio: 'inherit',
-      }
+      },
     );
     execFileSync(
       process.execPath,
@@ -180,7 +199,7 @@ export async function verifyRegistryConsumer({
         cwd: temporaryRoot,
         env: cleanEnvironments.execution,
         stdio: 'inherit',
-      }
+      },
     );
     execFileSync(process.execPath, ['verify-mesh.mjs'], {
       cwd: temporaryRoot,
@@ -192,9 +211,14 @@ export async function verifyRegistryConsumer({
       env: cleanEnvironments.execution,
       stdio: 'inherit',
     });
+    execFileSync(process.execPath, ['verify-inference-control.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
 
     console.log(
-      `Verified ${REGISTRY_MESH_PACKAGES.length} exact registry packages at ${rootManifest.version} from an independent clean consumer.`
+      `Verified ${REGISTRY_PACKAGES.length} exact registry packages at ${rootManifest.version} from an independent clean consumer.`,
     );
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
@@ -205,8 +229,8 @@ function selectEnvironment(environment, allowedKeys) {
   return Object.fromEntries(
     Object.entries(environment).filter(
       ([key, value]) =>
-        typeof value === 'string' && allowedKeys.has(key.toUpperCase())
-    )
+        typeof value === 'string' && allowedKeys.has(key.toUpperCase()),
+    ),
   );
 }
 

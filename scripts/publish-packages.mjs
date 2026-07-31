@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runPublicAudit } from './audit-public.mjs';
+import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
 import {
   loadPublicPackageCatalog,
   publishablePackages,
@@ -34,6 +35,12 @@ export async function publishPackages({
   const rootManifest = JSON.parse(
     await readFile(path.join(root, 'package.json'), 'utf8')
   );
+  const catalog = await loadPublicPackageCatalog(root);
+  await assertInferenceControlReleaseLine({
+    root,
+    catalog,
+    rootManifest,
+  });
   const prerelease = rootManifest.version.includes('-');
   if (prerelease && distributionTag === 'latest') {
     throw new Error(
@@ -75,7 +82,6 @@ export async function publishPackages({
     'Final distribution tag must differ from the staging tag'
   );
 
-  const catalog = await loadPublicPackageCatalog(root);
   const packages = publishablePackages(catalog);
   const manifests = new Map();
   for (const packageEntry of packages) {

@@ -20,36 +20,36 @@
   <a href="https://agentplat.com/#contact">Contact</a>
 </p>
 
-> Developer preview: Agent Rooms, local adapters and provider contracts are usable, but APIs may still change before the first stable release.
+> Developer preview: Agent Rooms, Agent Mesh and inference-control boundaries
+> are usable, but APIs may still change before the first stable release.
 
 AgentPlat is a downloadable framework for building self-hosted agentic platforms around **Agent Rooms**: durable workspaces where humans and agents coordinate through messages, tasks, versioned artifacts, approvals, policies and scoped memory.
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
-### Agent Mesh Alpha 2
+### Inference Control Alpha 3
 
-Agent Mesh Alpha 2 is the public allocation and recovery preview for
-distributed peer coordination. It adds bounded partial peer views, expiring
-capability self-claims, Objective and Work Item state machines, signed
-offer/bid/award/acceptance, leased execution, checkpoint recovery and certified
-next-epoch fencing. The deterministic simulator injects explicit crash, loss,
-duplicate, delay, reorder and partition faults through driver boundaries while
-running the production reducers. Agent Mesh remains an additive sibling to
-Sessions and Rooms and does not change their defaults.
+`0.3.0-alpha.3` adds opt-in, provider-neutral control boundaries for model and
+runtime inference, context provenance, capability negotiation, bounded
+assessments, controlled output release, single-use Action Grants and outbound
+messages. The public contracts fail closed when a required interception point,
+assessment binding, authority generation or downstream fence is unavailable.
+Existing Runtime, Model, Tools, Streaming, Sessions, Rooms, Framework and Agent
+Mesh defaults remain unchanged unless an application installs the new wrapper
+or gateway explicitly.
 
 ```sh
-pnpm add @agentplat/mesh@next @agentplat/mesh-crypto@next \
-  @agentplat/mesh-protocol@next @agentplat/mesh-sim@next
+pnpm add @agentplat/inference-control@next
 ```
 
-Inference control, external action grants, evidence fusion, production durable
-storage and production network transports remain assigned to later previews.
-See the [Alpha 2 implementation plan](./docs/agent-mesh/alpha-2-implementation-plan.md),
-[Alpha 2 acceptance checklist](./docs/agent-mesh/alpha-2-acceptance-checklist.md),
-[Agent Mesh glossary](./docs/agent-mesh/glossary.md), [protocol v0
-design](./docs/agent-mesh/protocol-v0.md), [compatibility
-policy](./docs/agent-mesh/compatibility.md) and [release
-plan](./docs/agent-mesh/release-plan.md).
+Alpha 3 provides deterministic local enforcement and at-most-one local
+dispatch attempt. It does not claim universal safety, truth, immediate remote
+compute cancellation, durable cross-process single use or exactly-once
+external effects. See the [Alpha 3 implementation
+plan](./docs/inference-control/alpha-3-implementation-plan.md), [acceptance
+checklist](./docs/inference-control/alpha-3-acceptance-checklist.md), [threat
+model](./docs/security/inference-control-threat-model.md) and [design review
+record](./docs/inference-control/alpha-3-design-review.md).
 
 ## Packages
 
@@ -74,6 +74,7 @@ plan](./docs/agent-mesh/release-plan.md).
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
+| `@agentplat/inference-control`       | Opt-in inference boundaries, controlled release and safe action gates.  |
 | `@agentplat/mesh`                    | Bounded peer coordination, allocation, leases, fencing and recovery.    |
 | `@agentplat/mesh-crypto`             | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
 | `@agentplat/mesh-protocol`           | Strict bounded wire parsing, validation and conformance fixtures.       |
@@ -164,7 +165,7 @@ path does not require DynamoDB or the Agent Rooms schema.
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.3.0-alpha.2` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.3.0-alpha.3` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants
@@ -190,7 +191,7 @@ const agent = {
 const result = await runtime.run(
   agent,
   { input: 'hello open core' },
-  { tenant: { tenantId: agent.tenantId }, agentId: agent.id }
+  { tenant: { tenantId: agent.tenantId }, agentId: agent.id },
 );
 ```
 

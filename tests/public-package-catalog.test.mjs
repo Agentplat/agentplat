@@ -49,6 +49,18 @@ const alphaOneCatalogEntries = Object.freeze([
   }),
 ]);
 
+const alphaThreeCatalogEntries = Object.freeze([
+  Object.freeze({
+    browserEntrypoints: Object.freeze(['.']),
+    directory: 'packages/inference-control',
+    layer: 'runtime',
+    name: '@agentplat/inference-control',
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+]);
+
 test('public package catalog is the ordered allowlist for release and pack smoke', async () => {
   const catalog = await loadPublicPackageCatalog();
   const discovered = await discoverWorkspacePackageManifests();
@@ -58,6 +70,7 @@ test('public package catalog is the ordered allowlist for release and pack smoke
     ...new Set([
       ...discovered.map((record) => record.manifest.name),
       ...alphaOneCatalogEntries.map((entry) => entry.name),
+      ...alphaThreeCatalogEntries.map((entry) => entry.name),
     ]),
   ].sort(compareAscii);
   const expectedAlphaOnePackageCount = expectedAlphaOneNames.length;
@@ -67,7 +80,7 @@ test('public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedAlphaOneNames
   );
-  assert.equal(expectedAlphaOnePackageCount, 28);
+  assert.equal(expectedAlphaOnePackageCount, 29);
   assert.equal(catalog.packages.length, expectedAlphaOnePackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),
@@ -92,6 +105,12 @@ test('public package catalog is the ordered allowlist for release and pack smoke
       ?.browserEntrypoints,
     ['./browser']
   );
+  for (const expectedEntry of alphaThreeCatalogEntries) {
+    assert.deepEqual(
+      catalog.packages.find((entry) => entry.name === expectedEntry.name),
+      expectedEntry
+    );
+  }
   assert.deepEqual(
     catalog.packages.find((entry) => entry.name === '@agentplat/rooms')
       ?.browserEntrypoints,

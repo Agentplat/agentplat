@@ -15,17 +15,21 @@ but may change between prereleases. A preview is promoted to `latest` only after
 the public checks, package smoke test, reference examples and downstream
 integration validation are green.
 
-`0.3.0-alpha.2` is the coordinated Agent Mesh allocation-and-recovery preview.
-It adds partial views, capability declarations, Objective/Work state,
-allocation, leased execution, certified fencing and deterministic resilience
-scenarios. Repository examples carry the same version as the coordinated
-package release; install packages from npm with `@next` when running an example
-outside this repository.
+`0.3.0-alpha.3` is the coordinated Inference Control preview. It adds opt-in
+context provenance, capability negotiation, bounded assessments, controlled
+output release, single-use Action Grants and an outbound-message gateway while
+retaining the Alpha 1 and Alpha 2 Agent Mesh contracts unchanged. Repository
+examples carry the same version as the coordinated package release; install
+packages from npm with `@next` when running an example outside this repository.
 
 ```sh
-pnpm add @agentplat/mesh@next @agentplat/mesh-crypto@next \
-  @agentplat/mesh-protocol@next @agentplat/mesh-sim@next
+pnpm add @agentplat/inference-control@next
 ```
+
+The package exposes the browser-safe root plus explicit `model`, `runtime`,
+`tools` and `messages` subpaths. Only calls routed through those opt-in
+boundaries receive Alpha 3 enforcement; direct provider, handler or dispatcher
+calls keep their existing behavior.
 
 Session/browser APIs remain on `next` until the reference Next.js controls,
 public contract tests, package smoke test, downstream validation and a stable

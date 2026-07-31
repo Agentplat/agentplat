@@ -5,27 +5,27 @@ import {
   registryConsumerEnvironments,
   registryConsumerManifest,
   REGISTRY_CONSUMER_SCRIPTS,
+  REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
+  REGISTRY_PACKAGES,
 } from '../scripts/verify-registry-consumer.mjs';
 
-test('registry consumer pins every Mesh package to the exact release version', () => {
+test('registry consumer pins every Mesh and inference-control package to the exact release version', () => {
   const manifest = registryConsumerManifest('0.3.0-alpha.1');
-  assert.deepEqual(Object.keys(manifest.dependencies), [
-    ...REGISTRY_MESH_PACKAGES,
-  ]);
+  assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
     new Set(Object.values(manifest.dependencies)),
-    new Set(['0.3.0-alpha.1'])
+    new Set(['0.3.0-alpha.1']),
   );
   assert.equal(manifest.private, true);
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest('workspace:^'),
-    /must be SemVer/u
+    /must be SemVer/u,
   );
 });
 
-test('registry consumer copies both executable Mesh verification scenarios', () => {
+test('registry consumer copies Mesh and inference-control verification scenarios', () => {
   assert.deepEqual(REGISTRY_CONSUMER_SCRIPTS, [
     {
       source: 'scripts/pack-consumers/mesh-three-peer.mjs',
@@ -35,9 +35,15 @@ test('registry consumer copies both executable Mesh verification scenarios', () 
       source: 'scripts/pack-consumers/mesh-allocation-recovery.mjs',
       destination: 'verify-allocation-recovery.mjs',
     },
+    {
+      source: 'scripts/pack-consumers/inference-control-alpha3.mjs',
+      destination: 'verify-inference-control.mjs',
+    },
   ]);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS), true);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS[0]), true);
+  assert.equal(REGISTRY_PACKAGES.at(-1), REGISTRY_INFERENCE_CONTROL_PACKAGE);
+  assert.deepEqual(REGISTRY_PACKAGES.slice(0, -1), REGISTRY_MESH_PACKAGES);
 });
 
 test('registry consumer isolates install and execution environments', () => {
@@ -52,7 +58,7 @@ test('registry consumer isolates install and execution environments', () => {
       npm_config_registry: 'https://registry.example',
       NPM_CONFIG_USERCONFIG: '/host/.npmrc',
     },
-    '/tmp/consumer/.npmrc'
+    '/tmp/consumer/.npmrc',
   );
 
   assert.deepEqual(environments.execution, {

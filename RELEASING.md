@@ -12,7 +12,7 @@ verification rather than becoming publishable implicitly.
 ## Prepare a version
 
 ```sh
-corepack pnpm version:set 0.3.0-alpha.1
+corepack pnpm version:set 0.3.0-alpha.3
 corepack pnpm install
 corepack pnpm run check
 ```
@@ -22,8 +22,9 @@ mixed package versions and `verify:pack` installs the exact tarballs in clean,
 isolated, non-hoisted package consumers. Pack verification audits the extracted
 contents of every tarball, requires internal SemVer ranges that include the
 coordinated packed version, imports every declared package export independently,
-compiles a TypeScript consumer against the packed declarations and runs both the
-signed three-peer Mesh scenario and the unchanged aggregate functional consumer
+compiles TypeScript consumers against the packed declarations and runs the
+signed three-peer Mesh scenario, the dedicated inference-control scenario over
+all five public entrypoints and the unchanged aggregate functional consumer
 smoke test.
 
 Every release also requires a non-empty terminology denylist stored outside the
@@ -38,9 +39,10 @@ The GitHub release workflow reads the same content from the
 `AGENTPLAT_PUBLIC_DENYLIST` repository secret and writes it only to the runner's
 temporary directory.
 
-Agent Mesh work begins in the coordinated `0.3.0` prerelease line. Its
-milestones and additional compatibility gates are documented in
-`docs/agent-mesh/release-plan.md`.
+Inference Control Alpha 3 is coordinated across exactly 29 packages. Its
+contracts and additional compatibility gates are documented in
+`docs/inference-control/alpha-3-implementation-plan.md` and
+`docs/inference-control/alpha-3-acceptance-checklist.md`.
 
 ## Publish
 
@@ -51,15 +53,16 @@ to it. Authenticate with npm, then publish from a clean `main` checkout:
 npm whoami
 corepack pnpm run release:publish:next
 corepack pnpm run verify:registry-consumer
-git tag v0.3.0-alpha.1
-git push origin v0.3.0-alpha.1
+git tag v0.3.0-alpha.3
+git push public v0.3.0-alpha.3
 ```
 
 Do not create the Git tag if the exact-version registry consumer fails. The
 consumer pins the installer to the public registry, uses a fresh package store,
 ignores install scripts, and exposes neither credentials nor host npm
-configuration to downloaded code. It compiles the declarations and replays the
-signed three-peer scenario before the release commit is tagged.
+configuration to downloaded code. It compiles the declarations, replays the
+signed three-peer scenario and exercises the inference-control exact-version
+consumer before the release commit is tagged.
 
 Stable releases use `release:publish`, whose default distribution tag is
 `latest`. The release script rejects publishing a prerelease under `latest` and
@@ -111,5 +114,5 @@ first publication, configure npm Trusted Publishing for the workflow and remove
 long-lived publishing tokens. Never commit a token or place it in package
 metadata.
 
-The Alpha 1 promotion state, evidence and rollback baseline are recorded in the
-[Alpha 1 release checklist](./docs/agent-mesh/alpha-1-release-checklist.md).
+The Alpha 3 promotion state, evidence and rollback baseline are recorded in the
+[Alpha 3 acceptance checklist](./docs/inference-control/alpha-3-acceptance-checklist.md).
