@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 0.3.0-alpha.3 - 2026-07-31
+
+- Added the opt-in `@agentplat/inference-control` package with browser-safe
+  canonical JSON, domain-separated SHA-256 digests, closed validation,
+  immutable context provenance, policy records, construction-bound capability
+  negotiation, normalized assessments, strict snapshots and a pure reducer.
+- Added explicit controlled Model and Runtime executors with canonical
+  separation of trusted instructions from untrusted data, buffered and
+  incremental release modes, provider terminal normalization and stateful
+  controlled-SSE validation.
+- Added single-use local Action Grant and outbound-message gateways with exact
+  action/content binding, authority-generation checks, atomic reservation,
+  idempotency retention, irreversible logical time, crash fencing and
+  downstream-atomic fencing requirements for coordinated effects.
+- Added bounded diagnostics and non-restorable redacted evidence projections;
+  telemetry is best-effort and never authorizes or reverses a decision.
+- Extended release verification to exactly 29 coordinated packages, five
+  inference-control entrypoints, packed declaration compilation, a dedicated
+  tarball scenario, an exact-version registry consumer and Alpha 1/Alpha 2
+  compatibility sentinels.
+- Added the Alpha 3 implementation plan, threat model, acceptance contract and
+  independent architecture, security and release review record. Durable
+  distributed ledgers and evidence fusion remain explicitly deferred.
+
 ## 0.3.0-alpha.2 - 2026-07-31
 
 - Added the detailed Agent Mesh Alpha 2 allocation and recovery implementation

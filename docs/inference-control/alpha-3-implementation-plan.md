@@ -797,6 +797,7 @@ ControlRunRecordV1
   tenantId
   policyDigest
   capabilityDescriptorDigest
+  capabilityHandleId: negotiated construction-bound handle | null
   scope: standalone | coordinated | null
   generation
   phase
