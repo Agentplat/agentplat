@@ -35,7 +35,10 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
       - run: corepack enable
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies without registry credentials
+        run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Prepare required public terminology denylist
         shell: bash
         env:
@@ -53,10 +56,13 @@ jobs:
         run: |
           pnpm run audit:public:release
           pnpm run check
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Dry-run package publication
         if: ${{ inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
+          NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NPM_PUBLISH_DRY_RUN: '1'
       - name: Publish packages
@@ -69,3 +75,5 @@ jobs:
       - name: Verify exact packages from a clean registry consumer
         if: ${{ !inputs.dry_run }}
         run: pnpm run verify:registry-consumer
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
