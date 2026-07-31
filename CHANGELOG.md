@@ -24,6 +24,10 @@
 - Added closed, bounded Alpha 2 Lease Renewal, Lease Takeover Proposal, Lease
   Vote and Lease Certificate contracts with stable causal records. They remain
   unsupported at the Mesh runtime boundary pending lease and recovery reducers.
+- Added the additive `@agentplat/mesh/coordination` runtime foundation with
+  strict schema-versioned snapshots, hard local bounds, redacted domain-record
+  metadata, generation-fenced trusted timer evaluation and fail-closed journal
+  capacity, while preserving the Alpha 1 state, input and effect contracts.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

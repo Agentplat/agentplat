@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
-Status: implementation in progress; Increment 0 contracts are being frozen.
+Status: Increment 0 complete; runtime implementation begins with Increment 1.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -62,10 +62,12 @@ depend on or re-export an alpha Mesh package.
 
 ## Alpha 2 scope
 
-### Implemented message families
+### Defined protocol message families
 
-Alpha 2 makes these previously reserved protocol messages structurally and
-semantically executable:
+Alpha 2 defines these payload families as closed, bounded, structurally
+validated and cryptographically signable. They remain unsupported at the
+`@agentplat/mesh` runtime boundary until their corresponding increment
+implements local state, authority and reducer support:
 
 - `peer.card` and `peer.goodbye`;
 - `capability.advertise` and `capability.withdraw`;
@@ -78,6 +80,12 @@ semantically executable:
 
 Alpha 1 `peer.hello`, `peer.ping` and `peer.ping_ack` behavior remains
 unchanged.
+
+At the runtime foundation commit, only those three Alpha 1 messages are
+accepted. Every Alpha 2 payload listed above is rejected as
+`unsupported_message_type` before replay mutation, causation consumption or
+reducer invocation. Structural validity, signature verification and an
+accepted sender admission do not constitute execution authority.
 
 The following reserved families remain unsupported and fail before reducer
 invocation:
@@ -503,16 +511,27 @@ green.
 - preserve all Alpha 1 fixtures and parser behavior;
 - add compile-only public type tests before reducer implementation.
 
-Exit criterion: all Alpha 2 wire shapes are bounded, closed and reviewable;
-unimplemented messages still fail explicitly at the runtime boundary.
+Exit criterion: all Alpha 2 wire shapes are bounded, closed and reviewable; all
+Alpha 2 messages still fail explicitly at the runtime boundary.
 
 ### Increment 1: partial views and capability discovery
 
+- add the `@agentplat/mesh/coordination` subpath for schema-versioned,
+  independently bounded coordination snapshots without extending the closed
+  Alpha 1 state, input or effect contracts;
+- validate restoration explicitly and provide pure generation-fenced timer
+  evaluation before any workflow or driver is allowed to create a timer;
 - implement Peer Card refresh and goodbye semantics;
 - add bounded topic subscription and sender fanout;
 - implement capability advertise, replace, expire and withdraw;
 - implement deterministic local matching and view eviction;
 - test admission/discovery separation and self-claim handling.
+
+The foundation sub-slice intentionally does not accept Alpha 2 envelopes,
+schedule host timers or compact its decision journal. Those behaviors land only
+with their complete workflow and driver support. A full journal rejects a due
+timer without consuming it; later compaction requires explicit retention and
+digest metadata.
 
 Exit criterion: three peers with different bounded views discover only locally
 visible, admitted and unexpired capability declarations.

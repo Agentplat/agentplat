@@ -31,6 +31,14 @@ import {
   type MeshLoopbackTransport,
 } from '@agentplat/mesh/loopback';
 import {
+  DEFAULT_MESH_COORDINATION_LIMITS,
+  createMeshCoordinationState,
+  evaluateMeshCoordinationTimer,
+  restoreMeshCoordinationState,
+  type MeshCoordinationState,
+  type MeshCoordinationTimerFiredInput,
+} from '@agentplat/mesh/coordination';
+import {
   createMeshSimulationKernel,
   replayMeshSimulation,
   runMeshSimulation,
@@ -648,6 +656,25 @@ const peerState: MeshPeerState = createMeshPeerState({
     },
   ],
 });
+
+const coordinationState: MeshCoordinationState = createMeshCoordinationState({
+  identity: peerState.identity,
+  limits: DEFAULT_MESH_COORDINATION_LIMITS,
+});
+const restoredCoordinationState: MeshCoordinationState =
+  restoreMeshCoordinationState(coordinationState);
+const coordinationTimerInput: MeshCoordinationTimerFiredInput = {
+  kind: 'timer.fired',
+  timerId: 'objective:objective-a:expiry',
+  generation: 1,
+};
+const coordinationTimerDecision = evaluateMeshCoordinationTimer(
+  restoredCoordinationState,
+  coordinationTimerInput,
+  1
+);
+
+void coordinationTimerDecision;
 
 const contractReducer: MeshPeerReducer = (state) => ({
   state,
