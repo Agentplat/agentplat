@@ -2,12 +2,24 @@ export * from './coordination-contracts.js';
 export * from './coordination-discovery-contracts.js';
 export * from './coordination-inbound-contracts.js';
 export * from './coordination-topic-contracts.js';
+export * from './coordination-objective-work-contracts.js';
 export {
   DEFAULT_MESH_COORDINATION_LIMITS,
   createMeshCoordinationState,
   restoreMeshCoordinationState,
 } from './coordination-state.js';
 export { evaluateMeshCoordinationTimer } from './coordination-reducer.js';
+export {
+  DEFAULT_MESH_OBJECTIVE_WORK_LIMITS,
+  createMeshObjectiveWorkState,
+  restoreMeshObjectiveWorkState,
+} from './coordination-objective-work-state.js';
+export {
+  createMeshObjectiveWorkRuntimeState,
+  evaluateMeshObjectiveWorkCommand,
+  evaluateMeshObjectiveWorkTimer,
+  evaluateVerifiedMeshObjectiveEnvelope,
+} from './coordination-objective-work.js';
 export {
   DEFAULT_MESH_DISCOVERY_LIMITS,
   createMeshDiscoveryRuntimeState,

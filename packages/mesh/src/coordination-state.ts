@@ -18,6 +18,7 @@ import {
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
 const contentDigestPattern = /^[A-Za-z0-9_-]{43}$/;
 const maximumIdentifierBytes = 256;
+const maximumTimerIdentifierBytes = 768;
 const utf8Encoder = new TextEncoder();
 const coordinationRecordTypes = new Set<MeshMessagePayload['type']>([
   'peer.card',
@@ -45,6 +46,7 @@ const coordinationRecordTypes = new Set<MeshMessagePayload['type']>([
 const timerKinds = new Set([
   'capability.expiry',
   'objective.expiry',
+  'work.deadline',
   'work.bid_deadline',
   'work.acceptance_deadline',
   'lease.expiry',
@@ -223,6 +225,7 @@ function validateSnapshot(snapshot: unknown): {
         'acceptedAt',
         'contentDigest',
         'messageId',
+        'objectiveId',
         'recordId',
         'recordKey',
         'recordType',
@@ -242,6 +245,11 @@ function validateSnapshot(snapshot: unknown): {
       record.recordKey !== recordKey ||
       recordKey !== JSON.stringify([record.recordType, record.recordId]) ||
       !coordinationRecordTypes.has(record.recordType) ||
+      (record.objectiveId !== undefined &&
+        (typeof record.objectiveId !== 'string' ||
+          !identifierPattern.test(record.objectiveId) ||
+          utf8Encoder.encode(record.objectiveId).byteLength >
+            maximumIdentifierBytes)) ||
       typeof record.contentDigest !== 'string' ||
       !contentDigestPattern.test(record.contentDigest) ||
       !Number.isSafeInteger(record.acceptedAt) ||
@@ -257,7 +265,7 @@ function validateSnapshot(snapshot: unknown): {
       ['domainRecordKey', 'dueAt', 'generation', 'kind', 'timerId'],
       ['domainRecordKey', 'dueAt', 'generation', 'kind', 'timerId']
     );
-    assertIdentifier(timerId, 'timerId');
+    assertTimerIdentifier(timerId, 'timerId');
     if (
       timer.timerId !== timerId ||
       !timerKinds.has(timer.kind) ||
@@ -297,7 +305,7 @@ function validateSnapshot(snapshot: unknown): {
       throw new TypeError('Mesh coordination journal entry is invalid');
     }
     if (entry.timerId !== undefined) {
-      assertIdentifier(entry.timerId, 'journal timerId');
+      assertTimerIdentifier(entry.timerId, 'journal timerId');
     }
     previousSequence = entry.sequence;
   }
@@ -366,6 +374,16 @@ function assertIdentifier(value: string, name: string): void {
   }
 }
 
+function assertTimerIdentifier(value: string, name: string): void {
+  if (
+    typeof value !== 'string' ||
+    !identifierPattern.test(value) ||
+    utf8Encoder.encode(value).byteLength > maximumTimerIdentifierBytes
+  ) {
+    throw new TypeError(`Invalid Mesh coordination ${name}`);
+  }
+}
+
 function assertRecordObject(value: unknown, name: string): void {
   const prototype =
     value && typeof value === 'object' ? Object.getPrototypeOf(value) : null;
@@ -388,12 +406,19 @@ function assertExactKeys(
   supportedKeys: readonly string[],
   requiredKeys: readonly string[]
 ): void {
-  const actualKeys = Object.getOwnPropertyNames(value);
+  const prototype = Object.getPrototypeOf(value);
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const actualKeys = Object.keys(descriptors);
   const supported = new Set(supportedKeys);
   if (
+    (prototype !== null && prototype !== Object.prototype) ||
     actualKeys.some((key) => !supported.has(key)) ||
     requiredKeys.some((key) => !Object.hasOwn(value, key)) ||
-    Object.getOwnPropertySymbols(value).length > 0
+    Object.getOwnPropertySymbols(value).length > 0 ||
+    Object.values(descriptors).some(
+      (descriptor) =>
+        !descriptor.enumerable || !Object.hasOwn(descriptor, 'value')
+    )
   ) {
     throw new TypeError('Mesh coordination value contains unsupported fields');
   }

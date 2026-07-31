@@ -16,12 +16,15 @@ export interface MeshCoordinationDomainRecord {
   readonly contentDigest: string;
   readonly messageId: string;
   readonly acceptedAt: MeshLogicalTime;
+  /** Present when the accepted domain record is scoped to one Objective. */
+  readonly objectiveId?: string;
 }
 
 /** Trusted timer kinds used by coordination state machines. */
 export type MeshCoordinationTimerKind =
   | 'capability.expiry'
   | 'objective.expiry'
+  | 'work.deadline'
   | 'work.bid_deadline'
   | 'work.acceptance_deadline'
   | 'lease.expiry'
@@ -87,6 +90,7 @@ export interface MeshCoordinationTimerFiredInput {
 /** Stable fail-closed outcomes for an unconsumed trusted timer input. */
 export type MeshCoordinationTimerRejectionCode =
   | 'timer_unknown'
+  | 'timer_owned_by_workflow'
   | 'timer_generation_stale'
   | 'timer_not_due'
   | 'journal_capacity_exceeded';

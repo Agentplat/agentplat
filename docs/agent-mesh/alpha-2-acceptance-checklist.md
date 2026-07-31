@@ -1,6 +1,7 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
-Status: Increment 0 and Increment 1 complete; later runtime increments pending.
+Status: Increment 0 and Increment 1 complete; Increment 2 projection core
+implemented, with authenticated Objective ingress and allocation still pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -105,16 +106,58 @@ Registry and Git mutations are checked only after independent verification.
 
 ## Objective and Work Item state
 
-- [ ] Objective revision `1` requires an authorized issuer;
-- [ ] later Objective revisions advance exactly by one and name their parent;
-- [ ] conflicting content at an accepted revision is rejected;
-- [ ] cancellation and expiry are terminal for one Objective ID;
-- [ ] revisions do not rewrite prior allocation or budget decisions;
-- [ ] Work Items require a current locally accepted Objective;
+- [x] Objective revision `1` requires an authorized issuer;
+- [x] later Objective revisions advance exactly by one and name their parent;
+- [x] conflicting content at an accepted revision is rejected;
+- [x] cancellation and expiry are terminal for one Objective ID;
+- [x] revisions do not rewrite accepted Work Item policy or timer bindings;
+- [x] Work Items require a current locally accepted Objective;
 - [ ] Work Item revision and offer attempt are independent and monotonic;
 - [ ] Objective limits bound Work Item count, concurrency and budget units;
-- [ ] every deadline is driven by injected trusted time;
-- [ ] journals and timers are bounded and backpressure is fail-closed.
+- [x] every deadline is driven by injected trusted time;
+- [x] journals and timers are bounded and backpressure is fail-closed.
+
+### Objective/Work projection evidence
+
+- `packages/mesh/src/coordination-objective-work-state.ts` defines strict,
+  separately restorable issuer, Objective and locally owned Work Item
+  projections with null-prototype indexes, deep immutability, exact keys,
+  encoded-byte limits, Objective-scoped domain metadata (`objectiveId`),
+  bounded non-evicting signed Objective document/policy history, canonical
+  immutable Work policy snapshots and cross-projection counters;
+- `packages/mesh/src/coordination-objective-work.ts` enforces admitted exact
+  instances, provisioned issuer peers and keys, peer-stable key rotation,
+  causal Objective heads, terminality, derived Work revisions, local ownership,
+  stable generation-fenced timers and aligned sibling clocks;
+- an exact historical Objective duplicate is idempotent without restoring an
+  old head only after current ingress, admission, issuer-authority and
+  freshness validation; a different issuer peer, predecessor, revision, digest
+  or domain record cannot mutate state;
+- Objective revisions preserve existing Work Item document and timer bindings;
+  future Work revisions bind the new Objective head, while restored historical
+  Work must exactly equal its retained policy revision; restore recomputes the
+  retained envelope's canonical SHA-256 payload digest, re-derives logical
+  expiry and binds both to the accepted domain record;
+- cancelled heads retain the signed cancellation envelope and bind its payload,
+  digest, message, causation and trusted validation time to the terminal
+  record; fabricated cancellation and historical document/message ID reuse
+  fail closed;
+- timer-ID collisions fail closed, and the generic coordination timer evaluator
+  refuses Objective/Work workflow-owned timers;
+- RFC 3339 differences retain nanosecond precision and round a positive
+  remainder up to the next logical millisecond;
+- `tests/mesh-objective-work.test.mjs` covers strict restoration, authority and
+  key rotation, issuer takeover, duplicate/conflict/terminal behavior, trusted
+  time, coherent historical document/policy/Work forgery, stable composite IDs,
+  stale timers, full protocol-size identifiers, fail-closed capacity and
+  deterministic model-based traces;
+- `tests/mesh-sha256.test.mjs` freezes the provider-neutral synchronous digest
+  against published SHA-256 vectors at padding boundaries, high-bit binary
+  input, multiple blocks and one million bytes; the pack browser-import gate
+  verifies that the reachable source graph contains no Node.js builtin;
+- `tests/mesh-public-contracts.test.mts` freezes the new coordination-subpath
+  exports. Authenticated Objective replay/topic evidence remains unchecked in
+  the next sub-slice.
 
 ## Allocation
 

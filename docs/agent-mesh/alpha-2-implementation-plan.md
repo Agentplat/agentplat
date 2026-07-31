@@ -232,8 +232,10 @@ before reducer invocation.
 | active               | Objective expiry timer               | expired                 | trusted logical time is at or after signed expiry                                |
 | cancelled or expired | any later ordinary Objective message | unchanged/rejected      | terminal state cannot be reopened under the same Objective ID                    |
 
-Duplicate identical records are idempotent. A conflicting document at an
-already accepted revision is rejected.
+An exact historical Objective record is idempotent only after current ingress,
+admission, authority and freshness validation. It cannot bypass those checks or
+restore an older head. A conflicting document at an already accepted revision
+is rejected.
 
 ### Work Item state machine
 
@@ -580,6 +582,30 @@ visible, admitted and unexpired capability declarations.
 - add bounded journals, timers and budget reservations;
 - enforce issuer, owner and scope authority before reducers;
 - add state-machine model tests.
+
+Implementation status: the pure, separately restorable Objective/Work core is
+implemented. It includes provisioned issuer peer/key authority, causal and
+terminal Objective heads, locally owned immutable Work Item revisions,
+generation-fenced Objective and Work deadlines, strict composite restoration,
+bounded projection/policy-history/journal/timer capacity and deterministic
+model-based traces. Restoration binds Objective-scoped coordination metadata
+through `objectiveId`, retains every accepted signed Objective envelope and
+derived policy under a hard non-evicting limit, recomputes the canonical
+SHA-256 payload digest and re-derives logical expiry during restore, and
+requires each Work Item's immutable policy snapshot to equal that authenticated
+document projection. Cancelled heads retain and validate their signed
+cancellation evidence, while all accepted historical document and message IDs
+remain globally unique. An Objective revision preserves prior Work Item timer
+bindings and accounting heads instead of rewriting accepted history. Timer-ID
+collisions fail closed, the generic coordination timer evaluator refuses
+Objective/Work workflow-owned timers, and exact nanosecond timestamp
+differences round up to logical milliseconds.
+
+Authenticated Objective ingress, shared discovery/Objective replay accounting
+and bounded Objective topic delivery remain in the next Increment 2 sub-slice.
+Budget reservation starts with the first offer, and concurrency enforcement
+starts with assignment, so those exit-criterion parts remain pending with
+allocation.
 
 Exit criterion: no Work Item can be offered outside a current accepted
 Objective, its limits or its local owner authority.

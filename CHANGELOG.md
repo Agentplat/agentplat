@@ -28,6 +28,15 @@
   strict schema-versioned snapshots, hard local bounds, redacted domain-record
   metadata, generation-fenced trusted timer evaluation and fail-closed journal
   capacity, while preserving the Alpha 1 state, input and effect contracts.
+- Added the first Increment 2 runtime slice with separately restorable
+  Objective and locally owned Work Item projections, provisioned issuer
+  authority, causal Objective revision and cancellation, immutable Work Item
+  revision, stable generation-fenced deadlines, terminal states, strict
+  Objective-scoped restoration bindings, bounded retained signed-document and
+  policy history, signed cancellation evidence, canonical SHA-256 verification,
+  historical ID conflict rejection, nanosecond-precise deadline conversion and
+  bounded fail-closed commands. Authenticated Objective ingress and allocation
+  remain pending.
 - Added the independently restorable discovery projection for admitted Peer
   Card heads, bounded partial views and expiring capability self-claims,
   including causal refresh/withdrawal, deterministic expiry and eviction, pure
