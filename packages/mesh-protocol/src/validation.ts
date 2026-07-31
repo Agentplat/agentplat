@@ -1550,9 +1550,6 @@ function validateEvidenceScope(
       `${path}["fencingToken"]`,
       limits
     );
-    if (assignmentAuthorityId !== fencingToken) {
-      fail('invalid_payload', `${path}["fencingToken"]`);
-    }
     return {
       kind: 'work',
       objectiveRevision: assertPositiveSafeInteger(

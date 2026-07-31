@@ -13,6 +13,7 @@ import {
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
+import { normalizeMeshEvidenceClaimV1 } from '../packages/trust/dist/mesh-records.js';
 
 const fixtureUrl = (name) =>
   new URL(
@@ -3032,6 +3033,50 @@ test('Alpha 4 Evidence and Trust fixtures are content-bound, closed v0 records',
   const observation = fixtures.find(
     ([name]) => name === 'trust-observation'
   )[1];
+
+  const workScopedClaimInput = {
+    subject: claim.payload.subject,
+    scope: {
+      kind: 'work',
+      objectiveRevision: 1,
+      workItemId: 'work-a',
+      workItemRevision: 1,
+      assignmentEpoch: 1,
+      assignmentAuthorityId: 'authority-a',
+      fencingToken: 'fence-a',
+    },
+    criterionId: claim.payload.criterionId,
+    outcome: claim.payload.outcome,
+    content: claim.payload.content,
+    basisReferences: claim.payload.basisReferences,
+    observedAt: claim.payload.observedAt,
+  };
+  const normalizedWorkScopedClaim = normalizeMeshEvidenceClaimV1(
+    {
+      schemaVersion: 1,
+      tenantId: claim.tenantId,
+      meshId: claim.meshId,
+      objectiveId: 'objective-a',
+      senderPeerId: claim.sender.peerId,
+      causationId: 'BBBBBBBBBBBBBBBBBBBBBA',
+    },
+    workScopedClaimInput
+  );
+  assert.equal(
+    validateSignedMeshEnvelope({
+      ...claim,
+      objectiveId: 'objective-a',
+      causationId: 'BBBBBBBBBBBBBBBBBBBBBA',
+      payload: {
+        ...claim.payload,
+        ...workScopedClaimInput,
+        claimId: normalizedWorkScopedClaim.claimId,
+        assertionDigest: normalizedWorkScopedClaim.assertionDigest,
+      },
+    }).ok,
+    true,
+    'work scopes keep assignment authority and fencing token distinct'
+  );
 
   expectIssue(
     validateSignedMeshEnvelope({ ...claim, objectiveId: 'objective-a' }),
