@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
-Status: planned; no implementation evidence recorded.
+Status: Increment 0 complete; runtime increments pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -20,16 +20,44 @@ Registry and Git mutations are checked only after independent verification.
 
 ## Design baseline
 
-- [ ] implementation plan is approved;
-- [ ] all Alpha 2 payload schemas and domain IDs are closed and bounded;
+- [x] implementation plan is approved;
+- [x] all Alpha 2 payload schemas and domain IDs are closed and bounded;
 - [ ] state-machine transitions and terminal states are frozen;
 - [ ] authority rules exist for every implemented message;
-- [ ] lease, epoch, token, quorum and deadline semantics are frozen;
-- [ ] liveness assumptions and owner-failure limitation are documented;
-- [ ] no API implies complete membership, capability truth or exactly-once
+- [x] lease, epoch, token, quorum and deadline semantics are frozen;
+- [x] liveness assumptions and owner-failure limitation are documented;
+- [x] no API implies complete membership, capability truth or exactly-once
       delivery;
 - [ ] threat model and compatibility policy cover every new trust boundary;
-- [ ] all deferred message families fail explicitly before reducer invocation.
+- [x] all deferred message families fail explicitly before reducer invocation.
+
+### Increment 0 evidence
+
+- closed payloads and domain IDs:
+  `packages/mesh-protocol/src/contracts.ts`,
+  `packages/mesh-protocol/src/validation.ts` and
+  `packages/mesh-protocol/fixtures/v0/`;
+- structural, signature and public type checks:
+  `tests/mesh-protocol.test.mjs`, `tests/mesh-crypto.test.mjs` and
+  `tests/mesh-public-contracts.test.mts`;
+- fail-closed runtime boundary:
+  `Alpha 2 protocol records stop at the runtime boundary until enabled`,
+  `signed-valid Alpha 2 Objective records stop before the reducer` and
+  `signed-valid Alpha 2 Work and Lease records stop before the reducer` in
+  `tests/mesh-reducer.test.mjs`;
+- reproducible gate: `pnpm run check`.
+
+### Runtime foundation evidence
+
+- the additive `@agentplat/mesh/coordination` subpath leaves the Alpha 1
+  `MeshPeerState`, `MeshPeerLimits`, `MeshPeerInput` and `MeshPeerEffect`
+  contracts unchanged;
+- `tests/mesh-coordination.test.mjs` verifies strict snapshot restoration,
+  immutable null-prototype indexes, hard local ceilings, generation fencing,
+  exact and late timer delivery, duplicate rejection and fail-closed journal
+  capacity;
+- no Alpha 2 message is enabled and no host-timer effect is emitted by this
+  foundation.
 
 ## Partial views and capabilities
 

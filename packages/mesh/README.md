@@ -42,8 +42,25 @@ The coordinator validates canonical, bounded identity, admission, peer, replay,
 message-ID, preparation and causal state before cryptographic work. Logical time
 is monotonic across reducer and inbound transitions.
 
-Alpha 1 accepts direct peer audiences only. Mesh-topic intake, work allocation,
-leases and recovery are introduced in later preview releases.
+The additive `@agentplat/mesh/coordination` subpath provides the Alpha 2 runtime
+foundation without changing the Alpha 1 state, limits, input or effect
+contracts. It defines a strict schema-versioned snapshot with bounded redacted
+domain-record metadata, generation-fenced trusted timers and a bounded decision
+journal. Its pure timer evaluator uses only injected logical time; an early,
+stale or duplicate generation cannot mutate state, and journal exhaustion
+fails closed before a due timer is consumed.
+
+The foundation does not schedule host timers or accept Alpha 2 envelopes.
+Driver integration is added only with the workflow increment that first creates
+each timer, so a public effect cannot be emitted before loopback and simulation
+drivers know how to interpret it.
+
+The runtime currently accepts direct peer audiences and the Alpha 1
+`peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. Structurally valid
+Alpha 2 discovery, allocation, lease and recovery records remain
+`unsupported_message_type` until their state, authority and reducer increments
+are implemented. A valid signature or admission entry does not grant that
+authority.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite
