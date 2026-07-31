@@ -68,6 +68,7 @@ import {
   selectMeshDiscoveryTopicRecipients,
   selectMeshAllocationBid,
   type MeshAcceptedBidEvidence,
+  type MeshAcceptedAssignmentResponseEvidence,
   type MeshAllocationBidSelection,
   type MeshAllocationBidSelectionReason,
   type MeshAllocationCommand,
@@ -125,6 +126,10 @@ import {
   type MeshLocalOfferCommand,
   type MeshLocalOfferPreparedRecipient,
   type MeshLocalOfferProjection,
+  type MeshLocalAwardCommand,
+  type MeshLocalAwardPreparedRecipient,
+  type MeshLocalAwardProjection,
+  type MeshPreparedAwardEnvelope,
   type MeshPreparedOfferEnvelope,
   type MeshVerifiedAllocationRequest,
   type MeshWorkAllocationPhase,
@@ -833,6 +838,18 @@ const allocationCommand: MeshAllocationCommand = {
   recipients: [],
 };
 const localOfferCommand: MeshLocalOfferCommand = allocationCommand;
+const localAwardCommand: MeshLocalAwardCommand = {
+  kind: 'allocation.award',
+  offerId: 'offer-a',
+  bidId: 'bid-a',
+  bidRevision: 1,
+  recipient: {
+    recipientPeerId: 'peer-a',
+    preparedAt: 0,
+    envelope: {} as SignedMeshEnvelope<WorkAwardPayload>,
+  },
+};
+const allocationAwardCommand: MeshAllocationCommand = localAwardCommand;
 const allocationDecision: MeshAllocationDecision =
   evaluateMeshAllocationCommand(
     allocationRuntimeState,
@@ -849,10 +866,16 @@ const allocationWorkBinding: MeshAllocationWorkBinding | undefined = undefined;
 const allocationWorkProjection: MeshWorkAllocationProjection | undefined =
   undefined;
 const localOfferProjection: MeshLocalOfferProjection | undefined = undefined;
+const localAwardProjection: MeshLocalAwardProjection | undefined = undefined;
 const preparedOfferEnvelope: MeshPreparedOfferEnvelope | undefined = undefined;
+const preparedAwardEnvelope: MeshPreparedAwardEnvelope | undefined = undefined;
 const preparedOfferRecipient: MeshLocalOfferPreparedRecipient | undefined =
   undefined;
+const preparedAwardRecipient: MeshLocalAwardPreparedRecipient | undefined =
+  undefined;
 const acceptedBidEvidence: MeshAcceptedBidEvidence | undefined = undefined;
+const acceptedAssignmentResponseEvidence:
+  MeshAcceptedAssignmentResponseEvidence | undefined = undefined;
 const bidHeadProjection: MeshBidHeadProjection | undefined = undefined;
 const allocationReservation: MeshAllocationReservation | undefined = undefined;
 const verifiedAllocationRequest: MeshVerifiedAllocationRequest | undefined =

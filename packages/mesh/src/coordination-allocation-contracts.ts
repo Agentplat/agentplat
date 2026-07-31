@@ -2,6 +2,9 @@ import type {
   SignedMeshEnvelope,
   VerifiedMeshEnvelope,
   WorkBidPayload,
+  WorkAcceptPayload,
+  WorkAwardPayload,
+  WorkDeclinePayload,
   WorkOfferPayload,
 } from "@agentplat/mesh-protocol";
 
@@ -19,7 +22,8 @@ import type {
 } from "./coordination-objective-work-contracts.js";
 
 /** The externally visible allocation status for one local Work Item. */
-export type MeshWorkAllocationPhase = "ready" | "offered";
+export type MeshWorkAllocationPhase =
+  "ready" | "offered" | "award_pending" | "active";
 
 /** Exact normalized Objective, policy, and Work revision used for allocation. */
 export interface MeshAllocationWorkBinding {
@@ -37,6 +41,8 @@ export interface MeshWorkAllocationProjection extends MeshAllocationWorkBinding 
   readonly activeOfferId?: string;
   readonly bidDeadlineAt?: MeshLogicalTime;
   readonly reservationId?: string;
+  readonly activeAwardId?: string;
+  readonly activeAcceptanceId?: string;
   readonly updatedAt: MeshLogicalTime;
 }
 
@@ -49,7 +55,7 @@ export interface MeshPreparedOfferEnvelope {
   readonly envelope: SignedMeshEnvelope<WorkOfferPayload>;
 }
 
-/** Local first-offer head and all of its causation-capable recipient evidence. */
+/** One retained local offer attempt and its recipient-specific causal evidence. */
 export interface MeshLocalOfferProjection extends MeshAllocationWorkBinding {
   readonly offerId: string;
   readonly offerAttempt: number;
@@ -59,6 +65,7 @@ export interface MeshLocalOfferProjection extends MeshAllocationWorkBinding {
   readonly bidDeadlineTimerId: string;
   readonly bidDeadlineTimerGeneration: number;
   readonly createdAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
   readonly reservationId: string;
   readonly recipientOffers: Readonly<Record<string, MeshPreparedOfferEnvelope>>;
 }
@@ -74,6 +81,53 @@ export interface MeshAcceptedBidEvidence {
   readonly validityVerifiedAt: string;
   readonly supportedCriticalExtensions?: readonly string[];
   readonly envelope: SignedMeshEnvelope<WorkBidPayload>;
+}
+
+/** One assignee-specific signed award prepared by the local owner. */
+export interface MeshPreparedAwardEnvelope {
+  readonly recipientPeerId: string;
+  readonly messageId: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
+}
+
+/** A locally issued award and its causation-capable assignee evidence. */
+export interface MeshLocalAwardProjection extends MeshAllocationWorkBinding {
+  readonly awardId: string;
+  readonly offerId: string;
+  readonly bidId: string;
+  readonly bidRevision: number;
+  readonly offerAttempt: number;
+  readonly assigneePeerId: string;
+  readonly assignmentEpoch: 1;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly budgetReservationUnits: number;
+  readonly workDeadline: string;
+  readonly leaseStartsAt: string;
+  readonly leaseExpiresAt: string;
+  readonly leaseExpiresAtLogical: MeshLogicalTime;
+  readonly acceptanceDeadline: string;
+  readonly acceptanceDeadlineAt: MeshLogicalTime;
+  readonly acceptanceDeadlineTimerId: string;
+  readonly acceptanceDeadlineTimerGeneration: number;
+  readonly createdAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly reservationId: string;
+  readonly status:
+    "awaiting_acceptance" | "accepted" | "declined" | "timed_out";
+  readonly recipientAward: MeshPreparedAwardEnvelope;
+}
+
+/** One accepted assignee response retained with its exact signed evidence. */
+export interface MeshAcceptedAssignmentResponseEvidence {
+  readonly awardId: string;
+  readonly responseId: string;
+  readonly kind: "work.accept" | "work.decline";
+  readonly acceptedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly envelope: SignedMeshEnvelope<WorkAcceptPayload | WorkDeclinePayload>;
 }
 
 /** Current bid revision for exactly one [offerId, bidderPeerId] pair. */
@@ -93,7 +147,7 @@ export interface MeshBidHeadProjection {
   readonly bidExpiresAtLogical: MeshLogicalTime;
 }
 
-/** Reservation opened with one local offer and released when its bid window closes. */
+/** Reservation opened by an offer and later committed or released exactly once. */
 export interface MeshAllocationReservation {
   readonly reservationId: string;
   readonly workKey: string;
@@ -105,7 +159,8 @@ export interface MeshAllocationReservation {
   readonly workItemRevision: number;
   readonly budgetReservationUnits: number;
   readonly reservedAt: MeshLogicalTime;
-  readonly status: "reserved" | "released";
+  readonly status: "reserved" | "committed" | "released";
+  readonly committedAt?: MeshLogicalTime;
   readonly releasedAt?: MeshLogicalTime;
 }
 
@@ -117,11 +172,13 @@ export interface MeshAllocationLimits {
   readonly maximumBidsPerOffer: number;
   readonly maximumRecipientsPerOffer: number;
   readonly maximumProjectionBytes: number;
+  readonly maximumAwards: number;
+  readonly maximumAssignmentResponses: number;
 }
 
-/** Independently restorable first-offer / bid allocation projection. */
+/** Independently restorable offer, bid, award and response projection. */
 export interface MeshAllocationState {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly identity: MeshPeerIdentity;
   readonly workAllocations: Readonly<
     Record<string, MeshWorkAllocationProjection>
@@ -132,6 +189,11 @@ export interface MeshAllocationState {
   /** Accepted evidence keyed by bidId; every entry belongs to a retained head chain. */
   readonly acceptedBidEvidence: Readonly<
     Record<string, MeshAcceptedBidEvidence>
+  >;
+  readonly localAwards: Readonly<Record<string, MeshLocalAwardProjection>>;
+  /** One terminal response keyed by awardId. */
+  readonly assignmentResponses: Readonly<
+    Record<string, MeshAcceptedAssignmentResponseEvidence>
   >;
   readonly reservations: Readonly<Record<string, MeshAllocationReservation>>;
   readonly limits: MeshAllocationLimits;
@@ -151,9 +213,10 @@ export interface MeshAllocationRuntimeState {
   readonly allocation: MeshAllocationState;
 }
 
-export type MeshAllocationPayload = WorkOfferPayload | WorkBidPayload;
+export type MeshAllocationPayload =
+  WorkBidPayload | WorkAcceptPayload | WorkDeclinePayload;
 
-/** A verified remote offer or bid together with receiver-controlled time. */
+/** A verified remote bid or assignment response with receiver-controlled time. */
 export interface MeshVerifiedAllocationRequest {
   readonly envelope: VerifiedMeshEnvelope<MeshAllocationPayload>;
   readonly verifiedAt: string;
@@ -177,13 +240,29 @@ export interface MeshLocalOfferCommand {
   readonly recipients: readonly MeshLocalOfferPreparedRecipient[];
 }
 
+/** Local owner command; exactly one signed direct envelope addresses the assignee. */
+export interface MeshLocalAwardCommand {
+  readonly kind: "allocation.award";
+  readonly offerId: string;
+  readonly bidId: string;
+  readonly bidRevision: number;
+  readonly recipient: MeshLocalAwardPreparedRecipient;
+}
+
+export interface MeshLocalAwardPreparedRecipient {
+  readonly recipientPeerId: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
+}
+
 /** Explicit bidder selection from a retained current bid head. */
 export interface MeshAllocationSelectionInput {
   readonly offerId: string;
   readonly evaluatedAt: MeshLogicalTime;
 }
 
-export type MeshAllocationCommand = MeshLocalOfferCommand;
+export type MeshAllocationCommand =
+  MeshLocalOfferCommand | MeshLocalAwardCommand;
 
 export type MeshAllocationBidSelectionReason =
   | "offer_missing"
@@ -201,13 +280,21 @@ export interface MeshAllocationBidSelection {
 }
 
 /** Effect for dispatching one already-signed offer envelope. */
-export interface MeshAllocationEffect {
-  readonly kind: "allocation.offer.dispatch";
-  readonly offerId: string;
-  readonly recipientPeerId: string;
-  readonly messageId: string;
-  readonly envelope: SignedMeshEnvelope<WorkOfferPayload>;
-}
+export type MeshAllocationEffect =
+  | {
+      readonly kind: "allocation.offer.dispatch";
+      readonly offerId: string;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<WorkOfferPayload>;
+    }
+  | {
+      readonly kind: "allocation.award.dispatch";
+      readonly awardId: string;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
+    };
 
 export type MeshAllocationRejectionCode =
   | "invalid_verified_envelope"
@@ -227,6 +314,15 @@ export type MeshAllocationRejectionCode =
   | "offer_missing"
   | "offer_duplicate_conflict"
   | "offer_capacity_exceeded"
+  | "award_missing"
+  | "award_invalid"
+  | "award_duplicate_conflict"
+  | "award_capacity_exceeded"
+  | "assignment_capacity_exceeded"
+  | "assignment_response_invalid"
+  | "assignment_response_deadline_elapsed"
+  | "assignment_response_duplicate_conflict"
+  | "assignment_response_capacity_exceeded"
   | "recipient_capacity_exceeded"
   | "bid_invalid"
   | "bid_duplicate_conflict"

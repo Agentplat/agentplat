@@ -64,8 +64,13 @@
 - Added the first allocation runtime slice with recipient-specific prepared
   Work Offer envelopes, immediate Objective budget reservation, verified
   causal Bid revisions, bounded signed evidence, pure deterministic selection
-  and generation-fenced bid-deadline release. Award and acceptance remain
-  pending.
+  and generation-fenced bid-deadline release.
+- Added the owner-side allocation award and response slice: a prepared direct
+  signed Award for the deterministic current bid, atomic early bid-window
+  closure, verified causal Accept/Decline handling, exclusive acceptance
+  deadline and exactly-once reserved-to-committed or released Objective budget
+  accounting, plus causal monotonic later offer attempts. Assignee-side
+  response delivery, execution, lease and recovery remain pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

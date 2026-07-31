@@ -1,8 +1,9 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
 Status: Increment 0 and Increment 1 complete; Increment 2 Objective projection,
-authenticated ingress and bounded topic delivery implemented. The first
-Allocation sub-slice is implemented; award, acceptance, execution, lease and
+authenticated ingress and bounded topic delivery implemented. The owner-side
+Allocation handshake is implemented through award, acceptance, decline and
+acceptance timeout; execution, assignee-side response delivery, lease and
 recovery remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
@@ -114,7 +115,7 @@ Registry and Git mutations are checked only after independent verification.
 - [x] cancellation and expiry are terminal for one Objective ID;
 - [x] revisions do not rewrite accepted Work Item policy or timer bindings;
 - [x] Work Items require a current locally accepted Objective;
-- [ ] Work Item revision and offer attempt are independent and monotonic;
+- [x] Work Item revision and offer attempt are independent and monotonic;
 - [ ] Objective limits bound Work Item count, concurrency and budget units;
 - [x] every deadline is driven by injected trusted time;
 - [x] journals and timers are bounded and backpressure is fail-closed.
@@ -187,13 +188,14 @@ Registry and Git mutations are checked only after independent verification.
 - [x] bid replacement is causal and monotonic;
 - [x] bid deadlines close the offer; expired bids cannot be selected;
 - [x] selection is deterministic and exposes stable local reason codes;
-- [ ] awards bind a stable domain ID, selected bid, epoch, lease and token;
-- [ ] only the awarded assignee may accept or decline;
-- [ ] acceptance after its deadline is rejected;
-- [ ] decline or award/acceptance timeout releases the reservation exactly once;
+- [x] owner-side awards bind a stable domain ID, selected bid, initial epoch,
+      lease and token;
+- [x] only the awarded assignee may accept or decline at the owner;
+- [x] acceptance after its deadline is rejected;
+- [x] decline or acceptance timeout releases the reservation exactly once;
 - [x] one first Work Item offer reserves budget once regardless of fanout or
       bid count, and its bid deadline releases it exactly once;
-- [ ] acceptance moves reserved units to committed units exactly once;
+- [x] acceptance moves reserved units to committed units exactly once;
 - [ ] reassignment reuses the existing commitment without double charging;
 - [ ] progress, checkpoint and result require accepted assignment authority;
 - [ ] duplicate and reordered records produce the same final projection;
@@ -218,6 +220,24 @@ Registry and Git mutations are checked only after independent verification.
   exactly-once bid-deadline release;
 - `tests/mesh-public-contracts.test.mts` freezes the public allocation
   constructors, evaluators, timer, selection and projection contracts.
+
+### Owner-side award and response sub-slice evidence
+
+- `packages/mesh/src/coordination-allocation-contracts.ts` extends the
+  separately restorable allocation snapshot with bounded local awards,
+  assignment responses and committed reservations; version-1 snapshots migrate
+  deterministically to version 2;
+- `packages/mesh/src/coordination-allocation.ts` accepts one locally prepared,
+  recipient-specific signed award only for the current deterministic bid,
+  closes its bid window atomically, verifies causal direct accept/decline
+  responses and drives an exclusive acceptance deadline with trusted time;
+- `tests/mesh-allocation.test.mjs` covers signed award to acceptance, decline,
+  deadline timeout, exact causation/authority/deadline rejection, duplicate and
+  conflict behavior, early bid-window closure, exactly-once reserve-to-commit
+  or release accounting, migration and adversarial restored snapshots;
+- assignee-side award intake, response preparation/delivery, progress,
+  checkpoint, result, lease and recovery remain explicitly out of scope for
+  this owner-side runtime slice.
 
 ## Lease, epoch and fencing
 

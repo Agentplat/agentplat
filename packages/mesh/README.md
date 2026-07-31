@@ -188,10 +188,32 @@ Opening that first offer reserves the Work Item's budget immediately and
 creates a generation-fenced bid-deadline timer. When due, the timer closes the
 offer and releases its reservation exactly once. The local signer that prepares
 offer envelopes is a trusted driver boundary; this reducer does not verify a
-signature itself. Award, acceptance, execution, lease and recovery records
-remain unsupported until their separate state and authority increments are
-implemented. A valid signature or admission entry alone does not grant those
-authorities.
+signature itself.
+
+The owner-side award increment extends that projection with one prepared,
+signed direct `work.award` envelope for the current deterministic bid. Awarding
+atomically closes the bid window, replaces its timer with a generation-fenced
+acceptance timer and keeps the reservation reserved. Already-verified direct
+`work.accept` and `work.decline` responses are accepted only from the awarded
+assignee with exact award-envelope causation, current Objective/Work bindings,
+initial epoch and matching authority/token. The acceptance deadline is
+exclusive: acceptance moves budget reserved-to-committed and activates the
+owner's Work projection; decline or timeout releases it exactly once.
+Rejected award and assignment-response inputs expose phase-specific stable
+codes (`award_*`, `assignment_*` and `assignment_response_*`) so telemetry does
+not misclassify them as offer or bid failures. Replaying the exact same signed
+response is idempotent; reusing its ID or message ID with any different signed
+envelope is a conflict.
+
+After a reservation is released, a later offer uses exactly the next attempt
+number and names the preceding offer. It opens a fresh bounded bid window and
+reserves the same Work Item budget anew; it cannot rewrite the Work revision or
+reuse the original attempt.
+
+This is an owner-side state-machine increment. It neither prepares nor delivers
+assignee responses, activates execution, accepts progress/checkpoints/results,
+renews leases or performs recovery. A valid signature or admission entry alone
+does not grant any of those deferred authorities.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite
