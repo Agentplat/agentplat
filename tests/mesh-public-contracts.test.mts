@@ -34,9 +34,12 @@ import {
   DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
   DEFAULT_MESH_COORDINATION_LIMITS,
   DEFAULT_MESH_DISCOVERY_LIMITS,
+  DEFAULT_MESH_ALLOCATION_LIMITS,
   DEFAULT_MESH_OBJECTIVE_WORK_LIMITS,
   advanceMeshDiscoveryState,
   createMeshCoordinationState,
+  createMeshAllocationRuntimeState,
+  createMeshAllocationState,
   createMeshCoordinationInboundState,
   createMeshDiscoveryInboundProcessor,
   createMeshObjectiveInboundProcessor,
@@ -49,16 +52,38 @@ import {
   createMeshObjectiveWorkRuntimeState,
   createMeshObjectiveWorkState,
   evaluateMeshCoordinationTimer,
+  evaluateMeshAllocationCommand,
+  evaluateMeshAllocationTimer,
+  evaluateVerifiedMeshAllocationEnvelope,
   evaluateMeshObjectiveWorkCommand,
   evaluateMeshObjectiveWorkTimer,
   evaluateVerifiedMeshDiscoveryEnvelope,
   evaluateVerifiedMeshObjectiveEnvelope,
   matchMeshDiscoveryCapabilities,
   restoreMeshCoordinationInboundState,
+  restoreMeshAllocationState,
   restoreMeshCoordinationState,
   restoreMeshDiscoveryState,
   restoreMeshObjectiveWorkState,
   selectMeshDiscoveryTopicRecipients,
+  selectMeshAllocationBid,
+  type MeshAcceptedBidEvidence,
+  type MeshAllocationBidSelection,
+  type MeshAllocationBidSelectionReason,
+  type MeshAllocationCommand,
+  type MeshAllocationDecision,
+  type MeshAllocationEffect,
+  type MeshAllocationLimits,
+  type MeshAllocationPayload,
+  type MeshAllocationRejectionCode,
+  type MeshAllocationReservation,
+  type MeshAllocationRuntimeState,
+  type MeshAllocationSelectionInput,
+  type MeshAllocationState,
+  type MeshAllocationTimerDecision,
+  type MeshAllocationTimerInput,
+  type MeshAllocationWorkBinding,
+  type MeshBidHeadProjection,
   type MeshCapabilityMatchResult,
   type MeshCapabilityRequirement,
   type MeshCoordinationInboundState,
@@ -97,6 +122,13 @@ import {
   type MeshObjectiveWorkState,
   type MeshObjectiveWorkTimerDecision,
   type MeshObjectiveWorkTimerInput,
+  type MeshLocalOfferCommand,
+  type MeshLocalOfferPreparedRecipient,
+  type MeshLocalOfferProjection,
+  type MeshPreparedOfferEnvelope,
+  type MeshVerifiedAllocationRequest,
+  type MeshWorkAllocationPhase,
+  type MeshWorkAllocationProjection,
   type MeshObjectiveWorkTrustedTime,
   type MeshVerifiedObjectiveRequest,
   type MeshWorkObjectivePolicySnapshot,
@@ -763,6 +795,70 @@ const objectiveWorkState: MeshObjectiveWorkState = createMeshObjectiveWorkState(
 );
 const restoredObjectiveWorkState: MeshObjectiveWorkState =
   restoreMeshObjectiveWorkState(objectiveWorkState);
+const allocationState: MeshAllocationState = createMeshAllocationState({
+  identity: peerState.identity,
+  limits: DEFAULT_MESH_ALLOCATION_LIMITS,
+});
+const restoredAllocationState: MeshAllocationState =
+  restoreMeshAllocationState(allocationState);
+const allocationRuntimeState: MeshAllocationRuntimeState =
+  createMeshAllocationRuntimeState(
+    restoredCoordinationState,
+    restoredDiscoveryState,
+    restoredObjectiveWorkState,
+    restoredAllocationState
+  );
+const allocationSelectionInput: MeshAllocationSelectionInput = {
+  offerId: 'offer-a',
+  evaluatedAt: 0,
+};
+const allocationSelection: MeshAllocationBidSelection = selectMeshAllocationBid(
+  allocationRuntimeState,
+  allocationSelectionInput
+);
+const allocationSelectionReason: MeshAllocationBidSelectionReason =
+  allocationSelection.reason;
+const allocationTimerInput: MeshAllocationTimerInput = {
+  kind: 'timer.fired',
+  timerId: 'allocation.bid.offer-a',
+  generation: 1,
+};
+const allocationTimerDecision: MeshAllocationTimerDecision =
+  evaluateMeshAllocationTimer(allocationRuntimeState, allocationTimerInput, 0);
+const allocationCommand: MeshAllocationCommand = {
+  kind: 'allocation.offer',
+  objectiveId: 'objective-a',
+  workItemId: 'work-item-a',
+  expectedWorkItemRevision: 1,
+  recipients: [],
+};
+const localOfferCommand: MeshLocalOfferCommand = allocationCommand;
+const allocationDecision: MeshAllocationDecision =
+  evaluateMeshAllocationCommand(
+    allocationRuntimeState,
+    allocationCommand,
+    '2026-07-29T00:00:01Z',
+    0
+  );
+const allocationEffect: MeshAllocationEffect | undefined = undefined;
+const allocationLimits: MeshAllocationLimits = DEFAULT_MESH_ALLOCATION_LIMITS;
+const allocationPayload: MeshAllocationPayload = workBidPayload;
+const allocationRejectionCode: MeshAllocationRejectionCode = 'offer_invalid';
+const allocationPhase: MeshWorkAllocationPhase = 'ready';
+const allocationWorkBinding: MeshAllocationWorkBinding | undefined = undefined;
+const allocationWorkProjection: MeshWorkAllocationProjection | undefined =
+  undefined;
+const localOfferProjection: MeshLocalOfferProjection | undefined = undefined;
+const preparedOfferEnvelope: MeshPreparedOfferEnvelope | undefined = undefined;
+const preparedOfferRecipient: MeshLocalOfferPreparedRecipient | undefined =
+  undefined;
+const acceptedBidEvidence: MeshAcceptedBidEvidence | undefined = undefined;
+const bidHeadProjection: MeshBidHeadProjection | undefined = undefined;
+const allocationReservation: MeshAllocationReservation | undefined = undefined;
+const verifiedAllocationRequest: MeshVerifiedAllocationRequest | undefined =
+  undefined;
+const verifiedAllocationEvaluator: typeof evaluateVerifiedMeshAllocationEnvelope =
+  evaluateVerifiedMeshAllocationEnvelope;
 const objectivePolicyHistory: Readonly<
   Record<string, MeshWorkObjectivePolicySnapshot>
 > = restoredObjectiveWorkState.objectivePolicies;
@@ -1151,6 +1247,26 @@ void simulationRunPromise;
 void simulationReplayPromise;
 void objectiveWorkTimerDecision;
 void objectiveWorkDecision;
+void allocationSelection;
+void allocationSelectionReason;
+void allocationTimerDecision;
+void localOfferCommand;
+void allocationDecision;
+void allocationEffect;
+void allocationLimits;
+void allocationPayload;
+void allocationRejectionCode;
+void allocationPhase;
+void allocationWorkBinding;
+void allocationWorkProjection;
+void localOfferProjection;
+void preparedOfferEnvelope;
+void preparedOfferRecipient;
+void acceptedBidEvidence;
+void bidHeadProjection;
+void allocationReservation;
+void verifiedAllocationEvaluator;
+void verifiedAllocationRequest;
 void evaluatedObjectiveRequest;
 void objectiveWorkRejectionCode;
 void workObjectivePolicy;

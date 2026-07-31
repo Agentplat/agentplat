@@ -61,6 +61,11 @@
   view selection, exact-instance route snapshots, atomic FIFO queue admission,
   coarse public receipts and local diagnostics. It provides no forwarding,
   global membership knowledge or durability.
+- Added the first allocation runtime slice with recipient-specific prepared
+  Work Offer envelopes, immediate Objective budget reservation, verified
+  causal Bid revisions, bounded signed evidence, pure deterministic selection
+  and generation-fenced bid-deadline release. Award and acceptance remain
+  pending.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

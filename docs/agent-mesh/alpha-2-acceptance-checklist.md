@@ -1,8 +1,9 @@
 # Agent Mesh `0.3.0-alpha.2` acceptance checklist
 
 Status: Increment 0 and Increment 1 complete; Increment 2 Objective projection,
-authenticated ingress and bounded topic delivery implemented. Allocation remains
-pending.
+authenticated ingress and bounded topic delivery implemented. The first
+Allocation sub-slice is implemented; award, acceptance, execution, lease and
+recovery remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -177,24 +178,46 @@ Registry and Git mutations are checked only after independent verification.
 
 ## Allocation
 
-- [ ] offers bind current Objective, Work Item revision, owner epoch, attempt,
+- [x] first local offers bind the current Objective, Work Item revision, owner
+      epoch, first attempt,
       requirements, deadline and reservation;
-- [ ] candidate selection uses only the bounded local Peer View;
-- [ ] bids require a current offer and admitted eligible bidder;
-- [ ] bid replacement is causal and monotonic;
-- [ ] expired, stale and conflicting bids cannot be selected;
-- [ ] selection is deterministic and emits stable reason codes;
+- [x] first-offer candidates use only the bounded local capability view;
+- [x] bids require a current open offer, exact recipient-specific offer
+      causation and an admitted eligible bidder;
+- [x] bid replacement is causal and monotonic;
+- [x] bid deadlines close the offer; expired bids cannot be selected;
+- [x] selection is deterministic and exposes stable local reason codes;
 - [ ] awards bind a stable domain ID, selected bid, epoch, lease and token;
 - [ ] only the awarded assignee may accept or decline;
 - [ ] acceptance after its deadline is rejected;
-- [ ] decline or timeout releases the reservation exactly once;
-- [ ] one Work Item reserves budget once regardless of fanout or bid count;
+- [ ] decline or award/acceptance timeout releases the reservation exactly once;
+- [x] one first Work Item offer reserves budget once regardless of fanout or
+      bid count, and its bid deadline releases it exactly once;
 - [ ] acceptance moves reserved units to committed units exactly once;
 - [ ] reassignment reuses the existing commitment without double charging;
 - [ ] progress, checkpoint and result require accepted assignment authority;
 - [ ] duplicate and reordered records produce the same final projection;
 - [ ] result completion retains committed units as consumed Objective capacity;
-- [ ] budget arithmetic rejects negative values, unsafe integers and overflow.
+- [x] first-offer budget arithmetic rejects a limit breach before mutation.
+
+### First Allocation sub-slice evidence
+
+- `packages/mesh/src/coordination-allocation-contracts.ts` defines the bounded,
+  separately versioned allocation snapshot, recipient-specific prepared offer
+  evidence, bid heads, reservations and read-only selection contract;
+- `packages/mesh/src/coordination-allocation-state.ts` strictly restores the
+  immutable projection and binds allocation records to aligned coordination,
+  discovery and Objective/Work snapshots;
+- `packages/mesh/src/coordination-allocation.ts` opens only a local first
+  offer from exact prepared direct envelopes, reserves budget immediately,
+  accepts verified causal bid replacements, selects a current bid purely and
+  releases the reservation only when the due bid timer fires;
+- `tests/mesh-allocation.test.mjs` covers offer envelope binding, bounded local
+  recipient matching, immediate reservation, verified bid causation and
+  replacement, deterministic selection, duplicate/conflict behavior and
+  exactly-once bid-deadline release;
+- `tests/mesh-public-contracts.test.mts` freezes the public allocation
+  constructors, evaluators, timer, selection and projection contracts.
 
 ## Lease, epoch and fencing
 

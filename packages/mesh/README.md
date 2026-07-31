@@ -172,10 +172,26 @@ older Objective head.
 The Alpha 1 root runtime continues to accept direct peer audiences and its
 `peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. The explicit
 coordination subpath now projects already-verified discovery and Objective
-records plus local ready Work Items. Allocation, execution, lease and recovery
-records remain unsupported until their state, authority and reducer increments
-are implemented. A valid signature or admission entry does not grant that
-authority.
+records plus local ready Work Items.
+
+The first Allocation sub-slice adds a separately versioned, immutable
+projection for a local owner's first offer attempt. The owner supplies one
+recipient-specific, already-signed direct `work.offer` envelope for every
+candidate selected from its bounded local capability view. The reducer validates
+the exact envelopes and retains each recipient's `messageId`; a verified direct
+`work.bid` must causally name that exact message ID. Bid replacements are
+causal and revision-monotonic, retained signed evidence is bounded, and
+deterministic selection is read-only: lowest budget units, earliest expected
+completion, peer ID, then bid ID.
+
+Opening that first offer reserves the Work Item's budget immediately and
+creates a generation-fenced bid-deadline timer. When due, the timer closes the
+offer and releases its reservation exactly once. The local signer that prepares
+offer envelopes is a trusted driver boundary; this reducer does not verify a
+signature itself. Award, acceptance, execution, lease and recovery records
+remain unsupported until their separate state and authority increments are
+implemented. A valid signature or admission entry alone does not grant those
+authorities.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite
