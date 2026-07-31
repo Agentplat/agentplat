@@ -19,6 +19,10 @@
     "./coordination": {
       "types": "./dist/coordination.d.ts",
       "import": "./dist/coordination.js"
+    },
+    "./trust": {
+      "types": "./dist/trust.d.ts",
+      "import": "./dist/trust.js"
     }
   },
   "files": [
@@ -32,7 +36,8 @@
   },
   "dependencies": {
     "@agentplat/mesh-crypto": "workspace:^",
-    "@agentplat/mesh-protocol": "workspace:^"
+    "@agentplat/mesh-protocol": "workspace:^",
+    "@agentplat/trust": "workspace:^"
   },
   "engines": {
     "node": ">=20.19.3"
