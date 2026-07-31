@@ -533,6 +533,14 @@ with their complete workflow and driver support. A full journal rejects a due
 timer without consuming it; later compaction requires explicit retention and
 digest metadata.
 
+The discovery-projection sub-slice is implemented as a separately restorable
+state composed with that foundation. It enforces admission separation, causal
+Peer Card and capability heads, explicit entry and encoded-byte ceilings,
+logical expiry, deterministic passive-view eviction, pure matching reason codes
+and bounded local topic-recipient selection. Its input is already-verified
+protocol data; the cryptographic inbound boundary and actual topic delivery are
+the remaining Increment 1 slices.
+
 Exit criterion: three peers with different bounded views discover only locally
 visible, admitted and unexpired capability declarations.
 
