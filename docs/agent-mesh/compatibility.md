@@ -21,6 +21,13 @@ Alpha work does not add required fields to existing interfaces, extend existing
 closed unions or change default behavior. New packages and explicit subpath
 exports are the preferred extension mechanism.
 
+Alpha 2 coordination state, discovery projection and inbound replay security
+state are separate schema-versioned contracts exposed only from
+`@agentplat/mesh/coordination`. They do not extend the closed Alpha 1 peer
+state, input, effect, root export or loopback contracts. A caller opts into the
+composite boundary explicitly and must restore every snapshot through its
+strict constructor before use.
+
 ## Wire compatibility
 
 The npm package version and wire version are independent.

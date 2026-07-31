@@ -541,6 +541,18 @@ and bounded local topic-recipient selection. Its input is already-verified
 protocol data; the cryptographic inbound boundary and actual topic delivery are
 the remaining Increment 1 slices.
 
+The authenticated-inbound sub-slice is also implemented under the coordination
+subpath. Context and message-family checks run before cryptographic work; the
+reference verifier and a construction-bound synchronous local resolver run
+before admission; admission and instance ownership run before replay; and
+domain projection runs only after non-evictable sequence and message-ID
+accounting. Remote requests cannot substitute cryptographic dependencies or
+protocol policy. A signed, authenticated record that fails a domain predecessor
+or capacity check retains only normal replay accounting. Composite logical time
+uses the maximum of coordination, discovery and replay-security snapshots, and
+restored message-ID retention must remain inside its exact configured window.
+Actual topic driver delivery remains pending.
+
 Exit criterion: three peers with different bounded views discover only locally
 visible, admitted and unexpired capability declarations.
 

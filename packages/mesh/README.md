@@ -68,8 +68,24 @@ that sibling instances cannot mutate each other's discovery heads.
 codes from unexpired self-claims. `selectMeshDiscoveryTopicRecipients` resolves
 a bounded recipient set only from the caller's local Peer View. Neither API
 returns assignment authority, epochs, leases or fencing tokens. The evaluator
-accepts only `VerifiedMeshEnvelope` values; the signature-verifying coordination
-inbound boundary and driver delivery are the next Increment 1 slice.
+accepts only `VerifiedMeshEnvelope` values.
+
+`createMeshDiscoveryInboundProcessor` constructs the authenticated coordination
+boundary. It snapshots trusted local key resolution, cryptographic policy, Web
+Crypto and protocol options outside the remote-message path. Each request then
+contains only the envelope and trusted receiver times. The processor revalidates
+scope, audience, freshness and critical extensions before the reference
+verifier, then applies configured admission, instance ownership and an
+independently restorable replay snapshot before the discovery projection.
+Resolver lookup is synchronous by contract and cannot hide network I/O.
+Rejections before replay return the original composite state; an authenticated
+message that reaches replay but fails a domain transition retains replay
+accounting without changing discovery or domain state. Rejection codes are
+local diagnostics, not transport response payloads; adapters must rate-limit
+ingress and avoid exposing cryptographic distinctions. Topic receipt never
+relays or emits effects.
+
+Actual topic driver delivery remains the final Increment 1 slice.
 
 The runtime currently accepts direct peer audiences and the Alpha 1
 `peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. Structurally valid

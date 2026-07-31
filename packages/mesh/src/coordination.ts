@@ -1,5 +1,6 @@
 export * from './coordination-contracts.js';
 export * from './coordination-discovery-contracts.js';
+export * from './coordination-inbound-contracts.js';
 export {
   DEFAULT_MESH_COORDINATION_LIMITS,
   createMeshCoordinationState,
@@ -18,3 +19,10 @@ export {
   matchMeshDiscoveryCapabilities,
   selectMeshDiscoveryTopicRecipients,
 } from './coordination-discovery.js';
+export {
+  DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
+  createMeshCoordinationInboundState,
+  createMeshDiscoveryInboundRuntimeState,
+  restoreMeshCoordinationInboundState,
+} from './coordination-inbound-state.js';
+export { createMeshDiscoveryInboundProcessor } from './coordination-inbound.js';

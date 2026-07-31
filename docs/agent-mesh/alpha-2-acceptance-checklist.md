@@ -86,7 +86,14 @@ Registry and Git mutations are checked only after independent verification.
   equal-time eviction, instance isolation, snapshot/domain binding, matching,
   fanout, scope, subscription and capacity;
 - the projection consumes already-verified protocol values and does not yet
-  enable a network inbound path or topic transport.
+  enable topic transport;
+- `packages/mesh/src/coordination-inbound-state.ts` preserves bounded replay
+  windows and retained message IDs in a separate non-evictable schema;
+- `packages/mesh/src/coordination-inbound.ts` construction-binds trusted crypto
+  dependencies and orders context, admission, replay and projection checks;
+- `tests/mesh-coordination-inbound.test.mjs` exercises real signatures and
+  keys, contextual failures before crypto, admission, replay, domain
+  duplicate/conflict behavior and replay-only accounting on domain rejection.
 
 ## Objective and Work Item state
 

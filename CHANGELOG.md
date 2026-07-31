@@ -32,6 +32,10 @@
   Card heads, bounded partial views and expiring capability self-claims,
   including causal refresh/withdrawal, deterministic expiry and eviction, pure
   matching reason codes and local topic-recipient selection.
+- Added the authenticated discovery inbound boundary with strict contextual
+  validation, local signature/key verification, admission and instance
+  authority, non-evictable replay windows, retained message IDs and atomic
+  composition with the coordination and discovery projections.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 
