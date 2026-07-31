@@ -445,9 +445,21 @@ export function evaluateTrustEligibilityV1(
       );
     })
     .sort((left, right) => compare(left.quarantineId, right.quarantineId));
-  if (quarantines.some((item) => item.status === "active"))
+  if (
+    quarantines.some(
+      (item) =>
+        item.status === "active" && item.reviewAfterLogicalMs > logicalTimeMs,
+    )
+  )
     reasons.add("quarantine_activated");
-  if (quarantines.some((item) => item.status === "review_required"))
+  if (
+    quarantines.some(
+      (item) =>
+        item.status === "review_required" ||
+        (item.status === "active" &&
+          item.reviewAfterLogicalMs <= logicalTimeMs),
+    )
+  )
     reasons.add("quarantine_review_required");
 
   const disposition =

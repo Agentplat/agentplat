@@ -1186,8 +1186,17 @@ export function reduceEvidenceTrustStateV1(
       quarantines.filter(
         (candidate) => candidate.quarantineKey === current.quarantineKey,
       ).length >= state.limits.maximumQuarantineRevisionsPerHead
-    )
-      throw new TrustValidationError("quarantine revision capacity exceeded");
+    ) {
+      if (state.logicalTimeHighWaterMs < current.reviewAfterLogicalMs)
+        effects.push(
+          quarantineEffect(
+            "quarantine_review_required",
+            current,
+            "quarantine_review_required",
+          ),
+        );
+      continue;
+    }
     const review = createReviewRequiredQuarantineRecordV1(
       current,
       input.logicalTimeMs,
@@ -1413,9 +1422,16 @@ export function reduceEvidenceTrustStateV1(
       const head = currentQuarantineHeads().find(
         (candidate) => candidate.quarantineKey === target.quarantineKey,
       );
+      const historyLength = quarantines.filter(
+        (candidate) => candidate.quarantineKey === target.quarantineKey,
+      ).length;
+      const exhaustedActive =
+        target.status === "active" &&
+        input.logicalTimeMs >= target.reviewAfterLogicalMs &&
+        historyLength >= state.limits.maximumQuarantineRevisionsPerHead;
       if (
         head?.quarantineId !== target.quarantineId ||
-        target.status !== "review_required" ||
+        (target.status !== "review_required" && !exhaustedActive) ||
         input.logicalTimeMs < target.reviewAfterLogicalMs
       )
         throw new TrustValidationError(
@@ -1475,13 +1491,6 @@ export function reduceEvidenceTrustStateV1(
         policy,
         input.logicalTimeMs,
       );
-      if (
-        recovery.disposition === "recovered" &&
-        quarantines.filter(
-          (candidate) => candidate.quarantineKey === target.quarantineKey,
-        ).length >= state.limits.maximumQuarantineRevisionsPerHead
-      )
-        throw new TrustValidationError("quarantine revision capacity exceeded");
       recoveryDecisions.push(recovery);
       effects.push(
         quarantineEffect(

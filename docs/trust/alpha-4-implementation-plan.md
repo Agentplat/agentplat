@@ -1711,6 +1711,15 @@ Quarantine is local to the exact subject, dimension and scope. Reaching
 the restriction. Other tenants, scopes, capabilities and dimensions are not
 affected.
 
+If a key has already reached `maximumQuarantineRevisionsPerHead`, the reducer
+cannot append that transition without violating the append-only capacity. Its
+canonical exhausted representation therefore retains the final `active` head,
+emits `quarantine_review_required` once when trusted logical time crosses the
+review boundary, and treats the head as review-required for eligibility. An
+explicit review against that exact overdue exhausted head emits a closed
+`unavailable` recovery decision and cannot lift the restriction. This is the
+only V1 exception to materializing a separate `review_required` revision.
+
 ## Recovery
 
 Recovery is evaluated only by an explicit review input after the review time.

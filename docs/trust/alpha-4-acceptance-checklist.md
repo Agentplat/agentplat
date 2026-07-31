@@ -314,7 +314,8 @@ open until their corresponding transition is complete.
       policy digest;
 - [ ] quarantine history is append-only and revision-linked;
 - [ ] reaching review time transitions to review-required and does not lift the
-      restriction;
+      restriction; a capacity-exhausted final active head uses the documented
+      canonical review-required projection and can only review as unavailable;
 - [ ] recovery evaluation is explicit and occurs only after review time;
 - [ ] recovery uses only supported positive Evidence accepted after activation;
 - [ ] recovery groups are disjoint from activation dependency groups and every

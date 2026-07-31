@@ -631,8 +631,12 @@ export function evaluateQuarantineRecoveryV1(
     decisionValue,
     policyValue,
   );
+  const exhaustedActive =
+    quarantine.status === "active" &&
+    logicalTimeMs >= quarantine.reviewAfterLogicalMs &&
+    quarantine.revision >= state.limits.maximumQuarantineRevisionsPerHead;
   if (
-    quarantine.status !== "review_required" ||
+    (quarantine.status !== "review_required" && !exhaustedActive) ||
     quarantine.policyDigest !== profile.policyDigest ||
     quarantine.tenantId !== profile.tenantId ||
     quarantine.subjectDigest !== profile.subjectDigest ||
@@ -926,8 +930,10 @@ export function evaluateQuarantineRecoveryV1(
   for (const reason of blockerReasons) reasons.add(reason);
   const recoveryEvidence = sortedTuples(evidence);
   const recoveryGroups = [...groups].sort(compare);
+  const revisionAvailable =
+    quarantine.revision < state.limits.maximumQuarantineRevisionsPerHead;
   let disposition: QuarantineRecoveryDecisionV1["disposition"];
-  if (!rule || !dimension) {
+  if (!rule || !dimension || !revisionAvailable) {
     disposition = "unavailable";
     reasons.add("quarantine_recovery_unavailable");
   } else if (

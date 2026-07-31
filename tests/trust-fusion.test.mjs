@@ -276,6 +276,7 @@ function setup(records = [], input = {}) {
   let state = reduceEvidenceTrustStateV1(
     createEvidenceTrustStateV1({
       stateId: `fusion-${(setupSequence += 1)}`,
+      limits: input.limits ?? EVIDENCE_TRUST_LIMITS_V1,
     }),
     { schemaVersion: 1, kind: "policy_registered", policy, logicalTimeMs: 0 },
   ).state;
@@ -526,6 +527,71 @@ function admitCausallyAuthorizedChallenge(configured, state, record, time) {
   ).state;
   return next;
 }
+const quarantinePolicyOverrides = (limits = EVIDENCE_TRUST_LIMITS_V1) => {
+  const basePolicy = policyInput();
+  return {
+    sourceBindings: [
+      ...basePolicy.sourceBindings,
+      {
+        sourceId: "peer-e",
+        sourceKind: "peer",
+        dependencyGroupId: "e",
+        roles: ["claim"],
+        maximumWeightBasisPoints: 1000,
+        validFromLogicalMs: 0,
+        validUntilLogicalMs: 10_000,
+      },
+      {
+        sourceId: "peer-f",
+        sourceKind: "peer",
+        dependencyGroupId: "f",
+        roles: ["attest"],
+        maximumWeightBasisPoints: 1000,
+        validFromLogicalMs: 0,
+        validUntilLogicalMs: 10_000,
+      },
+    ],
+    dependencyGroups: [
+      ...basePolicy.dependencyGroups,
+      {
+        dependencyGroupId: "e",
+        maximumAttestationWeightPerClaimBasisPoints: 1000,
+        maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+      },
+      {
+        dependencyGroupId: "f",
+        maximumAttestationWeightPerClaimBasisPoints: 700,
+        maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+      },
+    ],
+    quarantinePolicy: {
+      enabled: true,
+      rules: [
+        {
+          dimensionId: "integrity",
+          activationScoreAtOrBelowBasisPoints: 6500,
+          minimumNegativeClaimSourceGroups: 1,
+          minimumNegativeWeightBasisPoints: 500,
+          reviewIntervalMs: 10,
+        },
+      ],
+      maximumActiveRecords: 4,
+    },
+    recoveryPolicy: {
+      rules: [
+        {
+          dimensionId: "integrity",
+          recoveryScoreAtOrAboveBasisPoints: 7000,
+          maximumRecoveryUncertaintyBasisPoints: 5000,
+          minimumRecoveryClaimSourceGroups: 1,
+          minimumRecoveryWeightBasisPoints: 500,
+          maximumRecoveryEvidenceAgeMs: 100,
+        },
+      ],
+    },
+    limits,
+  };
+};
 const classify = (result, target) =>
   result.claimClassifications.find((item) => item.claimId === target.claimId)
     ?.classification;
@@ -814,74 +880,17 @@ test("Fusion enforces its record ceiling and standalone canonical order", () => 
 });
 
 test("quarantine activates atomically, requires explicit review, recovers from new disjoint evidence, and reactivates only from newer negatives", () => {
-  const basePolicy = policyInput();
+  const lifecycleLimits = {
+    ...EVIDENCE_TRUST_LIMITS_V1,
+    maximumQuarantineRevisionsPerHead: 5,
+  };
   const negative = claim("violated");
   const configured = setup(
     [
       [negative, 2],
       [attestation(negative, "peer-b"), 3],
     ],
-    {
-      sourceBindings: [
-        ...basePolicy.sourceBindings,
-        {
-          sourceId: "peer-e",
-          sourceKind: "peer",
-          dependencyGroupId: "e",
-          roles: ["claim"],
-          maximumWeightBasisPoints: 1000,
-          validFromLogicalMs: 0,
-          validUntilLogicalMs: 10_000,
-        },
-        {
-          sourceId: "peer-f",
-          sourceKind: "peer",
-          dependencyGroupId: "f",
-          roles: ["attest"],
-          maximumWeightBasisPoints: 1000,
-          validFromLogicalMs: 0,
-          validUntilLogicalMs: 10_000,
-        },
-      ],
-      dependencyGroups: [
-        ...basePolicy.dependencyGroups,
-        {
-          dependencyGroupId: "e",
-          maximumAttestationWeightPerClaimBasisPoints: 1000,
-          maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
-        },
-        {
-          dependencyGroupId: "f",
-          maximumAttestationWeightPerClaimBasisPoints: 700,
-          maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
-        },
-      ],
-      quarantinePolicy: {
-        enabled: true,
-        rules: [
-          {
-            dimensionId: "integrity",
-            activationScoreAtOrBelowBasisPoints: 6500,
-            minimumNegativeClaimSourceGroups: 1,
-            minimumNegativeWeightBasisPoints: 500,
-            reviewIntervalMs: 10,
-          },
-        ],
-        maximumActiveRecords: 4,
-      },
-      recoveryPolicy: {
-        rules: [
-          {
-            dimensionId: "integrity",
-            recoveryScoreAtOrAboveBasisPoints: 7000,
-            maximumRecoveryUncertaintyBasisPoints: 5000,
-            minimumRecoveryClaimSourceGroups: 1,
-            minimumRecoveryWeightBasisPoints: 500,
-            maximumRecoveryEvidenceAgeMs: 100,
-          },
-        ],
-      },
-    },
+    quarantinePolicyOverrides(lifecycleLimits),
   );
   const options = {
     causalAuthorityVerifierRegistry: configured.causalRegistry,
@@ -1128,5 +1137,174 @@ test("quarantine activates atomically, requires explicit review, recovers from n
     )?.recoveryDecisionId,
     recoveredDecision.recoveryDecisionId,
   );
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 36,
+    },
+    options,
+  ).state;
+  assert.equal(state.quarantineHeads[0].status, "review_required");
+  assert.equal(state.quarantineHeads[0].revision, 5);
+  assert.deepEqual(validateEvidenceTrustStateV1(state), state);
+});
+
+test("quarantine revision exhaustion emits unavailable and retains the review restriction", () => {
+  for (const validMaximum of [1, 3, 4, 32])
+    assert.doesNotThrow(() =>
+      createEvidenceTrustStateV1({
+        stateId: `valid-quarantine-revisions-${validMaximum}`,
+        limits: {
+          ...EVIDENCE_TRUST_LIMITS_V1,
+          maximumQuarantineRevisionsPerHead: validMaximum,
+        },
+      }),
+    );
+  const limits = {
+    ...EVIDENCE_TRUST_LIMITS_V1,
+    maximumQuarantineRevisionsPerHead: 1,
+  };
+  const negative = claim("violated");
+  const configured = setup(
+    [
+      [negative, 2],
+      [attestation(negative, "peer-b"), 3],
+    ],
+    quarantinePolicyOverrides(limits),
+  );
+  const options = {
+    causalAuthorityVerifierRegistry: configured.causalRegistry,
+  };
+  const materialize = (stateValue, logicalTimeMs) => {
+    let next = reduceEvidenceTrustStateV1(
+      stateValue,
+      {
+        schemaVersion: 1,
+        kind: "fusion_evaluated",
+        request: configured.request,
+        logicalTimeMs,
+      },
+      options,
+    ).state;
+    const decision = next.fusionDecisions.find(
+      (candidate) => candidate.evaluatedAtLogicalMs === logicalTimeMs,
+    );
+    next = reduceEvidenceTrustStateV1(
+      next,
+      {
+        schemaVersion: 1,
+        kind: "profile_evaluated",
+        fusionDecisionId: decision.fusionDecisionId,
+        fusionDecisionDigest: decision.fusionDecisionDigest,
+        logicalTimeMs,
+      },
+      options,
+    ).state;
+    return {
+      state: next,
+      decision,
+      profile: next.profiles.find(
+        (candidate) => candidate.fusionDecisionId === decision.fusionDecisionId,
+      ),
+    };
+  };
+
+  let materialized = materialize(configured.state, 4);
+  const reviewTransition = reduceEvidenceTrustStateV1(
+    materialized.state,
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 14,
+    },
+    options,
+  );
+  let state = reviewTransition.state;
+  assert(
+    reviewTransition.effects.some(
+      (effect) => effect.kind === "quarantine_review_required",
+    ),
+  );
+  assert.equal(state.quarantineHeads[0].status, "active");
+  assert.equal(state.quarantineHeads[0].revision, 1);
+  assert.equal(state.quarantines.length, 1);
+  const retraction = createEvidenceRetractionV1({
+    schemaVersion: 1,
+    sourceId: "peer-a",
+    sourceKind: "peer",
+    causationId: null,
+    scope,
+    targetKind: "claim",
+    targetId: negative.claimId,
+    targetDigest: negative.claimId.slice("claim:".length),
+    reasonCode: "evidence_unavailable",
+    observedAt: null,
+  });
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(retraction, 15),
+    options,
+  ).state;
+  const positive = claim("satisfied", "criterion-a", {
+    sourceId: "peer-e",
+    rootId: "claim-root-7",
+  });
+  state = admitCausallyAuthorizedClaim(configured, state, positive, 16);
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(attestation(positive, "peer-f"), 17),
+    options,
+  ).state;
+  materialized = materialize(state, 18);
+  state = materialized.state;
+  const eligibilityRule = configured.policy.eligibilityRules[0];
+  const eligibility = evaluateTrustEligibilityV1(
+    state,
+    createTrustEligibilityRequestV1({
+      schemaVersion: 1,
+      tenantId: scope.tenantId,
+      subject,
+      subjectDigest: digestSubjectV1(subject),
+      scope,
+      scopeDigest: digestScopeV1(scope),
+      policyId: configured.policy.policyId,
+      policyVersion: configured.policy.policyVersion,
+      policyDigest: configured.request.policyDigest,
+      profileId: materialized.profile.profileId,
+      profileDigest: materialized.profile.profileDigest,
+      maximumProfileAgeMs: eligibilityRule.maximumProfileAgeMs,
+      requirements: eligibilityRule.requirements,
+    }),
+    18,
+  );
+  assert.equal(eligibility.disposition, "quarantined");
+  assert(eligibility.reasonCodes.includes("quarantine_review_required"));
+  assert.equal(eligibility.reasonCodes.includes("quarantine_activated"), false);
+  const head = state.quarantineHeads[0];
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "quarantine_reviewed",
+      quarantineKey: head.quarantineKey,
+      quarantineId: head.quarantineId,
+      fusionDecisionId: materialized.decision.fusionDecisionId,
+      fusionDecisionDigest: materialized.decision.fusionDecisionDigest,
+      profileId: materialized.profile.profileId,
+      profileDigest: materialized.profile.profileDigest,
+      logicalTimeMs: 18,
+    },
+    options,
+  ).state;
+  const recovery = state.recoveryDecisions.at(-1);
+  assert.equal(recovery.disposition, "unavailable");
+  assert(recovery.reasonCodes.includes("quarantine_recovery_unavailable"));
+  assert.deepEqual(recovery.recoveryClaimSourceDependencyGroupIds, ["e"]);
+  assert(recovery.effectiveRecoveryWeightBasisPoints >= 500);
+  assert(recovery.scoreBasisPoints >= 7000);
+  assert.equal(state.quarantines.length, 1);
+  assert.equal(state.quarantineHeads[0].status, "active");
   assert.deepEqual(validateEvidenceTrustStateV1(state), state);
 });

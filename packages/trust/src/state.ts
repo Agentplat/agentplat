@@ -929,10 +929,14 @@ export function validateEvidenceTrustStateV1(
       const record = quarantines.find(
         (candidate) => candidate.quarantineId === head.quarantineId,
       );
+      const historyLength = quarantines.filter(
+        (candidate) => candidate.quarantineKey === head.quarantineKey,
+      ).length;
       return (
         head.status === "active" &&
         record !== undefined &&
-        record.reviewAfterLogicalMs <= logicalTimeHighWaterMs
+        record.reviewAfterLogicalMs <= logicalTimeHighWaterMs &&
+        historyLength < limits.maximumQuarantineRevisionsPerHead
       );
     })
   )
@@ -954,7 +958,12 @@ export function validateEvidenceTrustStateV1(
     const policy = policyByDigest.get(recovery.policyDigest);
     if (
       !quarantine ||
-      quarantine.status !== "review_required" ||
+      (quarantine.status !== "review_required" &&
+        !(
+          quarantine.status === "active" &&
+          quarantine.reviewAfterLogicalMs <= recovery.evaluatedAtLogicalMs &&
+          quarantine.revision >= limits.maximumQuarantineRevisionsPerHead
+        )) ||
       !decision ||
       !profile ||
       !policy
