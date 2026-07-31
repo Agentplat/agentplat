@@ -2962,3 +2962,129 @@ test('signing documents exclude payload and signature but retain signed metadata
     '{"type":"peer.ping_ack"}'
   );
 });
+
+test('Alpha 4 Evidence and Trust fixtures are content-bound, closed v0 records', async () => {
+  const fixtures = await Promise.all(
+    [
+      'evidence-claim',
+      'evidence-attest',
+      'evidence-challenge',
+      'evidence-retract',
+      'trust-observation',
+    ].map(async (name) => [name, await loadFixture(name)])
+  );
+  const idFields = {
+    'evidence.claim': 'claimId',
+    'evidence.attest': 'attestationId',
+    'evidence.challenge': 'challengeId',
+    'evidence.retract': 'retractionId',
+    'trust.observation': 'observationId',
+  };
+
+  for (const [name, fixture] of fixtures) {
+    const parsed = parseSignedMeshEnvelope(await loadFixtureBytes(name));
+    assert.equal(parsed.ok, true, `${name} wire bytes`);
+    assert.equal(Object.isFrozen(parsed.value), true);
+    assert.equal(Object.isFrozen(parsed.value.payload), true);
+    assert.equal(validateSignedMeshEnvelope(fixture).ok, true, `${name} wire`);
+
+    const idField = idFields[fixture.type];
+    const recordId = fixture.payload[idField];
+    const changedFinalCharacter = recordId.endsWith('0') ? '1' : '0';
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: {
+          ...fixture.payload,
+          [idField]: `${recordId.slice(0, -1)}${changedFinalCharacter}`,
+        },
+      }),
+      'invalid_payload',
+      `$["payload"]["${idField}"]`
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        payload: { ...fixture.payload, unexpected: true },
+      }),
+      'invalid_payload',
+      '$["payload"]["unexpected"]'
+    );
+    expectIssue(
+      validateSignedMeshEnvelope({
+        ...fixture,
+        expiresAt: new Date(
+          Date.parse(fixture.sentAt) + 5 * 60 * 1_000 + 1
+        ).toISOString(),
+      }),
+      'invalid_lifetime',
+      '$["expiresAt"]'
+    );
+  }
+
+  const claim = fixtures.find(([name]) => name === 'evidence-claim')[1];
+  const attestation = fixtures.find(
+    ([name]) => name === 'evidence-attest'
+  )[1];
+  const challenge = fixtures.find(
+    ([name]) => name === 'evidence-challenge'
+  )[1];
+  const observation = fixtures.find(
+    ([name]) => name === 'trust-observation'
+  )[1];
+
+  expectIssue(
+    validateSignedMeshEnvelope({ ...claim, objectiveId: 'objective-a' }),
+    'invalid_payload',
+    '$["objectiveId"]'
+  );
+  const { objectiveId: _objectiveId, ...attestationWithoutObjective } =
+    attestation;
+  expectIssue(
+    validateSignedMeshEnvelope(attestationWithoutObjective),
+    'invalid_payload',
+    '$["objectiveId"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...challenge,
+      payload: { ...challenge.payload, basisReferences: [] },
+    }),
+    'invalid_payload',
+    '$["payload"]["basisReferences"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...challenge,
+      payload: {
+        ...challenge.payload,
+        basisReferences: [
+          {
+            ...challenge.payload.basisReferences[0],
+            kind: 'control_record',
+            referenceDigest: `sha256:${'a'.repeat(64)}`,
+          },
+        ],
+      },
+    }),
+    'invalid_payload',
+    '$["payload"]["basisReferences"][0]["kind"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...observation,
+      audience: { kind: 'mesh', topic: 'evidence' },
+    }),
+    'invalid_audience',
+    '$["audience"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope({
+      ...claim,
+      type: 'evidence.statement',
+      payload: { type: 'evidence.statement' },
+    }),
+    'unsupported_message_type',
+    '$["type"]'
+  );
+});

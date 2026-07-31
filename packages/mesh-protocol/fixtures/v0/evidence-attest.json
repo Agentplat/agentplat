@@ -1,0 +1,27 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 0,
+  "messageId": "AAAAAAAAAAAAAAAAAAAAAg",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "evidence.attest",
+  "sender": { "peerId": "peer-a", "instanceId": "instance-a" },
+  "audience": { "kind": "peer", "peerId": "peer-b" },
+  "sequence": 32,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:04:00.000Z",
+  "payloadHash": "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "payload": {
+    "type": "evidence.attest",
+    "attestationId": "attestation:f8318373b604044ad4e9764839c4287defe31c9a55337eb9d7f9328308f7c3f6",
+    "scope": { "kind": "objective", "objectiveRevision": 1 },
+    "claimId": "claim:5c02337f46ec7143b2ab82b9f0913226420e335952b3c4d882cfe4a0562ee01d",
+    "claimDigest": "5c02337f46ec7143b2ab82b9f0913226420e335952b3c4d882cfe4a0562ee01d",
+    "disposition": "support",
+    "confidenceBasisPoints": 9000,
+    "basisReferences": [],
+    "observedAt": null
+  },
+  "proof": { "algorithm": "Ed25519", "keyId": "key-a", "value": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSA" }
+}

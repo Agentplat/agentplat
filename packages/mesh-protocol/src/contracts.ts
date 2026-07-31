@@ -501,6 +501,134 @@ export interface LeaseCertificatePayload {
   readonly objectiveId: string;
 }
 
+/** One closed subject that Evidence may describe. */
+export type MeshEvidenceSubject =
+  | {
+      readonly kind: 'peer';
+      readonly peerId: string;
+    }
+  | {
+      readonly kind: 'peer_capability';
+      readonly peerId: string;
+      readonly capabilityKey: string;
+      readonly capabilityVersion: string;
+      readonly capabilityRevision: number;
+    };
+
+/** Signed-envelope-relative scope expanded by the Trust normalizer. */
+export type MeshEvidenceScope =
+  | { readonly kind: 'mesh' }
+  | { readonly kind: 'objective'; readonly objectiveRevision: number }
+  | {
+      readonly kind: 'work';
+      readonly objectiveRevision: number;
+      readonly workItemId: string;
+      readonly workItemRevision: number;
+      readonly assignmentEpoch: number;
+      readonly assignmentAuthorityId: string;
+      readonly fencingToken: string;
+    };
+
+/** Immutable typed basis or content reference used by Mesh Evidence. */
+export interface MeshEvidenceReference {
+  readonly schemaVersion: 1;
+  readonly kind: 'evidence' | 'mesh_record' | 'control_record' | 'external';
+  readonly referenceType: string;
+  readonly referenceId: string;
+  readonly referenceDigest: string;
+}
+
+/** Optional Evidence content. The reducer never dereferences this wire value. */
+export type MeshEvidenceContent =
+  | {
+      readonly kind: 'inline_summary';
+      readonly mediaType: string;
+      readonly summary: string;
+      readonly contentDigest: string;
+      readonly encodedBytes: number;
+    }
+  | {
+      readonly kind: 'reference';
+      readonly mediaType: string;
+      readonly reference: MeshEvidenceReference;
+      readonly contentDigest: string;
+      readonly encodedBytes: number;
+    };
+
+/** Immutable localizable claim emitted by the signed Evidence wire family. */
+export interface EvidenceClaimPayload {
+  readonly type: 'evidence.claim';
+  readonly claimId: string;
+  readonly subject: MeshEvidenceSubject;
+  readonly scope: MeshEvidenceScope;
+  readonly criterionId: string;
+  readonly outcome: 'satisfied' | 'violated' | 'inconclusive';
+  readonly assertionDigest: string;
+  readonly content: MeshEvidenceContent | null;
+  readonly basisReferences: readonly MeshEvidenceReference[];
+  readonly observedAt: string | null;
+}
+
+/** Independent support, contradiction or inconclusive evaluation of one claim. */
+export interface EvidenceAttestationPayload {
+  readonly type: 'evidence.attest';
+  readonly attestationId: string;
+  readonly scope: MeshEvidenceScope;
+  readonly claimId: string;
+  readonly claimDigest: string;
+  readonly disposition: 'support' | 'contradict' | 'inconclusive';
+  readonly confidenceBasisPoints: number;
+  readonly basisReferences: readonly MeshEvidenceReference[];
+  readonly observedAt: string | null;
+}
+
+/** Bounded request to challenge one exact Claim or Attestation. */
+export interface EvidenceChallengePayload {
+  readonly type: 'evidence.challenge';
+  readonly challengeId: string;
+  readonly scope: MeshEvidenceScope;
+  readonly targetKind: 'claim' | 'attestation';
+  readonly targetId: string;
+  readonly targetDigest: string;
+  readonly reasonCode: string;
+  readonly basisReferences: readonly MeshEvidenceReference[];
+  readonly observedAt: string | null;
+}
+
+/** Append-only withdrawal by the original author of one exact target. */
+export interface EvidenceRetractionPayload {
+  readonly type: 'evidence.retract';
+  readonly retractionId: string;
+  readonly scope: MeshEvidenceScope;
+  readonly targetKind: 'claim' | 'attestation';
+  readonly targetId: string;
+  readonly targetDigest: string;
+  readonly reasonCode: string;
+  readonly observedAt: string | null;
+}
+
+/** Redacted remote observation that is never a Fusion input in V1. */
+export interface TrustObservationPayload {
+  readonly type: 'trust.observation';
+  readonly observationId: string;
+  readonly subject: MeshEvidenceSubject;
+  readonly scope: MeshEvidenceScope;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly profileDigest: string;
+  readonly fusionDecisionDigest: string;
+  readonly dimensionId: string;
+  readonly scoreBand: 'unknown' | 'low' | 'medium' | 'high';
+  readonly uncertaintyBand: 'low' | 'medium' | 'high';
+  readonly disposition:
+    'eligible' | 'restricted' | 'quarantined' | 'unavailable';
+  readonly evidenceIds: readonly string[];
+  readonly observedAt: string;
+  readonly validUntil: string;
+  readonly reasonCodes: readonly string[];
+}
+
 /** Structurally implemented protocol payload subset. */
 export type MeshMessagePayload =
   | PeerHelloPayload
@@ -526,7 +654,12 @@ export type MeshMessagePayload =
   | LeaseRenewPayload
   | LeaseTakeoverProposalPayload
   | LeaseVotePayload
-  | LeaseCertificatePayload;
+  | LeaseCertificatePayload
+  | EvidenceClaimPayload
+  | EvidenceAttestationPayload
+  | EvidenceChallengePayload
+  | EvidenceRetractionPayload
+  | TrustObservationPayload;
 
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<
