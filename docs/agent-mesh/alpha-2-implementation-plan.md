@@ -1,11 +1,11 @@
 # Agent Mesh `0.3.0-alpha.2` implementation plan
 
 Status: Increments 0 and 1 are complete. Increment 2 Objective/Work and its
-authenticated ingress are complete. The bounded owner-side allocation handshake
-is complete through offer, bid, award, acceptance, decline and acceptance
-timeout. The paired assignee-side offer, bid, award and local response
-handshake is also complete; execution, lease, reassignment and recovery work
-remains pending.
+authenticated ingress are complete. The bounded owner and assignee allocation
+handshakes are complete, including the initial execution lifecycle for
+`work.progress`, `work.checkpoint`, `work.result`, `work.release` and
+`work.cancel`. Lease renewal, reassignment, certified recovery, resilience
+simulation and release publication remain pending.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -55,12 +55,12 @@ The release keeps:
 
 No new public package is introduced.
 
-| Package                    | Alpha 2 responsibility                                                                                                     |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.     |
-| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                   |
-| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation, timers, leases, fencing and recovery. |
-| `@agentplat/mesh-sim`      | Explicit crash, loss, duplicate, reorder and partition faults plus allocation and recovery invariant suites.               |
+| Package                    | Alpha 2 responsibility                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@agentplat/mesh-protocol` | Closed payload schemas, bounds, validation and conformance fixtures for discovery, Objective, work and lease messages.                                                        |
+| `@agentplat/mesh-crypto`   | Signing and verification fixtures for the new payload families; no new trust or key-bootstrap semantics.                                                                      |
+| `@agentplat/mesh`          | Partial views, capability projections, Objective and Work Item reducers, allocation and initial execution lifecycle; lease renewal, reassignment and recovery remain pending. |
+| `@agentplat/mesh-sim`      | Planned crash, loss, duplicate, reorder and partition faults plus allocation and recovery invariant suites.                                                                   |
 
 Runtime dependencies continue to follow actual imports. Framework must not
 depend on or re-export an alpha Mesh package.
@@ -70,9 +70,8 @@ depend on or re-export an alpha Mesh package.
 ### Defined protocol message families
 
 Alpha 2 defines these payload families as closed, bounded, structurally
-validated and cryptographically signable. They remain unsupported at the
-`@agentplat/mesh` runtime boundary until their corresponding increment
-implements local state, authority and reducer support:
+validated and cryptographically signable. Runtime support is enabled only where
+the corresponding increment has local state, authority and reducer support:
 
 - `peer.card` and `peer.goodbye`;
 - `capability.advertise` and `capability.withdraw`;
@@ -81,7 +80,7 @@ implements local state, authority and reducer support:
 - `work.progress`, `work.checkpoint`, `work.result`, `work.release` and
   `work.cancel`;
 - `lease.renew`, `lease.takeover_proposal`, `lease.vote` and
-  `lease.certificate`.
+  `lease.certificate` remain unsupported at the runtime boundary.
 
 Alpha 1 `peer.hello`, `peer.ping` and `peer.ping_ack` behavior remains
 unchanged.
@@ -243,25 +242,27 @@ is rejected.
 
 ### Work Item state machine
 
-| Current state                             | Accepted input                                | Next state           | Authority                                                                                 |
-| ----------------------------------------- | --------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| absent                                    | local `work.create`                           | ready                | current Objective policy and local owner                                                  |
-| ready                                     | local `work.offer` / accepted `work.offer`    | offered              | current owner                                                                             |
-| offered                                   | accepted bid                                  | offered              | eligible bidder; bid is appended without changing ownership                               |
-| offered                                   | accepted award                                | award pending        | owner; selected bid and budget reservation are current                                    |
-| award pending                             | accepted acceptance                           | active               | awarded assignee before acceptance deadline                                               |
-| award pending                             | decline or acceptance timeout                 | ready                | awarded assignee or trusted timer                                                         |
-| active                                    | progress or checkpoint                        | active               | current assignee, epoch, token and unexpired lease                                        |
-| active                                    | result                                        | completed            | current assignee, epoch, token, lease and completion bounds                               |
-| active                                    | lease renewal                                 | active               | current holder within Objective renewal policy                                            |
-| active                                    | release                                       | ready or released    | `reoffer` selects ready; `close` selects released; owner or current assignee under policy |
-| active                                    | expired lease plus valid takeover certificate | recovering           | threshold witnesses certify exactly the next epoch                                        |
-| recovering                                | recovery award and acceptance                 | active               | owner selects the certified candidate at the certified epoch and token                    |
-| non-terminal                              | cancellation or Work Item deadline            | cancelled or expired | owner policy or trusted timer                                                             |
-| completed, cancelled, expired or released | ordinary work transition                      | unchanged/rejected   | terminal state cannot be reopened at the same revision                                    |
+| Current state                             | Accepted input                             | Next state         | Authority                                                               |
+| ----------------------------------------- | ------------------------------------------ | ------------------ | ----------------------------------------------------------------------- |
+| absent                                    | local `work.create`                        | ready              | current Objective policy and local owner                                |
+| ready                                     | local `work.offer` / accepted `work.offer` | offered            | current owner                                                           |
+| offered                                   | accepted bid                               | offered            | eligible bidder; bid is appended without changing ownership             |
+| offered                                   | accepted award                             | award pending      | owner; selected bid and budget reservation are current                  |
+| award pending                             | accepted acceptance                        | active             | awarded assignee before acceptance deadline                             |
+| award pending                             | decline or acceptance timeout              | ready              | awarded assignee or trusted timer                                       |
+| active                                    | progress or checkpoint                     | active             | current assignee, epoch, token and unexpired lease                      |
+| active                                    | result                                     | completed          | current assignee, epoch, token, lease and completion bounds             |
+| active                                    | release                                    | released           | current owner or assignee; disposition is retained as terminal evidence |
+| active                                    | cancellation                               | cancelled          | current owner under Work policy                                         |
+| non-terminal                              | Work Item deadline                         | expired            | trusted timer                                                           |
+| completed, cancelled, expired or released | ordinary work transition                   | unchanged/rejected | terminal state cannot be reopened at the same revision                  |
 
 The reducer records append-only decision events and projects current state from
 them. It never treats message arrival order as authority.
+
+Lease renewal and certified-reassignment transitions are not enabled in this
+state machine; their protocol records remain unsupported at the runtime
+boundary.
 
 ## Allocation protocol
 
@@ -403,11 +404,11 @@ replace it. A due response deadline closes the local award without emitting a
 response. Signing and transport remain trusted driver boundaries; this slice
 does not infer receipt by the owner.
 
-This assignee-side increment establishes only award intake and response
-preparation/dispatch and may record the resulting local assignment authority.
-It does not implement an execution-record lifecycle for progress, checkpoints
-or results, renew a lease, transfer external-action authority, or perform
-reassignment or recovery.
+This assignee-side increment establishes award intake and response
+preparation/dispatch, and records the resulting initial local assignment
+authority. The execution-lifecycle slice uses that authority for progress,
+checkpoints, results, release and cancellation. It does not renew a lease,
+transfer external-action authority, or perform reassignment or recovery.
 
 ### Progress, checkpoint and result
 
@@ -733,8 +734,13 @@ Objective, its limits or its local owner authority.
 - [complete] implement assignee-side verified direct award intake, bounded
   prepared-bid provenance, local accept/decline preparation and dispatch, and
   exclusive local response-deadline closure;
-- implement progress, checkpoint, result, release and cancellation;
-- add timeout and idempotency component scenarios.
+- [complete] implement bounded, retained `work.progress`, `work.checkpoint`,
+  `work.result`, `work.release` and `work.cancel` records with terminal heads,
+  exact duplicate handling and terminal budget accounting;
+- [complete] authenticate inbound Allocation records before replay and domain
+  evaluation, retaining replay accounting for signed domain rejections;
+- [complete] migrate Allocation snapshots from schema versions 1–3 to schema
+  version 4 with empty execution evidence indexes and conservative limits.
 
 Wire conformance for progress, checkpoint and result covers closed payloads,
 sender self-binding, direct audience, Objective-header equality, mandatory
@@ -744,15 +750,15 @@ separately cover owner/observer/witness recipient authorization, accepted
 causal records, current authority/epoch/token/lease, checkpoint head and result
 uniqueness.
 
-Exit criterion: a packed three-peer consumer completes one Work Item and
-duplicate or reordered records produce the same projection.
+The packed-consumer, reordered-delivery and release gates remain pending.
 
 ### Increment 4: leases, epochs and fencing
 
-- enforce signed lease and acceptance deadlines;
+- enforce signed initial-lease and acceptance deadlines for the execution
+  lifecycle;
 - implement bounded renewal;
-- bind all execution records to epoch and fencing token;
-- reject stale, future, conflicting and expired authority;
+- retain the implemented initial epoch/token binding and stale/expired
+  authority rejection;
 - expose redacted transition and rejection events.
 
 Wire conformance for renewal covers a closed accepted-assignment payload,

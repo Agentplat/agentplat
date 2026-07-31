@@ -67,3 +67,4 @@ export {
   evaluateVerifiedMeshAllocationEnvelope,
   selectMeshAllocationBid,
 } from './coordination-allocation.js';
+export { evaluateMeshExecutionCommand } from './coordination-execution.js';

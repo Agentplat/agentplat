@@ -210,10 +210,10 @@ number and names the preceding offer. It opens a fresh bounded bid window and
 reserves the same Work Item budget anew; it cannot rewrite the Work revision or
 reuse the original attempt.
 
-This is an owner-side state-machine increment. It neither prepares nor delivers
-assignee responses, activates execution, accepts progress/checkpoints/results,
-renews leases or performs recovery. A valid signature or admission entry alone
-does not grant any of those deferred authorities.
+This owner-side state-machine increment establishes allocation. A later
+execution-lifecycle slice consumes its accepted assignment authority; a valid
+signature or admission entry alone never grants execution authority. Lease
+renewal, reassignment and recovery remain deferred.
 
 The paired assignee-side allocation slice accepts an already-verified direct
 `work.award` only for the local peer and only when it proves the peer's retained
@@ -226,11 +226,37 @@ projection retains the signed award, epoch, authority, fencing token, lease and
 exclusive response deadline. Before that deadline, the local peer can commit
 one prepared signed `work.accept` or `work.decline` and emit its dispatch
 effect; exact retries are idempotent and conflicting reuse is rejected without
-mutation. A successful local acceptance may retain assignment authority. A due
-generation-fenced local response deadline closes the local award without
-sending a response. This slice does not implement execution records for
-progress, checkpoints, results, renewal, reassignment, recovery or external
-actions, and dispatch is not evidence that the owner received a response.
+mutation. A successful local acceptance retains the initial assignment
+authority. A due generation-fenced local response deadline closes the local
+award without sending a response, and dispatch is not evidence that the owner
+received a response.
+
+The execution-lifecycle slice accepts locally prepared or authenticated inbound
+`work.progress`, `work.checkpoint`, `work.result`, `work.release` and
+`work.cancel` records. It retains bounded signed records and an assignment-scope
+head, enforces direct audience and role authority, exact Objective/Work and
+assignment bindings, current epoch and fencing token, causation and sequence
+rules, and trusted Work/initial-lease deadlines. Progress and checkpoints are
+append-only; a result, release or cancellation is terminal and later ordinary
+records are rejected. Exact replay is idempotent while identifier or canonical
+content reuse conflicts fail closed. Owner cancellation of a pending award
+releases its reservation; terminal active execution does not reverse committed
+Objective budget accounting.
+
+Allocation snapshots now use schema version 4. Restore migrates versions 1–3
+deterministically, adds empty bounded execution-record and execution-head
+indexes, and derives conservative execution limits from legacy offer limits.
+Strict restore revalidates retained envelopes, causal/domain bindings,
+authority, terminal heads and accounting before exposing the immutable snapshot.
+
+`createMeshAllocationInboundProcessor` authenticates Allocation traffic before
+domain evaluation. It construction-binds key resolution and cryptographic
+policy, then orders context, signature verification, exact admission and
+instance authority, replay accounting and the allocation transition. A signed
+execution record rejected by the domain still consumes normal replay security
+accounting; diagnostics remain local. This slice does not implement lease
+renewal, recovery certificates, reassignment, durable execution storage or
+external-action authority.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite

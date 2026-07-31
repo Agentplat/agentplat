@@ -56,6 +56,7 @@ import {
   evaluateMeshCoordinationTimer,
   evaluateMeshAllocationCommand,
   evaluateMeshAllocationTimer,
+  evaluateMeshExecutionCommand,
   evaluateVerifiedMeshAllocationEnvelope,
   evaluateMeshObjectiveWorkCommand,
   evaluateMeshObjectiveWorkTimer,
@@ -107,6 +108,10 @@ import {
   type MeshDiscoveryInboundRuntimeState,
   type MeshDiscoveryPayload,
   type MeshDiscoveryState,
+  type MeshExecutionHeadProjection,
+  type MeshExecutionPayload,
+  type MeshExecutionRecordProjection,
+  type MeshExecutionRecordType,
   type MeshVerifiedDiscoveryRequest,
   type MeshCoordinationTopicClock,
   type MeshCoordinationTopicConfiguration,
@@ -134,6 +139,7 @@ import {
   type MeshObjectiveWorkTimerInput,
   type MeshLocalOfferCommand,
   type MeshLocalBidCommand,
+  type MeshLocalExecutionCommand,
   type MeshLocalAssignmentResponseCommand,
   type MeshLocalOfferPreparedRecipient,
   type MeshLocalOfferProjection,
@@ -155,6 +161,7 @@ import {
   type MeshWorkObjectivePolicySnapshot,
   type MeshWorkItemProjection,
 } from '@agentplat/mesh/coordination';
+import * as meshCoordination from '@agentplat/mesh/coordination';
 import {
   createMeshSimulationKernel,
   replayMeshSimulation,
@@ -866,6 +873,12 @@ const localAwardCommand: MeshLocalAwardCommand = {
   },
 };
 const allocationAwardCommand: MeshAllocationCommand = localAwardCommand;
+const localExecutionCommand: MeshLocalExecutionCommand = {
+  kind: 'allocation.execution',
+  preparedAt: 0,
+  envelope: {} as SignedMeshEnvelope<MeshExecutionPayload>,
+};
+const allocationExecutionCommand: MeshAllocationCommand = localExecutionCommand;
 const allocationDecision: MeshAllocationDecision =
   evaluateMeshAllocationCommand(
     allocationRuntimeState,
@@ -874,6 +887,18 @@ const allocationDecision: MeshAllocationDecision =
     0
   );
 const allocationEffect: MeshAllocationEffect | undefined = undefined;
+const executionDecision: MeshAllocationDecision = evaluateMeshExecutionCommand(
+  allocationRuntimeState,
+  localExecutionCommand,
+  '2026-07-29T00:00:01Z',
+  0
+);
+const executionRecordType: MeshExecutionRecordType = 'progress';
+const executionPayload: MeshExecutionPayload = workReleasePayload;
+const executionRecordProjection: MeshExecutionRecordProjection | undefined =
+  undefined;
+const executionHeadProjection: MeshExecutionHeadProjection | undefined =
+  undefined;
 const allocationLimits: MeshAllocationLimits = DEFAULT_MESH_ALLOCATION_LIMITS;
 const allocationPayload: MeshAllocationPayload = workBidPayload;
 const allocationRejectionCode: MeshAllocationRejectionCode = 'offer_invalid';
@@ -910,6 +935,8 @@ const verifiedAllocationRequest: MeshVerifiedAllocationRequest | undefined =
   undefined;
 const verifiedAllocationEvaluator: typeof evaluateVerifiedMeshAllocationEnvelope =
   evaluateVerifiedMeshAllocationEnvelope;
+// @ts-expect-error verified execution intake must pass through allocation admission
+meshCoordination.evaluateVerifiedMeshExecutionEnvelope;
 const objectivePolicyHistory: Readonly<
   Record<string, MeshWorkObjectivePolicySnapshot>
 > = restoredObjectiveWorkState.objectivePolicies;

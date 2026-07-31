@@ -28,6 +28,7 @@ import {
   evaluateVerifiedMeshObjectiveEnvelope,
   evaluateMeshObjectiveWorkCommand,
   restoreMeshAllocationState,
+  restoreMeshCoordinationState,
 } from "@agentplat/mesh/coordination";
 
 const fixtures = new URL(
@@ -46,6 +47,11 @@ const bidFixture = fixture("work-bid.json");
 const awardFixture = fixture("work-award.json");
 const acceptFixture = fixture("work-accept.json");
 const declineFixture = fixture("work-decline.json");
+const progressFixture = fixture("work-progress.json");
+const checkpointFixture = fixture("work-checkpoint.json");
+const resultFixture = fixture("work-result.json");
+const releaseFixture = fixture("work-release.json");
+const cancelWorkFixture = fixture("work-cancel.json");
 const at = "2026-07-30T00:00:01.000Z";
 const identity = Object.freeze({
   tenantId: "tenant-a",
@@ -379,6 +385,93 @@ async function awaitingAward(limits) {
   });
   assert.equal(receivedAward.accepted, true, receivedAward.code);
   return { ...runtime, offer, bid, award, state: receivedAward.state };
+}
+
+async function activeAssignee(limits) {
+  const pending = await awaitingAward(limits);
+  const acceptance = await preparedResponse(
+    "work.accept",
+    pending.keys,
+    pending.resolver,
+    pending.award.signed.messageId,
+  );
+  const accepted = evaluateMeshAllocationCommand(
+    pending.state,
+    {
+      kind: "allocation.assignment_response",
+      awardId: "award-a",
+      preparedAt: 5,
+      envelope: acceptance.signed,
+    },
+    at,
+    5,
+  );
+  assert.equal(accepted.accepted, true, accepted.code);
+  return { ...pending, acceptance, state: accepted.state };
+}
+
+async function preparedExecution(
+  kind,
+  keys,
+  resolver,
+  {
+    messageId,
+    sequence = 40,
+    causationId = "RAAAAAAAAAAAAAAAAAAAAA",
+    senderPeerId = "peer-b",
+    senderInstanceId = `instance-${senderPeerId.slice(-1)}`,
+    audiencePeerId = "peer-a",
+    payloadPatch = {},
+  } = {},
+) {
+  const source = {
+    "work.progress": progressFixture,
+    "work.checkpoint": checkpointFixture,
+    "work.result": resultFixture,
+    "work.release": releaseFixture,
+    "work.cancel": cancelWorkFixture,
+  }[kind];
+  const envelope = structuredClone(source);
+  envelope.messageId ??= "ZAAAAAAAAAAAAAAAAAAAA";
+  envelope.messageId = messageId ?? envelope.messageId;
+  envelope.sequence = sequence;
+  envelope.sentAt = "2026-07-30T00:00:04.000Z";
+  envelope.expiresAt = "2026-07-30T00:00:14.000Z";
+  envelope.sender = {
+    peerId: senderPeerId,
+    instanceId: senderInstanceId,
+  };
+  envelope.audience = { kind: "peer", peerId: audiencePeerId };
+  envelope.proof.keyId = `key-${senderPeerId.slice(-1)}`;
+  envelope.causationId = causationId;
+  Object.assign(envelope.payload, {
+    objectiveId: "objective-a",
+    objectiveDocumentId: "objective-document-a",
+    objectiveRevision: 1,
+    workItemId: "work-item-a",
+    workItemRevision: 1,
+    ownerPeerId: "peer-a",
+    ownerEpoch: 1,
+    assigneePeerId: "peer-b",
+    awardId: "award-a",
+    acceptanceId: "acceptance-a",
+    assignmentEpoch: 1,
+    assignmentAuthorityId: "award-a",
+    fencingToken: "award-a",
+    leaseExpiresAt: "2026-07-30T00:00:25.000Z",
+    ...payloadPatch,
+  });
+  if (
+    kind === "work.cancel" &&
+    envelope.payload.assignmentState === "award_pending"
+  )
+    delete envelope.payload.acceptanceId;
+  if (
+    Object.hasOwn(payloadPatch, "checkpointId") &&
+    payloadPatch.checkpointId === undefined
+  )
+    delete envelope.payload.checkpointId;
+  return signed(envelope, senderPeerId, keys, resolver);
 }
 
 async function ownerOfferedAllocation(keys, resolver) {
@@ -1344,7 +1437,7 @@ test("assignee bounds, restore/migration and conflicting exact identifiers fail 
   delete v2.limits.maximumReceivedAwards;
   delete v2.limits.maximumLocalAssignmentResponses;
   delete v2.limits.maximumAssignmentAuthorities;
-  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 3);
+  assert.equal(restoreMeshAllocationState(v2).schemaVersion, 4);
 });
 
 test("restore rejects a message identifier collision across retained owner and assignee evidence", async () => {
@@ -1418,5 +1511,518 @@ test("restore revalidates trusted wall-time context for every assignee evidence 
   assert.throws(
     () => restoreMeshAllocationState(forgedResponse),
     /local assignment response projection/u,
+  );
+});
+
+test("an active assignee appends a causally ordered execution trail and terminal result exactly once", async () => {
+  const active = await activeAssignee();
+  const progress = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    { messageId: "XAAAAAAAAAAAAAAAAAAAAA" },
+  );
+  const progressed = evaluateMeshAllocationCommand(
+    active.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: progress.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(progressed.accepted, true, progressed.code);
+  assert.deepEqual(
+    progressed.effects.map((effect) => effect.kind),
+    ["allocation.execution.dispatch"],
+  );
+  assert.equal(
+    progressed.state.allocation.executionRecords["progress-a"].direction,
+    "local",
+  );
+  const scope = Object.keys(progressed.state.allocation.executionHeads)[0];
+  assert.equal(
+    progressed.state.allocation.executionHeads[scope].latestProgressSequence,
+    1,
+  );
+
+  const duplicate = evaluateMeshAllocationCommand(
+    progressed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: progress.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(duplicate.accepted, true);
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.state, progressed.state);
+
+  const gap = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "YAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 41,
+      payloadPatch: { progressId: "progress-b", progressSequence: 3 },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      progressed.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 7,
+        envelope: gap.signed,
+      },
+      at,
+      7,
+    ),
+    "execution_phase_invalid",
+    progressed.state,
+  );
+
+  const checkpoint = await preparedExecution(
+    "work.checkpoint",
+    active.keys,
+    active.resolver,
+    { messageId: "ZAAAAAAAAAAAAAAAAAAAAA", sequence: 42 },
+  );
+  const checkpointed = evaluateMeshAllocationCommand(
+    progressed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 7,
+      envelope: checkpoint.signed,
+    },
+    at,
+    7,
+  );
+  assert.equal(checkpointed.accepted, true, checkpointed.code);
+
+  const result = await preparedExecution(
+    "work.result",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "HAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 43,
+      causationId: checkpoint.signed.messageId,
+      payloadPatch: { checkpointId: "checkpoint-a" },
+    },
+  );
+  const completed = evaluateMeshAllocationCommand(
+    checkpointed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 8,
+      envelope: result.signed,
+    },
+    at,
+    8,
+  );
+  assert.equal(completed.accepted, true, completed.code);
+  assert.equal(
+    completed.state.allocation.executionHeads[scope].phase,
+    "completed",
+  );
+  assert.equal(
+    completed.state.allocation.executionHeads[scope].resultId,
+    "result-a",
+  );
+
+  const afterTerminal = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "IAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 44,
+      payloadPatch: { progressId: "progress-c", progressSequence: 2 },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      completed.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 9,
+        envelope: afterTerminal.signed,
+      },
+      at,
+      9,
+    ),
+    "execution_phase_invalid",
+    completed.state,
+  );
+});
+
+test("an assignee rejects stale authority and accepts only the owner's active cancellation", async () => {
+  const active = await activeAssignee();
+  const stale = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "JAAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: {
+        assignmentAuthorityId: "stale-token",
+        fencingToken: "stale-token",
+      },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      active.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 6,
+        envelope: stale.signed,
+      },
+      at,
+      6,
+    ),
+    "execution_authority_invalid",
+    active.state,
+  );
+
+  const ownerCancel = await preparedExecution(
+    "work.cancel",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "KAAAAAAAAAAAAAAAAAAAAA",
+      senderPeerId: "peer-a",
+      audiencePeerId: "peer-b",
+      payloadPatch: {
+        cancellationId: "work-cancellation-active",
+        assignmentState: "active",
+      },
+    },
+  );
+  const cancelled = evaluateVerifiedMeshAllocationEnvelope(active.state, {
+    envelope: ownerCancel.verified,
+    verifiedAt: at,
+    receivedAt: 6,
+  });
+  assert.equal(cancelled.accepted, true, cancelled.code);
+  const scope = Object.keys(cancelled.state.allocation.executionHeads)[0];
+  assert.equal(
+    cancelled.state.allocation.executionHeads[scope].phase,
+    "cancelled",
+  );
+
+  const expired = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "LAAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: { progressId: "progress-expired", progressSequence: 1 },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      active.state,
+      {
+        kind: "allocation.execution",
+        preparedAt:
+          active.state.allocation.assigneeAuthorities["award-a"]
+            .leaseExpiresAtLogical,
+        envelope: expired.signed,
+      },
+      at,
+      active.state.allocation.assigneeAuthorities["award-a"]
+        .leaseExpiresAtLogical,
+    ),
+    "execution_deadline_elapsed",
+    active.state,
+  );
+});
+
+test("execution cancel authority, local identity, and pending-award lease bindings fail closed", async () => {
+  const active = await activeAssignee();
+  const badActiveCancel = await preparedExecution(
+    "work.cancel",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "0AAAAAAAAAAAAAAAAAAAAA",
+      senderPeerId: "peer-a",
+      audiencePeerId: "peer-b",
+      payloadPatch: {
+        cancellationId: "work-cancellation-wrong-acceptance",
+        assignmentState: "active",
+        acceptanceId: "acceptance-wrong",
+      },
+    },
+  );
+  rejected(
+    evaluateVerifiedMeshAllocationEnvelope(active.state, {
+      envelope: badActiveCancel.verified,
+      verifiedAt: at,
+      receivedAt: 6,
+    }),
+    "execution_authority_invalid",
+    active.state,
+  );
+
+  const localSenderMismatch = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "1AAAAAAAAAAAAAAAAAAAAA",
+      senderInstanceId: "instance-forged",
+      payloadPatch: { progressId: "progress-foreign-local" },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      active.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 6,
+        envelope: localSenderMismatch.signed,
+      },
+      at,
+      6,
+    ),
+    "execution_authority_invalid",
+    active.state,
+  );
+
+  const pending = await awaitingAward();
+  const pendingLeaseMismatch = await preparedExecution(
+    "work.cancel",
+    pending.keys,
+    pending.resolver,
+    {
+      messageId: "2AAAAAAAAAAAAAAAAAAAAA",
+      causationId: pending.award.signed.messageId,
+      senderPeerId: "peer-a",
+      audiencePeerId: "peer-b",
+      payloadPatch: {
+        cancellationId: "work-cancellation-pending-wrong-lease",
+        assignmentState: "award_pending",
+        leaseExpiresAt: "2026-07-30T00:00:26.000Z",
+      },
+    },
+  );
+  rejected(
+    evaluateVerifiedMeshAllocationEnvelope(pending.state, {
+      envelope: pendingLeaseMismatch.verified,
+      verifiedAt: at,
+      receivedAt: 5,
+    }),
+    "execution_authority_invalid",
+    pending.state,
+  );
+});
+
+test("execution record capacity is bounded per assignment without mutating accepted evidence", async () => {
+  const active = await activeAssignee({
+    maximumExecutionRecords: 2,
+    maximumExecutionHeads: 1,
+    maximumExecutionRecordsPerAssignment: 1,
+  });
+  const first = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    { messageId: "3AAAAAAAAAAAAAAAAAAAAA" },
+  );
+  const accepted = evaluateMeshAllocationCommand(
+    active.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: first.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(accepted.accepted, true, accepted.code);
+  const second = await preparedExecution(
+    "work.progress",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "4AAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: {
+        progressId: "progress-capacity-second",
+        progressSequence: 2,
+      },
+    },
+  );
+  rejected(
+    evaluateMeshAllocationCommand(
+      accepted.state,
+      {
+        kind: "allocation.execution",
+        preparedAt: 7,
+        envelope: second.signed,
+      },
+      at,
+      7,
+    ),
+    "execution_records_per_assignment_exceeded",
+    accepted.state,
+  );
+});
+
+test("execution snapshot restoration binds heads, terminal records, and coordination domain evidence", async () => {
+  const active = await activeAssignee();
+  const result = await preparedExecution(
+    "work.result",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "5AAAAAAAAAAAAAAAAAAAAA",
+      payloadPatch: { checkpointId: undefined },
+    },
+  );
+  const completed = evaluateMeshAllocationCommand(
+    active.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: result.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(completed.accepted, true, completed.code);
+  const scope = Object.keys(completed.state.allocation.executionHeads)[0];
+
+  for (const [field, value] of [
+    ["fencingToken", "forged-token"],
+    ["leaseExpiresAt", "2026-07-30T00:00:26.000Z"],
+    ["terminalRecordId", "forged-result"],
+  ]) {
+    const forged = structuredClone(completed.state.allocation);
+    forged.executionHeads[scope][field] = value;
+    assert.throws(
+      () => restoreMeshAllocationState(forged),
+      /execution|head|record|authority/u,
+    );
+  }
+
+  const missingDomain = structuredClone(completed.state.coordination);
+  delete missingDomain.domainRecords[
+    JSON.stringify(["work.result", "result-a"])
+  ];
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        restoreMeshCoordinationState(missingDomain),
+        completed.state.discovery,
+        completed.state.objectives,
+        completed.state.allocation,
+      ),
+    /execution|domain|journal/u,
+  );
+});
+
+test("execution restore requires unique journal evidence and a final terminal sequence", async () => {
+  const active = await activeAssignee();
+  const checkpoint = await preparedExecution(
+    "work.checkpoint",
+    active.keys,
+    active.resolver,
+    { messageId: "cAAAAAAAAAAAAAAAAAAAAA" },
+  );
+  const checkpointed = evaluateMeshAllocationCommand(
+    active.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: checkpoint.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(checkpointed.accepted, true, checkpointed.code);
+  const result = await preparedExecution(
+    "work.result",
+    active.keys,
+    active.resolver,
+    {
+      messageId: "dAAAAAAAAAAAAAAAAAAAAA",
+      sequence: 41,
+      causationId: checkpoint.signed.messageId,
+      payloadPatch: { checkpointId: "checkpoint-a" },
+    },
+  );
+  const completed = evaluateMeshAllocationCommand(
+    checkpointed.state,
+    {
+      kind: "allocation.execution",
+      preparedAt: 6,
+      envelope: result.signed,
+    },
+    at,
+    6,
+  );
+  assert.equal(completed.accepted, true, completed.code);
+  const resultKey = JSON.stringify(["work.result", "result-a"]);
+  const checkpointKey = JSON.stringify(["work.checkpoint", "checkpoint-a"]);
+
+  assert.doesNotThrow(() =>
+    createMeshAllocationRuntimeState(
+      restoreMeshCoordinationState(
+        structuredClone(completed.state.coordination),
+      ),
+      completed.state.discovery,
+      completed.state.objectives,
+      completed.state.allocation,
+    ),
+  );
+
+  const duplicateEvidence = structuredClone(completed.state.coordination);
+  const resultJournal = duplicateEvidence.journal.find(
+    (entry) => entry.domainRecordKey === resultKey,
+  );
+  duplicateEvidence.journal.push({
+    ...resultJournal,
+    sequence: duplicateEvidence.localEventSequence + 1,
+  });
+  duplicateEvidence.localEventSequence += 1;
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        restoreMeshCoordinationState(duplicateEvidence),
+        completed.state.discovery,
+        completed.state.objectives,
+        completed.state.allocation,
+      ),
+    /execution.*domain|journal/u,
+  );
+
+  const postTerminal = structuredClone(completed.state.coordination);
+  const terminalJournal = postTerminal.journal.find(
+    (entry) => entry.domainRecordKey === resultKey,
+  );
+  const checkpointJournal = postTerminal.journal.find(
+    (entry) => entry.domainRecordKey === checkpointKey,
+  );
+  [terminalJournal.sequence, checkpointJournal.sequence] = [
+    checkpointJournal.sequence,
+    terminalJournal.sequence,
+  ];
+  postTerminal.journal.sort((left, right) => left.sequence - right.sequence);
+  assert.throws(
+    () =>
+      createMeshAllocationRuntimeState(
+        restoreMeshCoordinationState(postTerminal),
+        completed.state.discovery,
+        completed.state.objectives,
+        completed.state.allocation,
+      ),
+    /execution.*terminal|journal/u,
   );
 });

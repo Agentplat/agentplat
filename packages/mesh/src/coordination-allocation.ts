@@ -45,6 +45,10 @@ import type {
   MeshCoordinationTimer,
 } from "./coordination-contracts.js";
 import { matchMeshDiscoveryCapabilities } from "./coordination-discovery.js";
+import {
+  evaluateMeshExecutionCommand,
+  evaluateVerifiedMeshExecutionEnvelope,
+} from "./coordination-execution.js";
 import { createMeshDiscoveryRuntimeState } from "./coordination-discovery-state.js";
 import { logicalDeadline } from "./coordination-objective-work-time.js";
 import { sha256Base64Url } from "./sha256.js";
@@ -71,6 +75,7 @@ export function evaluateMeshAllocationCommand(
       "allocation.award",
       "allocation.bid",
       "allocation.assignment_response",
+      "allocation.execution",
     ].includes(command.kind)
   )
     throw new TypeError("Invalid Mesh allocation command");
@@ -85,6 +90,8 @@ export function evaluateMeshAllocationCommand(
       verifiedAt,
       receivedAt,
     );
+  if (command.kind === "allocation.execution")
+    return evaluateMeshExecutionCommand(state, command, verifiedAt, receivedAt);
   if (
     Object.keys(command).sort().join(",") !==
       "expectedWorkItemRevision,kind,objectiveId,recipients,workItemId" ||
@@ -1048,6 +1055,14 @@ export function evaluateVerifiedMeshAllocationEnvelope(
     request.envelope.payload.type === "work.decline"
   )
     return evaluateAssignmentResponse(state, request);
+  if (
+    request.envelope.payload.type === "work.progress" ||
+    request.envelope.payload.type === "work.checkpoint" ||
+    request.envelope.payload.type === "work.result" ||
+    request.envelope.payload.type === "work.release" ||
+    request.envelope.payload.type === "work.cancel"
+  )
+    return evaluateVerifiedMeshExecutionEnvelope(state, request);
   if (request.envelope.payload.type !== "work.bid")
     return reject(state, "invalid_verified_envelope");
   const envelope = request.envelope as VerifiedMeshEnvelope<WorkBidPayload>;
