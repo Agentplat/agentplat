@@ -1,6 +1,7 @@
 # Evidence and Trust threat model
 
-Status: Alpha 4 design candidate.
+Status: Alpha 4 design frozen at normative commit
+`e08e43beecf913e6e0a650c29625371ea1a29a4b`.
 
 This document defines the security boundary for `@agentplat/trust`, the Mesh
 Evidence ingress and the opt-in Inference Control Trust bindings. It complements

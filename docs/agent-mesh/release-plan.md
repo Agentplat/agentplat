@@ -68,6 +68,8 @@ Release evidence is tracked in the
 [Alpha 4 acceptance checklist](../trust/alpha-4-acceptance-checklist.md), and the
 security boundary is defined by the
 [Evidence and Trust threat model](../security/evidence-trust-threat-model.md).
+The independent review verdicts and exact normative commit are recorded in the
+[Alpha 4 design review](../trust/alpha-4-design-review.md).
 
 ### `0.3.0-alpha.5`: adapters
 

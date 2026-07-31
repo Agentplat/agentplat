@@ -1,6 +1,6 @@
 # Evidence and Trust `0.3.0-alpha.4` acceptance checklist
 
-Status: design candidate. Implementation and release evidence are pending.
+Status: design frozen. Implementation and release evidence are pending.
 
 This checklist is the release contract for Alpha 4. A box is checked only when
 its evidence is reproducible from the reviewed public commit. Design items may
@@ -22,24 +22,24 @@ open until their corresponding transition is complete.
 
 ## Design freeze
 
-- [ ] implementation plan defines exact public scope and non-goals;
-- [ ] package boundaries preserve a pure `@agentplat/trust` root and explicit
+- [x] implementation plan defines exact public scope and non-goals;
+- [x] package boundaries preserve a pure `@agentplat/trust` root and explicit
       Mesh/Inference Control subpaths;
-- [ ] terminology uses only industry vocabulary and makes no global-truth,
+- [x] terminology uses only industry vocabulary and makes no global-truth,
       universal-reputation or universal-safety claim;
-- [ ] Evidence, Trust Profile, Fusion Decision, eligibility, quarantine and
+- [x] Evidence, Trust Profile, Fusion Decision, eligibility, quarantine and
       recovery are distinct contracts;
-- [ ] Trust can restrict an opt-in adapter but cannot create identity,
+- [x] Trust can restrict an opt-in adapter but cannot create identity,
       admission, permission, lease, epoch, fence or Action Grant authority;
-- [ ] signed Evidence is explicitly separated from Evidence correctness;
-- [ ] source independence is locally configured through dependency groups and
+- [x] signed Evidence is explicitly separated from Evidence correctness;
+- [x] source independence is locally configured through dependency groups and
       never inferred from identity count;
-- [ ] defaults remain observe-only with peer quarantine disabled;
-- [ ] threat model covers every new boundary, asset and adversarial assumption;
-- [ ] compatibility policy covers Alpha 1/2/3 API, wire, fixture, snapshot and
+- [x] defaults remain observe-only with peer quarantine disabled;
+- [x] threat model covers every new boundary, asset and adversarial assumption;
+- [x] compatibility policy covers Alpha 1/2/3 API, wire, fixture, snapshot and
       default behavior;
-- [ ] three independent design reviews finish with zero open P0/P1 findings;
-- [ ] design-review record links the reviewed commit and final verdicts.
+- [x] three independent design reviews finish with zero open P0/P1 findings;
+- [x] design-review record links the reviewed commit and final verdicts.
 
 ## Canonical foundation
 

@@ -1,8 +1,10 @@
 # Evidence and Trust `0.3.0-alpha.4` implementation plan
 
-Status: design candidate. No production implementation begins until this plan,
-the acceptance checklist and the threat model complete independent architecture,
-security and release-compatibility review with zero open P0 or P1 findings.
+Status: design frozen. The normative contracts at commit
+`e08e43beecf913e6e0a650c29625371ea1a29a4b` completed independent
+architecture, security and release-compatibility review with zero open P0, P1
+or P2 findings. Production implementation begins only after the design PR is
+merged.
 
 ## Objective
 
