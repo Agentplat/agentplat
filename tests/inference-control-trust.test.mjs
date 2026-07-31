@@ -18,6 +18,7 @@ import {
   actionDigest,
   scopeDigest,
 } from "../packages/inference-control/dist/tools.js";
+import { outboundMessageDigest } from "../packages/inference-control/dist/messages.js";
 
 const controlDigest = (digit) => `sha256:${digit.repeat(64)}`;
 const trustDigest = (digit) => digit.repeat(64);
@@ -81,11 +82,38 @@ const actionInput = Object.freeze({
   binding: { actionBindingId: "action-binding:one" },
   input: {},
   context: { tenant: { tenantId: "tenant:one" }, runId: "run:one" },
-  permit: { actionDigest: controlDigest("2") },
+  permit: {
+    actionDigest: controlDigest("2"),
+    scopeDigest: scopeDigest(scope),
+  },
+});
+const unsignedMessage = Object.freeze({
+  schemaVersion: 1,
+  messageId: "message:one",
+  runId: "run:one",
+  tenantId: "tenant:one",
+  channel: "channel:one",
+  recipient: "peer:two",
+  mediaType: "text",
+  content: "safe message",
+  scope,
+  idempotencyKey: "idempotency:message",
+});
+const message = Object.freeze({
+  ...unsignedMessage,
+  messageDigest: outboundMessageDigest(unsignedMessage),
 });
 const messageInput = Object.freeze({
-  message: { messageId: "message:one" },
-  permit: { messageDigest: controlDigest("2") },
+  message,
+  permit: {
+    messageDigest: message.messageDigest,
+    scopeDigest: scopeDigest(scope),
+  },
+});
+const messageTarget = Object.freeze({
+  ...target,
+  operation: "outbound_message",
+  targetDigest: message.messageDigest,
 });
 
 function actionDispatcher() {
@@ -133,7 +161,7 @@ test("restrict wrappers fail closed for unavailable, stale, mismatch, and quaran
     const message = wrapOutboundMessageDispatcherWithTrustV1(
       messageBase,
       integration(status),
-      () => ({ ...target, operation: "outbound_message" }),
+      () => messageTarget,
     );
     await assert.rejects(
       action.dispatch(actionInput),
@@ -145,6 +173,70 @@ test("restrict wrappers fail closed for unavailable, stale, mismatch, and quaran
     );
     assert.equal(actionBase.calls, 0, status);
     assert.equal(messageBase.calls, 0, status);
+  }
+});
+
+test("target mappers cannot substitute Action or Message operation, identity, scope, or context", async () => {
+  const actionMismatches = [
+    { label: "operation", target: { ...target, operation: "model" } },
+    {
+      label: "target",
+      target: { ...target, targetDigest: controlDigest("d") },
+    },
+    {
+      label: "scope",
+      target: { ...target, scopeDigest: controlDigest("e") },
+    },
+    { label: "tenant", target: { ...target, tenantId: "tenant:other" } },
+    { label: "run", target: { ...target, runId: "run:other" } },
+  ];
+  for (const mismatch of actionMismatches) {
+    const base = actionDispatcher();
+    const wrapped = wrapActionDispatcherWithTrustV1(
+      base,
+      integration("eligible", "observe"),
+      () => mismatch.target,
+    );
+    await assert.rejects(
+      wrapped.dispatch(actionInput),
+      /trust_eligibility_target_mismatch/,
+      mismatch.label,
+    );
+    assert.equal(base.calls, 0, mismatch.label);
+  }
+
+  const messageMismatches = [
+    {
+      label: "operation",
+      target: { ...messageTarget, operation: "action" },
+    },
+    {
+      label: "target",
+      target: { ...messageTarget, targetDigest: controlDigest("d") },
+    },
+    {
+      label: "scope",
+      target: { ...messageTarget, scopeDigest: controlDigest("e") },
+    },
+    {
+      label: "tenant",
+      target: { ...messageTarget, tenantId: "tenant:other" },
+    },
+    { label: "run", target: { ...messageTarget, runId: "run:other" } },
+  ];
+  for (const mismatch of messageMismatches) {
+    const base = messageDispatcher();
+    const wrapped = wrapOutboundMessageDispatcherWithTrustV1(
+      base,
+      integration("eligible", "observe"),
+      () => mismatch.target,
+    );
+    await assert.rejects(
+      wrapped.send(messageInput),
+      /trust_eligibility_target_mismatch/,
+      mismatch.label,
+    );
+    assert.equal(base.calls, 0, mismatch.label);
   }
 });
 
@@ -205,12 +297,10 @@ test("binding digests commit the real Action and Message dispatcher identities",
   );
   assert.notEqual(
     wrapOutboundMessageDispatcherWithTrustV1(messageOne, configured, () => ({
-      ...target,
-      operation: "outbound_message",
+      ...messageTarget,
     })).trustBindingDigest,
     wrapOutboundMessageDispatcherWithTrustV1(messageTwo, configured, () => ({
-      ...target,
-      operation: "outbound_message",
+      ...messageTarget,
     })).trustBindingDigest,
   );
   assert.equal(

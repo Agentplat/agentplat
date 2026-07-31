@@ -16,14 +16,17 @@ import type {
 } from "./types.js";
 import {
   actionDigest,
+  scopeDigest,
   type ActionBinding,
   type ActionDispatcher,
   type ActionGrant,
   type ActionScope,
 } from "./tools.js";
-import type {
-  OutboundMessageAttempt,
-  OutboundMessageDispatcher,
+import {
+  outboundMessageDigest,
+  type OutboundMessage,
+  type OutboundMessageAttempt,
+  type OutboundMessageDispatcher,
 } from "./messages.js";
 
 /**
@@ -396,6 +399,7 @@ export function wrapActionDispatcherWithTrustV1(
     trustBindingDigest: bindingDigest,
     dispatch: async (input: Parameters<ActionDispatcher["dispatch"]>[0]) => {
       const target = map(input);
+      assertActionEligibilityTargetBinding(target, input);
       requireOrObserveEligibility(snapshot, target, bindingDigest);
       return base.dispatch(input);
     },
@@ -424,6 +428,7 @@ export function wrapOutboundMessageDispatcherWithTrustV1(
     trustBindingDigest: bindingDigest,
     send: async (input: Parameters<OutboundMessageDispatcher["send"]>[0]) => {
       const target = map(input);
+      assertOutboundMessageEligibilityTargetBinding(target, input);
       requireOrObserveEligibility(snapshot, target, bindingDigest);
       return base.send(input);
     },
@@ -509,6 +514,43 @@ function createAcceptedOutcomeClaimCandidate(
     basisReferences: references,
     observedAt: input.observedAt,
   });
+}
+
+function assertActionEligibilityTargetBinding(
+  target: TrustEligibilityTargetV1,
+  input: Parameters<ActionDispatcher["dispatch"]>[0],
+): void {
+  if (
+    target.operation !== "action" ||
+    target.targetDigest !== input.permit.actionDigest ||
+    target.scopeDigest !== input.permit.scopeDigest ||
+    target.tenantId !== input.context.tenant.tenantId ||
+    target.runId !== input.context.runId
+  )
+    throw new Error("trust_eligibility_target_mismatch");
+}
+
+function assertOutboundMessageEligibilityTargetBinding(
+  target: TrustEligibilityTargetV1,
+  input: Parameters<OutboundMessageDispatcher["send"]>[0],
+): void {
+  const message = input.message;
+  const { messageDigest: declaredMessageDigest, ...unsignedMessage } = message;
+  const actualMessageDigest = outboundMessageDigest(
+    unsignedMessage as Omit<OutboundMessage, "messageDigest">,
+  );
+  const actualScopeDigest = scopeDigest(message.scope);
+  if (
+    target.operation !== "outbound_message" ||
+    target.targetDigest !== actualMessageDigest ||
+    target.scopeDigest !== actualScopeDigest ||
+    target.tenantId !== message.tenantId ||
+    target.runId !== message.runId ||
+    declaredMessageDigest !== actualMessageDigest ||
+    input.permit.messageDigest !== actualMessageDigest ||
+    input.permit.scopeDigest !== actualScopeDigest
+  )
+    throw new Error("trust_eligibility_target_mismatch");
 }
 
 function requireOrObserveEligibility(
