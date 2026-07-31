@@ -6,8 +6,9 @@ handshakes are complete, including the initial execution lifecycle for
 `work.progress`, `work.checkpoint`, `work.result`, `work.release` and
 `work.cancel`, and stateful bounded lease renewal/expiry is complete.
 Certified reassignment, recovery, deterministic fault injection and the nine
-resilience scenarios are complete. Release preparation and publication remain
-pending.
+resilience scenarios are complete. Increment 7 is complete:
+`0.3.0-alpha.2` was published as one coordinated 28-package set and tagged from
+the independently verified release commit.
 
 This plan turns the allocation and recovery milestone into reviewable,
 independently testable increments. It extends the four Agent Mesh packages
@@ -782,8 +783,9 @@ separately cover owner/observer/witness recipient authorization, accepted
 causal records, current authority/epoch/token/lease, checkpoint head and result
 uniqueness.
 
-The packed allocation/recovery consumer is complete. Reordered resilience and
-release gates remain pending.
+The packed allocation/recovery consumer, reordered resilience scenarios and
+release gates are complete; their reproducible evidence is recorded in the
+acceptance checklist.
 
 ### Increment 4: leases, epochs and fencing
 
@@ -857,8 +859,8 @@ and prove fencing occurs before any replacement activation.
 Exit criterion: a threshold can fence and reassign exactly the next epoch, while
 a minority cannot create execution authority. Met by
 `tests/mesh-recovery.test.mjs` test `expired witnessed work is fenced, recovered
-once, and resumes from its checkpoint`; simulation and release gates remain
-pending.
+once, and resumes from its checkpoint`; the simulation and release gates are
+also complete and recorded in the acceptance checklist.
 
 ### Increment 6: fault injection and resilience suite
 
@@ -887,17 +889,22 @@ epoch, authority and token. Missing or fabricated fences still fail closed.
 
 ### Increment 7: release preparation and publication
 
-- set the coordinated version only in the release candidate change;
-- update README, changelog, release channels and package documentation;
-- run the external terminology audit;
-- run the full clean build, type, test, pack and isolated-consumer gates;
-- publish under a commit-specific staging tag;
-- verify registry integrity before promoting all packages to `next`;
-- run one independent exact-version registry consumer;
-- tag the verified commit as `v0.3.0-alpha.2`.
+- [complete] set the coordinated version only in the release candidate change;
+- [complete] update README, changelog, release channels and package
+  documentation;
+- [complete] run the external terminology audit;
+- [complete] run the full clean build, type, test, pack and isolated-consumer
+  gates;
+- [complete] publish under a commit-specific staging tag;
+- [complete] verify registry integrity before promoting all packages to `next`;
+- [complete] run one independent exact-version registry consumer;
+- [complete] tag the verified commit as `v0.3.0-alpha.2`.
 
 Exit criterion: every cataloged package exposes integrity-verified Alpha 2
-artifacts and the public release record contains reproducible evidence.
+artifacts and the public release record contains reproducible evidence. Met by
+release commit `675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b`, the successful
+dry-run and publication workflows linked from the acceptance checklist, the
+28-package integrity ledger and annotated tag `v0.3.0-alpha.2`.
 
 ## Test strategy
 

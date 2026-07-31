@@ -10,7 +10,8 @@ cancellation; bounded lease renewal and deterministic expiry are complete.
 Certified reassignment is implemented through proposal, vote, certificate,
 fence, owner-issued recovery award and replacement acceptance. The closed
 fault model and all nine resilience scenarios are implemented and green.
-Release preparation and publication remain pending.
+Release preparation, coordinated publication, independent registry
+verification and release tagging are complete.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -23,10 +24,12 @@ Registry and Git mutations are checked only after independent verification.
 - Git tag: `v0.3.0-alpha.2`;
 - protocol: `agentplat.mesh`;
 - wire version: `0`;
-- package count: 28 unless the public catalog changes through separate review;
+- package count: 28;
 - compatibility baseline: `v0.3.0-alpha.1`;
-- release commit: not assigned;
-- publication timestamp: not assigned.
+- release commit:
+  [`675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b`](https://github.com/Agentplat/agentplat/commit/675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b);
+- coordinated publication completion: `2026-07-31T09:06:25Z`;
+- annotated tag object: `a6c325c9052cfdbdfa60040e15d6aa847aca8c56`.
 
 ## Design baseline
 
@@ -489,33 +492,159 @@ recovered once, and resumes from its checkpoint` exercises expiry plus grace,
 
 ## Public candidate gates
 
-- [ ] all cataloged manifests use fixed version `0.3.0-alpha.2`;
-- [ ] frozen install and lockfile verification pass;
-- [ ] public source, generated output and exact tarball audits pass;
-- [ ] build and public TypeScript checks pass;
-- [ ] unit, adapter, compatibility and security tests pass;
-- [ ] all deterministic fault scenarios pass with reported seeds;
-- [ ] every tarball passes content audit and isolated export import;
-- [ ] packed TypeScript declarations compile with library checking enabled;
-- [ ] packed allocation and recovery consumers pass;
-- [ ] unchanged aggregate functional tarball consumer passes;
-- [ ] external terminology gate passes with its required non-empty private
+- [x] all cataloged manifests use fixed version `0.3.0-alpha.2`;
+- [x] frozen install and lockfile verification pass;
+- [x] public source, generated output and exact tarball audits pass;
+- [x] build and public TypeScript checks pass;
+- [x] unit, adapter, compatibility and security tests pass;
+- [x] all deterministic fault scenarios pass with reported seeds;
+- [x] every tarball passes content audit and isolated export import;
+- [x] packed TypeScript declarations compile with library checking enabled;
+- [x] packed allocation and recovery consumers pass;
+- [x] unchanged aggregate functional tarball consumer passes;
+- [x] external terminology gate passes with its required non-empty private
       denylist.
 
 ## Release-environment gates
 
-- [ ] use an approved npm publisher or Trusted Publishing workflow;
-- [ ] run from the reviewed commit on a clean `main` checkout;
-- [ ] record current `next` rollback targets for all packages;
-- [ ] complete the no-mutation publish dry run with `NPM_DIST_TAG=next`;
-- [ ] confirm the candidate is absent or registry-equivalent for every package;
-- [ ] publish missing packages under the commit-specific staging tag;
-- [ ] verify SHA-512 registry integrity for every package;
-- [ ] promote the complete coordinated package set to `next`;
-- [ ] remove candidate staging tags only after complete promotion;
-- [ ] install exact versions in an independent clean registry consumer;
-- [ ] create and push `v0.3.0-alpha.2` at the verified release commit;
-- [ ] record workflow URL, commit, publication time and registry evidence.
+- [x] use a repository-scoped npm publisher credential or Trusted Publishing
+      workflow;
+- [x] run from the reviewed commit on a clean `main` checkout;
+- [x] record current `next` rollback targets for all packages;
+- [x] complete the no-mutation publish dry run with `NPM_DIST_TAG=next`;
+- [x] confirm the candidate is absent or registry-equivalent for every package;
+- [x] publish missing packages under the commit-specific staging tag;
+- [x] verify SHA-512 registry integrity for every package;
+- [x] promote the complete coordinated package set to `next`;
+- [x] remove candidate staging tags only after complete promotion;
+- [x] install exact versions in an independent clean registry consumer;
+- [x] create and push `v0.3.0-alpha.2` at the verified release commit;
+- [x] record workflow URL, commit, publication time and registry evidence.
+
+## Release evidence
+
+### Reviewed changes
+
+- resilience implementation and verification:
+  [PR #33](https://github.com/Agentplat/agentplat/pull/33), merged as
+  `7e82719b6923bf2d320c6c411890e9edc6918b62`;
+- release candidate and coordinated publisher:
+  [PR #34](https://github.com/Agentplat/agentplat/pull/34), merged as
+  `b4e55e3c51a3cc9324eb8877814533284b6d240f`;
+- credential-isolated pack verification:
+  [PR #35](https://github.com/Agentplat/agentplat/pull/35), merged as release
+  commit
+  [`675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b`](https://github.com/Agentplat/agentplat/commit/675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b).
+
+The release workflow runs from a clean `main` checkout, pins its third-party
+actions by commit and exposes the npm credential only to the real publication
+step. Credential-free install, audit, check, dry-run and exact-version consumer
+steps use an isolated npm configuration. The repository's `NPM_TOKEN` secret
+supplied the publisher credential; no secret value is present in this record.
+
+### Candidate and no-mutation dry-run
+
+The successful
+[no-mutation dry-run](https://github.com/Agentplat/agentplat/actions/runs/30618157350)
+ran as `douglas-grishen` against release commit
+`675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b` from
+`2026-07-31T08:57:45Z` through `2026-07-31T09:00:29Z`.
+
+- the non-empty private external-terminology denylist was available to the
+  audit without exposing its contents;
+- the unit suite completed 364 test entries: 358 passed, six remained explicit
+  TODO entries and zero failed; the adapter suites completed 13 tests, left two
+  environment-gated integration tests skipped and had zero failures;
+- pack verification produced 28 exact-version tarballs and validated 32
+  package export paths, packed declarations, signed three-peer delivery,
+  allocation and recovery fencing, and the aggregate functional consumer;
+- the workflow recorded `0.3.0-alpha.1` as the `next` rollback target for all
+  28 packages;
+- the candidate version was absent for all 28 packages before publication;
+- the dry-run simulated publication and promotion under
+  `agentplat-stage-675ad40e5c3e` and completed without registry mutation;
+- a separate credential-free registry check immediately afterward confirmed
+  all 28 `next` tags still targeted `0.3.0-alpha.1`, the candidate remained
+  absent and no package retained a staging tag.
+
+An earlier credential-free preflight stopped before publication when inherited
+npm configuration required an unavailable credential. PR #35 isolated that
+configuration; the successful execution above is the canonical dry-run. No
+registry or Git mutation occurred in the stopped preflight.
+
+### Coordinated publication and clean consumer
+
+The successful
+[publication workflow](https://github.com/Agentplat/agentplat/actions/runs/30618368153)
+ran as `douglas-grishen` against the same release commit from
+`2026-07-31T09:01:07Z` through `2026-07-31T09:06:32Z`.
+
+- it re-ran the full audit and candidate gate before accessing the publisher
+  credential;
+- at `2026-07-31T09:03:37Z` it recorded all 28 rollback targets as
+  `0.3.0-alpha.1`;
+- it published all 28 packages under `agentplat-stage-675ad40e5c3e`; the npm
+  uploads completed from `2026-07-31T09:03:38.817Z` through
+  `2026-07-31T09:04:27.103Z`;
+- it read each published version's registry integrity metadata and matched it
+  to the locally packed tarball's SHA-512;
+- only after the coordinated set passed did it promote every package to
+  `next`;
+- it removed all 28 commit-specific staging tags after complete promotion and
+  reported the coordinated publication at `2026-07-31T09:06:25.642Z`;
+- an independent clean consumer installed and exercised four exact registry
+  packages at `0.3.0-alpha.2`, completing at
+  `2026-07-31T09:06:29.080Z`.
+
+### Independent registry and Git verification
+
+A separate credential-free registry check after publication confirmed that all
+28 cataloged packages expose `next=0.3.0-alpha.2`, every published package
+version has valid SHA-512 integrity metadata and no staging tag remains. The
+ordered integrity ledger below has SHA-256 digest
+`552feb184d9bdf416994d424fc666716afbad56962fbe0fffd33314b38fa84fb`:
+
+This result is reproducible without credentials by querying `dist.integrity`
+and `dist-tags` from the public npm registry for every publishable entry in
+`config/public-packages.json`, sorting by package name and hashing the
+newline-terminated ledger.
+
+```text
+@agentplat/audit=sha512-ux9asN9J5xc06zgc9SvZpf19fJMTFif4nwIkQ0YGo+YhzIBPrKdKYRZPcz9uV02pK6WoDpOpuQLez4RWhiZw+g==
+@agentplat/audit-postgres=sha512-k1TKs0jT3ohrgmXfsily1P+UHCVY1c4wAC1s1lG4b0TUomRpTedIbsDAcGohUIMZ0369SrDFXHr41VTzFpgJRQ==
+@agentplat/auth=sha512-Ea0BT3CzkobC33hpfC8I88LxIu+S3kMfm0em63YTkRbQoLE+xZ4tAsHnVsdKyrhL5Y9X2b1eDReaC0ydnV5w7g==
+@agentplat/core=sha512-S11rHgUQDIeeORMC1RRknHCIqbiTORNjmJIRrwhQzrSHLJkKHryM/H60m0nbEbS8/kLZBhse00mgHS9NZbDcJQ==
+@agentplat/events=sha512-zagRiBBhyCGG2Nj2jRenscsOfw8rz3igoLtsuPJB1tdFMefkw/G5LBVc6XEZ2V177W++MKqki3WAFpBzeVmUnw==
+@agentplat/framework=sha512-uLB0A3L7nSI1+5lISL7haOXMKqOiBQdAal7ZqNRFJzi3Ox3LLG5T34BWZl66RkSH4QUP88X5Pd0YD1AJxrSK8Q==
+@agentplat/mcp=sha512-/54BkzqhKggfU7oHr62701hV7Fqxr0zWY0xgilCGyxbcqsu8a3+fopKg4lV3VaestIiMiLx6Yl9Luc8X4ao/fg==
+@agentplat/memory=sha512-RmR+GEQKEUPsx0WJlZxfzbmxER5kd54y74FKFSZSoFgb64hL+DK4275zsNdTsFkh5IE2kZhVMX4GzzF5XcjQtg==
+@agentplat/mesh=sha512-NhNFWJxkYB+GS8bnF800rZG2iXGlBbKnpAlbSSBZKin1H2c4z/qAEZB6msESsYI5rIFbQ8xWWyMUUGOxPdAdfw==
+@agentplat/mesh-crypto=sha512-jTw3680j9WAng9CwMeDffPnToVccPEWdRwA4a59IYVgztVvD/GC4nZoqGQZRYW8D3DQdxmUk2kYBYIC4Y+prqA==
+@agentplat/mesh-protocol=sha512-MPDK80lGayQnkxyzTrgC2EumjkQa9jV01ESwGpIurijoXAaNH0usNtIpxfrH8Ec+yUuiw5kSM9RnXutQ5sOr4Q==
+@agentplat/mesh-sim=sha512-RNe3TLgG41QFZqarR7PaKbBNleKj3SPrta7wVnGRlfwyrdSByA2d7tsULMPE+zhxQ/SjJE42XZOE0QC573+HAA==
+@agentplat/model=sha512-uenMGuxJZrgEU25N6wOz2NyaMoO6tb3f6yUg5tiemCtxPmx+DDHpcLhTmFjp4fn0QxAtSyLPfl8l3hzlHQwabQ==
+@agentplat/model-anthropic=sha512-2G8sAfsKaVQAoJn8TtoRWkO7OB5UfT9g01n15D0H86AlZ5DMfv7iBzMh2DiNZPrPAOYs7NOkaX8HsQAQ73jHag==
+@agentplat/model-gemini=sha512-413SswLxbxZISkEAbxLV0uJvh5HFHMN5oqJifrgGrs4lX1YBLGFzWpf5PNcEByJGVA7BpTCCltFQSRbnUO1EOw==
+@agentplat/model-openai-compatible=sha512-P+98R1Tazy++5UQwJUQZELhiDsD6zuWHeOP7PSjglkuyO2jp2LDIrp/QVdCfimDP6NumBIZ7mFknaKwFVHPPbw==
+@agentplat/postgres=sha512-FMx9AUN61hFqkPRfOmF8O37asc35IhGPT7AamZ2wonPbOn0zhhTvwpJmOlZcw6O+hPWGudgDbEEbuY3Wu25laQ==
+@agentplat/provider-openai=sha512-ue1IJfrrw+m+zW/YuoheShTFK46nE1CkLeoOjZhQUVFky2O9R5jZoyULoP2vQPGAbtGljjEWKPxx7g+UhH31vA==
+@agentplat/rooms=sha512-V3QlrR6aT+jN6UapHdTWB1ui3FPJdSgTGxYMiUcLWX0bxB5dRJ0WEAwM6RwYhzOtj7l74Cu7OatSdazXVbA2Mg==
+@agentplat/rooms-api=sha512-3BlPZzVjOV+lm0HdG0xhHvhM39bigpTWHcCYpO6BnDPTPu5cOA8aTvH2gbxkHq+IMFAZkgTTSlmaz9mH/Orj9A==
+@agentplat/rooms-postgres=sha512-2oZq5SMk2Kygd5p19j/1C7CXwMmyDIH94CBGWURqxeL58GjSy07RuNfNniNJ4dDL/DPjhy/Xq0/YPCtRUPfXjw==
+@agentplat/runtime=sha512-ooRHjjVM5GVoiZwwkzLCi2IT8j66314TFBz/s4vxL0S2GzoTiqe3Jj43bB0nMdQSV7z26vszpg2SqwcdrA+l7g==
+@agentplat/runtime-mock=sha512-lRsw7dLa9JxmSTLxX6CiWIDH1Ppyk8iFDUAGa1Lhp7ZKoEk+dMW+yiTgKSIx+QKPXWfMppc9xSzQGkgr6cNd2w==
+@agentplat/sessions=sha512-UbtjVdM4Aa0UxsHQucG7YcAJiRqnrZPPWF999khT6A3axSLa9lt2MKZVId9zOvAJ36gt40k/8hm0iQbTxUrbVQ==
+@agentplat/sessions-redis=sha512-1dxkraPZNK2i65AUd+5bV1Jk5+Icn7g49jfhtV4gE568xAQjqHDDeYk8qnkP10rn3l2DpQ6dov+kA/NgeACuRg==
+@agentplat/streaming=sha512-WpaL2fpqfwf1xPgARiosgYG8/D4xGrnlZ0pXjBwKY1IX9iFRH0Cl0pO3lxUa26AWOD94yAdw2QtKzXl4NE7npA==
+@agentplat/tools=sha512-m9CG2KnW/CRmgUQ9mGjFK1Um1z576lNuXhqG9XbvzdLuZQVtn5RV7uy+M9BoCu1t9txTj50IkAXdS6OAkQkwRw==
+@agentplat/workflows=sha512-EV/GvJdfu0kIJGTqSZNK3phcDWhcqaDjq41EYGj17IbE/UDc3WJrhcwSlj27ljYbEIXo5qFUcLd5pXDl2Gmoow==
+```
+
+The annotated
+[`v0.3.0-alpha.2`](https://github.com/Agentplat/agentplat/releases/tag/v0.3.0-alpha.2)
+tag was created at `2026-07-31T09:07:24Z`. Tag object
+`a6c325c9052cfdbdfa60040e15d6aa847aca8c56` peels to the independently verified
+release commit `675ad40e5c3e2fc4eb1c5a7131db4893f076bc8b`.
 
 ## Definition of accepted
 
