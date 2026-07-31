@@ -62,6 +62,15 @@ The design-freeze evidence is recorded in the
 - decay, contradiction, scoped quarantine and recovery;
 - adversarial and collusion scenarios with documented assumptions.
 
+The detailed scope, deterministic Fusion contract and implementation increments
+are in the [Alpha 4 implementation plan](../trust/alpha-4-implementation-plan.md).
+Release evidence is tracked in the
+[Alpha 4 acceptance checklist](../trust/alpha-4-acceptance-checklist.md), and the
+security boundary is defined by the
+[Evidence and Trust threat model](../security/evidence-trust-threat-model.md).
+The independent review verdicts and exact normative commit are recorded in the
+[Alpha 4 design review](../trust/alpha-4-design-review.md).
+
 ### `0.3.0-alpha.5`: adapters
 
 - reference HTTP transport;
