@@ -19,16 +19,25 @@ import {
 
 import type {
   MeshCoordinationInboundReplayWindow,
+  MeshCoordinationInboundState,
   MeshDiscoveryInboundDecision,
   MeshDiscoveryInboundProcessor,
   MeshDiscoveryInboundProcessorOptions,
   MeshDiscoveryInboundRejectionCode,
   MeshDiscoveryInboundRequest,
   MeshDiscoveryInboundRuntimeState,
+  MeshObjectiveInboundDecision,
+  MeshObjectiveInboundProcessor,
+  MeshObjectiveInboundProcessorOptions,
+  MeshObjectiveInboundRejectionCode,
+  MeshObjectiveInboundRequest,
+  MeshObjectiveInboundRuntimeState,
 } from './coordination-inbound-contracts.js';
 import {
   assertFrozenMeshCoordinationInboundState,
   createMeshDiscoveryInboundRuntimeState,
+  createMeshObjectiveInboundRuntimeState,
+  synchronizeMeshObjectiveLogicalTime,
 } from './coordination-inbound-state.js';
 import type {
   MeshDiscoveryPayload,
@@ -36,6 +45,14 @@ import type {
 } from './coordination-discovery-contracts.js';
 import { evaluateVerifiedMeshDiscoveryEnvelope } from './coordination-discovery.js';
 import { createMeshDiscoveryRuntimeState } from './coordination-discovery-state.js';
+import type {
+  MeshObjectivePayload,
+  MeshObjectiveWorkRejectionCode,
+} from './coordination-objective-work-contracts.js';
+import {
+  createMeshObjectiveWorkRuntimeState,
+  evaluateVerifiedMeshObjectiveEnvelope,
+} from './coordination-objective-work.js';
 import {
   assertMeshLogicalTime,
   createFrozenRecord,
@@ -67,6 +84,16 @@ interface TrustedInboundConfiguration {
   readonly protocolOptions?: MeshProtocolOptions;
   readonly supportedCriticalExtensions?: readonly string[];
 }
+
+interface TrustedObjectiveDecisionBinding {
+  readonly state: MeshObjectiveInboundRuntimeState;
+  readonly request: MeshObjectiveInboundRequest;
+}
+
+const trustedObjectiveDecisionBindings = new WeakMap<
+  object,
+  TrustedObjectiveDecisionBinding
+>();
 
 /**
  * Binds local trust dependencies once, outside the remote-message path.
@@ -112,6 +139,76 @@ export function createMeshDiscoveryInboundProcessor(
       request: MeshDiscoveryInboundRequest
     ) => processMeshDiscoveryEnvelope(state, request, configuration),
   });
+}
+
+/** Binds local trust dependencies once, outside the Objective message path. */
+export function createMeshObjectiveInboundProcessor(
+  options: MeshObjectiveInboundProcessorOptions
+): MeshObjectiveInboundProcessor {
+  assertProcessorOptions(options);
+  const resolve = options.resolver.resolve.bind(options.resolver);
+  const crypto = snapshotCrypto(options.crypto);
+  const configuration: TrustedInboundConfiguration = Object.freeze({
+    resolver: Object.freeze({ resolve }),
+    cryptoPolicy: Object.freeze({
+      allowedAlgorithms: Object.freeze([
+        ...options.cryptoPolicy.allowedAlgorithms,
+      ]),
+    }),
+    crypto,
+    ...(options.protocolOptions === undefined
+      ? {}
+      : {
+          protocolOptions: Object.freeze({
+            ...(options.protocolOptions.limits === undefined
+              ? {}
+              : {
+                  limits: Object.freeze({
+                    ...options.protocolOptions.limits,
+                  }),
+                }),
+          }),
+        }),
+    ...(options.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...options.supportedCriticalExtensions,
+          ]),
+        }),
+  });
+  return Object.freeze({
+    process: async (
+      state: MeshObjectiveInboundRuntimeState,
+      request: MeshObjectiveInboundRequest
+    ) => {
+      const decision = await processMeshObjectiveEnvelope(
+        state,
+        request,
+        configuration
+      );
+      trustedObjectiveDecisionBindings.set(
+        decision,
+        Object.freeze({ state, request })
+      );
+      return decision;
+    },
+  });
+}
+
+/**
+ * Package-internal attestation used by the reference topic driver. It prevents
+ * a processor wrapper from substituting a decision produced for different
+ * state or input while keeping the public decision contract serializable.
+ */
+export function isTrustedMeshObjectiveInboundDecision(
+  decision: unknown,
+  state: MeshObjectiveInboundRuntimeState,
+  request: MeshObjectiveInboundRequest
+): decision is MeshObjectiveInboundDecision {
+  if (!decision || typeof decision !== 'object') return false;
+  const binding = trustedObjectiveDecisionBindings.get(decision);
+  return binding?.state === state && binding.request === request;
 }
 
 /**
@@ -235,7 +332,11 @@ async function processMeshDiscoveryEnvelope(
   );
   if (authorityFailure) return rejection(state, authorityFailure);
 
-  const replay = advanceReplayState(state, verifiedEnvelope, receivedAt);
+  const replay = advanceReplayState(
+    state.inbound,
+    verifiedEnvelope,
+    receivedAt
+  );
   if ('code' in replay) return rejection(state, replay.code);
   const replayRuntime = createMeshDiscoveryInboundRuntimeState(
     state.coordination,
@@ -270,6 +371,240 @@ async function processMeshDiscoveryEnvelope(
     verifiedEnvelope,
     projection.duplicate
   );
+}
+
+/**
+ * Authenticates one signed Objective envelope before admission, replay and
+ * projection. Rejections after replay admission retain only security state.
+ */
+async function processMeshObjectiveEnvelope(
+  state: MeshObjectiveInboundRuntimeState,
+  request: MeshObjectiveInboundRequest,
+  configuration: TrustedInboundConfiguration
+): Promise<MeshObjectiveInboundDecision> {
+  assertObjectiveRuntimeState(state);
+  assertObjectiveRequest(request);
+
+  const receivedAt = request.receivedAt;
+  const verifiedAt = request.verifiedAt;
+  assertMeshLogicalTime(receivedAt);
+  if (
+    receivedAt <
+    Math.max(
+      state.coordination.lastLogicalTime,
+      state.discovery.lastLogicalTime,
+      state.objectives.lastLogicalTime,
+      state.inbound.lastLogicalTime
+    )
+  ) {
+    return objectiveRejection(state, 'logical_time_regressed');
+  }
+
+  const context = validateMeshEnvelopeContext(
+    request.envelope,
+    {
+      tenantId: state.discovery.identity.tenantId,
+      meshId: state.discovery.identity.meshId,
+      peerId: state.discovery.identity.peerId,
+      receivedAt: verifiedAt,
+      subscribedTopics: state.discovery.subscriptions,
+      ...(configuration.supportedCriticalExtensions === undefined
+        ? {}
+        : {
+            supportedCriticalExtensions:
+              configuration.supportedCriticalExtensions,
+          }),
+    },
+    configuration.protocolOptions
+  );
+  if (!context.ok) {
+    return objectiveRejection(
+      state,
+      objectiveContextRejection(
+        context.issues[0]?.code,
+        request.envelope,
+        state.discovery.subscriptions
+      )
+    );
+  }
+  const contextualEnvelope = context.value;
+  const familyFailure = validateObjectiveFamily(contextualEnvelope);
+  if (familyFailure) return objectiveRejection(state, familyFailure);
+
+  let verification: MeshVerificationResult | undefined;
+  try {
+    verification = await verifyMeshEnvelope({
+      envelope: contextualEnvelope,
+      resolver: configuration.resolver,
+      policy: configuration.cryptoPolicy,
+      verifiedAt,
+      crypto: configuration.crypto,
+      protocolOptions: configuration.protocolOptions,
+    });
+  } catch {
+    return objectiveRejection(state, 'crypto_operation_failed');
+  }
+
+  let verifiedEnvelope: VerifiedMeshEnvelope<MeshObjectivePayload>;
+  try {
+    if (
+      !verification ||
+      typeof verification !== 'object' ||
+      verification.verified !== true
+    ) {
+      const code =
+        verification?.verified === false &&
+        cryptoRejectionCodes.has(verification.code)
+          ? verification.code
+          : 'crypto_operation_failed';
+      return objectiveRejection(state, code);
+    }
+    const rebound = validateMeshEnvelopeContext(
+      verification.envelope,
+      {
+        tenantId: state.discovery.identity.tenantId,
+        meshId: state.discovery.identity.meshId,
+        peerId: state.discovery.identity.peerId,
+        receivedAt: verifiedAt,
+        subscribedTopics: state.discovery.subscriptions,
+        ...(configuration.supportedCriticalExtensions === undefined
+          ? {}
+          : {
+              supportedCriticalExtensions:
+                configuration.supportedCriticalExtensions,
+            }),
+      },
+      configuration.protocolOptions
+    );
+    if (
+      !rebound.ok ||
+      !sameCanonicalEnvelope(
+        contextualEnvelope,
+        rebound.value,
+        configuration.protocolOptions
+      )
+    ) {
+      return objectiveRejection(state, 'crypto_operation_failed');
+    }
+    verifiedEnvelope =
+      rebound.value as VerifiedMeshEnvelope<MeshObjectivePayload>;
+  } catch {
+    return objectiveRejection(state, 'crypto_operation_failed');
+  }
+
+  const admissionFailure = validateObjectiveAdmission(
+    state,
+    verifiedEnvelope,
+    verifiedAt
+  );
+  if (admissionFailure) return objectiveRejection(state, admissionFailure);
+  const authorityFailure = validateObjectiveIssuerAuthority(
+    state,
+    verifiedEnvelope,
+    verifiedAt
+  );
+  if (authorityFailure) return objectiveRejection(state, authorityFailure);
+
+  const replay = advanceReplayState(
+    state.inbound,
+    verifiedEnvelope,
+    receivedAt
+  );
+  if ('code' in replay) return objectiveRejection(state, replay.code);
+  const replayRuntime = createMeshObjectiveInboundRuntimeState(
+    state.coordination,
+    state.discovery,
+    state.objectives,
+    replay.inbound
+  );
+  const projection = evaluateVerifiedMeshObjectiveEnvelope(
+    createMeshObjectiveWorkRuntimeState(
+      state.coordination,
+      state.discovery,
+      synchronizeMeshObjectiveLogicalTime(
+        state.objectives,
+        state.coordination.lastLogicalTime
+      )
+    ),
+    {
+      envelope: verifiedEnvelope,
+      verifiedAt,
+      receivedAt,
+      ...(configuration.supportedCriticalExtensions === undefined
+        ? {}
+        : {
+            supportedCriticalExtensions:
+              configuration.supportedCriticalExtensions,
+          }),
+    }
+  );
+  if (!projection.accepted)
+    return objectiveRejection(replayRuntime, projection.code);
+  return objectiveAcceptance(
+    createMeshObjectiveInboundRuntimeState(
+      projection.state.coordination,
+      projection.state.discovery,
+      projection.state.objectives,
+      replay.inbound
+    ),
+    verifiedEnvelope,
+    projection.duplicate
+  );
+}
+
+function validateObjectiveFamily(
+  envelope: SignedMeshEnvelope
+): MeshObjectiveInboundRejectionCode | undefined {
+  const payload = envelope.payload;
+  if (
+    payload.type !== 'objective.announce' &&
+    payload.type !== 'objective.revise' &&
+    payload.type !== 'objective.cancel'
+  ) {
+    return 'unsupported_message_type';
+  }
+  if (
+    envelope.audience.kind === 'mesh' &&
+    envelope.audience.topic !== 'objective'
+  ) {
+    return 'audience_mismatch';
+  }
+  return payload.type !== 'objective.cancel' &&
+    envelope.sender.peerId !== payload.issuerPeerId
+    ? 'issuer_not_authorized'
+    : undefined;
+}
+
+function validateObjectiveAdmission(
+  state: MeshObjectiveInboundRuntimeState,
+  envelope: VerifiedMeshEnvelope<MeshObjectivePayload>,
+  verifiedAt: string
+): MeshObjectiveInboundRejectionCode | undefined {
+  const admission = state.discovery.admittedPeers[envelope.sender.peerId];
+  if (!admission) return 'sender_not_admitted';
+  if (!admission.instanceIds.includes(envelope.sender.instanceId)) {
+    return 'sender_instance_not_admitted';
+  }
+  const expiry = compareMeshTimestamps(verifiedAt, admission.validUntil);
+  return !expiry.ok || expiry.value >= 0
+    ? 'sender_admission_expired'
+    : undefined;
+}
+
+function validateObjectiveIssuerAuthority(
+  state: MeshObjectiveInboundRuntimeState,
+  envelope: VerifiedMeshEnvelope<MeshObjectivePayload>,
+  verifiedAt: string
+): MeshObjectiveInboundRejectionCode | undefined {
+  const authority = state.objectives.issuerAuthorities[envelope.sender.peerId];
+  if (!authority) return 'issuer_not_authorized';
+  if (!authority.keyIds.includes(envelope.proof.keyId)) {
+    return 'issuer_key_not_authorized';
+  }
+  const expiry = compareMeshTimestamps(verifiedAt, authority.validUntil);
+  return !expiry.ok || expiry.value >= 0
+    ? 'issuer_authority_expired'
+    : undefined;
 }
 
 function validateDiscoveryFamily(
@@ -345,22 +680,26 @@ function validateAdmissionAndOwnership(
 }
 
 function advanceReplayState(
-  state: MeshDiscoveryInboundRuntimeState,
-  envelope: VerifiedMeshEnvelope<MeshDiscoveryPayload>,
+  inbound: MeshCoordinationInboundState,
+  envelope: VerifiedMeshEnvelope,
   receivedAt: number
 ):
-  | { readonly inbound: MeshDiscoveryInboundRuntimeState['inbound'] }
-  | { readonly code: MeshDiscoveryInboundRejectionCode } {
-  const retainedIds = recordEntries(state.inbound.messageIds).filter(
+  | { readonly inbound: MeshCoordinationInboundState }
+  | {
+      readonly code:
+        | 'message_replayed'
+        | 'sequence_outside_window'
+        | 'replay_capacity_exceeded';
+    } {
+  const retainedIds = recordEntries(inbound.messageIds).filter(
     ([, expiresAt]) => expiresAt > receivedAt
   );
   if (retainedIds.some(([messageId]) => messageId === envelope.messageId)) {
     return { code: 'message_replayed' };
   }
   if (
-    retainedIds.length >= state.inbound.limits.maximumTrackedMessageIds ||
-    receivedAt >
-      Number.MAX_SAFE_INTEGER - state.inbound.limits.messageIdRetentionMs
+    retainedIds.length >= inbound.limits.maximumTrackedMessageIds ||
+    receivedAt > Number.MAX_SAFE_INTEGER - inbound.limits.messageIdRetentionMs
   ) {
     return { code: 'replay_capacity_exceeded' };
   }
@@ -369,11 +708,10 @@ function advanceReplayState(
     envelope.sender.peerId,
     envelope.sender.instanceId,
   ]);
-  const current = state.inbound.replay[replayKey];
+  const current = inbound.replay[replayKey];
   if (
     !current &&
-    Object.keys(state.inbound.replay).length >=
-      state.inbound.limits.maximumReplayWindows
+    Object.keys(inbound.replay).length >= inbound.limits.maximumReplayWindows
   ) {
     return { code: 'replay_capacity_exceeded' };
   }
@@ -389,21 +727,19 @@ function advanceReplayState(
     nextWindow = Object.freeze({
       highestSequence: envelope.sequence,
       seenOffsets: Object.freeze(
-        advance >= state.inbound.limits.replayWindowSize
+        advance >= inbound.limits.replayWindowSize
           ? [0]
           : [
               0,
               ...current.seenOffsets
                 .map((offset) => offset + advance)
-                .filter(
-                  (offset) => offset < state.inbound.limits.replayWindowSize
-                ),
+                .filter((offset) => offset < inbound.limits.replayWindowSize),
             ]
       ),
     });
   } else {
     const offset = current.highestSequence - envelope.sequence;
-    if (offset >= state.inbound.limits.replayWindowSize) {
+    if (offset >= inbound.limits.replayWindowSize) {
       return { code: 'sequence_outside_window' };
     }
     if (current.seenOffsets.includes(offset)) {
@@ -419,19 +755,14 @@ function advanceReplayState(
 
   return {
     inbound: Object.freeze({
-      ...state.inbound,
+      ...inbound,
       replay: createFrozenRecord([
-        ...recordEntries(state.inbound.replay).filter(
-          ([key]) => key !== replayKey
-        ),
+        ...recordEntries(inbound.replay).filter(([key]) => key !== replayKey),
         [replayKey, nextWindow],
       ]),
       messageIds: createFrozenRecord([
         ...retainedIds,
-        [
-          envelope.messageId,
-          receivedAt + state.inbound.limits.messageIdRetentionMs,
-        ],
+        [envelope.messageId, receivedAt + inbound.limits.messageIdRetentionMs],
       ]),
       lastLogicalTime: receivedAt,
     }),
@@ -543,6 +874,28 @@ function contextRejection(
   }
 }
 
+function objectiveContextRejection(
+  code: MeshProtocolErrorCode | undefined,
+  envelope: SignedMeshEnvelope<MeshObjectivePayload>,
+  subscriptions: readonly MeshAudienceTopic[]
+): MeshObjectiveInboundRejectionCode {
+  switch (code) {
+    case 'scope_mismatch':
+      return 'scope_mismatch';
+    case 'invalid_audience':
+      return envelope.audience.kind === 'mesh' &&
+        !subscriptions.includes('objective')
+        ? 'topic_not_subscribed'
+        : 'audience_mismatch';
+    case 'message_expired':
+    case 'message_from_future':
+    case 'unknown_critical_extension':
+      return code;
+    default:
+      return 'invalid_envelope';
+  }
+}
+
 function acceptance(
   state: MeshDiscoveryInboundRuntimeState,
   envelope: VerifiedMeshEnvelope<MeshDiscoveryPayload>,
@@ -560,6 +913,21 @@ function rejection(
   state: MeshDiscoveryInboundRuntimeState,
   code: MeshDiscoveryInboundRejectionCode | MeshDiscoveryRejectionCode
 ): MeshDiscoveryInboundDecision {
+  return Object.freeze({ accepted: false, code, state });
+}
+
+function objectiveAcceptance(
+  state: MeshObjectiveInboundRuntimeState,
+  envelope: VerifiedMeshEnvelope<MeshObjectivePayload>,
+  duplicate: boolean
+): MeshObjectiveInboundDecision {
+  return Object.freeze({ accepted: true, duplicate, envelope, state });
+}
+
+function objectiveRejection(
+  state: MeshObjectiveInboundRuntimeState,
+  code: MeshObjectiveInboundRejectionCode | MeshObjectiveWorkRejectionCode
+): MeshObjectiveInboundDecision {
   return Object.freeze({ accepted: false, code, state });
 }
 
@@ -587,6 +955,33 @@ function assertRuntimeState(state: MeshDiscoveryInboundRuntimeState): void {
   );
 }
 
+function assertObjectiveRuntimeState(
+  state: MeshObjectiveInboundRuntimeState
+): void {
+  if (
+    !state ||
+    typeof state !== 'object' ||
+    Object.getPrototypeOf(state) !== Object.prototype ||
+    !hasExactDataKeys(
+      state,
+      ['coordination', 'discovery', 'inbound', 'objectives'],
+      ['coordination', 'discovery', 'inbound', 'objectives']
+    ) ||
+    !Object.isFrozen(state)
+  ) {
+    throw new TypeError(
+      'Mesh Objective inbound runtime state must be immutable'
+    );
+  }
+  assertFrozenMeshCoordinationInboundState(state.inbound);
+  createMeshObjectiveInboundRuntimeState(
+    state.coordination,
+    state.discovery,
+    state.objectives,
+    state.inbound
+  );
+}
+
 function assertRequest(request: MeshDiscoveryInboundRequest): void {
   if (!request || typeof request !== 'object') {
     throw new TypeError('Mesh discovery inbound request is required');
@@ -601,6 +996,23 @@ function assertRequest(request: MeshDiscoveryInboundRequest): void {
     )
   ) {
     throw new TypeError('Invalid Mesh discovery inbound request');
+  }
+}
+
+function assertObjectiveRequest(request: MeshObjectiveInboundRequest): void {
+  if (!request || typeof request !== 'object') {
+    throw new TypeError('Mesh Objective inbound request is required');
+  }
+  const prototype = Object.getPrototypeOf(request);
+  if (
+    (prototype !== null && prototype !== Object.prototype) ||
+    !hasExactDataKeys(
+      request,
+      ['envelope', 'receivedAt', 'verifiedAt'],
+      ['envelope', 'receivedAt', 'verifiedAt']
+    )
+  ) {
+    throw new TypeError('Invalid Mesh Objective inbound request');
   }
 }
 

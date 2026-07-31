@@ -601,8 +601,24 @@ collisions fail closed, the generic coordination timer evaluator refuses
 Objective/Work workflow-owned timers, and exact nanosecond timestamp
 differences round up to logical milliseconds.
 
-Authenticated Objective ingress, shared discovery/Objective replay accounting
-and bounded Objective topic delivery remain in the next Increment 2 sub-slice.
+The authenticated Objective ingress sub-slice is implemented. It composes four
+immutable identity-aligned snapshots (coordination, discovery, Objective and
+inbound security) and shares the non-evictable replay/message-ID state with
+discovery. The Objective projection may lag a discovery-only logical-time
+advance; the processor creates an ephemeral clock-aligned view before Objective
+evaluation without rewriting that projection. For each Objective message,
+processing orders context checks, cryptographic verification, exact admission
+and issuer authority, replay accounting, then the domain transition. A
+post-replay domain rejection retains normal replay security accounting but does
+not change the Objective projection.
+
+The bounded Objective topic delivery sub-slice is also implemented as an
+explicit in-memory reference driver. It snapshots recipients from the sender's
+local active Peer View, joins only registered routes for exact current peer
+instances, atomically enqueues exact signed-envelope copies, and serializes
+delivery through construction-bound clocks and Objective inbound processors.
+Public receipts are intentionally coarse and detailed codes stay local. This
+driver supplies neither forwarding, a global membership view, nor durability.
 Budget reservation starts with the first offer, and concurrency enforcement
 starts with assignment, so those exit-criterion parts remain pending with
 allocation.

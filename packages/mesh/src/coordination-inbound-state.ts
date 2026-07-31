@@ -1,16 +1,20 @@
 import { DEFAULT_MESH_PROTOCOL_LIMITS } from '@agentplat/mesh-protocol';
 
-import type { MeshPeerIdentity } from './contracts.js';
+import type { MeshLogicalTime, MeshPeerIdentity } from './contracts.js';
 import type {
   MeshCoordinationInboundLimits,
   MeshCoordinationInboundReplayWindow,
   MeshCoordinationInboundState,
   MeshCoordinationInboundStateOptions,
   MeshDiscoveryInboundRuntimeState,
+  MeshObjectiveInboundRuntimeState,
 } from './coordination-inbound-contracts.js';
 import type { MeshDiscoveryState } from './coordination-discovery-contracts.js';
 import type { MeshCoordinationState } from './coordination-contracts.js';
+import type { MeshObjectiveWorkState } from './coordination-objective-work-contracts.js';
 import { createMeshDiscoveryRuntimeState } from './coordination-discovery-state.js';
+import { createMeshObjectiveWorkRuntimeState } from './coordination-objective-work.js';
+import { assertFrozenMeshObjectiveWorkState } from './coordination-objective-work-state.js';
 import {
   assertMeshLogicalTime,
   assertMeshMessageId,
@@ -145,6 +149,42 @@ export function createMeshDiscoveryInboundRuntimeState(
     }
   }
   return Object.freeze({ coordination, discovery, inbound });
+}
+
+/** Composes aligned core, discovery, Objective and inbound security snapshots. */
+export function createMeshObjectiveInboundRuntimeState(
+  coordination: MeshCoordinationState,
+  discovery: MeshDiscoveryState,
+  objectives: MeshObjectiveWorkState,
+  inbound: MeshCoordinationInboundState
+): MeshObjectiveInboundRuntimeState {
+  createMeshDiscoveryInboundRuntimeState(coordination, discovery, inbound);
+  assertFrozenMeshObjectiveWorkState(objectives);
+  if (objectives.lastLogicalTime > coordination.lastLogicalTime) {
+    throw new TypeError('Mesh Objective inbound snapshots are not aligned');
+  }
+  createMeshObjectiveWorkRuntimeState(
+    coordination,
+    discovery,
+    synchronizeMeshObjectiveLogicalTime(
+      objectives,
+      coordination.lastLogicalTime
+    )
+  );
+  return Object.freeze({ coordination, discovery, objectives, inbound });
+}
+
+/**
+ * Discovery can advance shared coordination time without mutating a separate
+ * Objective projection. The pure Objective evaluator requires an aligned view.
+ */
+export function synchronizeMeshObjectiveLogicalTime(
+  objectives: MeshObjectiveWorkState,
+  logicalTime: MeshLogicalTime
+): MeshObjectiveWorkState {
+  return objectives.lastLogicalTime === logicalTime
+    ? objectives
+    : Object.freeze({ ...objectives, lastLogicalTime: logicalTime });
 }
 
 function validateSnapshot(snapshot: unknown): {

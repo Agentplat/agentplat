@@ -44,13 +44,20 @@ positive sub-millisecond remainders up to one logical millisecond. Timer-ID
 collisions fail closed; the generic coordination timer evaluator refuses
 workflow-owned Objective expiry and Work deadline timers.
 
-The Increment 1 topic driver is a new explicit coordination-subpath API. It is
-a bounded in-memory reference driver with construction-bound clocks and inbound
-processors; it does not alter Alpha 1 loopback behavior or promise durable
-delivery. Its endpoint registry is only a process-local route table. Recipient
-selection is limited to the sender's local active Peer View joined to exact
-current endpoint instances, not global membership, global fanout or a recipient
-oracle. Public receipts coarsen failures while exact codes stay local-only.
+The coordination and Objective inbound processors, plus their topic drivers,
+are new explicit coordination-subpath APIs. Objective ingress shares the
+separate non-evictable replay/message-ID snapshot with discovery and composes
+four immutable, identity-aligned snapshots: coordination, discovery, Objective
+and inbound security. A discovery-only logical-time advance does not rewrite
+the Objective projection; evaluation uses an ephemeral aligned view. The topic
+drivers are bounded in-memory reference drivers
+with construction-bound clocks and inbound processors; they do not alter Alpha
+1 loopback behavior or promise durable delivery. Their endpoint registries are
+only process-local route tables. Recipient selection is limited to the sender's
+local active Peer View joined to exact current endpoint instances, not global
+membership, global fanout or a recipient oracle. Public receipts coarsen
+failures while exact codes stay local-only; receiving a message never forwards
+it.
 
 ## Wire compatibility
 

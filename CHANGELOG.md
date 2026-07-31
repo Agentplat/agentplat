@@ -35,8 +35,7 @@
   Objective-scoped restoration bindings, bounded retained signed-document and
   policy history, signed cancellation evidence, canonical SHA-256 verification,
   historical ID conflict rejection, nanosecond-precise deadline conversion and
-  bounded fail-closed commands. Authenticated Objective ingress and allocation
-  remain pending.
+  bounded fail-closed commands. Allocation remains pending.
 - Added the independently restorable discovery projection for admitted Peer
   Card heads, bounded partial views and expiring capability self-claims,
   including causal refresh/withdrawal, deterministic expiry and eviction, pure
@@ -51,6 +50,17 @@
   construction-bound receiver clock and inbound processor. It is a local route
   table, not membership or a delivery oracle: it provides no global fanout,
   implicit forwarding, complete membership view or durability guarantee.
+- Added authenticated Objective ingress that shares discovery replay and
+  retained-message-ID security state, composes four immutable identity-aligned
+  runtime snapshots, and orders context, cryptographic verification, exact
+  admission and issuer authority, replay accounting, then Objective domain
+  evaluation. Discovery-only clock advances use an ephemeral aligned Objective
+  view. Domain rejections after replay retain security accounting without
+  mutating the Objective projection.
+- Added the bounded in-memory Objective topic driver with sender-local active
+  view selection, exact-instance route snapshots, atomic FIFO queue admission,
+  coarse public receipts and local diagnostics. It provides no forwarding,
+  global membership knowledge or durability.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

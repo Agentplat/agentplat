@@ -141,8 +141,28 @@ provisioned issuer authority, but it does not perform signature verification or
 replay accounting. Network adapters must not invoke it with merely parsed or
 self-asserted values. Snapshot restore verifies the retained canonical payload
 digest but does not resolve keys or reverify the proof, so persisted snapshots
-must be integrity protected by the driver. The authenticated shared replay
-boundary and Objective topic delivery are the next Increment 2 slice.
+must be integrity protected by the driver.
+
+`createMeshObjectiveInboundProcessor` is the authenticated ingress boundary for
+Objective messages. It shares the discovery replay and retained-message-ID
+security snapshot, and applies checks in this order: context, cryptographic
+verification, exact admission and issuer authority, replay accounting, then the
+Objective domain transition. An authenticated message that reaches replay but
+is rejected by the Objective domain retains normal security accounting while
+leaving the domain projection unchanged. The runtime state contains immutable,
+identity-aligned coordination, discovery, Objective and inbound-security
+snapshots. If discovery alone advanced logical time, Objective evaluation uses
+an ephemeral clock-aligned view without rewriting the Objective projection.
+
+`createMeshCoordinationObjectiveTopicDriver` is the corresponding bounded,
+in-memory Objective delivery driver. It selects recipients only from the
+publisher's local active view, then captures registered routes for those exact
+peer instances. It atomically admits copied signed envelopes to a bounded FIFO
+queue and invokes the registered Objective inbound processor with a
+construction-bound clock. Receipts expose only `accepted`, `rejected` or
+`unavailable`; detailed rejection information is local diagnostic data. The
+driver is sender-local: it provides no forwarding, global membership view,
+durability or delivery guarantee.
 
 An exact historical Objective record is idempotent only after this evaluator
 has applied the current structure, context, admission, issuer-authority and

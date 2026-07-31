@@ -39,8 +39,11 @@ import {
   createMeshCoordinationState,
   createMeshCoordinationInboundState,
   createMeshDiscoveryInboundProcessor,
+  createMeshObjectiveInboundProcessor,
   createMeshCoordinationTopicDriver,
+  createMeshCoordinationObjectiveTopicDriver,
   createMeshDiscoveryInboundRuntimeState,
+  createMeshObjectiveInboundRuntimeState,
   createMeshDiscoveryRuntimeState,
   createMeshDiscoveryState,
   createMeshObjectiveWorkRuntimeState,
@@ -76,6 +79,17 @@ import {
   type MeshCoordinationTopicDriverOptions,
   type MeshCoordinationTopicPeer,
   type MeshCoordinationTopicReceipt,
+  type MeshCoordinationObjectiveTopicClock,
+  type MeshCoordinationObjectiveTopicConfiguration,
+  type MeshCoordinationObjectiveTopicDriver,
+  type MeshCoordinationObjectiveTopicDriverOptions,
+  type MeshCoordinationObjectiveTopicPeer,
+  type MeshCoordinationObjectiveTopicReceipt,
+  type MeshObjectiveInboundDecision,
+  type MeshObjectiveInboundProcessor,
+  type MeshObjectiveInboundProcessorOptions,
+  type MeshObjectiveInboundRequest,
+  type MeshObjectiveInboundRuntimeState,
   type MeshObjectiveWorkRuntimeState,
   type MeshObjectiveWorkCommand,
   type MeshObjectiveWorkDecision,
@@ -831,6 +845,13 @@ const discoveryInboundRuntimeState: MeshDiscoveryInboundRuntimeState =
     restoredDiscoveryState,
     restoredInboundSecurityState
   );
+const objectiveInboundRuntimeState: MeshObjectiveInboundRuntimeState =
+  createMeshObjectiveInboundRuntimeState(
+    restoredCoordinationState,
+    objectiveDiscoveryState,
+    restoredObjectiveWorkState,
+    restoredInboundSecurityState
+  );
 const capabilityRequirement: MeshCapabilityRequirement = {
   capabilityKeys: ['summarize'],
   attributes: { language: 'en' },
@@ -987,6 +1008,24 @@ const discoveryInboundPromise: Promise<MeshDiscoveryInboundDecision> =
     discoveryInboundRuntimeState,
     discoveryInboundRequest
   );
+const signedObjectiveForContract =
+  {} as SignedMeshEnvelope<ObjectiveAnnouncePayload>;
+const objectiveInboundProcessorOptions: MeshObjectiveInboundProcessorOptions = {
+  resolver: staticResolver,
+  cryptoPolicy,
+};
+const objectiveInboundProcessor: MeshObjectiveInboundProcessor =
+  createMeshObjectiveInboundProcessor(objectiveInboundProcessorOptions);
+const objectiveInboundRequest: MeshObjectiveInboundRequest = {
+  envelope: signedObjectiveForContract,
+  verifiedAt: '2026-07-29T00:00:01Z',
+  receivedAt: 1,
+};
+const objectiveInboundPromise: Promise<MeshObjectiveInboundDecision> =
+  objectiveInboundProcessor.process(
+    objectiveInboundRuntimeState,
+    objectiveInboundRequest
+  );
 const topicClock: MeshCoordinationTopicClock = {
   now: () => ({ verifiedAt: '2026-07-29T00:00:01Z', receivedAt: 1 }),
 };
@@ -1005,6 +1044,27 @@ const topicPeer: MeshCoordinationTopicPeer = topicDriver.register({
 });
 const topicReceipts: Promise<readonly MeshCoordinationTopicReceipt[]> =
   topicPeer.publish({ envelope: signedDiscoveryForContract });
+const objectiveTopicClock: MeshCoordinationObjectiveTopicClock = {
+  now: () => ({ verifiedAt: '2026-07-29T00:00:01Z', receivedAt: 1 }),
+};
+const objectiveTopicDriverOptions: MeshCoordinationObjectiveTopicDriverOptions =
+  {
+    tenantId: 'tenant-a',
+    meshId: 'mesh-a',
+    clock: objectiveTopicClock,
+  };
+const objectiveTopicDriver: MeshCoordinationObjectiveTopicDriver =
+  createMeshCoordinationObjectiveTopicDriver(objectiveTopicDriverOptions);
+const objectiveTopicConfiguration: MeshCoordinationObjectiveTopicConfiguration =
+  objectiveTopicDriver.configuration;
+const objectiveTopicPeer: MeshCoordinationObjectiveTopicPeer =
+  objectiveTopicDriver.register({
+    state: objectiveInboundRuntimeState,
+    processor: objectiveInboundProcessor,
+  });
+const objectiveTopicReceipts: Promise<
+  readonly MeshCoordinationObjectiveTopicReceipt[]
+> = objectiveTopicPeer.publish({ envelope: signedObjectiveForContract });
 const verificationPromise = verifyMeshEnvelope({
   envelope: signedForContract,
   resolver: staticResolver,
@@ -1057,8 +1117,11 @@ void revocationBypassPolicy;
 void incompleteRevokedRecord;
 void staticResolverClass;
 void discoveryInboundPromise;
+void objectiveInboundPromise;
 void topicConfiguration;
 void topicReceipts;
+void objectiveTopicConfiguration;
+void objectiveTopicReceipts;
 void referenceSigner;
 void referenceVerifier;
 void digestPromise;
