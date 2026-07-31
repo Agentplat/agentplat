@@ -1,8 +1,7 @@
 # Inference Control `0.3.0-alpha.3` acceptance checklist
 
-Status: candidate implementation and public gates verified. Coordinated
-publication, independent registry verification and release tagging are
-pending.
+Status: implementation, coordinated publication, independent registry
+verification, release tagging and reproducible evidence are complete.
 
 This checklist is the release contract for local inference and action
 enforcement. A box is checked only when its evidence is reproducible from the
@@ -18,8 +17,10 @@ independent verification.
 - coordinated package count: 29;
 - state and grant schema version: `1`;
 - compatibility baseline: `v0.3.0-alpha.2`;
-- release commit: not assigned;
-- coordinated publication completion: not assigned.
+- release commit:
+  [`0e3af20c38f2de78b002fd0bd9d2ea1712d0283c`](https://github.com/Agentplat/agentplat/commit/0e3af20c38f2de78b002fd0bd9d2ea1712d0283c);
+- coordinated publication completion: `2026-07-31T14:33:50Z`;
+- annotated tag object: `6245b71a59acc3247f61306fec886cbf2ff484d6`.
 
 ## Design baseline
 
@@ -334,8 +335,9 @@ independent verification.
 
 ### Candidate evidence
 
-- `pnpm install --frozen-lockfile && pnpm check` passed from the candidate
-  worktree: public audit, clean build, public type checks, 408 unit test cases
+- `pnpm install --frozen-lockfile && pnpm check` passed for the reviewed
+  candidate commit in CI: public audit, clean build, public type checks, 408
+  unit test cases
   (412 including nested subtests, with six declared TODOs), adapter suites, 28
   bounded inference-control scenarios, 29-package release verification and the
   tarball gate;
@@ -350,22 +352,87 @@ independent verification.
 
 - [x] use a repository-scoped npm publisher credential or Trusted Publishing
       workflow;
-- [ ] run from the reviewed commit on a clean `main` checkout;
+- [x] run from the reviewed commit on a clean `main` checkout;
 - [x] repository never contains a publishable 29-package Alpha 2 set;
 - [x] a tested shared sentinel requires root plus exactly 29 manifests at Alpha
       3 before release verify, dry-run, registry read or publish;
-- [ ] record current `next` rollback targets for all 29 packages;
-- [ ] complete the no-mutation publish dry-run with `NPM_DIST_TAG=next`;
-- [ ] confirm the candidate is absent or registry-equivalent for every package;
-- [ ] publish missing packages under the commit-specific staging tag;
-- [ ] verify registry SHA-512 metadata against every local tarball;
-- [ ] promote the complete coordinated package set to `next`;
-- [ ] remove candidate staging tags only after complete promotion;
-- [ ] install exact versions in an independent clean registry consumer;
-- [ ] execute the exact-version inference-control registry scenario;
-- [ ] create and push `v0.3.0-alpha.3` at the verified release commit;
-- [ ] record workflow URL, commit, publication time, rollback targets and
+- [x] record current `next` rollback targets for all 29 packages;
+- [x] complete the no-mutation publish dry-run with `NPM_DIST_TAG=next`;
+- [x] confirm the candidate is absent or registry-equivalent for every package;
+- [x] publish missing packages under the commit-specific staging tag;
+- [x] verify registry SHA-512 metadata against every local tarball;
+- [x] promote the complete coordinated package set to `next`;
+- [x] remove candidate staging tags only after complete promotion;
+- [x] install exact versions in an independent clean registry consumer;
+- [x] execute the exact-version inference-control registry scenario;
+- [x] create and push `v0.3.0-alpha.3` at the verified release commit;
+- [x] record workflow URL, commit, publication time, rollback targets and
       registry integrity ledger.
+
+### Coordinated release evidence
+
+- implementation [PR #38](https://github.com/Agentplat/agentplat/pull/38) was
+  integrated only after [CI run
+  30638299254](https://github.com/Agentplat/agentplat/actions/runs/30638299254)
+  passed from candidate commit `f56a05a88e2574151b7f9a5ac2917ca8e3cad585`;
+- the no-mutation [dry-run
+  30638490635](https://github.com/Agentplat/agentplat/actions/runs/30638490635)
+  ran from the clean release commit, prepacked all 29 packages and left every
+  distribution tag unchanged;
+- dry-run and publication recorded `0.3.0-alpha.2` as the `next` rollback
+  target for the 28 existing packages and `<absent>` for
+  `@agentplat/inference-control`; the Alpha 3 version was absent for every
+  package before publication;
+- the [publication workflow
+  30638712461](https://github.com/Agentplat/agentplat/actions/runs/30638712461)
+  published under `agentplat-stage-0e3af20c38f2`, verified registry SHA-512
+  metadata, promoted all 29 packages to `next`, removed all staging tags and
+  reported coordinated completion at `2026-07-31T14:33:50.998Z`;
+- the workflow's credential-free clean consumer installed five exact registry
+  packages, compiled the public contracts and executed Mesh allocation,
+  certified recovery and inference-control gateway/SSE behavior. A separate
+  local credential-free registry consumer repeated the same checks at
+  `2026-07-31T14:35:22Z`;
+- annotated tag `v0.3.0-alpha.3` resolves through tag object
+  `6245b71a59acc3247f61306fec886cbf2ff484d6` to release commit
+  `0e3af20c38f2de78b002fd0bd9d2ea1712d0283c`.
+
+### Registry integrity ledger
+
+Every entry below was read independently from the public registry after the
+workflow completed; each had `next=0.3.0-alpha.3`:
+
+```text
+@agentplat/audit-postgres=sha512-61TLnI61gsYgs9ufUpCvrMU1SQA+RVh+2M+rRyhq9L0SOgEg5Gzv8UoCZwkin3p6LuT+iJVjX5Dqqzp52N6C3Q==
+@agentplat/audit=sha512-pbjKwBZB4vTjC65eo592quLq1F4KIJCkCRj/f21NY668IdDWqNWgmfFK/JDM+JfmeyDfBu/ki5NAdBB2Hwmqng==
+@agentplat/auth=sha512-Y/xfGJ5krjKHMASlNv0Oew+HE9Cs4HY+eJCdrJPGnT7SFsYtC3hxqLODVs+LIyVLbUMgNd3Jrd6vz521GWeIxg==
+@agentplat/core=sha512-oFPuqfCdbZAJKzO5jtA+eyZtVKeoIebXfnJrGDMyoCWidBFKBdtPlMjNNpiSMvxs28JH+ypLM6YUjHz5yrUeSA==
+@agentplat/events=sha512-AVH1KCtCoPVOmqdag2j4wzylvts72wYLYzCZY88j+WYF2OcnioVFpwJQgSdDMJ5/pIqRgi5IhRerzHWBDPVTeQ==
+@agentplat/framework=sha512-UUYSR3nJecdSa5GbhcKAK49UhfgSqqcX3Xl7OCpNUpochYy4JKKCaCkDu6SkxI/MzG9dg4xtSjWNXxEcajp9jQ==
+@agentplat/inference-control=sha512-gfp1+vHHzrpDxZFhbxezSA/vvBGzupRtSr529PxbfYIQUAzvm7aYv0+CeuPutpXnLw2psNpPmIp0DpUAMHmF3A==
+@agentplat/mcp=sha512-W1nYMajif7yyU8TbF9ziiQKXGR08afjhcfI6slWDXIaYR4B4MBBGJvZ7XvwIZ/dk1uFAeI37kC2NNDnYehyxaw==
+@agentplat/memory=sha512-rd0UFJ1UpA7vCrN1MSbQUfJuqLIdzvDJ4TKdLkUkt4FRXpYTKx1DzI/1ejuYXHkFo48J/6UcBFh8mSZ5VnU6RQ==
+@agentplat/mesh-crypto=sha512-DPmbvQXzf3LMSHBy9R97GluVnA5hLGVf6N7j8wt/ZVZsfYXaW1RgfjzqcR0j3ZwIpUkid8tMolQJi8jnEnDJjQ==
+@agentplat/mesh-protocol=sha512-WcCLg1YoV47v0jwo7sJ0wste0B//ZGQwDiPKYxlrosycPRMNRE8jbXUW3S6M1Q4MLuMlBQKwikhhB5FbzKFexQ==
+@agentplat/mesh-sim=sha512-4JmINBZ1Avd/mFT7FfHCcMRJDRAFqZ6Ye1J409n6CH09SuMaXiAvg4AJbBTOR2EUBUt2B//M0ndsi+EM7AECAQ==
+@agentplat/mesh=sha512-pKk0+v8bDmkjQ1GrJjNkLo0/AXMTc8CyTmg6IWroAPC81N1/+XUnqn9Kkrmj36gCVgSK3z0i+RBxjnAAtdCe2Q==
+@agentplat/model-anthropic=sha512-gexvVVVvYLRsjW5d1uYRRZuxnBaHmJY6OTpd3ErCXsZOd8N39PX+TAN0P8Y6SqFkdlb0Rr4FXCSevHvPtFgnvg==
+@agentplat/model-gemini=sha512-PNtAOoo8SL9Q7UEjTC6fiLNXl5mHbI13aTL/75OXKYWXjXGjgWXhlAWYo5XSUxJwxMAsTOsMRh/ZJDbvM4vTxQ==
+@agentplat/model-openai-compatible=sha512-X2n3/fjzwKnU0deHjn1IL5/wy3fEd2u0Gzq3OTLKT8EzuKHXClLdtb3HZdcnBJpTlGsV6+b0Q633Y3fcHgUlBA==
+@agentplat/model=sha512-tkTf/hbeyCC82WbAqHWZfHuZivAeKyoakrimiuRAOAo5LYm/IRDYkW7F6b+Rwwo+tgzljm6aaXBYZqRk9k7PHg==
+@agentplat/postgres=sha512-bPQAKvUzz/gwgnMBZxveH5+8Ar39PuGVLBKE1JK4GWg13glv1EFsFCCdTIxLQN3yZ1g9T+Ty8SfvL7pTWniUvg==
+@agentplat/provider-openai=sha512-fbrlSbFlkLY0EAF4ZWAY57OgHbcUDFxQ5xDZWVKwUJinOYA6Cvm9VWgGHtbgeWF0wF8a3X4XFaKkQbmRyhyqzQ==
+@agentplat/rooms-api=sha512-SOFe9JnGY+Kv/zD+aTA9/uGCehXhqW0jIOqrlFOflAw+weI6Eo8hxNwq2vqfVVWQO3UoIVixT2fTCbSQpMpoOw==
+@agentplat/rooms-postgres=sha512-Vwkpo2SkRgdtdipXAAaYYDf9Flafpd1/5UxK6AC3uLwU0aHIi/dIA+21qsYP8G8NDnjpVkAQZlJJgP/kcVM6MQ==
+@agentplat/rooms=sha512-D4hvLjM5c3cuikn1yg+TXTwXp+S6KZN9UGTpVbbGNAv4tW3LptvKA9v5es3pf1kidYJbXiD6Mxhq23e1O9OAGQ==
+@agentplat/runtime-mock=sha512-eOdpcFCuVOzMJkhX/8jY3R2G89ktA9JmP+YYVl1pux9zWz0ECpNeX2YT1fgDEoIThLIh+qr29qz0QacRvd2DrA==
+@agentplat/runtime=sha512-CJBK/+tsS1Ux6Bn9U92VTB8Lozj4+ajZkmuestw2u+KcH6Q3e1CtxAHe9TN041+tOqpEPyIJbtp4xzvVv+5/jQ==
+@agentplat/sessions-redis=sha512-2m6aMgfBdUoDKzWkdDPZMAzVCxEfpP+NR35PDmi6dOSFFvm71bCddA7qE3YBuGuVc8DvbEtOM8+NcbrVVVXf1g==
+@agentplat/sessions=sha512-ZbB3QQxeGwQxiNPjffkIVaMwde8NmB0i5+RLiJgOhqOmrMDjogJBagw0gwEaR29Hhw+T+ZqtMkpsnC4Gxn/Bpw==
+@agentplat/streaming=sha512-isGzkoNxCHULtHDa9dfnRzBGvcyc7o3oBAj/l78Kwdq3gEeGavm2pSSLc+U6gQiNKHW/oxOJV1EuDF57G5yEsw==
+@agentplat/tools=sha512-/lbN6NiMkvj/oue9yYVRRkd4hp5Zo3zZdUHp+ubUXcBgYQ6FnW4PcZSxoE8m5503CWehO3/FtwiWHVf7sDBcZA==
+@agentplat/workflows=sha512-oL2cTdHXp/rK6j8xf9xJiR6bn2iqW2GByYQ3ai6jbi2INDBI4uOxBW26gGFPvzZc6Iho/okfRenJt/HSRcyUZQ==
+```
 
 ## Definition of accepted
 
