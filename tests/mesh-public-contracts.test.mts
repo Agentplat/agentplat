@@ -41,6 +41,8 @@ import {
   createMeshAllocationRuntimeState,
   createMeshAllocationState,
   createMeshCoordinationInboundState,
+  createMeshAllocationInboundProcessor,
+  createMeshAllocationInboundRuntimeState,
   createMeshDiscoveryInboundProcessor,
   createMeshObjectiveInboundProcessor,
   createMeshCoordinationTopicDriver,
@@ -71,6 +73,13 @@ import {
   type MeshAcceptedAssignmentResponseEvidence,
   type MeshAllocationBidSelection,
   type MeshAllocationBidSelectionReason,
+  type MeshAllocationInboundDecision,
+  type MeshAllocationInboundPayload,
+  type MeshAllocationInboundProcessor,
+  type MeshAllocationInboundProcessorOptions,
+  type MeshAllocationInboundRejectionCode,
+  type MeshAllocationInboundRequest,
+  type MeshAllocationInboundRuntimeState,
   type MeshAllocationCommand,
   type MeshAllocationDecision,
   type MeshAllocationEffect,
@@ -124,13 +133,20 @@ import {
   type MeshObjectiveWorkTimerDecision,
   type MeshObjectiveWorkTimerInput,
   type MeshLocalOfferCommand,
+  type MeshLocalBidCommand,
+  type MeshLocalAssignmentResponseCommand,
   type MeshLocalOfferPreparedRecipient,
   type MeshLocalOfferProjection,
+  type MeshLocalBidProjection,
+  type MeshLocalAssignmentResponseEvidence,
   type MeshLocalAwardCommand,
   type MeshLocalAwardPreparedRecipient,
   type MeshLocalAwardProjection,
   type MeshPreparedAwardEnvelope,
   type MeshPreparedOfferEnvelope,
+  type MeshReceivedAwardProjection,
+  type MeshReceivedOfferProjection,
+  type MeshAssigneeAssignmentAuthorityProjection,
   type MeshVerifiedAllocationRequest,
   type MeshWorkAllocationPhase,
   type MeshWorkAllocationProjection,
@@ -867,6 +883,18 @@ const allocationWorkProjection: MeshWorkAllocationProjection | undefined =
   undefined;
 const localOfferProjection: MeshLocalOfferProjection | undefined = undefined;
 const localAwardProjection: MeshLocalAwardProjection | undefined = undefined;
+const receivedOfferProjection: MeshReceivedOfferProjection | undefined =
+  undefined;
+const localBidProjection: MeshLocalBidProjection | undefined = undefined;
+const receivedAwardProjection: MeshReceivedAwardProjection | undefined =
+  undefined;
+const localAssignmentResponseEvidence:
+  MeshLocalAssignmentResponseEvidence | undefined = undefined;
+const assigneeAssignmentAuthority:
+  MeshAssigneeAssignmentAuthorityProjection | undefined = undefined;
+const localBidCommand: MeshLocalBidCommand | undefined = undefined;
+const localAssignmentResponseCommand:
+  MeshLocalAssignmentResponseCommand | undefined = undefined;
 const preparedOfferEnvelope: MeshPreparedOfferEnvelope | undefined = undefined;
 const preparedAwardEnvelope: MeshPreparedAwardEnvelope | undefined = undefined;
 const preparedOfferRecipient: MeshLocalOfferPreparedRecipient | undefined =
@@ -971,6 +999,17 @@ const objectiveInboundRuntimeState: MeshObjectiveInboundRuntimeState =
     restoredObjectiveWorkState,
     restoredInboundSecurityState
   );
+const allocationInboundRuntimeState: MeshAllocationInboundRuntimeState =
+  createMeshAllocationInboundRuntimeState(
+    restoredCoordinationState,
+    restoredDiscoveryState,
+    restoredObjectiveWorkState,
+    restoredAllocationState,
+    restoredInboundSecurityState
+  );
+const allocationInboundPayload: MeshAllocationInboundPayload = workBidPayload;
+const allocationInboundRejectionCode: MeshAllocationInboundRejectionCode =
+  'received_award_invalid';
 const capabilityRequirement: MeshCapabilityRequirement = {
   capabilityKeys: ['summarize'],
   attributes: { language: 'en' },
@@ -1144,6 +1183,25 @@ const objectiveInboundPromise: Promise<MeshObjectiveInboundDecision> =
   objectiveInboundProcessor.process(
     objectiveInboundRuntimeState,
     objectiveInboundRequest
+  );
+const signedAllocationForContract =
+  {} as SignedMeshEnvelope<MeshAllocationInboundPayload>;
+const allocationInboundProcessorOptions: MeshAllocationInboundProcessorOptions =
+  {
+    resolver: staticResolver,
+    cryptoPolicy,
+  };
+const allocationInboundProcessor: MeshAllocationInboundProcessor =
+  createMeshAllocationInboundProcessor(allocationInboundProcessorOptions);
+const allocationInboundRequest: MeshAllocationInboundRequest = {
+  envelope: signedAllocationForContract,
+  verifiedAt: '2026-07-29T00:00:01Z',
+  receivedAt: 1,
+};
+const allocationInboundPromise: Promise<MeshAllocationInboundDecision> =
+  allocationInboundProcessor.process(
+    allocationInboundRuntimeState,
+    allocationInboundRequest
   );
 const topicClock: MeshCoordinationTopicClock = {
   now: () => ({ verifiedAt: '2026-07-29T00:00:01Z', receivedAt: 1 }),

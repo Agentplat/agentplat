@@ -3,8 +3,9 @@
 Status: Increment 0 and Increment 1 complete; Increment 2 Objective projection,
 authenticated ingress and bounded topic delivery implemented. The owner-side
 Allocation handshake is implemented through award, acceptance, decline and
-acceptance timeout; execution, assignee-side response delivery, lease and
-recovery remain pending.
+acceptance timeout. The paired assignee-side slice accepts verified direct
+awards and prepares one locally recorded accept/decline dispatch; execution,
+lease and recovery remain pending.
 
 This checklist is the release contract for allocation and recovery. A box is
 checked only when its evidence is reproducible from the reviewed public commit.
@@ -190,12 +191,18 @@ Registry and Git mutations are checked only after independent verification.
 - [x] selection is deterministic and exposes stable local reason codes;
 - [x] owner-side awards bind a stable domain ID, selected bid, initial epoch,
       lease and token;
+- [x] a declined or timed-out award consumes its epoch, and the initial-award
+      reducer rejects a different authority/token at that same epoch;
 - [x] only the awarded assignee may accept or decline at the owner;
 - [x] acceptance after its deadline is rejected;
 - [x] decline or acceptance timeout releases the reservation exactly once;
 - [x] one first Work Item offer reserves budget once regardless of fanout or
       bid count, and its bid deadline releases it exactly once;
 - [x] acceptance moves reserved units to committed units exactly once;
+- [x] an assignee accepts only a verified direct award that proves its own
+      prepared bid and recipient-specific offer causation;
+- [x] local accept/decline preparation has exact idempotency, conflict
+      rejection and an exclusive response deadline;
 - [ ] reassignment reuses the existing commitment without double charging;
 - [ ] progress, checkpoint and result require accepted assignment authority;
 - [ ] duplicate and reordered records produce the same final projection;
@@ -239,18 +246,41 @@ Registry and Git mutations are checked only after independent verification.
   checkpoint, result, lease and recovery remain explicitly out of scope for
   this owner-side runtime slice.
 
+### Assignee-side award and response sub-slice evidence
+
+- the allocation runtime retains a bounded, independently restorable local
+  assignee award/response projection, including prepared-bid provenance and
+  local deadline metadata;
+- verified `work.award` intake requires direct local audience, exact prepared
+  bid and offer-envelope causation, Objective/Work revision, epoch, authority,
+  token and unexpired lease/deadline binding before state mutation;
+- received later offers require the exact predecessor ID and envelope
+  causation, preserve immutable Work terms and wait for predecessor closure;
+- a local prepared `work.accept` or `work.decline` is recorded before its one
+  dispatch effect; exact replay is idempotent and conflicting IDs/content are
+  rejected without mutation;
+- the shared authenticated allocation boundary verifies context and signatures
+  before admission, advances replay security before domain evaluation and
+  retains that replay accounting when a validly signed domain record is
+  rejected;
+- `tests/mesh-assignment.test.mjs` covers causal offer chains, intake, dispatch,
+  exclusive deadline, capacity/restore/migration, mismatch rejection and exact
+  idempotency;
+- execution records for progress, checkpoints, results, renewals, reassignment
+  and recovery remain explicitly out of scope.
+
 ## Lease, epoch and fencing
 
-- [ ] the initial assignment epoch is `1`;
+- [x] the initial assignment epoch is `1`;
 - [ ] every later epoch is exactly the preceding epoch plus one;
-- [ ] one epoch has exactly one stable assignment authority ID and token;
-- [ ] initial fencing token equals `awardId`;
+- [x] one epoch has exactly one stable assignment authority ID and token;
+- [x] initial fencing token equals `awardId`;
 - [ ] recovered fencing token equals `certificateId`;
 - [ ] renewals preserve assignee, epoch and token;
 - [ ] renewals stay within Objective duration and count limits;
 - [ ] expired leases authorize no new progress, checkpoint or result;
 - [ ] a higher accepted epoch permanently fences lower epochs;
-- [ ] a same-epoch record with a different token is rejected;
+- [x] a same-epoch record with a different token is rejected;
 - [ ] stale rejection does not mutate projection, journal, reservation or
       idempotency decisions beyond normal replay accounting.
 

@@ -130,6 +130,79 @@ export interface MeshAcceptedAssignmentResponseEvidence {
   readonly envelope: SignedMeshEnvelope<WorkAcceptPayload | WorkDeclinePayload>;
 }
 
+/** One verified direct offer received by the local potential assignee. */
+export interface MeshReceivedOfferProjection {
+  readonly offerId: string;
+  readonly receivedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly bidDeadlineAt: MeshLogicalTime;
+  readonly workDeadlineAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkOfferPayload>;
+}
+
+/** A locally prepared bid; its signed message is the only valid award cause. */
+export interface MeshLocalBidProjection {
+  readonly bidId: string;
+  readonly offerId: string;
+  readonly bidRevision: number;
+  readonly previousBidId?: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly bidExpiresAt: string;
+  readonly bidExpiresAtLogical: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkBidPayload>;
+}
+
+/** One verified award received by the local assignee. */
+export interface MeshReceivedAwardProjection {
+  readonly awardId: string;
+  readonly offerId: string;
+  readonly bidId: string;
+  readonly bidRevision: number;
+  readonly receivedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly supportedCriticalExtensions?: readonly string[];
+  readonly acceptanceDeadlineAt: MeshLogicalTime;
+  readonly acceptanceDeadlineTimerId: string;
+  readonly acceptanceDeadlineTimerGeneration: number;
+  readonly leaseExpiresAtLogical: MeshLogicalTime;
+  readonly status: "awaiting_response" | "accepted" | "declined" | "timed_out";
+  readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
+}
+
+/** Exact local accept or decline evidence emitted in response to one award. */
+export interface MeshLocalAssignmentResponseEvidence {
+  readonly awardId: string;
+  readonly responseId: string;
+  readonly kind: "work.accept" | "work.decline";
+  readonly preparedAt: MeshLogicalTime;
+  readonly validityVerifiedAt: string;
+  readonly envelope: SignedMeshEnvelope<WorkAcceptPayload | WorkDeclinePayload>;
+}
+
+/** Authority available locally only after an accepted assignment response. */
+export interface MeshAssigneeAssignmentAuthorityProjection {
+  readonly awardId: string;
+  readonly acceptanceId: string;
+  readonly objectiveId: string;
+  readonly objectiveDocumentId: string;
+  readonly objectiveRevision: number;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+  readonly ownerPeerId: string;
+  readonly ownerEpoch: number;
+  readonly assigneePeerId: string;
+  readonly assignmentEpoch: 1;
+  readonly assignmentAuthorityId: string;
+  readonly fencingToken: string;
+  readonly workDeadline: string;
+  readonly workDeadlineAt: MeshLogicalTime;
+  readonly leaseExpiresAt: string;
+  readonly leaseExpiresAtLogical: MeshLogicalTime;
+  readonly activatedAt: MeshLogicalTime;
+}
+
 /** Current bid revision for exactly one [offerId, bidderPeerId] pair. */
 export interface MeshBidHeadProjection {
   readonly bidKey: string;
@@ -174,11 +247,16 @@ export interface MeshAllocationLimits {
   readonly maximumProjectionBytes: number;
   readonly maximumAwards: number;
   readonly maximumAssignmentResponses: number;
+  readonly maximumReceivedOffers: number;
+  readonly maximumLocalBids: number;
+  readonly maximumReceivedAwards: number;
+  readonly maximumLocalAssignmentResponses: number;
+  readonly maximumAssignmentAuthorities: number;
 }
 
 /** Independently restorable offer, bid, award and response projection. */
 export interface MeshAllocationState {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly identity: MeshPeerIdentity;
   readonly workAllocations: Readonly<
     Record<string, MeshWorkAllocationProjection>
@@ -194,6 +272,24 @@ export interface MeshAllocationState {
   /** One terminal response keyed by awardId. */
   readonly assignmentResponses: Readonly<
     Record<string, MeshAcceptedAssignmentResponseEvidence>
+  >;
+  /** Direct offers received by this peer, keyed by offerId. */
+  readonly receivedOffers: Readonly<
+    Record<string, MeshReceivedOfferProjection>
+  >;
+  /** Locally prepared direct bids, keyed by bidId. */
+  readonly localBids: Readonly<Record<string, MeshLocalBidProjection>>;
+  /** Direct awards received by this peer, keyed by awardId. */
+  readonly receivedAwards: Readonly<
+    Record<string, MeshReceivedAwardProjection>
+  >;
+  /** One locally emitted terminal response per received award. */
+  readonly localAssignmentResponses: Readonly<
+    Record<string, MeshLocalAssignmentResponseEvidence>
+  >;
+  /** Active execution authority keyed by awardId. */
+  readonly assigneeAuthorities: Readonly<
+    Record<string, MeshAssigneeAssignmentAuthorityProjection>
   >;
   readonly reservations: Readonly<Record<string, MeshAllocationReservation>>;
   readonly limits: MeshAllocationLimits;
@@ -214,7 +310,11 @@ export interface MeshAllocationRuntimeState {
 }
 
 export type MeshAllocationPayload =
-  WorkBidPayload | WorkAcceptPayload | WorkDeclinePayload;
+  | WorkOfferPayload
+  | WorkBidPayload
+  | WorkAwardPayload
+  | WorkAcceptPayload
+  | WorkDeclinePayload;
 
 /** A verified remote bid or assignment response with receiver-controlled time. */
 export interface MeshVerifiedAllocationRequest {
@@ -249,6 +349,22 @@ export interface MeshLocalAwardCommand {
   readonly recipient: MeshLocalAwardPreparedRecipient;
 }
 
+/** Local assignee command; the bid envelope is already signed and addressed. */
+export interface MeshLocalBidCommand {
+  readonly kind: "allocation.bid";
+  readonly offerId: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkBidPayload>;
+}
+
+/** Local assignee command; one already-signed direct accept or decline. */
+export interface MeshLocalAssignmentResponseCommand {
+  readonly kind: "allocation.assignment_response";
+  readonly awardId: string;
+  readonly preparedAt: MeshLogicalTime;
+  readonly envelope: SignedMeshEnvelope<WorkAcceptPayload | WorkDeclinePayload>;
+}
+
 export interface MeshLocalAwardPreparedRecipient {
   readonly recipientPeerId: string;
   readonly preparedAt: MeshLogicalTime;
@@ -262,7 +378,10 @@ export interface MeshAllocationSelectionInput {
 }
 
 export type MeshAllocationCommand =
-  MeshLocalOfferCommand | MeshLocalAwardCommand;
+  | MeshLocalOfferCommand
+  | MeshLocalAwardCommand
+  | MeshLocalBidCommand
+  | MeshLocalAssignmentResponseCommand;
 
 export type MeshAllocationBidSelectionReason =
   | "offer_missing"
@@ -294,6 +413,23 @@ export type MeshAllocationEffect =
       readonly recipientPeerId: string;
       readonly messageId: string;
       readonly envelope: SignedMeshEnvelope<WorkAwardPayload>;
+    }
+  | {
+      readonly kind: "allocation.bid.dispatch";
+      readonly bidId: string;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<WorkBidPayload>;
+    }
+  | {
+      readonly kind: "allocation.assignment_response.dispatch";
+      readonly awardId: string;
+      readonly responseId: string;
+      readonly recipientPeerId: string;
+      readonly messageId: string;
+      readonly envelope: SignedMeshEnvelope<
+        WorkAcceptPayload | WorkDeclinePayload
+      >;
     };
 
 export type MeshAllocationRejectionCode =
@@ -323,6 +459,20 @@ export type MeshAllocationRejectionCode =
   | "assignment_response_deadline_elapsed"
   | "assignment_response_duplicate_conflict"
   | "assignment_response_capacity_exceeded"
+  | "received_offer_invalid"
+  | "received_offer_duplicate_conflict"
+  | "received_offer_capacity_exceeded"
+  | "local_bid_invalid"
+  | "local_bid_duplicate_conflict"
+  | "local_bid_capacity_exceeded"
+  | "received_award_invalid"
+  | "received_award_duplicate_conflict"
+  | "received_award_capacity_exceeded"
+  | "local_assignment_response_invalid"
+  | "local_assignment_response_deadline_elapsed"
+  | "local_assignment_response_duplicate_conflict"
+  | "local_assignment_response_capacity_exceeded"
+  | "assignment_authority_capacity_exceeded"
   | "recipient_capacity_exceeded"
   | "bid_invalid"
   | "bid_duplicate_conflict"

@@ -20,6 +20,13 @@ import {
 import type {
   MeshCoordinationInboundReplayWindow,
   MeshCoordinationInboundState,
+  MeshAllocationInboundDecision,
+  MeshAllocationInboundProcessor,
+  MeshAllocationInboundProcessorOptions,
+  MeshAllocationInboundRejectionCode,
+  MeshAllocationInboundRequest,
+  MeshAllocationInboundRuntimeState,
+  MeshAllocationInboundPayload,
   MeshDiscoveryInboundDecision,
   MeshDiscoveryInboundProcessor,
   MeshDiscoveryInboundProcessorOptions,
@@ -35,6 +42,7 @@ import type {
 } from './coordination-inbound-contracts.js';
 import {
   assertFrozenMeshCoordinationInboundState,
+  createMeshAllocationInboundRuntimeState,
   createMeshDiscoveryInboundRuntimeState,
   createMeshObjectiveInboundRuntimeState,
   synchronizeMeshObjectiveLogicalTime,
@@ -53,6 +61,13 @@ import {
   createMeshObjectiveWorkRuntimeState,
   evaluateVerifiedMeshObjectiveEnvelope,
 } from './coordination-objective-work.js';
+import type {
+  MeshAllocationPayload,
+  MeshAllocationRejectionCode,
+  MeshAllocationRuntimeState,
+} from './coordination-allocation-contracts.js';
+import { evaluateVerifiedMeshAllocationEnvelope } from './coordination-allocation.js';
+import { createMeshAllocationRuntimeState } from './coordination-allocation-state.js';
 import {
   assertMeshLogicalTime,
   createFrozenRecord,
@@ -193,6 +208,50 @@ export function createMeshObjectiveInboundProcessor(
       );
       return decision;
     },
+  });
+}
+
+/** Binds local trust dependencies once, outside the allocation message path. */
+export function createMeshAllocationInboundProcessor(
+  options: MeshAllocationInboundProcessorOptions
+): MeshAllocationInboundProcessor {
+  assertProcessorOptions(options);
+  const resolve = options.resolver.resolve.bind(options.resolver);
+  const crypto = snapshotCrypto(options.crypto);
+  const configuration: TrustedInboundConfiguration = Object.freeze({
+    resolver: Object.freeze({ resolve }),
+    cryptoPolicy: Object.freeze({
+      allowedAlgorithms: Object.freeze([
+        ...options.cryptoPolicy.allowedAlgorithms,
+      ]),
+    }),
+    crypto,
+    ...(options.protocolOptions === undefined
+      ? {}
+      : {
+          protocolOptions: Object.freeze({
+            ...(options.protocolOptions.limits === undefined
+              ? {}
+              : {
+                  limits: Object.freeze({
+                    ...options.protocolOptions.limits,
+                  }),
+                }),
+          }),
+        }),
+    ...(options.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...options.supportedCriticalExtensions,
+          ]),
+        }),
+  });
+  return Object.freeze({
+    process: (
+      state: MeshAllocationInboundRuntimeState,
+      request: MeshAllocationInboundRequest
+    ) => processMeshAllocationEnvelope(state, request, configuration),
   });
 }
 
@@ -552,6 +611,182 @@ async function processMeshObjectiveEnvelope(
   );
 }
 
+/**
+ * Authenticates one signed allocation envelope before admission, replay and
+ * the authoritative allocation reducer. Rejections after replay retain only
+ * inbound security accounting.
+ */
+async function processMeshAllocationEnvelope(
+  state: MeshAllocationInboundRuntimeState,
+  request: MeshAllocationInboundRequest,
+  configuration: TrustedInboundConfiguration
+): Promise<MeshAllocationInboundDecision> {
+  assertAllocationRuntimeState(state);
+  assertAllocationRequest(request);
+
+  const receivedAt = request.receivedAt;
+  const verifiedAt = request.verifiedAt;
+  assertMeshLogicalTime(receivedAt);
+  if (
+    receivedAt <
+    Math.max(
+      state.coordination.lastLogicalTime,
+      state.discovery.lastLogicalTime,
+      state.objectives.lastLogicalTime,
+      state.allocation.lastLogicalTime,
+      state.inbound.lastLogicalTime
+    )
+  ) {
+    return allocationRejection(state, 'logical_time_regressed');
+  }
+
+  const context = validateMeshEnvelopeContext(
+    request.envelope,
+    {
+      tenantId: state.discovery.identity.tenantId,
+      meshId: state.discovery.identity.meshId,
+      peerId: state.discovery.identity.peerId,
+      receivedAt: verifiedAt,
+      subscribedTopics: state.discovery.subscriptions,
+      ...(configuration.supportedCriticalExtensions === undefined
+        ? {}
+        : {
+            supportedCriticalExtensions:
+              configuration.supportedCriticalExtensions,
+          }),
+    },
+    configuration.protocolOptions
+  );
+  if (!context.ok) {
+    return allocationRejection(
+      state,
+      allocationContextRejection(
+        context.issues[0]?.code,
+        request.envelope,
+        state.discovery.subscriptions
+      )
+    );
+  }
+  const contextualEnvelope = context.value;
+  const familyFailure = validateAllocationFamily(contextualEnvelope);
+  if (familyFailure) return allocationRejection(state, familyFailure);
+
+  let verification: MeshVerificationResult | undefined;
+  try {
+    verification = await verifyMeshEnvelope({
+      envelope: contextualEnvelope,
+      resolver: configuration.resolver,
+      policy: configuration.cryptoPolicy,
+      verifiedAt,
+      crypto: configuration.crypto,
+      protocolOptions: configuration.protocolOptions,
+    });
+  } catch {
+    return allocationRejection(state, 'crypto_operation_failed');
+  }
+
+  let verifiedEnvelope: VerifiedMeshEnvelope<MeshAllocationInboundPayload>;
+  try {
+    if (
+      !verification ||
+      typeof verification !== 'object' ||
+      verification.verified !== true
+    ) {
+      const code =
+        verification?.verified === false &&
+        cryptoRejectionCodes.has(verification.code)
+          ? verification.code
+          : 'crypto_operation_failed';
+      return allocationRejection(state, code);
+    }
+    const rebound = validateMeshEnvelopeContext(
+      verification.envelope,
+      {
+        tenantId: state.discovery.identity.tenantId,
+        meshId: state.discovery.identity.meshId,
+        peerId: state.discovery.identity.peerId,
+        receivedAt: verifiedAt,
+        subscribedTopics: state.discovery.subscriptions,
+        ...(configuration.supportedCriticalExtensions === undefined
+          ? {}
+          : {
+              supportedCriticalExtensions:
+                configuration.supportedCriticalExtensions,
+            }),
+      },
+      configuration.protocolOptions
+    );
+    if (
+      !rebound.ok ||
+      !sameCanonicalEnvelope(
+        contextualEnvelope,
+        rebound.value,
+        configuration.protocolOptions
+      )
+    ) {
+      return allocationRejection(state, 'crypto_operation_failed');
+    }
+    verifiedEnvelope =
+      rebound.value as VerifiedMeshEnvelope<MeshAllocationInboundPayload>;
+  } catch {
+    return allocationRejection(state, 'crypto_operation_failed');
+  }
+
+  const admissionFailure = validateAllocationAdmission(
+    state,
+    verifiedEnvelope,
+    verifiedAt
+  );
+  if (admissionFailure) return allocationRejection(state, admissionFailure);
+
+  const replay = advanceReplayState(
+    state.inbound,
+    verifiedEnvelope,
+    receivedAt
+  );
+  if ('code' in replay) return allocationRejection(state, replay.code);
+  const replayRuntime = createMeshAllocationInboundRuntimeState(
+    state.coordination,
+    state.discovery,
+    state.objectives,
+    state.allocation,
+    replay.inbound
+  );
+
+  const projection = evaluateVerifiedMeshAllocationEnvelope(
+    createMeshAllocationRuntimeState(
+      state.coordination,
+      state.discovery,
+      state.objectives,
+      state.allocation
+    ),
+    {
+      envelope: verifiedEnvelope as VerifiedMeshEnvelope<MeshAllocationPayload>,
+      verifiedAt,
+      receivedAt,
+      ...(configuration.supportedCriticalExtensions === undefined
+        ? {}
+        : {
+            supportedCriticalExtensions:
+              configuration.supportedCriticalExtensions,
+          }),
+    }
+  );
+  if (!projection.accepted)
+    return allocationRejection(replayRuntime, projection.code);
+  return allocationAcceptance(
+    createMeshAllocationInboundRuntimeState(
+      projection.state.coordination,
+      projection.state.discovery,
+      projection.state.objectives,
+      projection.state.allocation,
+      replay.inbound
+    ),
+    verifiedEnvelope,
+    projection.duplicate
+  );
+}
+
 function validateObjectiveFamily(
   envelope: SignedMeshEnvelope
 ): MeshObjectiveInboundRejectionCode | undefined {
@@ -575,11 +810,43 @@ function validateObjectiveFamily(
     : undefined;
 }
 
+function validateAllocationFamily(
+  envelope: SignedMeshEnvelope
+): MeshAllocationInboundRejectionCode | undefined {
+  const type = envelope.payload.type;
+  if (
+    type !== 'work.offer' &&
+    type !== 'work.bid' &&
+    type !== 'work.award' &&
+    type !== 'work.accept' &&
+    type !== 'work.decline'
+  ) {
+    return 'unsupported_message_type';
+  }
+  return undefined;
+}
+
 function validateObjectiveAdmission(
   state: MeshObjectiveInboundRuntimeState,
   envelope: VerifiedMeshEnvelope<MeshObjectivePayload>,
   verifiedAt: string
 ): MeshObjectiveInboundRejectionCode | undefined {
+  const admission = state.discovery.admittedPeers[envelope.sender.peerId];
+  if (!admission) return 'sender_not_admitted';
+  if (!admission.instanceIds.includes(envelope.sender.instanceId)) {
+    return 'sender_instance_not_admitted';
+  }
+  const expiry = compareMeshTimestamps(verifiedAt, admission.validUntil);
+  return !expiry.ok || expiry.value >= 0
+    ? 'sender_admission_expired'
+    : undefined;
+}
+
+function validateAllocationAdmission(
+  state: MeshAllocationInboundRuntimeState,
+  envelope: VerifiedMeshEnvelope<MeshAllocationInboundPayload>,
+  verifiedAt: string
+): MeshAllocationInboundRejectionCode | undefined {
   const admission = state.discovery.admittedPeers[envelope.sender.peerId];
   if (!admission) return 'sender_not_admitted';
   if (!admission.instanceIds.includes(envelope.sender.instanceId)) {
@@ -896,6 +1163,28 @@ function objectiveContextRejection(
   }
 }
 
+function allocationContextRejection(
+  code: MeshProtocolErrorCode | undefined,
+  envelope: SignedMeshEnvelope<MeshAllocationInboundPayload>,
+  subscriptions: readonly MeshAudienceTopic[]
+): MeshAllocationInboundRejectionCode {
+  switch (code) {
+    case 'scope_mismatch':
+      return 'scope_mismatch';
+    case 'invalid_audience':
+      return envelope.audience.kind === 'mesh' &&
+        !subscriptions.includes(envelope.audience.topic)
+        ? 'topic_not_subscribed'
+        : 'audience_mismatch';
+    case 'message_expired':
+    case 'message_from_future':
+    case 'unknown_critical_extension':
+      return code;
+    default:
+      return 'invalid_verified_envelope';
+  }
+}
+
 function acceptance(
   state: MeshDiscoveryInboundRuntimeState,
   envelope: VerifiedMeshEnvelope<MeshDiscoveryPayload>,
@@ -924,10 +1213,25 @@ function objectiveAcceptance(
   return Object.freeze({ accepted: true, duplicate, envelope, state });
 }
 
+function allocationAcceptance(
+  state: MeshAllocationInboundRuntimeState,
+  envelope: VerifiedMeshEnvelope<MeshAllocationInboundPayload>,
+  duplicate: boolean
+): MeshAllocationInboundDecision {
+  return Object.freeze({ accepted: true, duplicate, envelope, state });
+}
+
 function objectiveRejection(
   state: MeshObjectiveInboundRuntimeState,
   code: MeshObjectiveInboundRejectionCode | MeshObjectiveWorkRejectionCode
 ): MeshObjectiveInboundDecision {
+  return Object.freeze({ accepted: false, code, state });
+}
+
+function allocationRejection(
+  state: MeshAllocationInboundRuntimeState,
+  code: MeshAllocationInboundRejectionCode | MeshAllocationRejectionCode
+): MeshAllocationInboundDecision {
   return Object.freeze({ accepted: false, code, state });
 }
 
@@ -982,6 +1286,34 @@ function assertObjectiveRuntimeState(
   );
 }
 
+function assertAllocationRuntimeState(
+  state: MeshAllocationInboundRuntimeState
+): void {
+  if (
+    !state ||
+    typeof state !== 'object' ||
+    Object.getPrototypeOf(state) !== Object.prototype ||
+    !hasExactDataKeys(
+      state,
+      ['allocation', 'coordination', 'discovery', 'inbound', 'objectives'],
+      ['allocation', 'coordination', 'discovery', 'inbound', 'objectives']
+    ) ||
+    !Object.isFrozen(state)
+  ) {
+    throw new TypeError(
+      'Mesh allocation inbound runtime state must be immutable'
+    );
+  }
+  assertFrozenMeshCoordinationInboundState(state.inbound);
+  createMeshAllocationInboundRuntimeState(
+    state.coordination,
+    state.discovery,
+    state.objectives,
+    state.allocation,
+    state.inbound
+  );
+}
+
 function assertRequest(request: MeshDiscoveryInboundRequest): void {
   if (!request || typeof request !== 'object') {
     throw new TypeError('Mesh discovery inbound request is required');
@@ -1013,6 +1345,23 @@ function assertObjectiveRequest(request: MeshObjectiveInboundRequest): void {
     )
   ) {
     throw new TypeError('Invalid Mesh Objective inbound request');
+  }
+}
+
+function assertAllocationRequest(request: MeshAllocationInboundRequest): void {
+  if (!request || typeof request !== 'object') {
+    throw new TypeError('Mesh allocation inbound request is required');
+  }
+  const prototype = Object.getPrototypeOf(request);
+  if (
+    (prototype !== null && prototype !== Object.prototype) ||
+    !hasExactDataKeys(
+      request,
+      ['envelope', 'receivedAt', 'verifiedAt'],
+      ['envelope', 'receivedAt', 'verifiedAt']
+    )
+  ) {
+    throw new TypeError('Invalid Mesh allocation inbound request');
   }
 }
 
