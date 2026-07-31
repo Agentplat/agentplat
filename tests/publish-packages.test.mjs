@@ -364,7 +364,14 @@ test('release workflow defaults to dry-run and scopes the npm token to publishin
   );
   assert.doesNotMatch(verificationStep, /NODE_AUTH_TOKEN/);
   assert.doesNotMatch(dryRunStep, /NODE_AUTH_TOKEN/);
+  assert.match(verificationStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
+  assert.match(dryRunStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
   assert.match(publishStep, /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
+  assert.doesNotMatch(publishStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
+  assert.equal(
+    workflow.match(/NPM_CONFIG_USERCONFIG: \/dev\/null/g)?.length,
+    4
+  );
 });
 
 test('publisher preserves tarball permission modes independently of the process umask', async () => {
