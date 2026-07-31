@@ -4,7 +4,7 @@ import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 import {
   compareAscii,
   discoverWorkspacePackageManifests,
@@ -44,7 +44,7 @@ export async function verifyRelease(root = process.cwd()) {
     await readFile(path.join(root, 'package.json'), 'utf8')
   );
 
-  await assertInferenceControlReleaseLine({
+  await assertReleaseLine({
     root,
     catalog,
     rootManifest,
@@ -552,3 +552,4 @@ const isMain =
 if (isMain) {
   await verifyRelease();
 }
+

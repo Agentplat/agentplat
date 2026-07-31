@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 
 export const REGISTRY_MESH_PACKAGES = Object.freeze([
   '@agentplat/mesh',
@@ -106,7 +106,7 @@ export async function verifyRegistryConsumer({
   const rootManifest = JSON.parse(
     await readFile(path.join(root, 'package.json'), 'utf8'),
   );
-  await assertInferenceControlReleaseLine({ root, rootManifest });
+  await assertReleaseLine({ root, rootManifest });
   const manifest = registryConsumerManifest(rootManifest.version);
   const temporaryRoot = await mkdtemp(
     path.join(os.tmpdir(), 'agentplat-registry-consumer-'),
@@ -245,3 +245,4 @@ if (isMain) {
     process.exitCode = 1;
   }
 }
+

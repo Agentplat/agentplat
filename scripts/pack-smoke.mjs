@@ -18,11 +18,11 @@ import {
 } from './public-package-catalog.mjs';
 import { loadExternalTerminologyDenylist } from './public-audit-terminology.mjs';
 import { assertPackedInternalDependencyRanges } from './packed-manifest.mjs';
-import { assertInferenceControlReleaseLine } from './inference-control-release-line.mjs';
+import { assertReleaseLine } from './release-line.mjs';
 
 const root = process.cwd();
 const catalog = await loadPublicPackageCatalog(root);
-await assertInferenceControlReleaseLine({ root, catalog });
+await assertReleaseLine({ root, catalog });
 const packageEntries = packSmokePackages(catalog);
 const pnpmStoreDirectory = execFileSync('corepack', ['pnpm', 'store', 'path'], {
   cwd: root,
@@ -504,3 +504,4 @@ function importVerificationSource(importSpecifiers) {
     '',
   ].join('\n');
 }
+
