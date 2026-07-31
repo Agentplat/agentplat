@@ -228,8 +228,10 @@ resistance.
 
 Signatures authenticate key possession. Accepted identity additionally depends
 on local key binding and admission. Self-signed Peer Cards do not admit
-themselves. Live revocation protection depends on sufficiently fresh local key
-state; a peer that has not received a revocation cannot enforce it. Archived
+themselves. Peer Cards and capability advertisements are self-claims, not
+statements of truth; outcomes require separate verification. Live revocation
+protection depends on sufficiently fresh local key state; a peer that has not
+received a revocation cannot enforce it. Archived
 verification is separate from live acceptance and never authorizes a reducer or
 action.
 

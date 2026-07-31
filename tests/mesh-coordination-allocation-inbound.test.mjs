@@ -430,6 +430,57 @@ test('allocation inbound rejects cryptographic failures before admission', async
   });
 });
 
+test('allocation inbound rejects revoked and expired keys before replay or the domain reducer', async () => {
+  const initial = runtime();
+  const key = keyPairs['peer-a'].publicKey;
+  const cases = [
+    {
+      code: 'key_revoked',
+      record: {
+        validFrom: '2026-01-01T00:00:00.000Z',
+        validUntil: '2027-01-01T00:00:00.000Z',
+        status: 'revoked',
+        revokedAt: '2026-07-29T00:00:00.000Z',
+      },
+    },
+    {
+      code: 'key_expired',
+      record: {
+        validFrom: '2026-01-01T00:00:00.000Z',
+        validUntil: '2026-07-30T00:00:00.000Z',
+        status: 'active',
+      },
+    },
+  ];
+
+  for (const [index, candidate] of cases.entries()) {
+    const resolver = createStaticMeshKeyResolver([
+      {
+        tenantId: 'tenant-a',
+        meshId: 'mesh-a',
+        peerId: 'peer-a',
+        keyId: 'key-a',
+        algorithm: MESH_SIGNATURE_ALGORITHM,
+        publicKey: key,
+        ...candidate.record,
+      },
+    ]);
+    const result = await createProcessor({ resolver }).process(
+      initial,
+      request(await signedBid(20 + index, 10 + index))
+    );
+
+    assert.deepEqual(result, {
+      accepted: false,
+      code: candidate.code,
+      state: initial,
+    });
+    // These failures have not entered replay accounting or the Allocation reducer.
+    assert.equal(result.state.inbound, initial.inbound);
+    assert.equal(result.state.allocation, initial.allocation);
+  }
+});
+
 test('allocation inbound rejects senders outside discovery admission', async () => {
   const initial = runtime({ admittedPeers: [] });
   const result = await processor.process(

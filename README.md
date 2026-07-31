@@ -26,22 +26,26 @@ AgentPlat is a downloadable framework for building self-hosted agentic platforms
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
-### Agent Mesh Alpha 1
+### Agent Mesh Alpha 2
 
-Agent Mesh Alpha 1 is the public local vertical slice for distributed peer
-coordination. It provides bounded immutable peer state, signed envelopes,
-preprovisioned admission, an explicit in-memory loopback transport and
-deterministic simulation with replay. It is an additive sibling to Sessions and
-Rooms and does not change their defaults.
+Agent Mesh Alpha 2 is the public allocation and recovery preview for
+distributed peer coordination. It adds bounded partial peer views, expiring
+capability self-claims, Objective and Work Item state machines, signed
+offer/bid/award/acceptance, leased execution, checkpoint recovery and certified
+next-epoch fencing. The deterministic simulator injects explicit crash, loss,
+duplicate, delay, reorder and partition faults through driver boundaries while
+running the production reducers. Agent Mesh remains an additive sibling to
+Sessions and Rooms and does not change their defaults.
 
 ```sh
 pnpm add @agentplat/mesh@next @agentplat/mesh-crypto@next \
   @agentplat/mesh-protocol@next @agentplat/mesh-sim@next
 ```
 
-Capability discovery, distributed work allocation, lease recovery, inference
-control and production network transports remain assigned to later previews.
-See the [Alpha 1 implementation plan](./docs/agent-mesh/alpha-1-implementation-plan.md),
+Inference control, external action grants, evidence fusion, production durable
+storage and production network transports remain assigned to later previews.
+See the [Alpha 2 implementation plan](./docs/agent-mesh/alpha-2-implementation-plan.md),
+[Alpha 2 acceptance checklist](./docs/agent-mesh/alpha-2-acceptance-checklist.md),
 [Agent Mesh glossary](./docs/agent-mesh/glossary.md), [protocol v0
 design](./docs/agent-mesh/protocol-v0.md), [compatibility
 policy](./docs/agent-mesh/compatibility.md) and [release
@@ -70,10 +74,10 @@ plan](./docs/agent-mesh/release-plan.md).
 | `@agentplat/provider-openai`         | OpenAI Agents SDK execution with tenant-isolated credentials.           |
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
-| `@agentplat/mesh`                    | Immutable peer state, inbound coordination and signed loopback.         |
+| `@agentplat/mesh`                    | Bounded peer coordination, allocation, leases, fencing and recovery.    |
 | `@agentplat/mesh-crypto`             | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
 | `@agentplat/mesh-protocol`           | Strict bounded wire parsing, validation and conformance fixtures.       |
-| `@agentplat/mesh-sim`                | Seeded event scheduling, invariants, trace digests and replay.          |
+| `@agentplat/mesh-sim`                | Versioned faults, snapshots, invariants, trace digests and replay.      |
 | `@agentplat/tools`                   | Tool contracts and an in-memory tool registry.                          |
 | `@agentplat/mcp`                     | MCP server, tool-binding and registry contracts.                        |
 | `@agentplat/events`                  | Event contracts and an in-memory event bus.                             |
@@ -160,7 +164,7 @@ path does not require DynamoDB or the Agent Rooms schema.
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.3.0-alpha.1` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.3.0-alpha.2` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants

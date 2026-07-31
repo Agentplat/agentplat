@@ -32,9 +32,10 @@ Public-key import and export use the provider-neutral raw 32-byte Ed25519
 representation. Private-key import and export are intentionally outside this
 package's public surface.
 
-Verification establishes payload integrity, signature validity and a live
-local key binding. It does not admit a peer, authorize a message, apply replay
-state or mutate domain state.
+Verification establishes payload integrity, signature validity and
+authentication of possession of a live locally bound key. It does not provide
+confidentiality or establish the truth of a sender claim; it does not admit a
+peer, authorize a message, apply replay state or mutate domain state.
 
 Private keys are never protocol payloads, fixtures or telemetry. Signing tests
 generate temporary key pairs at runtime; public fixtures contain only a raw

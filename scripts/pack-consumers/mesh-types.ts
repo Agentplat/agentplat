@@ -21,8 +21,16 @@ import {
 } from '@agentplat/mesh-protocol';
 import {
   createMeshSimulationKernel,
+  replayMeshReducerScenario,
   replayMeshSimulation,
+  restoreMeshSimulationKernel,
+  runMeshReducerScenario,
+  type MeshReducerScenarioConfig,
+  type MeshReducerScenarioRuntime,
+  type MeshReducerScenarioTrace,
   type MeshSimulationConfig,
+  type MeshSimulationFaultPlan,
+  type MeshSimulationSnapshot,
   type MeshSimulationTrace,
 } from '@agentplat/mesh-sim';
 
@@ -32,6 +40,29 @@ declare const resolver: MeshKeyResolver;
 declare const privateKey: CryptoKey;
 declare const simulation: MeshSimulationConfig;
 declare const expected: MeshSimulationTrace;
+declare const faultPlan: MeshSimulationFaultPlan;
+declare const snapshot: MeshSimulationSnapshot;
+
+interface ReducerState {
+  readonly count: number;
+}
+
+interface ReducerAction {
+  readonly delta: number;
+}
+
+declare const reducerScenario: MeshReducerScenarioConfig<
+  ReducerState,
+  ReducerAction
+>;
+declare const reducerRuntime: MeshReducerScenarioRuntime<
+  ReducerState,
+  ReducerAction
+>;
+declare const reducerTrace: MeshReducerScenarioTrace<
+  ReducerState,
+  ReducerState
+>;
 
 const signer = createWebCryptoMeshEnvelopeSigner();
 const verifier = createWebCryptoMeshEnvelopeVerifier();
@@ -63,7 +94,12 @@ void processMeshEnvelope(state, {
   admissionPolicy: ALLOW_PREPROVISIONED_MESH_ADMISSION,
 });
 void createMeshSimulationKernel(simulation);
+void restoreMeshSimulationKernel(simulation, snapshot);
 void replayMeshSimulation(simulation, [], expected);
+void runMeshReducerScenario(reducerScenario, reducerRuntime);
+void replayMeshReducerScenario(reducerScenario, reducerRuntime, reducerTrace);
 void peer;
+void faultPlan;
+void snapshot;
 void MESH_PROTOCOL;
 void MESH_WIRE_VERSION;

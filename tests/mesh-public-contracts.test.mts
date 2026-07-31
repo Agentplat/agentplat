@@ -174,13 +174,29 @@ import {
 } from '@agentplat/mesh/coordination';
 import * as meshCoordination from '@agentplat/mesh/coordination';
 import {
+  MESH_SIMULATION_FAULT_LIMITS,
   createMeshSimulationKernel,
   replayMeshSimulation,
+  replayMeshReducerScenario,
+  restoreMeshSimulationKernel,
+  runMeshReducerScenario,
   runMeshSimulation,
   THREE_PEER_SCENARIO_IDS,
+  type MeshReducerScenarioConfig,
+  type MeshReducerScenarioDecision,
+  type MeshReducerScenarioEvent,
+  type MeshReducerScenarioLimits,
+  type MeshReducerScenarioReplayResult,
+  type MeshReducerScenarioRuntime,
+  type MeshReducerScenarioTrace,
+  type MeshSimulationFault,
+  type MeshSimulationFaultKind,
+  type MeshSimulationFaultPlan,
   type MeshSimulationConfig,
   type MeshSimulationInvariant,
   type MeshSimulationKernel,
+  type MeshSimulationSnapshot,
+  type MeshSimulationTrace,
 } from '@agentplat/mesh-sim';
 import type { MeshSimulationEventInput } from '@agentplat/mesh-sim';
 import {
@@ -1133,6 +1149,18 @@ const admissionPolicy: MeshAdmissionPolicy = {
   isPeerAdmitted: ({ senderPeerId }) => senderPeerId === 'peer-b',
 };
 
+const simulationFaultKind: MeshSimulationFaultKind = 'peer.crash';
+const simulationFault: MeshSimulationFault = {
+  faultId: 'crash-a',
+  kind: simulationFaultKind,
+  logicalTime: 10,
+  priority: 0,
+  peerId: 'peer-a',
+};
+const simulationFaultPlan: MeshSimulationFaultPlan = {
+  schemaVersion: 1,
+  faults: [simulationFault],
+};
 const simulationConfig: MeshSimulationConfig = {
   seed: 1,
   prngVersion: 'xorshift32-v1',
@@ -1157,6 +1185,7 @@ const simulationConfig: MeshSimulationConfig = {
     maximumQueuedEvents: 100,
     maximumInternalSteps: 100,
   },
+  faultPlan: simulationFaultPlan,
 };
 
 const invariant: MeshSimulationInvariant = {
@@ -1359,6 +1388,67 @@ const simulationRunPromise = runMeshSimulation(
 const simulationReplayPromise = simulationRunPromise.then((trace) =>
   replayMeshSimulation(simulationConfig, simulationEvents, trace)
 );
+const simulationTracePromise: Promise<MeshSimulationTrace> =
+  simulationRunPromise;
+const simulationSnapshot: MeshSimulationSnapshot | undefined = undefined;
+const restoreSimulationKernel: typeof restoreMeshSimulationKernel =
+  restoreMeshSimulationKernel;
+
+type ContractScenarioState = Readonly<{ count: number }>;
+type ContractScenarioAction = Readonly<{ delta: number }>;
+const reducerScenarioLimits: MeshReducerScenarioLimits = {
+  maximumEvents: 10,
+  maximumLogicalTime: 100,
+  maximumQueuedEvents: 10,
+  maximumStateBytes: 1_024,
+};
+const reducerScenarioEvent: MeshReducerScenarioEvent<ContractScenarioAction> = {
+  eventId: 'increment-a',
+  targetPeerId: 'peer-a',
+  logicalTime: 1,
+  priority: 0,
+  action: { delta: 1 },
+};
+const reducerScenarioConfig: MeshReducerScenarioConfig<
+  ContractScenarioState,
+  ContractScenarioAction
+> = {
+  schemaVersion: 1,
+  scenarioId: 'public-contract',
+  seed: 1,
+  prngVersion: 'xorshift32-v1',
+  peers: [{ peerId: 'peer-a', state: { count: 0 } }],
+  links: [],
+  events: [reducerScenarioEvent],
+  faultPlan: { schemaVersion: 1, faults: [] },
+  limits: reducerScenarioLimits,
+};
+const reducerScenarioRuntime: MeshReducerScenarioRuntime<
+  ContractScenarioState,
+  ContractScenarioAction
+> = {
+  driverId: 'public-contract-v1',
+  projectionId: 'public-contract-v1',
+  reduce: ({
+    state,
+    action,
+  }): MeshReducerScenarioDecision<ContractScenarioState> => ({
+    accepted: true,
+    state: { count: state.count + action.delta },
+  }),
+  project: (state) => state,
+};
+const reducerScenarioTracePromise: Promise<
+  MeshReducerScenarioTrace<ContractScenarioState, ContractScenarioState>
+> = runMeshReducerScenario(reducerScenarioConfig, reducerScenarioRuntime);
+const reducerScenarioReplayPromise: Promise<MeshReducerScenarioReplayResult> =
+  reducerScenarioTracePromise.then((trace) =>
+    replayMeshReducerScenario(
+      reducerScenarioConfig,
+      reducerScenarioRuntime,
+      trace
+    )
+  );
 
 void unsignedHello;
 void implementedPayloadType;
@@ -1409,6 +1499,17 @@ void loopbackRuntime;
 void simulationKernelPromise;
 void simulationRunPromise;
 void simulationReplayPromise;
+void simulationTracePromise;
+void simulationSnapshot;
+void restoreSimulationKernel;
+void simulationFaultKind;
+void simulationFault;
+void simulationFaultPlan;
+void MESH_SIMULATION_FAULT_LIMITS;
+void reducerScenarioLimits;
+void reducerScenarioEvent;
+void reducerScenarioTracePromise;
+void reducerScenarioReplayPromise;
 void objectiveWorkTimerDecision;
 void objectiveWorkDecision;
 void allocationSelection;

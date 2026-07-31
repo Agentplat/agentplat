@@ -679,10 +679,24 @@ export function createMeshAllocationRuntimeState(
     if (localAward === undefined) continue;
     const currentWork =
       objectives.workItems[workKey(head.objectiveId, head.workItemId)];
+    const fenceKey = meshAssignmentFenceKey(head);
+    const supersedingFence = allocation.assignmentFenceHeads[fenceKey];
+    const strictlySuperseded =
+      supersedingFence !== undefined &&
+      supersedingFence.assignmentFenceKey === fenceKey &&
+      supersedingFence.objectiveId === head.objectiveId &&
+      supersedingFence.objectiveRevision === head.objectiveRevision &&
+      supersedingFence.workItemId === head.workItemId &&
+      supersedingFence.workItemRevision === head.workItemRevision &&
+      supersedingFence.ownerPeerId === head.ownerPeerId &&
+      supersedingFence.ownerEpoch === head.ownerEpoch &&
+      supersedingFence.assignmentEpoch > head.assignmentEpoch &&
+      supersedingFence.assignmentAuthorityId !== head.assignmentAuthorityId &&
+      supersedingFence.fencingToken !== head.fencingToken;
     if (
       !currentWork ||
       (head.phase === "active"
-        ? currentWork.status !== "ready"
+        ? currentWork.status !== "ready" && !strictlySuperseded
         : currentWork.status !== head.phase ||
           currentWork.terminalAt !== head.terminalAt)
     )
@@ -1147,7 +1161,14 @@ export function createMeshAllocationRuntimeState(
         (supersededAward
           ? response?.kind !== "work.accept" ||
             reservation.status !== "committed" ||
-            !["recovering", "award_pending", "active"].includes(work.phase)
+            ![
+              "recovering",
+              "award_pending",
+              "active",
+              "completed",
+              "released",
+              "cancelled",
+            ].includes(work.phase)
           : ![
               "active",
               "recovering",
