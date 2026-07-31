@@ -9,6 +9,8 @@ import {
   evaluateTrustEligibilityV1,
   reduceEvidenceTrustStateV1,
 } from '@agentplat/trust';
+import { filterMeshCapabilityMatchesWithTrustV1 } from '@agentplat/mesh/trust';
+import { runWithTrustEligibilityV1 } from '@agentplat/inference-control/trust';
 
 const subject = { schemaVersion: 1, kind: 'peer', peerId: 'peer-consumer' };
 const scope = {
@@ -187,6 +189,62 @@ const eligibility = evaluateTrustEligibilityV1(
 if (eligibility.disposition !== 'eligible' || eligibility.reasonCodes.length)
   throw new Error('Trust consumer eligibility did not remain deterministic');
 
+const peerMatches = filterMeshCapabilityMatchesWithTrustV1(
+  [{ peerId: 'peer-consumer', capabilities: [] }],
+  'restrict',
+  {
+    bindingDigest: '1'.repeat(64),
+    evaluate: () => 'eligible',
+  },
+);
+if (peerMatches.matches.length !== 1 || peerMatches.unavailable)
+  throw new Error('Mesh Trust consumer did not preserve eligible candidates');
+
+let modelBoundaryCalls = 0;
+const controlDigest = `sha256:${'2'.repeat(64)}`;
+const trustBindingDigest = '3'.repeat(64);
+const modelResult = runWithTrustEligibilityV1(
+  {
+    policy: {
+      policyId: 'consumer-policy',
+      policyVersion: 1,
+      policyDigest: trustBindingDigest,
+      mode: 'restrict',
+    },
+    resolver: {
+      resolverId: 'consumer-resolver',
+      resolverVersion: 1,
+      resolverDigest: '4'.repeat(64),
+      resolve: (target) => ({
+        schemaVersion: 1,
+        status: 'eligible',
+        policyDigest: trustBindingDigest,
+        resolverDigest: '4'.repeat(64),
+        mappingDigest: '5'.repeat(64),
+        scopeDigest: target.scopeDigest,
+        targetDigest: target.targetDigest,
+      }),
+    },
+    mapping: {
+      mappingId: 'consumer-mapping',
+      mappingVersion: 1,
+      mappingDigest: '5'.repeat(64),
+    },
+    modelBindingDigest: '6'.repeat(64),
+  },
+  {
+    schemaVersion: 1,
+    operation: 'model',
+    tenantId: 'tenant-consumer',
+    runId: 'run-consumer',
+    scopeDigest: controlDigest,
+    targetDigest: controlDigest,
+  },
+  () => (modelBoundaryCalls += 1),
+);
+if (modelResult !== 1 || modelBoundaryCalls !== 1)
+  throw new Error('Inference Control Trust consumer did not delegate once');
+
 console.log(
-  'Verified Trust policy, profile, and eligibility from a clean consumer.',
+  'Verified Trust policy/profile/eligibility plus Mesh and Inference Control Trust subpaths from a clean consumer.',
 );

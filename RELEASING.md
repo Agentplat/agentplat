@@ -12,7 +12,7 @@ verification rather than becoming publishable implicitly.
 ## Prepare a version
 
 ```sh
-corepack pnpm version:set 0.3.0-alpha.3
+corepack pnpm version:set 0.3.0-alpha.4
 corepack pnpm install
 corepack pnpm run check
 ```
@@ -24,8 +24,13 @@ contents of every tarball, requires internal SemVer ranges that include the
 coordinated packed version, imports every declared package export independently,
 compiles TypeScript consumers against the packed declarations and runs the
 signed three-peer Mesh scenario, the dedicated inference-control scenario over
-all five public entrypoints and the unchanged aggregate functional consumer
-smoke test.
+all five public entrypoints, a Trust policy/profile/eligibility scenario across
+the Trust root and explicit Mesh/Inference Control Trust subpaths, and the
+unchanged aggregate functional consumer smoke test.
+
+`pnpm check` also verifies the versioned 27-scenario Alpha 4 adversarial
+catalog. Every record binds its seed, bounded configuration, fault plan, trace,
+test evidence and first controlled divergence where applicable.
 
 Every release also requires a non-empty terminology denylist stored outside the
 checkout:
@@ -39,10 +44,10 @@ The GitHub release workflow reads the same content from the
 `AGENTPLAT_PUBLIC_DENYLIST` repository secret and writes it only to the runner's
 temporary directory.
 
-Inference Control Alpha 3 is coordinated across exactly 29 packages. Its
+Evidence and Trust Alpha 4 is coordinated across exactly 30 packages. Its
 contracts and additional compatibility gates are documented in
-`docs/inference-control/alpha-3-implementation-plan.md` and
-`docs/inference-control/alpha-3-acceptance-checklist.md`.
+`docs/trust/alpha-4-implementation-plan.md` and
+`docs/trust/alpha-4-acceptance-checklist.md`.
 
 ## Publish
 
@@ -53,8 +58,8 @@ to it. Authenticate with npm, then publish from a clean `main` checkout:
 npm whoami
 corepack pnpm run release:publish:next
 corepack pnpm run verify:registry-consumer
-git tag v0.3.0-alpha.3
-git push public v0.3.0-alpha.3
+git tag -a v0.3.0-alpha.4 -m "Release 0.3.0-alpha.4"
+git push public v0.3.0-alpha.4
 ```
 
 Do not create the Git tag if the exact-version registry consumer fails. The
@@ -62,7 +67,7 @@ consumer pins the installer to the public registry, uses a fresh package store,
 ignores install scripts, and exposes neither credentials nor host npm
 configuration to downloaded code. It compiles the declarations, replays the
 signed three-peer scenario and exercises the inference-control exact-version
-consumer before the release commit is tagged.
+and Trust exact-version consumers before the release commit is tagged.
 
 Stable releases use `release:publish`, whose default distribution tag is
 `latest`. The release script rejects publishing a prerelease under `latest` and
@@ -108,11 +113,16 @@ first time, even when an explicit staging tag is supplied. Treat a first
 publication as a coordinated maintenance window; subsequent releases do not
 move their final tag until the full set is verified.
 
+Alpha 4 introduces `@agentplat/trust`, so its first publication may receive
+`latest` even though the coordinated target is `next`. Record the observed tags
+as release evidence; do not treat that npm bootstrap behavior as a stable
+promotion of the 30-package cohort.
+
 Alternatively, configure the npm organization and run the manual `Release
 packages` GitHub Actions workflow with the intended distribution tag. After the
 first publication, configure npm Trusted Publishing for the workflow and remove
 long-lived publishing tokens. Never commit a token or place it in package
 metadata.
 
-The Alpha 3 promotion state, evidence and rollback baseline are recorded in the
-[Alpha 3 acceptance checklist](./docs/inference-control/alpha-3-acceptance-checklist.md).
+The Alpha 4 promotion state, evidence and rollback baseline are recorded in the
+[Alpha 4 acceptance checklist](./docs/trust/alpha-4-acceptance-checklist.md).

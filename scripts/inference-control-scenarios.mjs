@@ -1,10 +1,13 @@
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { digestControlJsonV1 } from '../packages/inference-control/dist/index.js';
 
-const releaseVersion = '0.3.0-alpha.3';
+export const INFERENCE_CONTROL_SCENARIO_RELEASE_VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+).version;
 const descriptor = Object.freeze({
   schemaVersion: 1,
   capabilityId: 'capability:alpha3-scenarios',
@@ -246,7 +249,7 @@ export function buildInferenceControlScenarioReport() {
     ([scenarioId, name, testFile, testTitle, orderedDecisions]) => {
       const configuration = {
         schemaVersion: 1,
-        releaseVersion,
+        releaseVersion: INFERENCE_CONTROL_SCENARIO_RELEASE_VERSION,
         scenarioId,
         name,
         eventLimit: 128,

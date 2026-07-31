@@ -879,6 +879,176 @@ test("Fusion enforces its record ceiling and standalone canonical order", () => 
   );
 });
 
+test("1024 distinct Claim roots reach the Fusion ceiling and one dependency group retains its effective cap", () => {
+  const seed = claim("satisfied", "criterion-a", {
+    causationId: "flood-cause-0000",
+    rootId: "flood-root-0000",
+  });
+  const configured = setup([[seed, 1]]);
+  const claimRoots = [
+    seed,
+    ...Array.from({ length: 1023 }, (_, index) =>
+      claim("satisfied", "criterion-a", {
+        causationId: `flood-cause-${String(index + 1).padStart(4, "0")}`,
+        rootId: `flood-root-${String(index + 1).padStart(4, "0")}`,
+      }),
+    ),
+  ];
+  const recordTemplate = configured.state.records[0];
+  const atCapacityState = {
+    ...configured.state,
+    records: claimRoots.map((record) => ({
+      ...recordTemplate,
+      recordId: record.claimId,
+      recordDigest: record.claimId.slice("claim:".length),
+      record,
+    })),
+  };
+  const atCapacity = evaluateEvidenceFusionV1(
+    atCapacityState,
+    configured.request,
+    1,
+  );
+  assert.equal(atCapacity.consideredRecordIds.length, 1024);
+  assert.equal(atCapacity.claimClassifications.length, 1024);
+  assert.equal(
+    new Set(claimRoots.map((record) => record.rootBasisDigest)).size,
+    1024,
+  );
+
+  const overflowClaim = claim("satisfied", "criterion-a", {
+    causationId: "flood-cause-overflow",
+    rootId: "flood-root-a",
+  });
+  const overflow = {
+    ...atCapacityState,
+    records: [
+      ...atCapacityState.records,
+      {
+        ...recordTemplate,
+        recordId: overflowClaim.claimId,
+        recordDigest: overflowClaim.claimId.slice("claim:".length),
+        record: overflowClaim,
+      },
+    ],
+  };
+  assert.throws(
+    () => evaluateEvidenceFusionV1(overflow, configured.request, 1),
+    /considered-record capacity/u,
+  );
+
+  const first = claim("satisfied", "criterion-a", {
+    causationId: "cap-first",
+    rootId: "cap-root-a",
+  });
+  const second = claim("satisfied", "criterion-a", {
+    causationId: "cap-second",
+    rootId: "cap-root-b",
+    sourceId: "peer-d",
+  });
+  const capped = setup([
+    [first, 2],
+    [attestation(first, "peer-b"), 3],
+    [second, 4],
+    [attestation(second, "peer-c"), 5],
+  ]);
+  const cappedDecision = evaluateEvidenceFusionV1(
+    capped.state,
+    capped.request,
+    10,
+  );
+  assert.equal(cappedDecision.dimensions[0].effectiveWeightBasisPoints, 700);
+  assert.equal(cappedDecision.dimensions[0].includedClaimIds.length, 1);
+  assert.ok(
+    cappedDecision.recordExclusions.some((entry) =>
+      entry.reasonCodes.includes("dependency_group_cap_exhausted"),
+    ),
+  );
+  const classification = cappedDecision.claimClassifications[0];
+  assert.throws(
+    () =>
+      validateEvidenceFusionDecisionV1({
+        ...cappedDecision,
+        claimClassifications: [
+          {
+            ...classification,
+            supportGroupIds: Array.from(
+              { length: 65 },
+              (_, index) => `oversized-group-${String(index).padStart(2, "0")}`,
+            ),
+          },
+        ],
+      }),
+    /fusion support groups capacity exceeded/u,
+  );
+  const allocation = cappedDecision.groupAllocations[0];
+  assert.throws(
+    () =>
+      validateEvidenceFusionDecisionV1({
+        ...cappedDecision,
+        groupAllocations: [
+          {
+            ...allocation,
+            candidateRecordIds: Array.from(
+              { length: 1025 },
+              (_, index) => `candidate-${String(index).padStart(4, "0")}`,
+            ),
+          },
+        ],
+      }),
+    /fusion allocation candidates capacity exceeded/u,
+  );
+});
+
+test("a bounded burst of unbound identities has zero effective weight", () => {
+  const base = claim("satisfied", "criterion-a", {
+    causationId: "bound-baseline",
+    rootId: "bound-baseline-a",
+  });
+  const support = attestation(base, "peer-b");
+  const baseline = setup([
+    [base, 2],
+    [support, 3],
+  ]);
+  const baselineDecision = evaluateEvidenceFusionV1(
+    baseline.state,
+    baseline.request,
+    10,
+  );
+  const unboundClaims = Array.from({ length: 16 }, (_, index) =>
+    claim("satisfied", "criterion-a", {
+      causationId: `unbound-cause-${index}`,
+      rootId: `unbound-root-${String(index).padStart(2, "0")}`,
+      sourceId: `peer-unbound-${String(index).padStart(2, "0")}`,
+    }),
+  );
+  const flooded = setup([
+    [base, 2],
+    [support, 3],
+    ...unboundClaims.map((record, index) => [record, index + 4]),
+  ]);
+  const decision = evaluateEvidenceFusionV1(
+    flooded.state,
+    flooded.request,
+    100,
+  );
+  assert.equal(
+    decision.dimensions[0].effectiveWeightBasisPoints,
+    baselineDecision.dimensions[0].effectiveWeightBasisPoints,
+  );
+  assert.deepEqual(
+    decision.dimensions[0].includedClaimIds,
+    baselineDecision.dimensions[0].includedClaimIds,
+  );
+  for (const record of unboundClaims) {
+    const classification = decision.claimClassifications.find(
+      (entry) => entry.claimId === record.claimId,
+    );
+    assert.equal(classification?.effectiveWeightBasisPoints, 0);
+    assert.ok(classification?.reasonCodes.includes("source_not_effective"));
+  }
+});
+
 test("quarantine activates atomically, requires explicit review, recovers from new disjoint evidence, and reactivates only from newer negatives", () => {
   const lifecycleLimits = {
     ...EVIDENCE_TRUST_LIMITS_V1,

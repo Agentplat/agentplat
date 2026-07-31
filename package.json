@@ -1,6 +1,6 @@
 {
   "name": "agentplat",
-  "version": "0.3.0-alpha.3",
+  "version": "0.3.0-alpha.4",
   "private": true,
   "description": "Open-core runtime primitives for building agentic platforms.",
   "license": "Apache-2.0",
@@ -28,12 +28,13 @@
     "audit:public:release": "node scripts/audit-public.mjs --require-terminology-denylist",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
+    "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:inference-control-scenarios && pnpm run verify:release && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:pack"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

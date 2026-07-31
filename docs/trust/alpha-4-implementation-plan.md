@@ -1884,6 +1884,9 @@ hard release-test ceilings unless a lower application value is supplied.
 | basis references per record         |         32 |
 | relationship depth                  |         16 |
 | considered records per fusion       |      1,024 |
+| Fusion group allocations            |      4,096 |
+| Fusion projection canonical nodes   |    100,000 |
+| Fusion projection canonical bytes   | 16,777,216 |
 | retained Fusion Decisions           |      4,096 |
 | profile heads                       |      2,048 |
 | profile revisions per head          |         32 |
@@ -1901,6 +1904,9 @@ The corresponding closed limit fields include
 `maximumChallengesPerSourceScope`,
 `maximumPendingChallengesPerSourceScope`, `maximumPendingAgeMs` and
 `maximumQuarantineRevisionsPerHead`; the table uses readable labels only.
+Fusion input-set and decision digests use their listed bounded projection
+limits so the exact 1,024-record ceiling remains evaluable; one record above
+that ceiling fails before projection construction.
 Active and pending per-source/scope counts are checked before global capacity
 mutation, so one source/scope cannot consume the entire pending-Challenge
 budget while capacity remains for others.

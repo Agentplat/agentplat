@@ -20,12 +20,34 @@
   <a href="https://agentplat.com/#contact">Contact</a>
 </p>
 
-> Developer preview: Agent Rooms, Agent Mesh and inference-control boundaries
-> are usable, but APIs may still change before the first stable release.
+> Developer preview: Agent Rooms, Agent Mesh, inference-control, and Evidence
+> and Trust boundaries are usable, but APIs may still change before the first
+> stable release.
 
 AgentPlat is a downloadable framework for building self-hosted agentic platforms around **Agent Rooms**: durable workspaces where humans and agents coordinate through messages, tasks, versioned artifacts, approvals, policies and scoped memory.
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
+
+### Evidence and Trust Alpha 4
+
+`0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
+multidimensional Trust Profiles, exact policy-bound eligibility, contradiction,
+quarantine, review and recovery in the new `@agentplat/trust` package. Explicit
+Mesh and Inference Control adapters can consume authenticated current Trust
+state to reduce candidates or refuse delegation; existing behavior remains
+unchanged unless an application constructs those opt-in boundaries.
+
+```sh
+pnpm add @agentplat/trust@next
+```
+
+Alpha 4 does not claim universal truth, global reputation or atomic remote
+revocation. Evidence remains scoped, source independence is local policy, and
+full snapshots require a protector plus an external durable rollback anchor.
+See the [Alpha 4 implementation plan](./docs/trust/alpha-4-implementation-plan.md),
+[acceptance checklist](./docs/trust/alpha-4-acceptance-checklist.md),
+[threat model](./docs/security/evidence-trust-threat-model.md) and
+[design review](./docs/trust/alpha-4-design-review.md).
 
 ### Inference Control Alpha 3
 
@@ -75,6 +97,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/workflows`               | Process/task contracts and an in-memory workflow store.                 |
 | `@agentplat/memory`                  | Session/retrieval contracts and a tenant-isolated in-memory store.      |
 | `@agentplat/inference-control`       | Opt-in inference boundaries, controlled release and safe action gates.  |
+| `@agentplat/trust`                   | Scoped Evidence, deterministic Profiles, eligibility and quarantine.    |
 | `@agentplat/mesh`                    | Bounded peer coordination, allocation, leases, fencing and recovery.    |
 | `@agentplat/mesh-crypto`             | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
 | `@agentplat/mesh-protocol`           | Strict bounded wire parsing, validation and conformance fixtures.       |
@@ -165,7 +188,7 @@ path does not require DynamoDB or the Agent Rooms schema.
 When developing inside a pnpm workspace that also contains older AgentPlat
 source packages, explicitly select the registry preview instead of resolving a
 local workspace package: `pnpm add @agentplat/framework@next`. With npm alias
-syntax, use `npm:@agentplat/framework@0.3.0-alpha.3` where a tool requires an
+syntax, use `npm:@agentplat/framework@0.3.0-alpha.4` where a tool requires an
 explicit registry target.
 
 The low-level runtime registry remains available when an application wants
@@ -216,7 +239,9 @@ audits the built tree, type-checks the workspace, runs unit tests and validates
 release metadata. It then audits every package tarball, imports every declared
 export from a package-isolated consumer, compiles packed TypeScript
 declarations, runs the signed three-peer Mesh scenario and preserves the
-aggregate functional smoke test.
+aggregate functional smoke test. It also executes a clean Trust consumer across
+the Trust root plus the explicit Mesh and Inference Control Trust subpaths, and
+verifies the versioned 27-scenario Alpha 4 adversarial catalog.
 
 The intentional publication allowlist is
 [`config/public-packages.json`](./config/public-packages.json). Release,

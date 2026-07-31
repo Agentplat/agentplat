@@ -321,7 +321,7 @@ try {
     ),
     writeFile(
       path.join(trustConsumerRoot, 'package.json'),
-      `${JSON.stringify({ name: 'agentplat-pack-smoke-trust', version: '1.0.0', private: true, type: 'module', dependencies: { '@agentplat/trust': trustArtifact.tarballReference } }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'agentplat-pack-smoke-trust', version: '1.0.0', private: true, type: 'module', dependencies: { '@agentplat/trust': trustArtifact.tarballReference, '@agentplat/mesh': meshDependencies['@agentplat/mesh'], '@agentplat/inference-control': inferenceControlArtifact.tarballReference } }, null, 2)}\n`,
     ),
     copyFile(
       path.join(root, 'scripts/pack-consumers/trust-foundation.mjs'),

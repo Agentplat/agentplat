@@ -41,6 +41,19 @@ import {
 } from "./validation.js";
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const FUSION_PROJECTION_JSON_LIMITS_V1 = Object.freeze({
+  maximumBytes: 16_777_216,
+  maximumDepth: 64,
+  maximumNodes: 100_000,
+  maximumKeysPerObject: 256,
+  maximumItemsPerArray: 4_096,
+});
+const MAXIMUM_FUSION_RECORD_ITEMS_V1 = 1_024;
+const MAXIMUM_FUSION_GROUP_ALLOCATIONS_V1 = 4_096;
+const MAXIMUM_FUSION_DIMENSIONS_V1 = 16;
+const MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1 = 64;
+const MAXIMUM_FUSION_CONTENT_RESOLUTIONS_V1 = 4_096;
+const MAXIMUM_FUSION_REASON_CODES_V1 = 256;
 const sorted = <T>(values: readonly T[], key: (value: T) => string): T[] =>
   [...values].sort((a, b) => compare(key(a), key(b)));
 const uniqueSorted = (values: readonly string[], label: string): string[] => {
@@ -52,9 +65,12 @@ const uniqueSorted = (values: readonly string[], label: string): string[] => {
 const assertSortedUnique = (
   values: unknown,
   label: string,
+  maximumItems = MAXIMUM_FUSION_GROUP_ALLOCATIONS_V1,
 ): readonly string[] => {
   if (!Array.isArray(values))
     throw new TrustValidationError(`${label} is invalid`);
+  if (values.length > maximumItems)
+    throw new TrustValidationError(`${label} capacity exceeded`);
   for (let index = 0; index < values.length; index += 1) {
     if (
       typeof values[index] !== "string" ||
@@ -554,6 +570,7 @@ export function digestEvidenceFusionDecisionV1(
   return digestTrustJsonV1(
     "fusion-decision",
     decisionBody(decision) as JsonValue,
+    FUSION_PROJECTION_JSON_LIMITS_V1,
   );
 }
 function challengeBody(value: ChallengeResolutionV1): Record<string, unknown> {
@@ -620,12 +637,21 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertTrustDigest(digest, "fusion digest");
   if (decision.previousProfileDigest !== null)
     assertTrustDigest(decision.previousProfileDigest, "previousProfileDigest");
-  for (const array of [
+  assertSortedUnique(
     decision.consideredRecordIds,
+    "fusion considered records",
+    MAXIMUM_FUSION_RECORD_ITEMS_V1,
+  );
+  assertSortedUnique(
     decision.includedRecordIds,
+    "fusion included records",
+    MAXIMUM_FUSION_RECORD_ITEMS_V1,
+  );
+  assertSortedUnique(
     decision.reasonCodes,
-  ] as const)
-    assertSortedUnique(array, "fusion decision array");
+    "fusion decision reasons",
+    MAXIMUM_FUSION_REASON_CODES_V1,
+  );
   for (const reason of decision.reasonCodes) validateReasonCodeV1(reason);
   if (
     !Array.isArray(decision.recordExclusions) ||
@@ -635,6 +661,35 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     !Array.isArray(decision.dimensions)
   )
     throw new TrustValidationError("fusion decision nested arrays are invalid");
+  if (
+    decision.recordExclusions.length > MAXIMUM_FUSION_RECORD_ITEMS_V1 ||
+    decision.claimClassifications.length > MAXIMUM_FUSION_RECORD_ITEMS_V1 ||
+    decision.challengeResolutions.length > MAXIMUM_FUSION_RECORD_ITEMS_V1 ||
+    decision.groupAllocations.length > MAXIMUM_FUSION_GROUP_ALLOCATIONS_V1 ||
+    decision.dimensions.length > MAXIMUM_FUSION_DIMENSIONS_V1
+  )
+    throw new TrustValidationError("fusion decision nested capacity exceeded");
+  for (const allocation of decision.groupAllocations) {
+    assertExactKeys(
+      allocation,
+      [
+        "stage",
+        "dimensionId",
+        "criterionId",
+        "claimId",
+        "dependencyGroupId",
+        "candidateRecordIds",
+        "capBasisPoints",
+        "allocatedWeightBasisPoints",
+      ],
+      "fusion allocation",
+    );
+    assertSortedUnique(
+      allocation.candidateRecordIds,
+      "fusion allocation candidates",
+      MAXIMUM_FUSION_RECORD_ITEMS_V1,
+    );
+  }
   assertCanonicalItems(
     decision.recordExclusions,
     "fusion exclusions",
@@ -678,6 +733,7 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     for (const reason of assertSortedUnique(
       exclusion.reasonCodes,
       "fusion exclusion reasons",
+      MAXIMUM_FUSION_REASON_CODES_V1,
     ))
       validateReasonCodeV1(reason);
   }
@@ -726,7 +782,11 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
         classification.mappedValueBasisPoints,
         "fusion mappedValueBasisPoints",
       );
-    assertSortedUnique(classification.supportGroupIds, "fusion support groups");
+    assertSortedUnique(
+      classification.supportGroupIds,
+      "fusion support groups",
+      MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1,
+    );
     assertBasisPoints(
       classification.supportWeightBasisPoints,
       "fusion supportWeightBasisPoints",
@@ -734,6 +794,7 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertSortedUnique(
       classification.contradictionGroupIds,
       "fusion contradiction groups",
+      MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1,
     );
     assertBasisPoints(
       classification.contradictionWeightBasisPoints,
@@ -759,14 +820,17 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertSortedUnique(
       classification.effectiveSupportingAttestationIds,
       "fusion effective supporting attestations",
+      MAXIMUM_FUSION_RECORD_ITEMS_V1,
     );
     assertSortedUnique(
       classification.effectiveContentResolutionIds,
       "fusion effective content resolutions",
+      MAXIMUM_FUSION_CONTENT_RESOLUTIONS_V1,
     );
     for (const reason of assertSortedUnique(
       classification.reasonCodes,
       "fusion classification reasons",
+      MAXIMUM_FUSION_REASON_CODES_V1,
     ))
       validateReasonCodeV1(reason);
   }
@@ -819,6 +883,8 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
       throw new TrustValidationError("challenge result is invalid");
     if (!Array.isArray(resolution.challenges))
       throw new TrustValidationError("challenge entries are invalid");
+    if (resolution.challenges.length > MAXIMUM_FUSION_RECORD_ITEMS_V1)
+      throw new TrustValidationError("challenge entry capacity exceeded");
     assertCanonicalItems(
       resolution.challenges,
       "challenge entries",
@@ -837,12 +903,17 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertSortedUnique(
       resolution.corroboratingGroupIds,
       "corroborating groups",
+      MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1,
     );
     assertBasisPoints(
       resolution.corroboratingWeightBasisPoints,
       "corroboratingWeightBasisPoints",
     );
-    assertSortedUnique(resolution.opposingGroupIds, "opposing groups");
+    assertSortedUnique(
+      resolution.opposingGroupIds,
+      "opposing groups",
+      MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1,
+    );
     assertBasisPoints(
       resolution.opposingWeightBasisPoints,
       "opposingWeightBasisPoints",
@@ -850,10 +921,12 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertSortedUnique(
       resolution.consideredAttestationIds,
       "considered attestations",
+      MAXIMUM_FUSION_RECORD_ITEMS_V1,
     );
     for (const reason of assertSortedUnique(
       resolution.reasonCodes,
       "challenge reasons",
+      MAXIMUM_FUSION_REASON_CODES_V1,
     ))
       validateReasonCodeV1(reason);
     if (
@@ -863,20 +936,6 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
       throw new TrustValidationError("challenge resolution digest is invalid");
   }
   for (const allocation of decision.groupAllocations) {
-    assertExactKeys(
-      allocation,
-      [
-        "stage",
-        "dimensionId",
-        "criterionId",
-        "claimId",
-        "dependencyGroupId",
-        "candidateRecordIds",
-        "capBasisPoints",
-        "allocatedWeightBasisPoints",
-      ],
-      "fusion allocation",
-    );
     if (
       !(
         ["attestation", "challenge_resolution", "profile"] as string[]
@@ -893,10 +952,6 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertIdentifier(
       allocation.dependencyGroupId,
       "fusion allocation dependencyGroupId",
-    );
-    assertSortedUnique(
-      allocation.candidateRecordIds,
-      "fusion allocation candidates",
     );
     assertBasisPoints(allocation.capBasisPoints, "fusion allocation cap");
     assertBasisPoints(
@@ -950,14 +1005,17 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
     assertSortedUnique(
       dimension.includedClaimIds,
       "fusion dimension included claims",
+      MAXIMUM_FUSION_RECORD_ITEMS_V1,
     );
     assertSortedUnique(
       dimension.excludedClaimIds,
       "fusion dimension excluded claims",
+      MAXIMUM_FUSION_RECORD_ITEMS_V1,
     );
     assertSortedUnique(
       dimension.claimSourceDependencyGroupIds,
       "fusion dimension source groups",
+      MAXIMUM_FUSION_DEPENDENCY_GROUPS_V1,
     );
     if (dimension.latestQualifyingEffectiveAtLogicalMs !== null)
       assertSafeInteger(
@@ -1974,50 +2032,54 @@ export function evaluateEvidenceFusionV1(
     allScopeRecords.map((record) => record.recordId),
     "considered records",
   );
-  const inputSetDigest = digestTrustJsonV1("fusion-input", {
-    subjectDigest,
-    scopeDigest,
-    policyDigest: request.policyDigest,
-    evaluatedAtLogicalMs: logicalTimeMs,
-    records: allScopeRecords.map((record) => ({
-      recordKind: record.recordKind,
-      recordId: record.recordId,
-      recordDigest: record.recordDigest,
-      status: record.status,
-      originBindingDigest: record.originBindingDigest,
-      originVerifierBindingDigest: record.originVerifierBindingDigest,
-      originProofDigest: record.originProofDigest,
-      acceptedAtLogicalMs: record.acceptedAtLogicalMs,
-      effectiveAtLogicalMs: record.effectiveAtLogicalMs,
-    })),
-    contentResolutions: state.contentResolutions
-      .filter((item) => item.resolvedAtLogicalMs <= logicalTimeMs)
-      .map((item) => ({
-        resolutionId: item.resolutionId,
-        resolutionDigest: item.resolutionDigest,
-        resolvedAtLogicalMs: item.resolvedAtLogicalMs,
+  const inputSetDigest = digestTrustJsonV1(
+    "fusion-input",
+    {
+      subjectDigest,
+      scopeDigest,
+      policyDigest: request.policyDigest,
+      evaluatedAtLogicalMs: logicalTimeMs,
+      records: allScopeRecords.map((record) => ({
+        recordKind: record.recordKind,
+        recordId: record.recordId,
+        recordDigest: record.recordDigest,
+        status: record.status,
+        originBindingDigest: record.originBindingDigest,
+        originVerifierBindingDigest: record.originVerifierBindingDigest,
+        originProofDigest: record.originProofDigest,
+        acceptedAtLogicalMs: record.acceptedAtLogicalMs,
+        effectiveAtLogicalMs: record.effectiveAtLogicalMs,
       })),
-    contentInvalidations: state.contentInvalidations
-      .filter((item) => item.invalidatedAtLogicalMs <= logicalTimeMs)
-      .map((item) => ({
-        invalidationId: item.invalidationId,
-        resolutionId: item.resolutionId,
-        resolutionDigest: item.resolutionDigest,
-        resolverBindingDigest: item.resolverBindingDigest,
-        invalidatedAtLogicalMs: item.invalidatedAtLogicalMs,
-      })),
-    causalAuthorizations: state.causalAuthorizations
-      .filter((item) => item.authorizedAtLogicalMs <= logicalTimeMs)
-      .map((item) => ({
-        authorizationId: item.authorizationId,
-        authorizationDigest: item.authorizationDigest,
-        recordId: item.recordId,
-        recordDigest: item.recordDigest,
-        authorityBindingDigest: item.authorityBindingDigest,
-        authorizedAtLogicalMs: item.authorizedAtLogicalMs,
-      })),
-    dependencyBindingDigests: request.dependencyBindingDigests,
-  } as unknown as JsonValue);
+      contentResolutions: state.contentResolutions
+        .filter((item) => item.resolvedAtLogicalMs <= logicalTimeMs)
+        .map((item) => ({
+          resolutionId: item.resolutionId,
+          resolutionDigest: item.resolutionDigest,
+          resolvedAtLogicalMs: item.resolvedAtLogicalMs,
+        })),
+      contentInvalidations: state.contentInvalidations
+        .filter((item) => item.invalidatedAtLogicalMs <= logicalTimeMs)
+        .map((item) => ({
+          invalidationId: item.invalidationId,
+          resolutionId: item.resolutionId,
+          resolutionDigest: item.resolutionDigest,
+          resolverBindingDigest: item.resolverBindingDigest,
+          invalidatedAtLogicalMs: item.invalidatedAtLogicalMs,
+        })),
+      causalAuthorizations: state.causalAuthorizations
+        .filter((item) => item.authorizedAtLogicalMs <= logicalTimeMs)
+        .map((item) => ({
+          authorizationId: item.authorizationId,
+          authorizationDigest: item.authorizationDigest,
+          recordId: item.recordId,
+          recordDigest: item.recordDigest,
+          authorityBindingDigest: item.authorityBindingDigest,
+          authorizedAtLogicalMs: item.authorizedAtLogicalMs,
+        })),
+      dependencyBindingDigests: request.dependencyBindingDigests,
+    } as unknown as JsonValue,
+    FUSION_PROJECTION_JSON_LIMITS_V1,
+  );
   const exclusionGroups = new Map<string, EvidenceRecordExclusionV1>();
   for (const exclusion of exclusions) {
     const key = `${exclusion.recordDigest}\u0000${exclusion.recordId}`;
@@ -2102,6 +2164,7 @@ export function evaluateEvidenceFusionV1(
   const digest = digestTrustJsonV1(
     "fusion-decision",
     bare as unknown as JsonValue,
+    FUSION_PROJECTION_JSON_LIMITS_V1,
   );
   return validateEvidenceFusionDecisionV1({
     ...bare,
