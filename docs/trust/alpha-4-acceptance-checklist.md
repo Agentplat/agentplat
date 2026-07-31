@@ -1,6 +1,7 @@
 # Evidence and Trust `0.3.0-alpha.4` acceptance checklist
 
-Status: implementation verified. Coordinated publication evidence is pending.
+Status: accepted. Implementation, coordinated publication and registry evidence
+are complete.
 
 This checklist is the release contract for Alpha 4. A box is checked only when
 its evidence is reproducible from the reviewed public commit. Design items may
@@ -17,8 +18,8 @@ open until their corresponding transition is complete.
 - Trust state/policy/snapshot schema: `1`;
 - Mesh wire version: `0`;
 - compatibility baseline: `v0.3.0-alpha.3`;
-- release commit: not assigned;
-- coordinated publication completion: not assigned.
+- release commit: `530b19a660b21345c08108ce86c72a982e01295a`;
+- coordinated publication completion: `2026-07-31T21:17:01Z`.
 
 ## Candidate verification
 
@@ -34,8 +35,8 @@ release terminology denylist and the repository-owned gates:
   zero open P0/P1 findings.
 
 The reviewed commit, workflow runs, registry integrities, previous distribution
-tags and exact-version consumer result are recorded after the clean `main`
-publication transition below.
+tags, publication times and exact-version consumer result are recorded in the
+machine-readable [Alpha 4 release evidence](./alpha-4-release-evidence.json).
 
 ## Design freeze
 
@@ -584,22 +585,22 @@ publication transition below.
 
 ## Coordinated publication
 
-- [ ] use repository-scoped npm publisher credentials or Trusted Publishing;
-- [ ] run from the reviewed release commit on a clean `main` checkout;
-- [ ] record prior `next` rollback target for all 30 packages;
-- [ ] complete no-mutation dry-run with `NPM_DIST_TAG=next`;
-- [ ] confirm candidate is absent or registry-equivalent for every package;
-- [ ] publish missing packages under commit-specific staging tag;
-- [ ] verify registry SHA-512 metadata against every local tarball;
-- [ ] promote the complete 30-package cohort to `next`;
-- [ ] conditionally roll back only tags still targeting the failed candidate;
-- [ ] remove candidate staging tags after complete promotion;
-- [ ] install exact versions in a credential-free clean registry consumer;
-- [ ] execute exact-version Evidence and Trust scenario;
-- [ ] create and push annotated `v0.3.0-alpha.4` at verified release commit;
-- [ ] record workflow URL, release commit, publication time, previous targets,
+- [x] use repository-scoped npm publisher credentials or Trusted Publishing;
+- [x] run from the reviewed release commit on a clean `main` checkout;
+- [x] record prior `next` rollback target for all 30 packages;
+- [x] complete no-mutation dry-run with `NPM_DIST_TAG=next`;
+- [x] confirm candidate is absent or registry-equivalent for every package;
+- [x] publish missing packages under commit-specific staging tag;
+- [x] verify registry SHA-512 metadata against every local tarball;
+- [x] promote the complete 30-package cohort to `next`;
+- [x] conditionally roll back only tags still targeting the failed candidate;
+- [x] remove candidate staging tags after complete promotion;
+- [x] install exact versions in a credential-free clean registry consumer;
+- [x] execute exact-version Evidence and Trust scenario;
+- [x] create and push annotated `v0.3.0-alpha.4` at verified release commit;
+- [x] record workflow URL, release commit, publication time, previous targets,
       staging tag, integrities and consumer result;
-- [ ] record first-publication `latest` behavior for the new package without
+- [x] record first-publication `latest` behavior for the new package without
       treating it as coordinated stable promotion.
 
 ## Definition of accepted
