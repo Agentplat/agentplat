@@ -32,11 +32,24 @@ import {
 } from '@agentplat/mesh/loopback';
 import {
   DEFAULT_MESH_COORDINATION_LIMITS,
+  DEFAULT_MESH_DISCOVERY_LIMITS,
+  advanceMeshDiscoveryState,
   createMeshCoordinationState,
+  createMeshDiscoveryRuntimeState,
+  createMeshDiscoveryState,
   evaluateMeshCoordinationTimer,
+  evaluateVerifiedMeshDiscoveryEnvelope,
+  matchMeshDiscoveryCapabilities,
   restoreMeshCoordinationState,
+  restoreMeshDiscoveryState,
+  selectMeshDiscoveryTopicRecipients,
+  type MeshCapabilityMatchResult,
+  type MeshCapabilityRequirement,
   type MeshCoordinationState,
   type MeshCoordinationTimerFiredInput,
+  type MeshDiscoveryRuntimeState,
+  type MeshDiscoveryState,
+  type MeshVerifiedDiscoveryRequest,
 } from '@agentplat/mesh/coordination';
 import {
   createMeshSimulationKernel,
@@ -675,6 +688,51 @@ const coordinationTimerDecision = evaluateMeshCoordinationTimer(
 );
 
 void coordinationTimerDecision;
+
+const discoveryState: MeshDiscoveryState = createMeshDiscoveryState({
+  identity: peerState.identity,
+  admittedPeers: [],
+  subscriptions: ['capability', 'membership'],
+  limits: DEFAULT_MESH_DISCOVERY_LIMITS,
+});
+const restoredDiscoveryState: MeshDiscoveryState =
+  restoreMeshDiscoveryState(discoveryState);
+const discoveryRuntimeState: MeshDiscoveryRuntimeState =
+  createMeshDiscoveryRuntimeState(
+    restoredCoordinationState,
+    restoredDiscoveryState
+  );
+const capabilityRequirement: MeshCapabilityRequirement = {
+  capabilityKeys: ['summarize'],
+  attributes: { language: 'en' },
+  fanout: 1,
+};
+const capabilityMatches: MeshCapabilityMatchResult =
+  matchMeshDiscoveryCapabilities(
+    discoveryRuntimeState,
+    capabilityRequirement,
+    0
+  );
+const selectedMembershipPeers: readonly string[] =
+  selectMeshDiscoveryTopicRecipients(discoveryRuntimeState, 'membership', 0);
+const advancedDiscoveryState = advanceMeshDiscoveryState(
+  discoveryRuntimeState,
+  0
+);
+const verifiedDiscoveryRequest: MeshVerifiedDiscoveryRequest | undefined =
+  undefined;
+const evaluatedDiscoveryRequest =
+  verifiedDiscoveryRequest === undefined
+    ? undefined
+    : evaluateVerifiedMeshDiscoveryEnvelope(
+        discoveryRuntimeState,
+        verifiedDiscoveryRequest
+      );
+
+void capabilityMatches;
+void selectedMembershipPeers;
+void advancedDiscoveryState;
+void evaluatedDiscoveryRequest;
 
 const contractReducer: MeshPeerReducer = (state) => ({
   state,

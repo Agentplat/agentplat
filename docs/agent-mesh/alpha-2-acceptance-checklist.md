@@ -61,16 +61,32 @@ Registry and Git mutations are checked only after independent verification.
 
 ## Partial views and capabilities
 
-- [ ] Peer Card refresh cannot bootstrap admission or extend key validity;
-- [ ] Peer View and capability state have explicit entry and byte bounds;
-- [ ] view expiry and eviction are deterministic;
+- [x] Peer Card refresh cannot bootstrap admission or extend key validity;
+- [x] Peer View and capability state have explicit entry and byte bounds;
+- [x] view expiry and eviction are deterministic;
 - [ ] active-work security state is not evicted with discovery state;
-- [ ] topic subscriptions and sender fanout are bounded;
-- [ ] advertisements are signed, expiring self-claims;
-- [ ] withdrawals require owner, accepted advertisement and current revision;
-- [ ] capability matching is pure and has stable reason codes and ordering;
-- [ ] an unadmitted advertiser cannot enter capability state;
-- [ ] a false capability declaration grants no additional authority.
+- [x] topic subscriptions and sender fanout are bounded;
+- [x] advertisements are signed, expiring self-claims;
+- [x] withdrawals require owner, accepted advertisement and current revision;
+- [x] capability matching is pure and has stable reason codes and ordering;
+- [x] an unadmitted advertiser cannot enter capability state;
+- [x] a false capability declaration grants no additional authority.
+
+### Discovery projection evidence
+
+- `packages/mesh/src/coordination-discovery-state.ts` keeps admission, Peer
+  Cards, partial views and capability heads in a separately versioned immutable
+  snapshot with hard entry and encoded-byte ceilings;
+- `packages/mesh/src/coordination-discovery.ts` enforces causal revision heads,
+  envelope freshness, admission and instance validity, terminal
+  departure/withdrawal, deterministic expiry and eviction, pure bounded
+  matching and bounded topic recipients;
+- `tests/mesh-discovery.test.mjs` covers duplicate/conflict handling, refresh,
+  withdrawal/reactivation, goodbye, admission separation, exact expiry,
+  equal-time eviction, instance isolation, snapshot/domain binding, matching,
+  fanout, scope, subscription and capacity;
+- the projection consumes already-verified protocol values and does not yet
+  enable a network inbound path or topic transport.
 
 ## Objective and Work Item state
 

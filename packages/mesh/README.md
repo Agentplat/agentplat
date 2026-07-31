@@ -55,6 +55,22 @@ Driver integration is added only with the workflow increment that first creates
 each timer, so a public effect cannot be emitted before loopback and simulation
 drivers know how to interpret it.
 
+The same subpath now exposes an independently versioned discovery projection.
+Local admission is explicit and separate from Peer Cards; a card can refresh
+only an admitted identity and cannot extend admission validity. Verified Peer
+Card and capability records update causal high-water projections with hard
+entry and encoded-byte ceilings. Expiry and passive-view eviction use injected
+logical time and canonical ordering. Runtime composition also checks that every
+routable projection is backed by the corresponding accepted domain record and
+that sibling instances cannot mutate each other's discovery heads.
+
+`matchMeshDiscoveryCapabilities` returns deterministic local matches and reason
+codes from unexpired self-claims. `selectMeshDiscoveryTopicRecipients` resolves
+a bounded recipient set only from the caller's local Peer View. Neither API
+returns assignment authority, epochs, leases or fencing tokens. The evaluator
+accepts only `VerifiedMeshEnvelope` values; the signature-verifying coordination
+inbound boundary and driver delivery are the next Increment 1 slice.
+
 The runtime currently accepts direct peer audiences and the Alpha 1
 `peer.hello`, `peer.ping` and `peer.ping_ack` workflows only. Structurally valid
 Alpha 2 discovery, allocation, lease and recovery records remain

@@ -28,6 +28,10 @@
   strict schema-versioned snapshots, hard local bounds, redacted domain-record
   metadata, generation-fenced trusted timer evaluation and fail-closed journal
   capacity, while preserving the Alpha 1 state, input and effect contracts.
+- Added the independently restorable discovery projection for admitted Peer
+  Card heads, bounded partial views and expiring capability self-claims,
+  including causal refresh/withdrawal, deterministic expiry and eviction, pure
+  matching reason codes and local topic-recipient selection.
 
 ## 0.3.0-alpha.1 - 2026-07-30
 

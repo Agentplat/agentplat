@@ -135,6 +135,8 @@ export function assertFrozenMeshCoordinationState(
     !Object.isFrozen(state.timers) ||
     !Object.isFrozen(state.journal) ||
     !Object.isFrozen(state.limits) ||
+    Object.getPrototypeOf(state.domainRecords) !== null ||
+    Object.getPrototypeOf(state.timers) !== null ||
     Object.values(state.domainRecords).some(
       (entry) => !Object.isFrozen(entry)
     ) ||
