@@ -21,6 +21,20 @@ import {
   validateEvidenceTrustDependencyBindingV1,
 } from "./policy.js";
 import { createEvidenceCausalAuthorizationV1 } from "./causal.js";
+import {
+  createTrustProfileV1,
+  digestTrustProfileKeyV1,
+  trustProfileHeadV1,
+} from "./profile.js";
+import {
+  createActiveQuarantineRecordV1,
+  createRecoveredQuarantineRecordV1,
+  createReviewRequiredQuarantineRecordV1,
+  deriveQuarantineActivationsV1,
+  digestTrustQuarantineKeyV1,
+  evaluateQuarantineRecoveryV1,
+  quarantineHeadV1,
+} from "./quarantine.js";
 import type {
   EvidenceContentResolutionInvalidationV1,
   EvidenceContentProjectionStatusV1,
@@ -36,6 +50,7 @@ import type {
   EvidenceTrustReducerOptionsV1,
   EvidenceTrustReducerResultV1,
   EvidenceTrustStateV1,
+  QuarantineRecordV1,
   TrustReasonCodeV1,
 } from "./types.js";
 import {
@@ -402,6 +417,19 @@ function effect(
     kind,
     recordId: record?.recordId ?? null,
     recordDigest: record?.recordDigest ?? null,
+    reasonCode,
+  };
+}
+function quarantineEffect(
+  kind: EvidenceTrustEffectV1["kind"],
+  record: QuarantineRecordV1,
+  reasonCode: TrustReasonCodeV1,
+): EvidenceTrustEffectV1 {
+  return {
+    schemaVersion: 1,
+    kind,
+    recordId: record.quarantineId,
+    recordDigest: record.quarantineId.slice("quarantine-record:".length),
     reasonCode,
   };
 }
@@ -872,6 +900,34 @@ function validateInputShape(input: unknown): EvidenceTrustInputV1 {
       ["schemaVersion", "kind", "request", "logicalTimeMs"],
       "fusion evaluation input",
     );
+  else if (candidate.kind === "profile_evaluated")
+    assertExactKeys(
+      candidate,
+      [
+        "schemaVersion",
+        "kind",
+        "fusionDecisionId",
+        "fusionDecisionDigest",
+        "logicalTimeMs",
+      ],
+      "profile evaluation input",
+    );
+  else if (candidate.kind === "quarantine_reviewed")
+    assertExactKeys(
+      candidate,
+      [
+        "schemaVersion",
+        "kind",
+        "quarantineKey",
+        "quarantineId",
+        "fusionDecisionId",
+        "fusionDecisionDigest",
+        "profileId",
+        "profileDigest",
+        "logicalTimeMs",
+      ],
+      "quarantine review input",
+    );
   else if (candidate.kind === "content_resolution_recorded")
     assertExactKeys(
       candidate,
@@ -903,6 +959,21 @@ function validateInputShape(input: unknown): EvidenceTrustInputV1 {
       throw new TrustValidationError(
         "record effective time follows acceptance",
       );
+  }
+  if (candidate.kind === "profile_evaluated") {
+    assertIdentifier(candidate.fusionDecisionId, "fusionDecisionId");
+    assertTrustDigest(candidate.fusionDecisionDigest, "fusionDecisionDigest");
+  }
+  if (candidate.kind === "quarantine_reviewed") {
+    assertTrustDigest(candidate.quarantineKey, "quarantineKey");
+    for (const key of [
+      "quarantineId",
+      "fusionDecisionId",
+      "profileId",
+    ] as const)
+      assertIdentifier(candidate[key], key);
+    for (const key of ["fusionDecisionDigest", "profileDigest"] as const)
+      assertTrustDigest(candidate[key], key);
   }
   return candidate as unknown as EvidenceTrustInputV1;
 }
@@ -1078,8 +1149,58 @@ export function reduceEvidenceTrustStateV1(
     policies = [...state.policies],
     dependencyBindings = [...state.dependencyBindings],
     fusionDecisions = [...state.fusionDecisions],
-    causalAuthorizations = [...state.causalAuthorizations];
+    causalAuthorizations = [...state.causalAuthorizations],
+    profiles = [...state.profiles],
+    quarantines = [...state.quarantines],
+    recoveryDecisions = [...state.recoveryDecisions];
   const effects: EvidenceTrustEffectV1[] = [];
+  const currentQuarantineHeads = () =>
+    [
+      ...quarantines
+        .reduce((heads, quarantine) => {
+          const head = quarantineHeadV1(quarantine);
+          const previous = heads.get(head.quarantineKey);
+          if (!previous || previous.revision < head.revision)
+            heads.set(head.quarantineKey, head);
+          return heads;
+        }, new Map<string, EvidenceTrustStateV1["quarantineHeads"][number]>())
+        .values(),
+    ].sort((left, right) =>
+      compareUnicode(left.quarantineKey, right.quarantineKey),
+    );
+  const dueReviews = currentQuarantineHeads().filter((head) => {
+    if (head.status !== "active") return false;
+    const quarantine = quarantines.find(
+      (candidate) => candidate.quarantineId === head.quarantineId,
+    );
+    return (
+      quarantine !== undefined &&
+      quarantine.reviewAfterLogicalMs <= input.logicalTimeMs
+    );
+  });
+  for (const head of dueReviews) {
+    const current = quarantines.find(
+      (candidate) => candidate.quarantineId === head.quarantineId,
+    )!;
+    if (
+      quarantines.filter(
+        (candidate) => candidate.quarantineKey === current.quarantineKey,
+      ).length >= state.limits.maximumQuarantineRevisionsPerHead
+    )
+      throw new TrustValidationError("quarantine revision capacity exceeded");
+    const review = createReviewRequiredQuarantineRecordV1(
+      current,
+      input.logicalTimeMs,
+    );
+    quarantines.push(review);
+    effects.push(
+      quarantineEffect(
+        "quarantine_review_required",
+        review,
+        "quarantine_review_required",
+      ),
+    );
+  }
   if (input.kind === "fusion_evaluated") {
     const decision = evaluateEvidenceFusionV1(
       state,
@@ -1100,6 +1221,290 @@ export function reduceEvidenceTrustStateV1(
         throw new TrustValidationError("fusion decision capacity exceeded");
       fusionDecisions.push(decision);
       effects.push(effect("fusion_evaluated", null, "accepted"));
+    }
+  } else if (input.kind === "profile_evaluated") {
+    const decision = fusionDecisions.find(
+      (candidate) =>
+        candidate.fusionDecisionId === input.fusionDecisionId &&
+        candidate.fusionDecisionDigest === input.fusionDecisionDigest,
+    );
+    if (!decision || decision.evaluatedAtLogicalMs !== input.logicalTimeMs)
+      throw new TrustValidationError("profile Fusion decision is unavailable");
+    const existing = profiles.find(
+      (profile) =>
+        profile.fusionDecisionId === decision.fusionDecisionId &&
+        profile.fusionDecisionDigest === decision.fusionDecisionDigest,
+    );
+    if (existing) {
+      effects.push(effect("profile_evaluated", null, "duplicate"));
+    } else {
+      const policy = policies.find(
+        (candidate) =>
+          candidate.policyId === decision.policyId &&
+          candidate.policyVersion === decision.policyVersion &&
+          digestEvidenceFusionPolicyV1(candidate) === decision.policyDigest,
+      );
+      const policyHead = state.policyHeads.find(
+        (head) => head.policyId === decision.policyId,
+      );
+      if (
+        !policy ||
+        !policyHead ||
+        policyHead.policyVersion !== decision.policyVersion ||
+        policyHead.policyDigest !== decision.policyDigest
+      )
+        throw new TrustValidationError("profile policy head is unavailable");
+      const profileKey = digestTrustProfileKeyV1({
+        tenantId: decision.tenantId,
+        scopeDigest: decision.scopeDigest,
+        subjectDigest: decision.subjectDigest,
+        policyDigest: decision.policyDigest,
+      });
+      const currentHead = state.profileHeads.find(
+        (head) => head.profileKey === profileKey,
+      );
+      if (
+        decision.previousProfileDigest !== (currentHead?.profileDigest ?? null)
+      )
+        throw new TrustValidationError(
+          "profile Fusion decision does not bind the current head",
+        );
+      const historyLength = profiles.filter(
+        (profile) =>
+          digestTrustProfileKeyV1({
+            tenantId: profile.tenantId,
+            scopeDigest: profile.scopeDigest,
+            subjectDigest: profile.subjectDigest,
+            policyDigest: profile.policyDigest,
+          }) === profileKey,
+      ).length;
+      if (
+        !currentHead &&
+        state.profileHeads.length >= state.limits.maximumProfileHeads
+      )
+        throw new TrustValidationError("profile head capacity exceeded");
+      if (historyLength >= state.limits.maximumProfileRevisionsPerHead)
+        throw new TrustValidationError("profile revision capacity exceeded");
+      const createdProfile = createTrustProfileV1({
+        fusionDecision: decision,
+        policy,
+        revision: (currentHead?.revision ?? 0) + 1,
+        previousProfileId: currentHead?.profileId ?? null,
+        previousProfileDigest: currentHead?.profileDigest ?? null,
+        updatedAtLogicalMs: input.logicalTimeMs,
+      });
+      const activationProjections = deriveQuarantineActivationsV1(
+        state,
+        createdProfile,
+        decision,
+        policy,
+      );
+      for (const initialProjection of activationProjections) {
+        const quarantineKey = digestTrustQuarantineKeyV1({
+          tenantId: decision.tenantId,
+          subjectDigest: decision.subjectDigest,
+          scopeDigest: decision.scopeDigest,
+          dimensionId: initialProjection.dimensionId,
+          policyDigest: decision.policyDigest,
+        });
+        const head = currentQuarantineHeads().find(
+          (candidate) => candidate.quarantineKey === quarantineKey,
+        );
+        if (head?.status === "active" || head?.status === "review_required")
+          continue;
+        const previous = head
+          ? quarantines.find(
+              (candidate) => candidate.quarantineId === head.quarantineId,
+            )
+          : null;
+        const projection =
+          previous?.status === "recovered"
+            ? deriveQuarantineActivationsV1(
+                state,
+                createdProfile,
+                decision,
+                policy,
+                previous.recoveredAtLogicalMs,
+              ).find(
+                (candidate) =>
+                  candidate.dimensionId === initialProjection.dimensionId,
+              )
+            : initialProjection;
+        if (!projection) continue;
+        const heads = currentQuarantineHeads();
+        if (!head && heads.length >= state.limits.maximumQuarantineHeads)
+          throw new TrustValidationError("quarantine head capacity exceeded");
+        const historyLength = quarantines.filter(
+          (candidate) => candidate.quarantineKey === quarantineKey,
+        ).length;
+        if (historyLength >= state.limits.maximumQuarantineRevisionsPerHead)
+          throw new TrustValidationError(
+            "quarantine revision capacity exceeded",
+          );
+        const activeForPolicy = heads.filter((candidate) => {
+          const record = quarantines.find(
+            (item) => item.quarantineId === candidate.quarantineId,
+          );
+          return (
+            record?.policyDigest === decision.policyDigest &&
+            (candidate.status === "active" ||
+              candidate.status === "review_required")
+          );
+        }).length;
+        if (activeForPolicy >= policy.quarantinePolicy.maximumActiveRecords)
+          throw new TrustValidationError("active quarantine capacity exceeded");
+        const active = createActiveQuarantineRecordV1({
+          revision: (head?.revision ?? 0) + 1,
+          previousRecordId: previous?.quarantineId ?? null,
+          tenantId: decision.tenantId,
+          subjectDigest: decision.subjectDigest,
+          scopeDigest: decision.scopeDigest,
+          dimensionId: projection.dimensionId,
+          policyDigest: decision.policyDigest,
+          fusionDecisionId: decision.fusionDecisionId,
+          activationEvidence: projection.activationEvidence,
+          activationDependencyGroupIds: projection.activationDependencyGroupIds,
+          activatedAtLogicalMs: input.logicalTimeMs,
+          reviewIntervalMs: projection.reviewIntervalMs,
+        });
+        quarantines.push(active);
+        effects.push(
+          quarantineEffect(
+            "quarantine_activated",
+            active,
+            "quarantine_activated",
+          ),
+        );
+      }
+      profiles.push(createdProfile);
+      effects.push(effect("profile_evaluated", null, "accepted"));
+    }
+  } else if (input.kind === "quarantine_reviewed") {
+    const target = quarantines.find(
+      (candidate) =>
+        candidate.quarantineId === input.quarantineId &&
+        candidate.quarantineKey === input.quarantineKey,
+    );
+    const decision = fusionDecisions.find(
+      (candidate) =>
+        candidate.fusionDecisionId === input.fusionDecisionId &&
+        candidate.fusionDecisionDigest === input.fusionDecisionDigest,
+    );
+    const profile = profiles.find(
+      (candidate) =>
+        candidate.profileId === input.profileId &&
+        candidate.profileDigest === input.profileDigest,
+    );
+    if (!target || !decision || !profile)
+      throw new TrustValidationError(
+        "quarantine review inputs are unavailable",
+      );
+    const existing = recoveryDecisions.find(
+      (candidate) =>
+        candidate.quarantineId === target.quarantineId &&
+        candidate.fusionDecisionId === decision.fusionDecisionId &&
+        candidate.evaluatedAtLogicalMs === input.logicalTimeMs,
+    );
+    if (existing) {
+      effects.push(
+        quarantineEffect("quarantine_reviewed", target, "duplicate"),
+      );
+    } else {
+      const head = currentQuarantineHeads().find(
+        (candidate) => candidate.quarantineKey === target.quarantineKey,
+      );
+      if (
+        head?.quarantineId !== target.quarantineId ||
+        target.status !== "review_required" ||
+        input.logicalTimeMs < target.reviewAfterLogicalMs
+      )
+        throw new TrustValidationError(
+          "quarantine review does not target the current review head",
+        );
+      if (
+        decision.evaluatedAtLogicalMs !== input.logicalTimeMs ||
+        profile.fusionDecisionId !== decision.fusionDecisionId ||
+        profile.fusionDecisionDigest !== decision.fusionDecisionDigest ||
+        profile.updatedAtLogicalMs !== input.logicalTimeMs ||
+        profile.tenantId !== target.tenantId ||
+        profile.subjectDigest !== target.subjectDigest ||
+        profile.scopeDigest !== target.scopeDigest ||
+        profile.policyDigest !== target.policyDigest
+      )
+        throw new TrustValidationError(
+          "quarantine review profile binding is invalid",
+        );
+      const profileKey = digestTrustProfileKeyV1({
+        tenantId: profile.tenantId,
+        subjectDigest: profile.subjectDigest,
+        scopeDigest: profile.scopeDigest,
+        policyDigest: profile.policyDigest,
+      });
+      const profileHead = state.profileHeads.find(
+        (candidate) => candidate.profileKey === profileKey,
+      );
+      if (
+        profileHead?.profileId !== profile.profileId ||
+        profileHead.profileDigest !== profile.profileDigest
+      )
+        throw new TrustValidationError(
+          "quarantine review profile is not the current head",
+        );
+      const policy = policies.find(
+        (candidate) =>
+          digestEvidenceFusionPolicyV1(candidate) === target.policyDigest,
+      );
+      const policyHead = state.policyHeads.find(
+        (candidate) => candidate.policyId === policy?.policyId,
+      );
+      if (
+        !policy ||
+        policyHead?.policyVersion !== policy.policyVersion ||
+        policyHead.policyDigest !== target.policyDigest
+      )
+        throw new TrustValidationError(
+          "quarantine review policy head is unavailable",
+        );
+      if (recoveryDecisions.length >= state.limits.maximumRecoveryDecisions)
+        throw new TrustValidationError("recovery decision capacity exceeded");
+      const recovery = evaluateQuarantineRecoveryV1(
+        state,
+        target,
+        profile,
+        decision,
+        policy,
+        input.logicalTimeMs,
+      );
+      if (
+        recovery.disposition === "recovered" &&
+        quarantines.filter(
+          (candidate) => candidate.quarantineKey === target.quarantineKey,
+        ).length >= state.limits.maximumQuarantineRevisionsPerHead
+      )
+        throw new TrustValidationError("quarantine revision capacity exceeded");
+      recoveryDecisions.push(recovery);
+      effects.push(
+        quarantineEffect(
+          "quarantine_reviewed",
+          target,
+          recovery.disposition === "unavailable"
+            ? "quarantine_recovery_unavailable"
+            : recovery.disposition === "insufficient"
+              ? "quarantine_recovery_insufficient"
+              : "quarantine_recovered",
+        ),
+      );
+      if (recovery.disposition === "recovered") {
+        const recovered = createRecoveredQuarantineRecordV1(target, recovery);
+        quarantines.push(recovered);
+        effects.push(
+          quarantineEffect(
+            "quarantine_recovered",
+            recovered,
+            "quarantine_recovered",
+          ),
+        );
+      }
     }
   } else if (input.kind === "policy_registered") {
     const policy = validateEvidenceFusionPolicyV1(input.policy, state.limits);
@@ -1602,6 +2007,46 @@ export function reduceEvidenceTrustStateV1(
     ),
     fusionDecisions: fusionDecisions.sort((a, b) =>
       compareUnicode(a.fusionDecisionDigest, b.fusionDecisionDigest),
+    ),
+    profiles: profiles.sort((a, b) => {
+      const leftKey = digestTrustProfileKeyV1({
+        tenantId: a.tenantId,
+        scopeDigest: a.scopeDigest,
+        subjectDigest: a.subjectDigest,
+        policyDigest: a.policyDigest,
+      });
+      const rightKey = digestTrustProfileKeyV1({
+        tenantId: b.tenantId,
+        scopeDigest: b.scopeDigest,
+        subjectDigest: b.subjectDigest,
+        policyDigest: b.policyDigest,
+      });
+      return (
+        compareUnicode(leftKey, rightKey) ||
+        a.revision - b.revision ||
+        compareUnicode(a.profileDigest, b.profileDigest)
+      );
+    }),
+    profileHeads: [
+      ...profiles
+        .reduce((heads, profile) => {
+          const head = trustProfileHeadV1(profile);
+          const prior = heads.get(head.profileKey);
+          if (!prior || prior.revision < head.revision)
+            heads.set(head.profileKey, head);
+          return heads;
+        }, new Map<string, EvidenceTrustStateV1["profileHeads"][number]>())
+        .values(),
+    ].sort((a, b) => compareUnicode(a.profileKey, b.profileKey)),
+    quarantines: quarantines.sort((a, b) =>
+      compareUnicode(
+        `${a.quarantineKey}\u0000${String(a.revision).padStart(16, "0")}\u0000${a.quarantineId}`,
+        `${b.quarantineKey}\u0000${String(b.revision).padStart(16, "0")}\u0000${b.quarantineId}`,
+      ),
+    ),
+    quarantineHeads: currentQuarantineHeads(),
+    recoveryDecisions: recoveryDecisions.sort((a, b) =>
+      compareUnicode(a.recoveryDecisionDigest, b.recoveryDecisionDigest),
     ),
     records: derived.records,
     contentResolutions: ordered(resolutions),

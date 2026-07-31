@@ -48,6 +48,24 @@ import {
   resolveVerifiedMeshAdmissionVerifierV1,
 } from "./lifecycle.js";
 import { digestScopeV1, digestSubjectV1 } from "./evidence.js";
+import {
+  createTrustProfileV1,
+  digestTrustProfileKeyV1,
+  trustProfileHeadV1,
+  validateTrustProfileHeadV1,
+  validateTrustProfileV1,
+} from "./profile.js";
+import {
+  createActiveQuarantineRecordV1,
+  createRecoveredQuarantineRecordV1,
+  createReviewRequiredQuarantineRecordV1,
+  deriveQuarantineActivationsV1,
+  evaluateQuarantineRecoveryV1,
+  quarantineHeadV1,
+  validateQuarantineHeadV1,
+  validateQuarantineRecordV1,
+  validateQuarantineRecoveryDecisionV1,
+} from "./quarantine.js";
 
 const stateCanonicalLimits = (maximumBytes: number) => ({
   maximumBytes,
@@ -96,6 +114,8 @@ export const EVIDENCE_TRUST_LIMITS_V1: Readonly<EvidenceTrustLimitsV1> =
     maximumProfileHeads: 2048,
     maximumProfileRevisionsPerHead: 32,
     maximumQuarantineHeads: 2048,
+    maximumQuarantineRevisionsPerHead: 32,
+    maximumRecoveryDecisions: 4096,
     maximumDiagnostics: 1024,
     maximumRecordCanonicalBytes: 65_536,
     maximumContentReferenceBytes: 4096,
@@ -138,7 +158,10 @@ const stateKeys = [
   "pendingRecords",
   "fusionDecisions",
   "profiles",
+  "profileHeads",
   "quarantines",
+  "quarantineHeads",
+  "recoveryDecisions",
   "diagnostics",
   "traceDigest",
   "encodedBytes",
@@ -168,7 +191,10 @@ export function createEvidenceTrustStateV1(input: {
     pendingRecords: [],
     fusionDecisions: [],
     profiles: [],
+    profileHeads: [],
     quarantines: [],
+    quarantineHeads: [],
+    recoveryDecisions: [],
     diagnostics: [],
     traceDigest: digestTrustJsonV1("trace", []),
     encodedBytes: 0,
@@ -192,7 +218,7 @@ export function validateEvidenceTrustStateV1(
   const logicalTimeHighWaterMs = state.logicalTimeHighWaterMs as number;
   assertTrustDigest(state.traceDigest, "traceDigest");
   assertSafeInteger(state.encodedBytes, "encodedBytes");
-  for (const key of ["sourceBindings", "profiles", "quarantines"] as const) {
+  for (const key of ["sourceBindings"] as const) {
     if (!Array.isArray(state[key]) || state[key].length !== 0)
       throw new TrustValidationError(
         `${key} is unavailable before its increment`,
@@ -613,6 +639,340 @@ export function validateEvidenceTrustStateV1(
     )
       throw new TrustValidationError("causal authorization binding is invalid");
   }
+  if (!Array.isArray(state.profiles) || !Array.isArray(state.profileHeads))
+    throw new TrustValidationError("profile state arrays are invalid");
+  const profiles = state.profiles.map(validateTrustProfileV1);
+  const profileHistories = new Map<string, typeof profiles>();
+  const profileIds = new Set<string>();
+  for (const profile of profiles) {
+    if (
+      profile.updatedAtLogicalMs > logicalTimeHighWaterMs ||
+      profileIds.has(profile.profileId)
+    )
+      throw new TrustValidationError("profile history is invalid");
+    profileIds.add(profile.profileId);
+    const profileKey = digestTrustProfileKeyV1({
+      tenantId: profile.tenantId,
+      scopeDigest: profile.scopeDigest,
+      subjectDigest: profile.subjectDigest,
+      policyDigest: profile.policyDigest,
+    });
+    const history = profileHistories.get(profileKey) ?? [];
+    history.push(profile);
+    profileHistories.set(profileKey, history);
+  }
+  if (profileHistories.size > limits.maximumProfileHeads)
+    throw new TrustValidationError("profile head capacity exceeded");
+  assertCanonicalOrder(
+    profiles.map((profile) => {
+      const profileKey = digestTrustProfileKeyV1({
+        tenantId: profile.tenantId,
+        scopeDigest: profile.scopeDigest,
+        subjectDigest: profile.subjectDigest,
+        policyDigest: profile.policyDigest,
+      });
+      return `${profileKey}\u0000${String(profile.revision).padStart(16, "0")}\u0000${profile.profileDigest}`;
+    }),
+    "profiles",
+  );
+  const expectedProfileHeads: EvidenceTrustStateV1["profileHeads"][number][] =
+    [];
+  for (const [profileKey, history] of profileHistories) {
+    if (history.length > limits.maximumProfileRevisionsPerHead)
+      throw new TrustValidationError("profile revision capacity exceeded");
+    history.sort((left, right) => left.revision - right.revision);
+    for (let index = 0; index < history.length; index += 1) {
+      const profile = history[index];
+      const previous = history[index - 1] ?? null;
+      if (
+        profile.revision !== index + 1 ||
+        profile.previousProfileId !== (previous?.profileId ?? null) ||
+        profile.previousProfileDigest !== (previous?.profileDigest ?? null)
+      )
+        throw new TrustValidationError("profile lineage is invalid");
+      const decision = fusionDecisions.find(
+        (item) =>
+          item.fusionDecisionId === profile.fusionDecisionId &&
+          item.fusionDecisionDigest === profile.fusionDecisionDigest,
+      );
+      const policy = policyByDigest.get(profile.policyDigest);
+      if (!decision || !policy)
+        throw new TrustValidationError(
+          "profile Fusion decision or policy is unavailable",
+        );
+      const recomputed = createTrustProfileV1({
+        fusionDecision: decision,
+        policy,
+        revision: profile.revision,
+        previousProfileId: previous?.profileId ?? null,
+        previousProfileDigest: previous?.profileDigest ?? null,
+        updatedAtLogicalMs: profile.updatedAtLogicalMs,
+      });
+      if (recomputed.profileDigest !== profile.profileDigest)
+        throw new TrustValidationError("profile does not rederive from Fusion");
+    }
+    expectedProfileHeads.push(trustProfileHeadV1(history[history.length - 1]));
+    if (expectedProfileHeads.at(-1)?.profileKey !== profileKey)
+      throw new TrustValidationError("profile key is inconsistent");
+  }
+  const profileHeads = state.profileHeads.map(validateTrustProfileHeadV1);
+  assertCanonicalOrder(
+    profileHeads.map((head) => head.profileKey),
+    "profile heads",
+  );
+  expectedProfileHeads.sort((left, right) =>
+    compareUnicode(left.profileKey, right.profileKey),
+  );
+  if (
+    profileHeads.length !== expectedProfileHeads.length ||
+    profileHeads.some(
+      (head, index) =>
+        head.profileKey !== expectedProfileHeads[index].profileKey ||
+        head.profileId !== expectedProfileHeads[index].profileId ||
+        head.profileDigest !== expectedProfileHeads[index].profileDigest ||
+        head.revision !== expectedProfileHeads[index].revision,
+    )
+  )
+    throw new TrustValidationError(
+      "profile heads do not match profile history",
+    );
+  if (
+    !Array.isArray(state.quarantines) ||
+    !Array.isArray(state.quarantineHeads) ||
+    !Array.isArray(state.recoveryDecisions)
+  )
+    throw new TrustValidationError("quarantine state arrays are invalid");
+  const recoveryDecisions = state.recoveryDecisions.map(
+    validateQuarantineRecoveryDecisionV1,
+  );
+  if (
+    recoveryDecisions.length > limits.maximumRecoveryDecisions ||
+    recoveryDecisions.some(
+      (decision) => decision.evaluatedAtLogicalMs > logicalTimeHighWaterMs,
+    )
+  )
+    throw new TrustValidationError("recovery decision state is invalid");
+  assertCanonicalOrder(
+    recoveryDecisions.map((decision) => decision.recoveryDecisionDigest),
+    "recovery decisions",
+  );
+  if (
+    new Set(recoveryDecisions.map((decision) => decision.recoveryDecisionId))
+      .size !== recoveryDecisions.length
+  )
+    throw new TrustValidationError("recovery decision IDs must be unique");
+  const quarantines = state.quarantines.map(validateQuarantineRecordV1);
+  const quarantineIds = new Set<string>();
+  const quarantineHistories = new Map<string, typeof quarantines>();
+  for (const quarantine of quarantines) {
+    if (
+      quarantineIds.has(quarantine.quarantineId) ||
+      quarantine.activatedAtLogicalMs > logicalTimeHighWaterMs ||
+      (quarantine.recoveredAtLogicalMs !== null &&
+        quarantine.recoveredAtLogicalMs > logicalTimeHighWaterMs)
+    )
+      throw new TrustValidationError("quarantine history is invalid");
+    quarantineIds.add(quarantine.quarantineId);
+    const history = quarantineHistories.get(quarantine.quarantineKey) ?? [];
+    history.push(quarantine);
+    quarantineHistories.set(quarantine.quarantineKey, history);
+  }
+  if (quarantineHistories.size > limits.maximumQuarantineHeads)
+    throw new TrustValidationError("quarantine head capacity exceeded");
+  assertCanonicalOrder(
+    quarantines.map(
+      (quarantine) =>
+        `${quarantine.quarantineKey}\u0000${String(quarantine.revision).padStart(16, "0")}\u0000${quarantine.quarantineId}`,
+    ),
+    "quarantines",
+  );
+  const expectedQuarantineHeads: EvidenceTrustStateV1["quarantineHeads"][number][] =
+    [];
+  for (const [quarantineKey, history] of quarantineHistories) {
+    if (history.length > limits.maximumQuarantineRevisionsPerHead)
+      throw new TrustValidationError("quarantine revision capacity exceeded");
+    history.sort((left, right) => left.revision - right.revision);
+    for (let index = 0; index < history.length; index += 1) {
+      const quarantine = history[index];
+      const previous = history[index - 1] ?? null;
+      if (
+        quarantine.revision !== index + 1 ||
+        quarantine.previousRecordId !== (previous?.quarantineId ?? null)
+      )
+        throw new TrustValidationError("quarantine lineage is invalid");
+      if (quarantine.status === "active") {
+        if (previous !== null && previous.status !== "recovered")
+          throw new TrustValidationError(
+            "quarantine activation transition is invalid",
+          );
+        const decision = fusionDecisions.find(
+          (candidate) =>
+            candidate.fusionDecisionId === quarantine.fusionDecisionId,
+        );
+        const profile = decision
+          ? profiles.find(
+              (candidate) =>
+                candidate.fusionDecisionId === decision.fusionDecisionId &&
+                candidate.fusionDecisionDigest ===
+                  decision.fusionDecisionDigest,
+            )
+          : null;
+        const policy = policyByDigest.get(quarantine.policyDigest);
+        if (!decision || !profile || !policy)
+          throw new TrustValidationError(
+            "quarantine activation inputs are unavailable",
+          );
+        const projection = deriveQuarantineActivationsV1(
+          value as unknown as EvidenceTrustStateV1,
+          profile,
+          decision,
+          policy,
+          previous?.recoveredAtLogicalMs ?? null,
+        ).find((candidate) => candidate.dimensionId === quarantine.dimensionId);
+        if (!projection)
+          throw new TrustValidationError(
+            "quarantine activation does not rederive",
+          );
+        const expected = createActiveQuarantineRecordV1({
+          revision: quarantine.revision,
+          previousRecordId: previous?.quarantineId ?? null,
+          tenantId: decision.tenantId,
+          subjectDigest: decision.subjectDigest,
+          scopeDigest: decision.scopeDigest,
+          dimensionId: projection.dimensionId,
+          policyDigest: decision.policyDigest,
+          fusionDecisionId: decision.fusionDecisionId,
+          activationEvidence: projection.activationEvidence,
+          activationDependencyGroupIds: projection.activationDependencyGroupIds,
+          activatedAtLogicalMs: decision.evaluatedAtLogicalMs,
+          reviewIntervalMs: projection.reviewIntervalMs,
+        });
+        if (expected.quarantineId !== quarantine.quarantineId)
+          throw new TrustValidationError(
+            "quarantine activation record does not rederive",
+          );
+      } else if (quarantine.status === "review_required") {
+        if (!previous || previous.status !== "active")
+          throw new TrustValidationError(
+            "quarantine review transition is invalid",
+          );
+        const expected = createReviewRequiredQuarantineRecordV1(
+          previous,
+          previous.reviewAfterLogicalMs,
+        );
+        if (expected.quarantineId !== quarantine.quarantineId)
+          throw new TrustValidationError(
+            "quarantine review record does not rederive",
+          );
+      } else {
+        if (!previous || previous.status !== "review_required")
+          throw new TrustValidationError(
+            "quarantine recovery transition is invalid",
+          );
+        const recovery = recoveryDecisions.find(
+          (candidate) =>
+            candidate.recoveryDecisionId === quarantine.recoveryDecisionId,
+        );
+        if (!recovery)
+          throw new TrustValidationError(
+            "quarantine recovery decision is unavailable",
+          );
+        const expected = createRecoveredQuarantineRecordV1(previous, recovery);
+        if (expected.quarantineId !== quarantine.quarantineId)
+          throw new TrustValidationError(
+            "quarantine recovery record does not rederive",
+          );
+      }
+    }
+    const head = quarantineHeadV1(history[history.length - 1]);
+    if (head.quarantineKey !== quarantineKey)
+      throw new TrustValidationError("quarantine key is inconsistent");
+    expectedQuarantineHeads.push(head);
+  }
+  expectedQuarantineHeads.sort((left, right) =>
+    compareUnicode(left.quarantineKey, right.quarantineKey),
+  );
+  const quarantineHeads = state.quarantineHeads.map(validateQuarantineHeadV1);
+  assertCanonicalOrder(
+    quarantineHeads.map((head) => head.quarantineKey),
+    "quarantine heads",
+  );
+  if (
+    quarantineHeads.length !== expectedQuarantineHeads.length ||
+    quarantineHeads.some(
+      (head, index) =>
+        head.quarantineKey !== expectedQuarantineHeads[index].quarantineKey ||
+        head.quarantineId !== expectedQuarantineHeads[index].quarantineId ||
+        head.revision !== expectedQuarantineHeads[index].revision ||
+        head.status !== expectedQuarantineHeads[index].status,
+    )
+  )
+    throw new TrustValidationError(
+      "quarantine heads do not match quarantine history",
+    );
+  for (const policy of policies) {
+    const policyDigest = digestEvidenceFusionPolicyV1(policy);
+    const activeCount = quarantineHeads.filter((head) => {
+      const record = quarantines.find(
+        (candidate) => candidate.quarantineId === head.quarantineId,
+      );
+      return (
+        record?.policyDigest === policyDigest &&
+        (head.status === "active" || head.status === "review_required")
+      );
+    }).length;
+    if (activeCount > policy.quarantinePolicy.maximumActiveRecords)
+      throw new TrustValidationError("active quarantine capacity exceeded");
+  }
+  if (
+    quarantineHeads.some((head) => {
+      const record = quarantines.find(
+        (candidate) => candidate.quarantineId === head.quarantineId,
+      );
+      return (
+        head.status === "active" &&
+        record !== undefined &&
+        record.reviewAfterLogicalMs <= logicalTimeHighWaterMs
+      );
+    })
+  )
+    throw new TrustValidationError("quarantine review transition is overdue");
+  for (const recovery of recoveryDecisions) {
+    const quarantine = quarantines.find(
+      (candidate) => candidate.quarantineId === recovery.quarantineId,
+    );
+    const decision = fusionDecisions.find(
+      (candidate) => candidate.fusionDecisionId === recovery.fusionDecisionId,
+    );
+    const profile = decision
+      ? profiles.find(
+          (candidate) =>
+            candidate.fusionDecisionId === decision.fusionDecisionId &&
+            candidate.fusionDecisionDigest === decision.fusionDecisionDigest,
+        )
+      : null;
+    const policy = policyByDigest.get(recovery.policyDigest);
+    if (
+      !quarantine ||
+      quarantine.status !== "review_required" ||
+      !decision ||
+      !profile ||
+      !policy
+    )
+      throw new TrustValidationError(
+        "recovery decision inputs are unavailable",
+      );
+    const expected = evaluateQuarantineRecoveryV1(
+      value as unknown as EvidenceTrustStateV1,
+      quarantine,
+      profile,
+      decision,
+      policy,
+      recovery.evaluatedAtLogicalMs,
+    );
+    if (expected.recoveryDecisionDigest !== recovery.recoveryDecisionDigest)
+      throw new TrustValidationError("recovery decision does not rederive");
+  }
   const counts = { claim: 0, attestation: 0, challenge: 0, retraction: 0 };
   for (const record of records) counts[record.recordKind] += 1;
   if (
@@ -799,8 +1159,37 @@ export function validateEvidenceTrustStateV1(
     pendingRecords,
     diagnostics,
     fusionDecisions,
+    profiles,
+    profileHeads,
+    quarantines,
+    quarantineHeads,
+    recoveryDecisions,
   }) as unknown as EvidenceTrustStateV1;
   for (const decision of fusionDecisions) {
+    const decisionProfileKey = digestTrustProfileKeyV1({
+      tenantId: decision.tenantId,
+      scopeDigest: decision.scopeDigest,
+      subjectDigest: decision.subjectDigest,
+      policyDigest: decision.policyDigest,
+    });
+    const priorProfile =
+      decision.previousProfileDigest === null
+        ? null
+        : (profiles.find(
+            (profile) =>
+              profile.profileDigest === decision.previousProfileDigest &&
+              digestTrustProfileKeyV1({
+                tenantId: profile.tenantId,
+                scopeDigest: profile.scopeDigest,
+                subjectDigest: profile.subjectDigest,
+                policyDigest: profile.policyDigest,
+              }) === decisionProfileKey &&
+              profile.updatedAtLogicalMs <= decision.evaluatedAtLogicalMs,
+          ) ?? null);
+    if (decision.previousProfileDigest !== null && priorProfile === null)
+      throw new TrustValidationError(
+        "fusion decision previous profile is unavailable",
+      );
     const historicalResolutions = resolutions.filter(
       (item) => item.resolvedAtLogicalMs <= decision.evaluatedAtLogicalMs,
     );
@@ -819,6 +1208,14 @@ export function validateEvidenceTrustStateV1(
     const historicalState = {
       ...cloned,
       logicalTimeHighWaterMs: decision.evaluatedAtLogicalMs,
+      policyHeads: [
+        ...policyHeads.filter((head) => head.policyId !== decision.policyId),
+        {
+          policyId: decision.policyId,
+          policyVersion: decision.policyVersion,
+          policyDigest: decision.policyDigest,
+        },
+      ].sort((left, right) => compareUnicode(left.policyId, right.policyId)),
       records: historicalProjection.records,
       contentResolutions: historicalResolutions,
       contentInvalidations: historicalInvalidations,
@@ -830,6 +1227,14 @@ export function validateEvidenceTrustStateV1(
         .map((item) => item.recordId),
       diagnostics: historicalProjection.diagnostics,
       fusionDecisions: [],
+      profileHeads: [
+        ...profileHeads.filter(
+          (head) => head.profileKey !== decisionProfileKey,
+        ),
+        ...(priorProfile === null ? [] : [trustProfileHeadV1(priorProfile)]),
+      ].sort((left, right) =>
+        compareUnicode(left.profileKey, right.profileKey),
+      ),
     } as unknown as EvidenceTrustStateV1;
     const dependencyBindingDigests = deriveApplicableBindingDigests(
       historicalState,

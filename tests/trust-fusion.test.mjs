@@ -10,12 +10,14 @@ import {
   createEvidenceRetractionV1,
   createEvidenceTrustDependencyBindingV1,
   createEvidenceTrustStateV1,
+  createTrustEligibilityRequestV1,
   deriveApplicableBindingDigests,
   digestEvidenceFusionDecisionV1,
   digestEvidenceFusionPolicyV1,
   digestScopeV1,
   digestSubjectV1,
   evaluateEvidenceFusionV1,
+  evaluateTrustEligibilityV1,
   reduceEvidenceTrustStateV1,
   validateEvidenceTrustStateV1,
   validateEvidenceFusionDecisionV1,
@@ -418,7 +420,111 @@ function setup(records = [], input = {}) {
       state.logicalTimeHighWaterMs,
     ),
   };
-  return { state, policy, request, causalRegistry };
+  return {
+    state,
+    policy,
+    request,
+    causalRegistry,
+    authority,
+    upstream,
+  };
+}
+function admitCausallyAuthorizedClaim(configured, state, record, time) {
+  let next = reduceEvidenceTrustStateV1(state, local(record, time), {
+    causalAuthorityVerifierRegistry: configured.causalRegistry,
+  }).state;
+  const recordDigest = record.claimId.slice("claim:".length);
+  next = reduceEvidenceTrustStateV1(
+    next,
+    {
+      schemaVersion: 1,
+      kind: "causal_authorization_recorded",
+      authorization: {
+        schemaVersion: 1,
+        recordId: record.claimId,
+        recordDigest,
+        recordKind: "claim",
+        policyDigest: configured.request.policyDigest,
+        criterionId: record.criterionId,
+        subjectDigest: digestSubjectV1(record.subject),
+        scopeDigest: digestScopeV1(record.scope),
+        targetRecordId: null,
+        targetRecordDigest: null,
+        sourceRelation:
+          record.sourceId === record.subject.peerId
+            ? "subject_self"
+            : "work_assignee",
+        authorityBindingDigest: configured.authority.bindingDigest,
+        authorityProofDigest: digest("5"),
+        bases: record.basisReferences.map((reference) => ({
+          ...reference,
+          resolvedDigest: digest("3"),
+          trustedEffectiveAtLogicalMs: time,
+          resolverBindingDigest: configured.upstream.bindingDigest,
+          resolutionProofDigest: digest("4"),
+        })),
+      },
+      logicalTimeMs: time,
+    },
+    { causalAuthorityVerifierRegistry: configured.causalRegistry },
+  ).state;
+  return next;
+}
+function admitCausallyAuthorizedChallenge(configured, state, record, time) {
+  let next = reduceEvidenceTrustStateV1(state, local(record, time), {
+    causalAuthorityVerifierRegistry: configured.causalRegistry,
+  }).state;
+  const target = next.records.find(
+    (candidate) =>
+      candidate.recordId === record.targetId &&
+      candidate.recordDigest === record.targetDigest,
+  );
+  const targetClaim =
+    target?.recordKind === "claim"
+      ? target
+      : next.records.find(
+          (candidate) =>
+            candidate.recordKind === "claim" &&
+            candidate.recordId === target?.record.claimId &&
+            candidate.recordDigest === target?.record.claimDigest,
+        );
+  assert(targetClaim?.recordKind === "claim");
+  const recordDigest = record.challengeId.slice("challenge:".length);
+  next = reduceEvidenceTrustStateV1(
+    next,
+    {
+      schemaVersion: 1,
+      kind: "causal_authorization_recorded",
+      authorization: {
+        schemaVersion: 1,
+        recordId: record.challengeId,
+        recordDigest,
+        recordKind: "challenge",
+        policyDigest: configured.request.policyDigest,
+        criterionId: targetClaim.record.criterionId,
+        subjectDigest: digestSubjectV1(targetClaim.record.subject),
+        scopeDigest: digestScopeV1(record.scope),
+        targetRecordId: target.recordId,
+        targetRecordDigest: target.recordDigest,
+        sourceRelation:
+          record.sourceId === targetClaim.record.subject.peerId
+            ? "subject_self"
+            : "target_author",
+        authorityBindingDigest: configured.authority.bindingDigest,
+        authorityProofDigest: digest("5"),
+        bases: record.basisReferences.map((reference) => ({
+          ...reference,
+          resolvedDigest: digest("3"),
+          trustedEffectiveAtLogicalMs: time,
+          resolverBindingDigest: configured.upstream.bindingDigest,
+          resolutionProofDigest: digest("4"),
+        })),
+      },
+      logicalTimeMs: time,
+    },
+    { causalAuthorityVerifierRegistry: configured.causalRegistry },
+  ).state;
+  return next;
 }
 const classify = (result, target) =>
   result.claimClassifications.find((item) => item.claimId === target.claimId)
@@ -705,4 +811,322 @@ test("Fusion enforces its record ceiling and standalone canonical order", () => 
     () => validateEvidenceFusionDecisionV1(reordered),
     /sorted and unique/u,
   );
+});
+
+test("quarantine activates atomically, requires explicit review, recovers from new disjoint evidence, and reactivates only from newer negatives", () => {
+  const basePolicy = policyInput();
+  const negative = claim("violated");
+  const configured = setup(
+    [
+      [negative, 2],
+      [attestation(negative, "peer-b"), 3],
+    ],
+    {
+      sourceBindings: [
+        ...basePolicy.sourceBindings,
+        {
+          sourceId: "peer-e",
+          sourceKind: "peer",
+          dependencyGroupId: "e",
+          roles: ["claim"],
+          maximumWeightBasisPoints: 1000,
+          validFromLogicalMs: 0,
+          validUntilLogicalMs: 10_000,
+        },
+        {
+          sourceId: "peer-f",
+          sourceKind: "peer",
+          dependencyGroupId: "f",
+          roles: ["attest"],
+          maximumWeightBasisPoints: 1000,
+          validFromLogicalMs: 0,
+          validUntilLogicalMs: 10_000,
+        },
+      ],
+      dependencyGroups: [
+        ...basePolicy.dependencyGroups,
+        {
+          dependencyGroupId: "e",
+          maximumAttestationWeightPerClaimBasisPoints: 1000,
+          maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+        },
+        {
+          dependencyGroupId: "f",
+          maximumAttestationWeightPerClaimBasisPoints: 700,
+          maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+        },
+      ],
+      quarantinePolicy: {
+        enabled: true,
+        rules: [
+          {
+            dimensionId: "integrity",
+            activationScoreAtOrBelowBasisPoints: 6500,
+            minimumNegativeClaimSourceGroups: 1,
+            minimumNegativeWeightBasisPoints: 500,
+            reviewIntervalMs: 10,
+          },
+        ],
+        maximumActiveRecords: 4,
+      },
+      recoveryPolicy: {
+        rules: [
+          {
+            dimensionId: "integrity",
+            recoveryScoreAtOrAboveBasisPoints: 7000,
+            maximumRecoveryUncertaintyBasisPoints: 5000,
+            minimumRecoveryClaimSourceGroups: 1,
+            minimumRecoveryWeightBasisPoints: 500,
+            maximumRecoveryEvidenceAgeMs: 100,
+          },
+        ],
+      },
+    },
+  );
+  const options = {
+    causalAuthorityVerifierRegistry: configured.causalRegistry,
+  };
+  const materializeProfile = (stateValue, logicalTimeMs) => {
+    let next = reduceEvidenceTrustStateV1(
+      stateValue,
+      {
+        schemaVersion: 1,
+        kind: "fusion_evaluated",
+        request: configured.request,
+        logicalTimeMs,
+      },
+      options,
+    ).state;
+    const decision = next.fusionDecisions.find(
+      (candidate) => candidate.evaluatedAtLogicalMs === logicalTimeMs,
+    );
+    next = reduceEvidenceTrustStateV1(
+      next,
+      {
+        schemaVersion: 1,
+        kind: "profile_evaluated",
+        fusionDecisionId: decision.fusionDecisionId,
+        fusionDecisionDigest: decision.fusionDecisionDigest,
+        logicalTimeMs,
+      },
+      options,
+    ).state;
+    const profile = next.profiles.find(
+      (candidate) => candidate.fusionDecisionId === decision.fusionDecisionId,
+    );
+    return { state: next, decision, profile };
+  };
+  const eligibilityFor = (stateValue, profile, logicalTimeMs) => {
+    const rule = configured.policy.eligibilityRules[0];
+    return evaluateTrustEligibilityV1(
+      stateValue,
+      createTrustEligibilityRequestV1({
+        schemaVersion: 1,
+        tenantId: scope.tenantId,
+        subject,
+        subjectDigest: digestSubjectV1(subject),
+        scope,
+        scopeDigest: digestScopeV1(scope),
+        policyId: configured.policy.policyId,
+        policyVersion: configured.policy.policyVersion,
+        policyDigest: configured.request.policyDigest,
+        profileId: profile.profileId,
+        profileDigest: profile.profileDigest,
+        maximumProfileAgeMs: rule.maximumProfileAgeMs,
+        requirements: rule.requirements,
+      }),
+      logicalTimeMs,
+    );
+  };
+
+  let materialized = materializeProfile(configured.state, 4);
+  let state = materialized.state;
+  assert.equal(state.quarantineHeads[0].status, "active");
+  assert.equal(state.quarantines[0].activationEvidenceIds.length, 2);
+  assert.equal(
+    eligibilityFor(state, materialized.profile, 4).disposition,
+    "quarantined",
+  );
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 13,
+    },
+    options,
+  ).state;
+  assert.equal(state.quarantineHeads[0].status, "active");
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 14,
+    },
+    options,
+  ).state;
+  assert.equal(state.quarantineHeads[0].status, "review_required");
+  assert.equal(state.quarantineHeads[0].revision, 2);
+
+  const activationChallenge = challenge(negative);
+  state = admitCausallyAuthorizedChallenge(
+    configured,
+    state,
+    activationChallenge,
+    15,
+  );
+  const overlappingPositive = claim("satisfied", "criterion-a", {
+    sourceId: "peer-d",
+    rootId: "claim-root-1",
+  });
+  state = admitCausallyAuthorizedClaim(
+    configured,
+    state,
+    overlappingPositive,
+    16,
+  );
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(attestation(overlappingPositive, "peer-f"), 17),
+    options,
+  ).state;
+  materialized = materializeProfile(state, 18);
+  state = materialized.state;
+  const reviewHead = state.quarantineHeads[0];
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "quarantine_reviewed",
+      quarantineKey: reviewHead.quarantineKey,
+      quarantineId: reviewHead.quarantineId,
+      fusionDecisionId: materialized.decision.fusionDecisionId,
+      fusionDecisionDigest: materialized.decision.fusionDecisionDigest,
+      profileId: materialized.profile.profileId,
+      profileDigest: materialized.profile.profileDigest,
+      logicalTimeMs: 18,
+    },
+    options,
+  ).state;
+  assert.equal(state.recoveryDecisions.length, 1);
+  assert.equal(state.recoveryDecisions[0].disposition, "insufficient");
+  assert(
+    state.recoveryDecisions[0].reasonCodes.includes("challenge_unresolved"),
+  );
+  assert.deepEqual(
+    state.recoveryDecisions[0].recoveryClaimSourceDependencyGroupIds,
+    [],
+  );
+  assert.equal(state.quarantineHeads[0].status, "review_required");
+  assert.equal(
+    eligibilityFor(state, materialized.profile, 18).disposition,
+    "quarantined",
+  );
+
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(attestation(negative, "peer-c", "contradict"), 19),
+    options,
+  ).state;
+  const positive = claim("satisfied", "criterion-a", {
+    sourceId: "peer-e",
+    rootId: "claim-root-2",
+  });
+  state = admitCausallyAuthorizedClaim(configured, state, positive, 20);
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(attestation(positive, "peer-f"), 21),
+    options,
+  ).state;
+  materialized = materializeProfile(state, 22);
+  state = materialized.state;
+  const secondReviewHead = state.quarantineHeads[0];
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "quarantine_reviewed",
+      quarantineKey: secondReviewHead.quarantineKey,
+      quarantineId: secondReviewHead.quarantineId,
+      fusionDecisionId: materialized.decision.fusionDecisionId,
+      fusionDecisionDigest: materialized.decision.fusionDecisionDigest,
+      profileId: materialized.profile.profileId,
+      profileDigest: materialized.profile.profileDigest,
+      logicalTimeMs: 22,
+    },
+    options,
+  ).state;
+  assert.equal(state.recoveryDecisions.length, 2);
+  const recoveredDecision = state.recoveryDecisions.find(
+    (candidate) => candidate.disposition === "recovered",
+  );
+  assert.deepEqual(recoveredDecision.recoveryClaimSourceDependencyGroupIds, [
+    "e",
+  ]);
+  assert.equal(state.quarantineHeads[0].status, "recovered");
+  assert.equal(state.quarantineHeads[0].revision, 3);
+  assert.equal(
+    eligibilityFor(state, materialized.profile, 22).disposition,
+    "eligible",
+  );
+
+  materialized = materializeProfile(state, 23);
+  state = materialized.state;
+  assert.equal(state.quarantineHeads[0].status, "recovered");
+  const newerNegative = claim("violated", "criterion-a", {
+    rootId: "claim-root-6",
+  });
+  state = admitCausallyAuthorizedClaim(configured, state, newerNegative, 24);
+  state = reduceEvidenceTrustStateV1(
+    state,
+    local(attestation(newerNegative, "peer-b"), 25),
+    options,
+  ).state;
+  materialized = materializeProfile(state, 26);
+  state = materialized.state;
+  assert.equal(state.quarantineHeads[0].status, "active");
+  assert.equal(state.quarantineHeads[0].revision, 4);
+  assert.equal(
+    state.quarantines.at(-1).activationEvidenceIds.includes(negative.claimId),
+    false,
+  );
+  assert.equal(
+    state.quarantines
+      .at(-1)
+      .activationEvidenceIds.includes(newerNegative.claimId),
+    true,
+  );
+  assert.equal(
+    eligibilityFor(state, materialized.profile, 26).disposition,
+    "quarantined",
+  );
+  const futureConflictingSibling = claim("violated", "criterion-a", {
+    sourceId: "peer-e",
+    rootId: "claim-root-2",
+  });
+  state = admitCausallyAuthorizedClaim(
+    configured,
+    state,
+    futureConflictingSibling,
+    27,
+  );
+  assert.equal(
+    state.records.find((record) => record.recordId === positive.claimId)
+      ?.status,
+    "conflicted",
+  );
+  assert.equal(
+    state.records.find(
+      (record) => record.recordId === futureConflictingSibling.claimId,
+    )?.status,
+    "conflicted",
+  );
+  assert.equal(
+    state.recoveryDecisions.find(
+      (candidate) => candidate.disposition === "recovered",
+    )?.recoveryDecisionId,
+    recoveredDecision.recoveryDecisionId,
+  );
+  assert.deepEqual(validateEvidenceTrustStateV1(state), state);
 });

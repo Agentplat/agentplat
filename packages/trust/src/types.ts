@@ -1,5 +1,3 @@
-import type { JsonValue } from "@agentplat/core";
-
 export type TrustDigestDomainV1 =
   | "scope"
   | "subject"
@@ -311,6 +309,8 @@ export interface EvidenceTrustLimitsV1 {
   readonly maximumProfileHeads: number;
   readonly maximumProfileRevisionsPerHead: number;
   readonly maximumQuarantineHeads: number;
+  readonly maximumQuarantineRevisionsPerHead: number;
+  readonly maximumRecoveryDecisions: number;
   readonly maximumDiagnostics: number;
   readonly maximumRecordCanonicalBytes: number;
   readonly maximumContentReferenceBytes: number;
@@ -592,6 +592,8 @@ export interface EvidenceClaimClassificationV1 {
   readonly retainedWeightBasisPoints: number;
   readonly effectiveWeightBasisPoints: number;
   readonly claimSourceDependencyGroupId: string | null;
+  readonly effectiveSupportingAttestationIds: readonly string[];
+  readonly effectiveContentResolutionIds: readonly string[];
   readonly reasonCodes: readonly TrustReasonCodeV1[];
 }
 export interface EvidenceGroupAllocationV1 {
@@ -649,6 +651,121 @@ export interface EvidenceFusionEvaluationRequestV1 {
   readonly policyVersion: number;
   readonly policyDigest: string;
   readonly dependencyBindingDigests: readonly string[];
+}
+
+export type TrustProfileStatusV1 =
+  "unknown" | "supported" | "contested" | "degraded";
+export interface TrustProfileV1 {
+  readonly schemaVersion: 1;
+  readonly profileId: string;
+  readonly profileDigest: string;
+  readonly revision: number;
+  readonly previousProfileId: string | null;
+  readonly previousProfileDigest: string | null;
+  readonly tenantId: string;
+  readonly subject: TrustSubjectV1;
+  readonly subjectDigest: string;
+  readonly scope: EvidenceScopeV1;
+  readonly scopeDigest: string;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly dimensions: readonly TrustDimensionStateV1[];
+  readonly fusionDecisionId: string;
+  readonly fusionDecisionDigest: string;
+  readonly inputSetDigest: string;
+  readonly updatedAtLogicalMs: number;
+  readonly status: TrustProfileStatusV1;
+}
+export interface TrustProfileHeadV1 {
+  readonly profileKey: string;
+  readonly profileId: string;
+  readonly profileDigest: string;
+  readonly revision: number;
+}
+export interface TrustEligibilityRequestV1 {
+  readonly schemaVersion: 1;
+  readonly tenantId: string;
+  readonly subject: TrustSubjectV1;
+  readonly subjectDigest: string;
+  readonly scope: EvidenceScopeV1;
+  readonly scopeDigest: string;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly profileId: string;
+  readonly profileDigest: string;
+  readonly maximumProfileAgeMs: number;
+  readonly requirements: readonly TrustEligibilityRequirementV1[];
+}
+export interface TrustEligibilityRequirementResultV1 {
+  readonly dimensionId: string;
+  readonly observedScoreBasisPoints: number | null;
+  readonly observedUncertaintyBasisPoints: number | null;
+  readonly met: boolean;
+}
+export interface TrustEligibilityDecisionV1 {
+  readonly schemaVersion: 1;
+  readonly eligibilityDecisionId: string;
+  readonly requestDigest: string;
+  readonly subjectDigest: string;
+  readonly scopeDigest: string;
+  readonly policyDigest: string;
+  readonly profileId: string;
+  readonly profileDigest: string;
+  readonly quarantineRecordIds: readonly string[];
+  readonly evaluatedAtLogicalMs: number;
+  readonly disposition:
+    "eligible" | "restricted" | "quarantined" | "unavailable";
+  readonly requirementResults: readonly TrustEligibilityRequirementResultV1[];
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+export type QuarantineStatusV1 = "active" | "review_required" | "recovered";
+export interface QuarantineRecordV1 {
+  readonly schemaVersion: 1;
+  readonly quarantineId: string;
+  readonly quarantineKey: string;
+  readonly revision: number;
+  readonly previousRecordId: string | null;
+  readonly tenantId: string;
+  readonly subjectDigest: string;
+  readonly scopeDigest: string;
+  readonly dimensionId: string;
+  readonly policyDigest: string;
+  readonly fusionDecisionId: string;
+  readonly activationEvidenceIds: readonly string[];
+  readonly activationEvidenceSetDigest: string;
+  readonly activationDependencyGroupIds: readonly string[];
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+  readonly activatedAtLogicalMs: number;
+  readonly reviewAfterLogicalMs: number;
+  readonly status: QuarantineStatusV1;
+  readonly recoveredAtLogicalMs: number | null;
+  readonly recoveryDecisionId: string | null;
+}
+export interface QuarantineHeadV1 {
+  readonly quarantineKey: string;
+  readonly quarantineId: string;
+  readonly revision: number;
+  readonly status: QuarantineStatusV1;
+}
+export interface QuarantineRecoveryDecisionV1 {
+  readonly schemaVersion: 1;
+  readonly recoveryDecisionId: string;
+  readonly recoveryDecisionDigest: string;
+  readonly quarantineId: string;
+  readonly quarantineKey: string;
+  readonly policyDigest: string;
+  readonly fusionDecisionId: string;
+  readonly evaluatedAtLogicalMs: number;
+  readonly recoveryEvidenceIds: readonly string[];
+  readonly recoveryEvidenceSetDigest: string;
+  readonly recoveryClaimSourceDependencyGroupIds: readonly string[];
+  readonly effectiveRecoveryWeightBasisPoints: number;
+  readonly scoreBasisPoints: number;
+  readonly uncertaintyBasisPoints: number;
+  readonly disposition: "unavailable" | "insufficient" | "recovered";
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
 }
 
 export type EvidenceRecordKindV1 =
@@ -779,6 +896,24 @@ export type EvidenceTrustInputV1 =
     }
   | {
       readonly schemaVersion: 1;
+      readonly kind: "profile_evaluated";
+      readonly fusionDecisionId: string;
+      readonly fusionDecisionDigest: string;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "quarantine_reviewed";
+      readonly quarantineKey: string;
+      readonly quarantineId: string;
+      readonly fusionDecisionId: string;
+      readonly fusionDecisionDigest: string;
+      readonly profileId: string;
+      readonly profileDigest: string;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
       readonly kind: "record_admitted";
       readonly record: EvidenceRecordV1;
       readonly origin: EvidenceRecordOriginV1;
@@ -820,6 +955,11 @@ export interface EvidenceTrustEffectV1 {
     | "dependency_binding_registered"
     | "causal_authorization_recorded"
     | "fusion_evaluated"
+    | "profile_evaluated"
+    | "quarantine_activated"
+    | "quarantine_review_required"
+    | "quarantine_reviewed"
+    | "quarantine_recovered"
     | "record_accepted"
     | "record_duplicate"
     | "record_status_changed"
@@ -852,8 +992,11 @@ export interface EvidenceTrustStateV1 {
   readonly contentInvalidations: readonly EvidenceContentResolutionInvalidationV1[];
   readonly pendingRecords: readonly string[];
   readonly fusionDecisions: readonly EvidenceFusionDecisionV1[];
-  readonly profiles: readonly JsonValue[];
-  readonly quarantines: readonly JsonValue[];
+  readonly profiles: readonly TrustProfileV1[];
+  readonly profileHeads: readonly TrustProfileHeadV1[];
+  readonly quarantines: readonly QuarantineRecordV1[];
+  readonly quarantineHeads: readonly QuarantineHeadV1[];
+  readonly recoveryDecisions: readonly QuarantineRecoveryDecisionV1[];
   readonly diagnostics: readonly EvidenceTrustDiagnosticV1[];
   readonly traceDigest: string;
   readonly encodedBytes: number;

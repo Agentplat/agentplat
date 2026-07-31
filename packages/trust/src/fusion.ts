@@ -253,6 +253,38 @@ function sourceBinding(
     return null;
   return binding;
 }
+function usableContentResolutions(
+  state: EvidenceTrustStateV1,
+  claim: ClaimState,
+  resolverDigest: string | null,
+  logicalTimeMs: number,
+): readonly EvidenceTrustStateV1["contentResolutions"][number][] {
+  const content = claim.record.content;
+  if (!content || content.kind !== "reference" || !resolverDigest) return [];
+  return state.contentResolutions
+    .filter(
+      (resolution) =>
+        resolution.result === "verified" &&
+        resolution.resolvedAtLogicalMs <= logicalTimeMs &&
+        resolution.resolverBindingDigest === resolverDigest &&
+        resolution.claimId === claim.recordId &&
+        resolution.claimDigest === claim.recordDigest &&
+        resolution.scopeDigest === digestScopeV1(claim.record.scope) &&
+        resolution.referenceId === content.reference.referenceId &&
+        resolution.referenceDigest === content.reference.referenceDigest &&
+        resolution.contentDigest === content.contentDigest &&
+        resolution.mediaType === content.mediaType &&
+        resolution.encodedBytes === content.encodedBytes &&
+        !state.contentInvalidations.some(
+          (invalidation) =>
+            invalidation.invalidatedAtLogicalMs <= logicalTimeMs &&
+            invalidation.resolutionId === resolution.resolutionId &&
+            invalidation.resolutionDigest === resolution.resolutionDigest &&
+            invalidation.resolverBindingDigest === resolverDigest,
+        ),
+    )
+    .sort((left, right) => compare(left.resolutionId, right.resolutionId));
+}
 function contentUsable(
   state: EvidenceTrustStateV1,
   claim: ClaimState,
@@ -260,30 +292,12 @@ function contentUsable(
   logicalTimeMs: number,
 ): boolean {
   const content = claim.record.content;
-  if (!content || content.kind !== "reference" || !resolverDigest)
-    return content === null || content?.kind === "inline_summary";
-  const valid = state.contentResolutions.some(
-    (resolution) =>
-      resolution.result === "verified" &&
-      resolution.resolvedAtLogicalMs <= logicalTimeMs &&
-      resolution.resolverBindingDigest === resolverDigest &&
-      resolution.claimId === claim.recordId &&
-      resolution.claimDigest === claim.recordDigest &&
-      resolution.scopeDigest === digestScopeV1(claim.record.scope) &&
-      resolution.referenceId === content.reference.referenceId &&
-      resolution.referenceDigest === content.reference.referenceDigest &&
-      resolution.contentDigest === content.contentDigest &&
-      resolution.mediaType === content.mediaType &&
-      resolution.encodedBytes === content.encodedBytes &&
-      !state.contentInvalidations.some(
-        (invalidation) =>
-          invalidation.invalidatedAtLogicalMs <= logicalTimeMs &&
-          invalidation.resolutionId === resolution.resolutionId &&
-          invalidation.resolutionDigest === resolution.resolutionDigest &&
-          invalidation.resolverBindingDigest === resolverDigest,
-      ),
+  return (
+    content === null ||
+    content?.kind === "inline_summary" ||
+    usableContentResolutions(state, claim, resolverDigest, logicalTimeMs)
+      .length > 0
   );
-  return valid;
 }
 function recordReferenceKeys(record: EvidenceRecordStateV1): readonly string[] {
   const references =
@@ -685,6 +699,8 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
         "retainedWeightBasisPoints",
         "effectiveWeightBasisPoints",
         "claimSourceDependencyGroupId",
+        "effectiveSupportingAttestationIds",
+        "effectiveContentResolutionIds",
         "reasonCodes",
       ],
       "fusion classification",
@@ -740,6 +756,14 @@ function simpleDecisionValidation(value: unknown): EvidenceFusionDecisionV1 {
         classification.claimSourceDependencyGroupId,
         "fusion claimSourceDependencyGroupId",
       );
+    assertSortedUnique(
+      classification.effectiveSupportingAttestationIds,
+      "fusion effective supporting attestations",
+    );
+    assertSortedUnique(
+      classification.effectiveContentResolutionIds,
+      "fusion effective content resolutions",
+    );
     for (const reason of assertSortedUnique(
       classification.reasonCodes,
       "fusion classification reasons",
@@ -968,6 +992,15 @@ export function evaluateEvidenceFusionV1(
       digestEvidenceFusionPolicyV1(item) === request.policyDigest,
   );
   if (!policy) throw new TrustValidationError("fusion policy is unavailable");
+  const policyHead = state.policyHeads.find(
+    (head) => head.policyId === request.policyId,
+  );
+  if (
+    !policyHead ||
+    policyHead.policyVersion !== request.policyVersion ||
+    policyHead.policyDigest !== request.policyDigest
+  )
+    throw new TrustValidationError("fusion policy is not the current head");
   const expectedBindingDigests = deriveApplicableBindingDigests(
     state,
     request.policyDigest,
@@ -1709,6 +1742,24 @@ export function evaluateEvidenceFusionV1(
       retainedWeightBasisPoints: retention,
       effectiveWeightBasisPoints: effectiveWeight,
       claimSourceDependencyGroupId: work.sourceGroupId,
+      effectiveSupportingAttestationIds: uniqueSorted(
+        work.candidates
+          .filter(
+            (candidate) =>
+              candidate.allocated > 0 && candidate.disposition === "support",
+          )
+          .map((candidate) => candidate.record.recordId),
+        "effective supporting attestations",
+      ),
+      effectiveContentResolutionIds: uniqueSorted(
+        usableContentResolutions(
+          state,
+          work.claim,
+          resolverDigest,
+          logicalTimeMs,
+        ).map((resolution) => resolution.resolutionId),
+        "effective content resolutions",
+      ),
       reasonCodes: uniqueSorted(
         [
           ...work.reasons,
@@ -1983,6 +2034,15 @@ export function evaluateEvidenceFusionV1(
     [...exclusionGroups.values()],
     (item) => `${item.recordDigest}\u0000${item.recordId}`,
   );
+  const profileKey = digestTrustJsonV1("profile-key", {
+    tenantId: request.tenantId,
+    scopeDigest,
+    subjectDigest,
+    policyDigest: request.policyDigest,
+  });
+  const previousProfileDigest =
+    state.profileHeads.find((head) => head.profileKey === profileKey)
+      ?.profileDigest ?? null;
   const bare = {
     schemaVersion: 1 as const,
     tenantId: request.tenantId,
@@ -2028,7 +2088,7 @@ export function evaluateEvidenceFusionV1(
         `${item.stage}\u0000${item.dimensionId ?? ""}\u0000${item.criterionId ?? ""}\u0000${item.claimId ?? ""}\u0000${item.dependencyGroupId}\u0000${item.candidateRecordIds.join("\u0000")}`,
     ),
     dimensions: sorted(dimensions, (item) => item.dimensionId),
-    previousProfileDigest: null,
+    previousProfileDigest,
     reasonCodes: uniqueSorted(
       [
         ...new Set([

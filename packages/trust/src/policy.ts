@@ -72,6 +72,8 @@ const ceiling: EvidenceTrustLimitsV1 = {
   maximumProfileHeads: 2048,
   maximumProfileRevisionsPerHead: 32,
   maximumQuarantineHeads: 2048,
+  maximumQuarantineRevisionsPerHead: 32,
+  maximumRecoveryDecisions: 4096,
   maximumDiagnostics: 1024,
   maximumRecordCanonicalBytes: 65_536,
   maximumContentReferenceBytes: 4096,
