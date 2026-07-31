@@ -550,6 +550,62 @@ references reached by that bounded traversal. `rootBasisDigest` is the
 cycles, missing records or depth overflow make the Claim ineffective. The same
 root basis can contribute at most once to one dimension evaluation.
 
+### Retained causal authorization
+
+Claim and Challenge records remain immutable public facts; historical role and
+upstream authority are verified separately and retained as a closed
+`EvidenceCausalAuthorizationV1`:
+
+```text
+schemaVersion: 1
+authorizationId
+authorizationDigest
+recordId
+recordDigest
+recordKind: "claim" | "challenge"
+policyDigest
+criterionId
+subjectDigest
+scopeDigest
+targetRecordId: string | null
+targetRecordDigest: digest | null
+sourceRelation
+authorityBindingDigest
+authorityProofDigest
+bases: sorted unique {
+  schemaVersion: 1,
+  kind,
+  referenceType,
+  referenceId,
+  referenceDigest,
+  resolvedDigest,
+  trustedEffectiveAtLogicalMs,
+  resolverBindingDigest: digest | null,
+  resolutionProofDigest: digest | null
+}[]
+authorizedAtLogicalMs
+```
+
+The construction-bound causal-authority verifier resolves the exact registered
+`causal_authority` dependency-binding head, verifies its policy and upstream
+lineage, and verifies `authorityProofDigest` over the complete authorization.
+Every basis must be effective no later than `authorizedAtLogicalMs`. An
+`evidence` basis carries no external resolver proof and must match the exact
+same-scope retained record, digest, kind and effective time. Mesh, Control and
+external terminal bases require their exact historical resolver binding and
+proof.
+
+An authorization may contain only Evidence bases when those bases recursively
+reach at least one terminal root. Fusion traverses the retained authorization
+chain with cycle and depth checks and derives `rootBasisDigest` only from the
+unique terminal reference tuples. Proof digests, resolver metadata and trusted
+times authorize the traversal but do not change the normative root identity.
+
+Authorizations are append-only, bounded and accepted only through the reducer
+with a synchronous verifier registry. Strict restore re-verifies every retained
+authorization through the exact historical registry entry. A structurally
+valid authorization object or state digest alone never establishes authority.
+
 ## Evidence content
 
 Every Claim contains a public criterion and outcome, plus a digest of the
@@ -844,6 +900,24 @@ The blocker closure follows explicit `evidence` basis edges. A direct
 Attestation-to-Claim target relationship remains inspectable when only the
 Claim is challenged; it is attribution, not an implicit basis edge. The
 Attestation still cannot qualify that challenged Claim for Fusion.
+
+Fusion applies the same fail-closed rule after source, policy and causal
+authorization checks. It constructs a graph of authorized group Challenges,
+including lifecycle-unavailable Challenge records only when their exact
+diagnostic is `challenge_basis_unavailable`. A group waits until every
+authorized group targeting one of its Evidence bases or resolution
+Attestations is settled. An all-dismissed dependency set makes those inputs
+available; any non-dismissed dependency leaves the dependent group unresolved.
+Unicode-ordered iteration continues to a fixed point, and every remaining
+strongly connected cycle emits `unresolved` with both
+`challenge_basis_unavailable` and `challenge_unresolved`. Unauthorized
+structural Challenges never enter this graph and cannot block a target.
+
+For an Attestation target, both the challenger dependency group and the target
+Attestation author's dependency group are excluded from votes. Once resolution
+finishes, Stage 3 group caps are recomputed without blocked Attestations so an
+ineffective newer candidate cannot consume weight that belongs to the next
+valid candidate in deterministic order.
 
 ## Retraction contract
 
@@ -1167,7 +1241,7 @@ schemaVersion: 1
 bindingName
 bindingVersion
 parentBindingDigest: digest | null
-bindingKind: "content_resolver" | "mesh_ingress" |
+bindingKind: "content_resolver" | "causal_authority" | "mesh_ingress" |
              "mesh_eligibility" | "profile_resolver" |
              "snapshot_protector" | "verified_mesh_origin_verifier" |
              "model_boundary" | "action_dispatcher" |
@@ -1178,6 +1252,7 @@ configurationDigest
 policyDigest: digest | null
 subjectMappingDigest: digest | null
 upstreamBindingDigest: digest | null
+registeredAtLogicalMs
 validFromLogicalMs
 validUntilLogicalMs: number | null
 bindingDigest
@@ -1191,6 +1266,13 @@ current `content_resolver` digest. Mesh ingress and restrictive wrappers bind
 their exact applicable kind plus upstream component. A missing, expired,
 rebound or cross-policy binding makes the requested evaluation or delegation
 `unavailable`; it never falls back to an unbound dependency.
+
+`registeredAtLogicalMs` is the trusted local time of first registration and is
+included in the binding digest. It must equal the reducer input time;
+`validFromLogicalMs` cannot precede it. Historical evaluation selects the exact
+highest registered lineage version visible at its evaluation time. Current
+evaluation never falls back to an older version when that head is expired,
+rebound or otherwise unavailable.
 
 Content, Mesh-ingress, eligibility, profile and restrictive-wrapper bindings
 require the exact non-null applicable policy digest. State-level
@@ -1874,6 +1956,14 @@ normalizer output, and proves exact record ID/digest equality. It does no
 network access. A standalone normalized record is insufficient proof of
 verified Mesh origin.
 
+`validateEvidenceTrustStateV1` is deliberately a pure closed-structure and
+deterministic-projection validator: it performs no key lookup and no verifier
+callback. It is not an authentication or import boundary. A state used for a
+new Fusion or reducer transition must originate from the in-process reducer or
+from strict restore with every required construction-bound verifier registry;
+an arbitrary JSON object that merely passes structural validation is not a
+trusted state.
+
 Strict restore:
 
 1. validates closed JSON and aggregate limits;
@@ -1888,11 +1978,13 @@ Strict restore:
    effective at its recorded logical time;
 8. validates historical ingress/verifier binding kind and upstream linkage,
    then revalidates every verified Mesh origin from its exact external proof;
-9. rebuilds relationship, pending, profile and quarantine indexes;
-10. replays deterministic projection from retained Evidence and compares every
+9. resolves the exact historical causal-authority binding and re-verifies every
+   retained causal authorization without network access;
+10. rebuilds relationship, pending, profile and quarantine indexes;
+11. replays deterministic projection from retained Evidence and compares every
     serialized Fusion Decision and profile head;
-11. validates logical-time high-water, trace digest and encoded-byte count;
-12. rejects missing records, forged scores, removed contradictions, clock
+12. validates logical-time high-water, trace digest and encoded-byte count;
+13. rejects missing records, forged scores, removed contradictions, clock
     rollback, stale bindings and incomplete quarantine history.
 
 A redacted projection is explicitly `restorable: false`. Restore has no network

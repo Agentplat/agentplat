@@ -18,6 +18,7 @@ import type {
   EvidenceTrustSnapshotV1,
   EvidenceTrustStateV1,
   EvidenceTrustRestoreOptionsV1,
+  EvidenceCausalAuthorizationV1,
 } from "./types.js";
 import {
   dependencyBindingHeadV1,
@@ -25,6 +26,12 @@ import {
   validateEvidenceFusionPolicyV1,
   validateEvidenceTrustDependencyBindingV1,
 } from "./policy.js";
+import { validateEvidenceCausalAuthorizationV1 } from "./causal.js";
+import {
+  deriveApplicableBindingDigests,
+  evaluateEvidenceFusionV1,
+  validateEvidenceFusionDecisionV1,
+} from "./fusion.js";
 import {
   assertExactKeys,
   assertIdentifier,
@@ -37,9 +44,10 @@ import {
   validateEvidenceContentResolutionV1,
   validateEvidenceRecordStateV1,
   projectEvidenceLifecycleV1,
+  resolveEvidenceCausalAuthorityVerifierV1,
   resolveVerifiedMeshAdmissionVerifierV1,
 } from "./lifecycle.js";
-import { digestScopeV1 } from "./evidence.js";
+import { digestScopeV1, digestSubjectV1 } from "./evidence.js";
 
 const stateCanonicalLimits = (maximumBytes: number) => ({
   maximumBytes,
@@ -77,6 +85,7 @@ export const EVIDENCE_TRUST_LIMITS_V1: Readonly<EvidenceTrustLimitsV1> =
     maximumRetractions: 4096,
     maximumContentResolutions: 4096,
     maximumContentInvalidations: 4096,
+    maximumCausalAuthorizations: 4096,
     maximumDependencyBindingVersions: 256,
     maximumPendingRecords: 1024,
     maximumPendingAgeMs: 86_400_000,
@@ -122,6 +131,7 @@ const stateKeys = [
   "sourceBindings",
   "dependencyBindings",
   "dependencyBindingHeads",
+  "causalAuthorizations",
   "records",
   "contentResolutions",
   "contentInvalidations",
@@ -151,6 +161,7 @@ export function createEvidenceTrustStateV1(input: {
     sourceBindings: [],
     dependencyBindings: [],
     dependencyBindingHeads: [],
+    causalAuthorizations: [],
     records: [],
     contentResolutions: [],
     contentInvalidations: [],
@@ -181,22 +192,44 @@ export function validateEvidenceTrustStateV1(
   const logicalTimeHighWaterMs = state.logicalTimeHighWaterMs as number;
   assertTrustDigest(state.traceDigest, "traceDigest");
   assertSafeInteger(state.encodedBytes, "encodedBytes");
-  for (const key of [
-    "sourceBindings",
-    "fusionDecisions",
-    "profiles",
-    "quarantines",
-  ] as const) {
+  for (const key of ["sourceBindings", "profiles", "quarantines"] as const) {
     if (!Array.isArray(state[key]) || state[key].length !== 0)
       throw new TrustValidationError(
         `${key} is unavailable before its increment`,
       );
   }
+  if (!Array.isArray(state.fusionDecisions))
+    throw new TrustValidationError("fusion decisions are invalid");
+  const fusionDecisions = state.fusionDecisions.map(
+    validateEvidenceFusionDecisionV1,
+  );
+  if (fusionDecisions.length > limits.maximumRetainedFusionDecisions)
+    throw new TrustValidationError("fusion decision capacity exceeded");
+  assertCanonicalOrder(
+    fusionDecisions.map((decision) => decision.fusionDecisionDigest),
+    "fusion decisions",
+  );
+  if (
+    new Set(fusionDecisions.map((decision) => decision.fusionDecisionId))
+      .size !== fusionDecisions.length
+  )
+    throw new TrustValidationError("fusion decision IDs must be unique");
   if (!Array.isArray(state.policies) || !Array.isArray(state.policyHeads))
     throw new TrustValidationError("policy state arrays are invalid");
   const policies = state.policies.map((policy) =>
     validateEvidenceFusionPolicyV1(policy, limits),
   );
+  for (const decision of fusionDecisions) {
+    if (
+      !policies.some(
+        (policy) =>
+          policy.policyId === decision.policyId &&
+          policy.policyVersion === decision.policyVersion &&
+          digestEvidenceFusionPolicyV1(policy) === decision.policyDigest,
+      )
+    )
+      throw new TrustValidationError("fusion decision policy is unavailable");
+  }
   if (policies.length > limits.maximumPolicies)
     throw new TrustValidationError("policy capacity exceeded");
   assertCanonicalOrder(
@@ -341,6 +374,7 @@ export function validateEvidenceTrustStateV1(
     if (
       ![
         "content_resolver",
+        "causal_authority",
         "mesh_ingress",
         "mesh_eligibility",
         "profile_resolver",
@@ -399,6 +433,22 @@ export function validateEvidenceTrustStateV1(
     throw new TrustValidationError(
       "dependency binding heads do not match binding history",
     );
+  if (!Array.isArray(state.causalAuthorizations))
+    throw new TrustValidationError("causal authorizations are invalid");
+  const causalAuthorizations = state.causalAuthorizations.map(
+    validateEvidenceCausalAuthorizationV1,
+  );
+  if (causalAuthorizations.length > limits.maximumCausalAuthorizations)
+    throw new TrustValidationError("causal authorization capacity exceeded");
+  assertCanonicalOrder(
+    causalAuthorizations.map((item) => item.authorizationDigest),
+    "causal authorizations",
+  );
+  if (
+    new Set(causalAuthorizations.map((item) => item.authorizationId)).size !==
+    causalAuthorizations.length
+  )
+    throw new TrustValidationError("causal authorization IDs must be unique");
   if (
     !Array.isArray(state.records) ||
     !Array.isArray(state.contentResolutions) ||
@@ -418,6 +468,151 @@ export function validateEvidenceTrustStateV1(
     throw new TrustValidationError(
       "record acceptance exceeds state high-water",
     );
+  for (const authorization of causalAuthorizations) {
+    if (authorization.authorizedAtLogicalMs > logicalTimeHighWaterMs)
+      throw new TrustValidationError(
+        "causal authorization exceeds state high-water",
+      );
+    const record = records.find(
+      (item) =>
+        item.recordId === authorization.recordId &&
+        item.recordDigest === authorization.recordDigest &&
+        item.recordKind === authorization.recordKind,
+    );
+    const binding = bindingByDigest.get(authorization.authorityBindingDigest);
+    const policy = policyByDigest.get(authorization.policyDigest);
+    const references =
+      record && "basisReferences" in record.record
+        ? record.record.basisReferences
+        : [];
+    const referenceKey = (item: {
+      kind: string;
+      referenceType: string;
+      referenceId: string;
+      referenceDigest: string;
+    }) =>
+      `${item.kind}\u0000${item.referenceType}\u0000${item.referenceId}\u0000${item.referenceDigest}`;
+    const target =
+      authorization.recordKind === "challenge"
+        ? records.find(
+            (item) =>
+              item.recordId === authorization.targetRecordId &&
+              item.recordDigest === authorization.targetRecordDigest,
+          )
+        : null;
+    const claim =
+      record?.recordKind === "claim"
+        ? record
+        : target?.recordKind === "claim"
+          ? target
+          : target?.recordKind === "attestation"
+            ? records.find(
+                (item) =>
+                  item.recordId ===
+                    (target.record as { claimId: string }).claimId &&
+                  item.recordDigest ===
+                    (target.record as { claimDigest: string }).claimDigest,
+              )
+            : null;
+    const criterion =
+      claim?.recordKind === "claim" && policy
+        ? policy.criteria.find(
+            (item) =>
+              item.criterionId ===
+              (claim.record as { criterionId: string }).criterionId,
+          )
+        : undefined;
+    const allowed =
+      authorization.recordKind === "claim"
+        ? criterion?.claimAuthority.allowedSourceRelations
+        : criterion?.challengeAuthority.allowedSourceRelations;
+    const basisRules =
+      authorization.recordKind === "claim"
+        ? criterion?.claimAuthority.allowedBasisReferences
+        : criterion?.challengeAuthority.allowedBasisReferences;
+    const counts = new Map<string, number>();
+    for (const reference of references)
+      counts.set(
+        `${reference.kind}\u0000${reference.referenceType}`,
+        (counts.get(`${reference.kind}\u0000${reference.referenceType}`) ?? 0) +
+          1,
+      );
+    const basesAllowed =
+      basisRules !== undefined &&
+      basisRules.every((rule) => {
+        const count =
+          counts.get(`${rule.kind}\u0000${rule.referenceType}`) ?? 0;
+        return count >= rule.minimumCount && count <= rule.maximumCount;
+      }) &&
+      [...counts.keys()].every((key) =>
+        basisRules.some(
+          (rule) => `${rule.kind}\u0000${rule.referenceType}` === key,
+        ),
+      );
+    const resolvedEvidenceBasesValid = authorization.bases.every((basis) => {
+      if (basis.kind !== "evidence") return true;
+      const referenced = records.find(
+        (item) =>
+          item.recordId === basis.referenceId &&
+          item.recordDigest === basis.referenceDigest,
+      );
+      return (
+        referenced !== undefined &&
+        referenced.recordKind === basis.referenceType &&
+        digestScopeV1(referenced.record.scope) === authorization.scopeDigest &&
+        basis.resolvedDigest === referenced.recordDigest &&
+        basis.trustedEffectiveAtLogicalMs === referenced.effectiveAtLogicalMs
+      );
+    });
+    const visibleHead = binding
+      ? dependencyBindings
+          .filter(
+            (item) =>
+              item.bindingKind === binding.bindingKind &&
+              item.bindingName === binding.bindingName &&
+              item.registeredAtLogicalMs <= authorization.authorizedAtLogicalMs,
+          )
+          .sort((left, right) => right.bindingVersion - left.bindingVersion)[0]
+      : null;
+    if (
+      !record ||
+      !binding ||
+      !policy ||
+      binding.bindingKind !== "causal_authority" ||
+      binding.policyDigest !== authorization.policyDigest ||
+      binding.registeredAtLogicalMs > authorization.authorizedAtLogicalMs ||
+      binding.validFromLogicalMs > authorization.authorizedAtLogicalMs ||
+      (binding.validUntilLogicalMs !== null &&
+        authorization.authorizedAtLogicalMs >= binding.validUntilLogicalMs) ||
+      visibleHead?.bindingDigest !== binding.bindingDigest ||
+      authorization.authorizedAtLogicalMs < record.acceptedAtLogicalMs ||
+      !claim ||
+      claim.recordKind !== "claim" ||
+      authorization.criterionId !==
+        (claim.record as { criterionId: string }).criterionId ||
+      authorization.subjectDigest !==
+        digestSubjectV1(
+          (claim.record as { subject: Parameters<typeof digestSubjectV1>[0] })
+            .subject,
+        ) ||
+      authorization.scopeDigest !== digestScopeV1(record.record.scope) ||
+      (authorization.recordKind === "claim"
+        ? authorization.targetRecordId !== null ||
+          authorization.targetRecordDigest !== null
+        : !target ||
+          authorization.targetRecordId !== target.recordId ||
+          authorization.targetRecordDigest !== target.recordDigest) ||
+      !allowed?.includes(authorization.sourceRelation) ||
+      !basesAllowed ||
+      !resolvedEvidenceBasesValid ||
+      references.length !== authorization.bases.length ||
+      references.some(
+        (reference, index) =>
+          referenceKey(reference) !== referenceKey(authorization.bases[index]),
+      )
+    )
+      throw new TrustValidationError("causal authorization binding is invalid");
+  }
   const counts = { claim: 0, attestation: 0, challenge: 0, retraction: 0 };
   for (const record of records) counts[record.recordKind] += 1;
   if (
@@ -597,12 +792,68 @@ export function validateEvidenceTrustStateV1(
     policyHeads,
     dependencyBindings,
     dependencyBindingHeads,
+    causalAuthorizations,
     records,
     contentResolutions: resolutions,
     contentInvalidations: invalidations,
     pendingRecords,
     diagnostics,
+    fusionDecisions,
   }) as unknown as EvidenceTrustStateV1;
+  for (const decision of fusionDecisions) {
+    const historicalResolutions = resolutions.filter(
+      (item) => item.resolvedAtLogicalMs <= decision.evaluatedAtLogicalMs,
+    );
+    const historicalInvalidations = invalidations.filter(
+      (item) => item.invalidatedAtLogicalMs <= decision.evaluatedAtLogicalMs,
+    );
+    const historicalProjection = projectEvidenceLifecycleV1({
+      records: records.filter(
+        (item) => item.acceptedAtLogicalMs <= decision.evaluatedAtLogicalMs,
+      ),
+      logicalTimeMs: decision.evaluatedAtLogicalMs,
+      limits,
+      contentResolutions: historicalResolutions,
+      contentInvalidations: historicalInvalidations,
+    });
+    const historicalState = {
+      ...cloned,
+      logicalTimeHighWaterMs: decision.evaluatedAtLogicalMs,
+      records: historicalProjection.records,
+      contentResolutions: historicalResolutions,
+      contentInvalidations: historicalInvalidations,
+      causalAuthorizations: causalAuthorizations.filter(
+        (item) => item.authorizedAtLogicalMs <= decision.evaluatedAtLogicalMs,
+      ),
+      pendingRecords: historicalProjection.records
+        .filter((item) => item.status === "pending")
+        .map((item) => item.recordId),
+      diagnostics: historicalProjection.diagnostics,
+      fusionDecisions: [],
+    } as unknown as EvidenceTrustStateV1;
+    const dependencyBindingDigests = deriveApplicableBindingDigests(
+      historicalState,
+      decision.policyDigest,
+      decision.evaluatedAtLogicalMs,
+    );
+    const recomputed = evaluateEvidenceFusionV1(
+      historicalState,
+      {
+        tenantId: decision.tenantId,
+        subject: decision.subject,
+        scope: decision.scope,
+        policyId: decision.policyId,
+        policyVersion: decision.policyVersion,
+        policyDigest: decision.policyDigest,
+        dependencyBindingDigests,
+      },
+      decision.evaluatedAtLogicalMs,
+    );
+    if (recomputed.fusionDecisionDigest !== decision.fusionDecisionDigest)
+      throw new TrustValidationError(
+        "fusion decision does not rederive from state",
+      );
+  }
   const bytes = canonicalTrustJsonBytesV1(
     { ...cloned, encodedBytes: 0 } as unknown as JsonValue,
     stateCanonicalLimits(limits.maximumStateCanonicalBytes),
@@ -782,6 +1033,7 @@ export function restoreEvidenceTrustSnapshotV1(
     [
       "verifiedMeshAdmissionVerifierRegistry",
       "currentContentResolverBindingDigest",
+      "causalAuthorityVerifierRegistry",
     ].filter((key) => key in options),
     "restore options",
   );
@@ -793,6 +1045,18 @@ export function restoreEvidenceTrustSnapshotV1(
       options.currentContentResolverBindingDigest,
       "currentContentResolverBindingDigest",
     );
+  const causalRegistry = options.causalAuthorityVerifierRegistry;
+  if (causalRegistry !== undefined) {
+    assertExactKeys(
+      causalRegistry,
+      ["resolve"],
+      "causal authority verifier registry",
+    );
+    if (typeof causalRegistry.resolve !== "function")
+      throw new TrustValidationError(
+        "causal authority verifier registry is invalid",
+      );
+  }
   const snapshot = validateEvidenceTrustSnapshotV1(snapshotValue);
   assertExactKeys(
     anchor,
@@ -865,6 +1129,37 @@ export function restoreEvidenceTrustSnapshotV1(
       )
         throw new TrustValidationError(
           "verified mesh restore validation failed",
+        );
+    }
+  }
+  if (snapshot.state.causalAuthorizations.length > 0 && !causalRegistry)
+    throw new TrustValidationError(
+      "causal authority restore requires verifier registry",
+    );
+  if (causalRegistry) {
+    for (const authorization of snapshot.state.causalAuthorizations) {
+      const binding = snapshot.state.dependencyBindings.find(
+        (item) => item.bindingDigest === authorization.authorityBindingDigest,
+      );
+      const verifier = resolveEvidenceCausalAuthorityVerifierV1(
+        causalRegistry as unknown as NonNullable<
+          EvidenceTrustRestoreOptionsV1["causalAuthorityVerifierRegistry"]
+        >,
+        authorization.authorityBindingDigest,
+      );
+      if (
+        !binding ||
+        !verifier ||
+        binding.bindingKind !== "causal_authority" ||
+        binding.policyDigest !== authorization.policyDigest ||
+        verifier.authorityBindingDigest !==
+          authorization.authorityBindingDigest ||
+        verifier.policyDigest !== authorization.policyDigest ||
+        verifier.upstreamBindingDigest !== binding.upstreamBindingDigest ||
+        !verifier.verify(authorization)
+      )
+        throw new TrustValidationError(
+          "causal authority restore validation failed",
         );
     }
   }

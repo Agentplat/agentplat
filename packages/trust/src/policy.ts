@@ -61,6 +61,7 @@ const ceiling: EvidenceTrustLimitsV1 = {
   maximumRetractions: 4096,
   maximumContentResolutions: 4096,
   maximumContentInvalidations: 4096,
+  maximumCausalAuthorizations: 4096,
   maximumDependencyBindingVersions: 256,
   maximumPendingRecords: 1024,
   maximumPendingAgeMs: 86_400_000,
@@ -737,6 +738,7 @@ export function digestEvidenceFusionPolicyV1(value: unknown): string {
 
 const policyRequired = new Set<EvidenceTrustDependencyBindingKindV1>([
   "content_resolver",
+  "causal_authority",
   "mesh_ingress",
   "mesh_eligibility",
   "profile_resolver",
@@ -745,6 +747,7 @@ const policyRequired = new Set<EvidenceTrustDependencyBindingKindV1>([
   "message_dispatcher",
 ]);
 const upstreamRequired = new Set<EvidenceTrustDependencyBindingKindV1>([
+  "causal_authority",
   "mesh_ingress",
   "mesh_eligibility",
   "verified_mesh_origin_verifier",
@@ -764,6 +767,7 @@ const bindingKeys = [
   "policyDigest",
   "subjectMappingDigest",
   "upstreamBindingDigest",
+  "registeredAtLogicalMs",
   "validFromLogicalMs",
   "validUntilLogicalMs",
   "bindingDigest",
@@ -778,6 +782,7 @@ function validateBinding(
     v.schemaVersion !== 1 ||
     ![
       "content_resolver",
+      "causal_authority",
       "mesh_ingress",
       "mesh_eligibility",
       "profile_resolver",
@@ -798,7 +803,10 @@ function validateBinding(
   assertNullableTrustDigest(v.policyDigest, "policyDigest");
   assertNullableTrustDigest(v.subjectMappingDigest, "subjectMappingDigest");
   assertNullableTrustDigest(v.upstreamBindingDigest, "upstreamBindingDigest");
+  assertSafeInteger(v.registeredAtLogicalMs, "registeredAtLogicalMs");
   assertSafeInteger(v.validFromLogicalMs, "validFromLogicalMs");
+  if ((v.validFromLogicalMs as number) < (v.registeredAtLogicalMs as number))
+    throw new TrustValidationError("binding validity predates registration");
   if (v.validUntilLogicalMs !== null) {
     assertSafeInteger(v.validUntilLogicalMs, "validUntilLogicalMs", 1);
     if ((v.validUntilLogicalMs as number) <= (v.validFromLogicalMs as number))

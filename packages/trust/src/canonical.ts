@@ -33,6 +33,7 @@ const trustDigestDomains = new Set<TrustDigestDomainV1>([
   "recovery-evidence-set",
   "recovery-decision",
   "dependency-binding",
+  "causal-authorization",
   "origin-proof",
   "state",
   "snapshot",

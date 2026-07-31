@@ -13,16 +13,19 @@ import {
   validateEvidenceRetractionV1,
 } from "./evidence.js";
 import { validateEvidenceTrustStateV1 } from "./state.js";
+import { evaluateEvidenceFusionV1 } from "./fusion.js";
 import {
   dependencyBindingHeadV1,
   digestEvidenceFusionPolicyV1,
   validateEvidenceFusionPolicyV1,
   validateEvidenceTrustDependencyBindingV1,
 } from "./policy.js";
+import { createEvidenceCausalAuthorizationV1 } from "./causal.js";
 import type {
   EvidenceContentResolutionInvalidationV1,
   EvidenceContentProjectionStatusV1,
   EvidenceContentResolutionV1,
+  EvidenceCausalAuthorizationV1,
   EvidenceRecordKindV1,
   EvidenceRecordStateV1,
   EvidenceRecordStatusV1,
@@ -857,6 +860,18 @@ function validateInputShape(input: unknown): EvidenceTrustInputV1 {
       ["schemaVersion", "kind", "binding", "logicalTimeMs"],
       "dependency binding registration input",
     );
+  else if (candidate.kind === "causal_authorization_recorded")
+    assertExactKeys(
+      candidate,
+      ["schemaVersion", "kind", "authorization", "logicalTimeMs"],
+      "causal authorization input",
+    );
+  else if (candidate.kind === "fusion_evaluated")
+    assertExactKeys(
+      candidate,
+      ["schemaVersion", "kind", "request", "logicalTimeMs"],
+      "fusion evaluation input",
+    );
   else if (candidate.kind === "content_resolution_recorded")
     assertExactKeys(
       candidate,
@@ -902,6 +917,7 @@ function normalizeReducerOptions(
     [
       "verifiedMeshAdmissionVerifierRegistry",
       "currentContentResolverBindingDigest",
+      "causalAuthorityVerifierRegistry",
     ].filter((key) => key in options),
     "reducer options",
   );
@@ -911,6 +927,18 @@ function normalizeReducerOptions(
     if (typeof registry.resolve !== "function")
       throw new TrustValidationError(
         "mesh admission verifier registry is invalid",
+      );
+  }
+  const causalRegistry = options.causalAuthorityVerifierRegistry;
+  if (causalRegistry !== undefined) {
+    assertExactKeys(
+      causalRegistry,
+      ["resolve"],
+      "causal authority verifier registry",
+    );
+    if (typeof causalRegistry.resolve !== "function")
+      throw new TrustValidationError(
+        "causal authority verifier registry is invalid",
       );
   }
   if (
@@ -923,6 +951,8 @@ function normalizeReducerOptions(
     );
   const checkedRegistry =
     registry as EvidenceTrustReducerOptionsV1["verifiedMeshAdmissionVerifierRegistry"];
+  const checkedCausalRegistry =
+    causalRegistry as EvidenceTrustReducerOptionsV1["causalAuthorityVerifierRegistry"];
   return Object.freeze({
     ...(checkedRegistry
       ? {
@@ -935,6 +965,13 @@ function normalizeReducerOptions(
       ? {
           currentContentResolverBindingDigest:
             options.currentContentResolverBindingDigest,
+        }
+      : {}),
+    ...(options.causalAuthorityVerifierRegistry !== undefined
+      ? {
+          causalAuthorityVerifierRegistry: Object.freeze({
+            resolve: checkedCausalRegistry!.resolve.bind(checkedCausalRegistry),
+          }),
         }
       : {}),
   }) as unknown as EvidenceTrustReducerOptionsV1;
@@ -964,6 +1001,37 @@ export function resolveVerifiedMeshAdmissionVerifierV1(
   });
 }
 
+export function resolveEvidenceCausalAuthorityVerifierV1(
+  registry: NonNullable<
+    EvidenceTrustReducerOptionsV1["causalAuthorityVerifierRegistry"]
+  >,
+  bindingDigest: string,
+) {
+  const verifier = registry.resolve(bindingDigest);
+  if (verifier === null) return null;
+  assertExactKeys(
+    verifier,
+    [
+      "authorityBindingDigest",
+      "policyDigest",
+      "upstreamBindingDigest",
+      "verify",
+    ],
+    "causal authority verifier",
+  );
+  assertTrustDigest(verifier.authorityBindingDigest, "authorityBindingDigest");
+  assertTrustDigest(verifier.policyDigest, "policyDigest");
+  assertTrustDigest(verifier.upstreamBindingDigest, "upstreamBindingDigest");
+  if (typeof verifier.verify !== "function")
+    throw new TrustValidationError("causal authority verifier is invalid");
+  return Object.freeze({
+    authorityBindingDigest: verifier.authorityBindingDigest,
+    policyDigest: verifier.policyDigest,
+    upstreamBindingDigest: verifier.upstreamBindingDigest,
+    verify: verifier.verify.bind(verifier),
+  });
+}
+
 export function reduceEvidenceTrustStateV1(
   stateValue: EvidenceTrustStateV1,
   inputValue: EvidenceTrustInputV1,
@@ -972,15 +1040,68 @@ export function reduceEvidenceTrustStateV1(
   const state = validateEvidenceTrustStateV1(stateValue),
     input = validateInputShape(inputValue),
     normalizedOptions = normalizeReducerOptions(options);
+  if (state.causalAuthorizations.length > 0) {
+    const registry = normalizedOptions.causalAuthorityVerifierRegistry;
+    if (!registry)
+      throw new TrustValidationError(
+        "retained causal authority requires verifier registry",
+      );
+    for (const authorization of state.causalAuthorizations) {
+      const binding = state.dependencyBindings.find(
+        (item) => item.bindingDigest === authorization.authorityBindingDigest,
+      );
+      const verifier = resolveEvidenceCausalAuthorityVerifierV1(
+        registry,
+        authorization.authorityBindingDigest,
+      );
+      if (
+        !binding ||
+        !verifier ||
+        binding.bindingKind !== "causal_authority" ||
+        binding.policyDigest !== authorization.policyDigest ||
+        verifier.authorityBindingDigest !==
+          authorization.authorityBindingDigest ||
+        verifier.policyDigest !== authorization.policyDigest ||
+        verifier.upstreamBindingDigest !== binding.upstreamBindingDigest ||
+        !verifier.verify(authorization)
+      )
+        throw new TrustValidationError(
+          "retained causal authority verification failed",
+        );
+    }
+  }
   if (input.logicalTimeMs < state.logicalTimeHighWaterMs)
     throw new TrustValidationError("logical time rollback");
   let records = [...state.records],
     resolutions = [...state.contentResolutions],
     invalidations = [...state.contentInvalidations],
     policies = [...state.policies],
-    dependencyBindings = [...state.dependencyBindings];
+    dependencyBindings = [...state.dependencyBindings],
+    fusionDecisions = [...state.fusionDecisions],
+    causalAuthorizations = [...state.causalAuthorizations];
   const effects: EvidenceTrustEffectV1[] = [];
-  if (input.kind === "policy_registered") {
+  if (input.kind === "fusion_evaluated") {
+    const decision = evaluateEvidenceFusionV1(
+      state,
+      input.request,
+      input.logicalTimeMs,
+    );
+    const existing = fusionDecisions.find(
+      (candidate) => candidate.fusionDecisionId === decision.fusionDecisionId,
+    );
+    if (existing) {
+      if (existing.fusionDecisionDigest !== decision.fusionDecisionDigest)
+        throw new TrustValidationError(
+          "fusion decision ID conflicts with existing content",
+        );
+      effects.push(effect("fusion_evaluated", null, "duplicate"));
+    } else {
+      if (fusionDecisions.length >= state.limits.maximumRetainedFusionDecisions)
+        throw new TrustValidationError("fusion decision capacity exceeded");
+      fusionDecisions.push(decision);
+      effects.push(effect("fusion_evaluated", null, "accepted"));
+    }
+  } else if (input.kind === "policy_registered") {
     const policy = validateEvidenceFusionPolicyV1(input.policy, state.limits);
     const policyDigest = digestEvidenceFusionPolicyV1(policy);
     const existing = policies.find(
@@ -1035,6 +1156,10 @@ export function reduceEvidenceTrustStateV1(
         state.limits.maximumDependencyBindingVersions
       )
         throw new TrustValidationError("dependency binding capacity exceeded");
+      if (binding.registeredAtLogicalMs !== input.logicalTimeMs)
+        throw new TrustValidationError(
+          "dependency binding registration time is invalid",
+        );
       if (
         binding.policyDigest !== null &&
         !policies.some(
@@ -1077,6 +1202,80 @@ export function reduceEvidenceTrustStateV1(
         );
       dependencyBindings.push(binding);
       effects.push(effect("dependency_binding_registered", null, "accepted"));
+    }
+  } else if (input.kind === "causal_authorization_recorded") {
+    const authorization = createEvidenceCausalAuthorizationV1({
+      ...(input.authorization as Omit<
+        EvidenceCausalAuthorizationV1,
+        "authorizationId" | "authorizationDigest" | "authorizedAtLogicalMs"
+      >),
+      authorizedAtLogicalMs: input.logicalTimeMs,
+    });
+    const record = findExact(
+      records,
+      authorization.recordId,
+      authorization.recordDigest,
+    );
+    const binding = dependencyBindings.find(
+      (item) => item.bindingDigest === authorization.authorityBindingDigest,
+    );
+    const visibleHead = binding
+      ? dependencyBindings
+          .filter(
+            (item) =>
+              item.bindingKind === binding.bindingKind &&
+              item.bindingName === binding.bindingName &&
+              item.registeredAtLogicalMs <= input.logicalTimeMs,
+          )
+          .sort((left, right) => right.bindingVersion - left.bindingVersion)[0]
+      : null;
+    if (
+      !record ||
+      record.recordKind !== authorization.recordKind ||
+      !binding ||
+      binding.bindingKind !== "causal_authority" ||
+      binding.policyDigest !== authorization.policyDigest ||
+      binding.registeredAtLogicalMs > input.logicalTimeMs ||
+      binding.validFromLogicalMs > input.logicalTimeMs ||
+      (binding.validUntilLogicalMs !== null &&
+        input.logicalTimeMs >= binding.validUntilLogicalMs) ||
+      visibleHead?.bindingDigest !== binding.bindingDigest
+    )
+      throw new TrustValidationError("causal authorization binding is invalid");
+    const registry = normalizedOptions.causalAuthorityVerifierRegistry;
+    const verifier = registry
+      ? resolveEvidenceCausalAuthorityVerifierV1(
+          registry,
+          authorization.authorityBindingDigest,
+        )
+      : null;
+    if (
+      !verifier ||
+      verifier.authorityBindingDigest !==
+        authorization.authorityBindingDigest ||
+      verifier.policyDigest !== authorization.policyDigest ||
+      verifier.upstreamBindingDigest !== binding.upstreamBindingDigest ||
+      !verifier.verify(authorization)
+    )
+      throw new TrustValidationError("causal authorization proof is invalid");
+    const existing = causalAuthorizations.find(
+      (item) => item.authorizationId === authorization.authorizationId,
+    );
+    if (existing) {
+      if (existing.authorizationDigest !== authorization.authorizationDigest)
+        throw new TrustValidationError(
+          "causal authorization ID conflicts with existing content",
+        );
+      effects.push(effect("causal_authorization_recorded", null, "duplicate"));
+    } else {
+      if (
+        causalAuthorizations.length >= state.limits.maximumCausalAuthorizations
+      )
+        throw new TrustValidationError(
+          "causal authorization capacity exceeded",
+        );
+      causalAuthorizations.push(authorization);
+      effects.push(effect("causal_authorization_recorded", null, "accepted"));
     }
   } else if (input.kind === "record_admitted") {
     const record = validateEvidenceRecordV1(input.record),
@@ -1397,6 +1596,12 @@ export function reduceEvidenceTrustStateV1(
         `${a.bindingKind}\u0000${a.bindingName}`,
         `${b.bindingKind}\u0000${b.bindingName}`,
       ),
+    ),
+    causalAuthorizations: causalAuthorizations.sort((a, b) =>
+      compareUnicode(a.authorizationDigest, b.authorizationDigest),
+    ),
+    fusionDecisions: fusionDecisions.sort((a, b) =>
+      compareUnicode(a.fusionDecisionDigest, b.fusionDecisionDigest),
     ),
     records: derived.records,
     contentResolutions: ordered(resolutions),

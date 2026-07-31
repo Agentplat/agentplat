@@ -30,6 +30,7 @@ export type TrustDigestDomainV1 =
   | "recovery-evidence-set"
   | "recovery-decision"
   | "dependency-binding"
+  | "causal-authorization"
   | "origin-proof"
   | "state"
   | "snapshot"
@@ -299,6 +300,7 @@ export interface EvidenceTrustLimitsV1 {
   readonly maximumRetractions: number;
   readonly maximumContentResolutions: number;
   readonly maximumContentInvalidations: number;
+  readonly maximumCausalAuthorizations: number;
   readonly maximumDependencyBindingVersions: number;
   readonly maximumPendingRecords: number;
   readonly maximumPendingAgeMs: number;
@@ -457,6 +459,7 @@ export interface EvidenceTrustPolicyHeadV1 {
 }
 export type EvidenceTrustDependencyBindingKindV1 =
   | "content_resolver"
+  | "causal_authority"
   | "mesh_ingress"
   | "mesh_eligibility"
   | "profile_resolver"
@@ -477,6 +480,8 @@ export interface EvidenceTrustDependencyBindingV1 {
   readonly policyDigest: string | null;
   readonly subjectMappingDigest: string | null;
   readonly upstreamBindingDigest: string | null;
+  /** Trusted local registration time; prevents retroactive lineage rebinding. */
+  readonly registeredAtLogicalMs: number;
   readonly validFromLogicalMs: number;
   readonly validUntilLogicalMs: number | null;
   readonly bindingDigest: string;
@@ -486,6 +491,164 @@ export interface EvidenceTrustDependencyBindingHeadV1 {
   readonly bindingName: string;
   readonly bindingVersion: number;
   readonly bindingDigest: string;
+}
+
+/**
+ * A retained, construction-verified authorization for an authority relation
+ * that cannot be derived from the immutable Evidence record alone.  Its
+ * verifier is intentionally not serialized: only this closed proof envelope
+ * is retained in state.
+ */
+export interface EvidenceCausalAuthorizationBasisV1 {
+  readonly schemaVersion: 1;
+  readonly kind: EvidenceReferenceKindV1;
+  readonly referenceType: string;
+  readonly referenceId: string;
+  readonly referenceDigest: string;
+  readonly resolvedDigest: string;
+  readonly trustedEffectiveAtLogicalMs: number;
+  /** Evidence references are resolved by retained Trust state and carry nulls. */
+  readonly resolverBindingDigest: string | null;
+  /** Terminal Mesh, Control and external roots require this construction proof. */
+  readonly resolutionProofDigest: string | null;
+}
+export interface EvidenceCausalAuthorizationV1 {
+  readonly schemaVersion: 1;
+  readonly authorizationId: string;
+  readonly authorizationDigest: string;
+  readonly recordId: string;
+  readonly recordDigest: string;
+  readonly recordKind: "claim" | "challenge";
+  readonly policyDigest: string;
+  readonly criterionId: string;
+  readonly subjectDigest: string;
+  readonly scopeDigest: string;
+  readonly targetRecordId: string | null;
+  readonly targetRecordDigest: string | null;
+  readonly sourceRelation: ChallengeSourceRelationV1;
+  readonly authorityBindingDigest: string;
+  readonly authorityProofDigest: string;
+  readonly bases: readonly EvidenceCausalAuthorizationBasisV1[];
+  readonly authorizedAtLogicalMs: number;
+}
+
+/** Runtime capability owned by the integration that resolves historic Mesh or control authority. */
+export interface EvidenceTrustCausalAuthorityVerifierV1 {
+  readonly authorityBindingDigest: string;
+  readonly policyDigest: string;
+  readonly upstreamBindingDigest: string;
+  verify(authorization: EvidenceCausalAuthorizationV1): boolean;
+}
+export interface EvidenceTrustCausalAuthorityVerifierRegistryV1 {
+  resolve(
+    authorityBindingDigest: string,
+  ): EvidenceTrustCausalAuthorityVerifierV1 | null;
+}
+
+export type ChallengeResolutionResultV1 =
+  "unresolved" | "dismissed" | "sustained" | "contested";
+export interface ChallengeResolutionV1 {
+  readonly schemaVersion: 1;
+  readonly challengeResolutionId: string;
+  readonly challenges: readonly {
+    readonly challengeId: string;
+    readonly challengeDigest: string;
+    readonly basisCutoffLogicalMs: number;
+  }[];
+  readonly targetId: string;
+  readonly targetDigest: string;
+  readonly challengerDependencyGroupId: string;
+  readonly basisCutoffLogicalMs: number;
+  readonly policyDigest: string;
+  readonly evaluatedAtLogicalMs: number;
+  readonly result: ChallengeResolutionResultV1;
+  readonly corroboratingGroupIds: readonly string[];
+  readonly corroboratingWeightBasisPoints: number;
+  readonly opposingGroupIds: readonly string[];
+  readonly opposingWeightBasisPoints: number;
+  readonly consideredAttestationIds: readonly string[];
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+export interface EvidenceRecordExclusionV1 {
+  readonly recordKind: EvidenceRecordKindV1;
+  readonly recordId: string;
+  readonly recordDigest: string;
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+export type EvidenceClaimClassificationKindV1 =
+  "supported" | "contradicted" | "contested" | "inconclusive" | "unavailable";
+export interface EvidenceClaimClassificationV1 {
+  readonly claimId: string;
+  readonly claimDigest: string;
+  readonly criterionId: string;
+  readonly dimensionId: string;
+  readonly classification: EvidenceClaimClassificationKindV1;
+  readonly mappedValueBasisPoints: number | null;
+  readonly supportGroupIds: readonly string[];
+  readonly supportWeightBasisPoints: number;
+  readonly contradictionGroupIds: readonly string[];
+  readonly contradictionWeightBasisPoints: number;
+  readonly rawWeightBasisPoints: number;
+  readonly retainedWeightBasisPoints: number;
+  readonly effectiveWeightBasisPoints: number;
+  readonly claimSourceDependencyGroupId: string | null;
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+export interface EvidenceGroupAllocationV1 {
+  readonly stage: "attestation" | "challenge_resolution" | "profile";
+  readonly dimensionId: string | null;
+  readonly criterionId: string | null;
+  readonly claimId: string | null;
+  readonly dependencyGroupId: string;
+  readonly candidateRecordIds: readonly string[];
+  readonly capBasisPoints: number;
+  readonly allocatedWeightBasisPoints: number;
+}
+export interface TrustDimensionStateV1 {
+  readonly dimensionId: string;
+  readonly scoreBasisPoints: number;
+  readonly uncertaintyBasisPoints: number;
+  readonly effectiveWeightBasisPoints: number;
+  readonly coverageBasisPoints: number;
+  readonly ageUncertaintyBasisPoints: number;
+  readonly contradictionPressureBasisPoints: number;
+  readonly includedClaimIds: readonly string[];
+  readonly excludedClaimIds: readonly string[];
+  readonly claimSourceDependencyGroupIds: readonly string[];
+  readonly latestQualifyingEffectiveAtLogicalMs: number | null;
+}
+export interface EvidenceFusionDecisionV1 {
+  readonly schemaVersion: 1;
+  readonly fusionDecisionId: string;
+  readonly fusionDecisionDigest: string;
+  readonly tenantId: string;
+  readonly subject: TrustSubjectV1;
+  readonly subjectDigest: string;
+  readonly scope: EvidenceScopeV1;
+  readonly scopeDigest: string;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly evaluatedAtLogicalMs: number;
+  readonly inputSetDigest: string;
+  readonly consideredRecordIds: readonly string[];
+  readonly includedRecordIds: readonly string[];
+  readonly recordExclusions: readonly EvidenceRecordExclusionV1[];
+  readonly claimClassifications: readonly EvidenceClaimClassificationV1[];
+  readonly challengeResolutions: readonly ChallengeResolutionV1[];
+  readonly groupAllocations: readonly EvidenceGroupAllocationV1[];
+  readonly dimensions: readonly TrustDimensionStateV1[];
+  readonly previousProfileDigest: string | null;
+  readonly reasonCodes: readonly TrustReasonCodeV1[];
+}
+export interface EvidenceFusionEvaluationRequestV1 {
+  readonly tenantId: string;
+  readonly subject: TrustSubjectV1;
+  readonly scope: EvidenceScopeV1;
+  readonly policyId: string;
+  readonly policyVersion: number;
+  readonly policyDigest: string;
+  readonly dependencyBindingDigests: readonly string[];
 }
 
 export type EvidenceRecordKindV1 =
@@ -577,10 +740,13 @@ export interface EvidenceTrustReducerOptionsV1 {
   readonly verifiedMeshAdmissionVerifierRegistry?: EvidenceTrustVerifiedMeshAdmissionVerifierRegistryV1;
   /** The active resolver binding required for positive content resolutions. */
   readonly currentContentResolverBindingDigest?: string | null;
+  /** Construction-bound verifier for retained causal-authority certificates. */
+  readonly causalAuthorityVerifierRegistry?: EvidenceTrustCausalAuthorityVerifierRegistryV1;
 }
 export interface EvidenceTrustRestoreOptionsV1 {
   readonly verifiedMeshAdmissionVerifierRegistry?: EvidenceTrustVerifiedMeshAdmissionVerifierRegistryV1;
   readonly currentContentResolverBindingDigest?: string | null;
+  readonly causalAuthorityVerifierRegistry?: EvidenceTrustCausalAuthorityVerifierRegistryV1;
 }
 
 export type EvidenceTrustInputV1 =
@@ -594,6 +760,21 @@ export type EvidenceTrustInputV1 =
       readonly schemaVersion: 1;
       readonly kind: "dependency_binding_registered";
       readonly binding: EvidenceTrustDependencyBindingV1;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "causal_authorization_recorded";
+      readonly authorization: Omit<
+        EvidenceCausalAuthorizationV1,
+        "authorizationId" | "authorizationDigest" | "authorizedAtLogicalMs"
+      >;
+      readonly logicalTimeMs: number;
+    }
+  | {
+      readonly schemaVersion: 1;
+      readonly kind: "fusion_evaluated";
+      readonly request: EvidenceFusionEvaluationRequestV1;
       readonly logicalTimeMs: number;
     }
   | {
@@ -637,6 +818,8 @@ export interface EvidenceTrustEffectV1 {
   readonly kind:
     | "policy_registered"
     | "dependency_binding_registered"
+    | "causal_authorization_recorded"
+    | "fusion_evaluated"
     | "record_accepted"
     | "record_duplicate"
     | "record_status_changed"
@@ -663,11 +846,12 @@ export interface EvidenceTrustStateV1 {
   readonly sourceBindings: readonly [];
   readonly dependencyBindings: readonly EvidenceTrustDependencyBindingV1[];
   readonly dependencyBindingHeads: readonly EvidenceTrustDependencyBindingHeadV1[];
+  readonly causalAuthorizations: readonly EvidenceCausalAuthorizationV1[];
   readonly records: readonly EvidenceRecordStateV1[];
   readonly contentResolutions: readonly EvidenceContentResolutionV1[];
   readonly contentInvalidations: readonly EvidenceContentResolutionInvalidationV1[];
   readonly pendingRecords: readonly string[];
-  readonly fusionDecisions: readonly JsonValue[];
+  readonly fusionDecisions: readonly EvidenceFusionDecisionV1[];
   readonly profiles: readonly JsonValue[];
   readonly quarantines: readonly JsonValue[];
   readonly diagnostics: readonly EvidenceTrustDiagnosticV1[];

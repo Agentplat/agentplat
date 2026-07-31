@@ -7,8 +7,12 @@ import {
   createEvidenceTrustDependencyBindingV1,
   createEvidenceTrustSnapshotV1,
   createEvidenceTrustStateV1,
+  digestEvidenceFusionDecisionV1,
   digestEvidenceFusionPolicyV1,
+  deriveApplicableBindingDigests,
+  evaluateEvidenceFusionV1,
   reduceEvidenceTrustStateV1,
+  validateEvidenceTrustStateV1,
   restoreEvidenceTrustSnapshotV1,
   validateEvidenceFusionPolicyV1,
 } from "../packages/trust/dist/index.js";
@@ -142,6 +146,49 @@ const registerPolicy = (state, value, logicalTimeMs = 1) =>
     policy: value,
     logicalTimeMs,
   }).state;
+
+test("fusion evaluates a closed, deterministic empty evidence set", () => {
+  const registered = createEvidenceFusionPolicyV1(policy());
+  const state = registerPolicy(
+    createEvidenceTrustStateV1({ stateId: "fusion-empty" }),
+    registered,
+  );
+  const request = {
+    tenantId: "tenant-a",
+    subject: { schemaVersion: 1, kind: "peer", peerId: "peer-a" },
+    scope: {
+      schemaVersion: 1,
+      kind: "mesh",
+      tenantId: "tenant-a",
+      meshId: "mesh-a",
+    },
+    policyId: registered.policyId,
+    policyVersion: registered.policyVersion,
+    policyDigest: digestEvidenceFusionPolicyV1(registered),
+    dependencyBindingDigests: [],
+  };
+  const first = evaluateEvidenceFusionV1(state, request, 2);
+  const second = evaluateEvidenceFusionV1(state, request, 2);
+  assert.deepEqual(second, first);
+  assert.match(first.fusionDecisionDigest, /^[0-9a-f]{64}$/u);
+  assert.deepEqual(first.includedRecordIds, []);
+  const reduced = reduceEvidenceTrustStateV1(state, {
+    schemaVersion: 1,
+    kind: "fusion_evaluated",
+    request,
+    logicalTimeMs: 2,
+  }).state;
+  assert.deepEqual(reduced.fusionDecisions, [first]);
+  const tampered = structuredClone(reduced);
+  tampered.fusionDecisions[0].dimensions[0].scoreBasisPoints = 1;
+  tampered.fusionDecisions[0].fusionDecisionDigest =
+    digestEvidenceFusionDecisionV1(tampered.fusionDecisions[0]);
+  tampered.fusionDecisions[0].fusionDecisionId = `fusion-decision:${tampered.fusionDecisions[0].fusionDecisionDigest}`;
+  assert.throws(
+    () => validateEvidenceTrustStateV1(tampered),
+    /fusion decision/u,
+  );
+});
 
 test("fusion policy has closed shapes, derived digest, exact templates, and component ceilings", () => {
   const valid = createEvidenceFusionPolicyV1(policy());
@@ -312,7 +359,8 @@ test("dependency bindings enforce kind policy/link lineage and survive snapshot 
     policyDigest,
     subjectMappingDigest: null,
     upstreamBindingDigest: null,
-    validFromLogicalMs: 0,
+    registeredAtLogicalMs: 2,
+    validFromLogicalMs: 2,
     validUntilLogicalMs: null,
   });
   state = reduceEvidenceTrustStateV1(state, {
@@ -327,6 +375,9 @@ test("dependency bindings enforce kind policy/link lineage and survive snapshot 
     bindingVersion: 2,
     parentBindingDigest: content.bindingDigest,
     implementationDigest: digest("f"),
+    registeredAtLogicalMs: 3,
+    validFromLogicalMs: 3,
+    validUntilLogicalMs: 4,
   });
   state = reduceEvidenceTrustStateV1(state, {
     schemaVersion: 1,
@@ -342,6 +393,8 @@ test("dependency bindings enforce kind policy/link lineage and survive snapshot 
     implementationDigest: digest("c"),
     configurationDigest: digest("d"),
     upstreamBindingDigest: content.bindingDigest,
+    registeredAtLogicalMs: 4,
+    validFromLogicalMs: 4,
   });
   // The constructor is intentionally fed only body fields; omit the old digest.
   state = reduceEvidenceTrustStateV1(state, {
@@ -357,6 +410,16 @@ test("dependency bindings enforce kind policy/link lineage and survive snapshot 
     ).bindingDigest,
     contentV2.bindingDigest,
   );
+  assert.deepEqual(deriveApplicableBindingDigests(state, policyDigest, 2), [
+    content.bindingDigest,
+  ]);
+  assert.deepEqual(deriveApplicableBindingDigests(state, policyDigest, 3), [
+    contentV2.bindingDigest,
+  ]);
+  assert.throws(
+    () => deriveApplicableBindingDigests(state, policyDigest, 4),
+    /head is unavailable/u,
+  );
   assert.throws(
     () =>
       reduceEvidenceTrustStateV1(state, {
@@ -366,6 +429,8 @@ test("dependency bindings enforce kind policy/link lineage and survive snapshot 
           ...contentBody,
           bindingVersion: 3,
           parentBindingDigest: content.bindingDigest,
+          registeredAtLogicalMs: 5,
+          validFromLogicalMs: 5,
         }),
         logicalTimeMs: 5,
       }),

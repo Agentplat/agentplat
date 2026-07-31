@@ -50,6 +50,10 @@ open until their corresponding transition is complete.
 - [ ] arrays with set semantics must be unique and pre-sorted;
 - [ ] every causal/basis reference carries a closed kind, type, exact ID and
       exact digest; bare IDs are rejected;
+- [ ] Claim and Challenge authority is retained only as a content-bound causal
+      authorization verified through the exact policy/upstream binding;
+- [ ] authorization bases cannot come from the future; Evidence-only chains
+      must reach a non-Evidence terminal root without cycles;
 - [ ] all arithmetic uses checked safe integers;
 - [ ] SHA-256 digest input uses the exact
       `agentplat.trust/<domain>/v1\0` prefix;
@@ -354,6 +358,12 @@ open until their corresponding transition is complete.
       Mesh-ingress binding;
 - [ ] wrong verifier kind/link, verifier rebind without history and missing
       historical proof fail, while a valid historical binding still restores;
+- [ ] every retained causal authorization is reverified through its exact
+      historical construction-bound registry entry on restore;
+- [ ] states retaining causal authorizations require that verifier registry on
+      every later reducer transition;
+- [ ] pure state validation is documented and tested as structural projection
+      validation, never as an authentication or import boundary;
 - [ ] absent or invalid protector, anchor or origin proof leaves restrict-mode
       state unavailable, never eligible;
 - [ ] restore rebuilds all indexes from retained records;

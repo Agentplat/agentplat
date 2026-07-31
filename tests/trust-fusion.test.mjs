@@ -1,0 +1,708 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  EVIDENCE_TRUST_LIMITS_V1,
+  createEvidenceAttestationV1,
+  createEvidenceChallengeV1,
+  createEvidenceClaimV1,
+  createEvidenceFusionPolicyV1,
+  createEvidenceRetractionV1,
+  createEvidenceTrustDependencyBindingV1,
+  createEvidenceTrustStateV1,
+  deriveApplicableBindingDigests,
+  digestEvidenceFusionDecisionV1,
+  digestEvidenceFusionPolicyV1,
+  digestScopeV1,
+  digestSubjectV1,
+  evaluateEvidenceFusionV1,
+  reduceEvidenceTrustStateV1,
+  validateEvidenceTrustStateV1,
+  validateEvidenceFusionDecisionV1,
+} from "../packages/trust/dist/index.js";
+
+const digest = (letter) => letter.repeat(64);
+const subject = { schemaVersion: 1, kind: "peer", peerId: "peer-a" };
+const scope = {
+  schemaVersion: 1,
+  kind: "standalone",
+  tenantId: "tenant-a",
+  namespace: "fusion",
+  scopeId: "scope-a",
+};
+const policyInput = (overrides = {}) => ({
+  schemaVersion: 1,
+  policyId: "fusion-policy",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  mode: "restrict",
+  dimensions: [
+    {
+      dimensionId: "integrity",
+      priorScoreBasisPoints: 5000,
+      priorWeightBasisPoints: 1000,
+      minimumUncertaintyBasisPoints: 0,
+      coverageTargetBasisPoints: 1000,
+      decayIntervalMs: 100,
+      decayBasisPointsPerInterval: 1000,
+      uncertaintyGrowthBasisPointsPerInterval: 100,
+      minimumRetainedWeightBasisPoints: 100,
+      contradictionUncertaintyBasisPointsPerClaim: 100,
+      maximumContradictionUncertaintyBasisPoints: 1000,
+      degradedScoreAtOrBelowBasisPoints: 1000,
+      degradedUncertaintyAtOrAboveBasisPoints: 9000,
+    },
+  ],
+  criteria: [
+    {
+      criterionId: "criterion-a",
+      dimensionId: "integrity",
+      satisfiedValueBasisPoints: 10000,
+      violatedValueBasisPoints: 0,
+      inconclusiveValueBasisPoints: null,
+      baseWeightBasisPoints: 1000,
+      maximumClaimWeightBasisPoints: 1000,
+      maximumSourceGroupContributionWeightBasisPoints: 700,
+      minimumSupportGroups: 1,
+      minimumSupportWeightBasisPoints: 1,
+      minimumContradictionGroups: 1,
+      minimumContradictionWeightBasisPoints: 1,
+      allowClaimSourceAttestation: false,
+      contentRequired: false,
+      quarantineEligible: true,
+      recoveryEligible: true,
+      maximumAgeMs: 10_000,
+      claimAuthority: {
+        allowedSourceRelations: ["subject_self", "work_assignee"],
+        allowedBasisReferences: [
+          {
+            kind: "external",
+            referenceType: "claim-root",
+            minimumCount: 1,
+            maximumCount: 1,
+          },
+        ],
+      },
+      challengeAuthority: {
+        allowedSourceRelations: ["subject_self", "target_author"],
+        allowedBasisReferences: [
+          {
+            kind: "external",
+            referenceType: "challenge-root",
+            minimumCount: 1,
+            maximumCount: 1,
+          },
+        ],
+        requireResolvedBasis: true,
+      },
+      challengeResolution: {
+        minimumCorroboratingGroups: 1,
+        minimumCorroboratingWeightBasisPoints: 1,
+        minimumOpposingGroups: 1,
+        minimumOpposingWeightBasisPoints: 1,
+      },
+    },
+  ],
+  sourceBindings: [
+    {
+      sourceId: "peer-a",
+      sourceKind: "peer",
+      dependencyGroupId: "author",
+      roles: ["attest", "challenge", "claim"],
+      maximumWeightBasisPoints: 1000,
+      validFromLogicalMs: 0,
+      validUntilLogicalMs: 10_000,
+    },
+    {
+      sourceId: "peer-b",
+      sourceKind: "peer",
+      dependencyGroupId: "b",
+      roles: ["attest"],
+      maximumWeightBasisPoints: 1000,
+      validFromLogicalMs: 0,
+      validUntilLogicalMs: 10_000,
+    },
+    {
+      sourceId: "peer-c",
+      sourceKind: "peer",
+      dependencyGroupId: "c",
+      roles: ["attest"],
+      maximumWeightBasisPoints: 1000,
+      validFromLogicalMs: 0,
+      validUntilLogicalMs: 10_000,
+    },
+    {
+      sourceId: "peer-d",
+      sourceKind: "peer",
+      dependencyGroupId: "author",
+      roles: ["claim"],
+      maximumWeightBasisPoints: 1000,
+      validFromLogicalMs: 0,
+      validUntilLogicalMs: 10_000,
+    },
+  ],
+  dependencyGroups: [
+    {
+      dependencyGroupId: "author",
+      maximumAttestationWeightPerClaimBasisPoints: 1000,
+      maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+    },
+    {
+      dependencyGroupId: "b",
+      maximumAttestationWeightPerClaimBasisPoints: 700,
+      maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+    },
+    {
+      dependencyGroupId: "c",
+      maximumAttestationWeightPerClaimBasisPoints: 700,
+      maximumProfileWeightPerDimensionCriterionBasisPoints: 700,
+    },
+  ],
+  eligibilityRules: [
+    {
+      ruleId: "eligible",
+      maximumProfileAgeMs: 10_000,
+      requirements: [
+        {
+          dimensionId: "integrity",
+          minimumScoreBasisPoints: 0,
+          maximumUncertaintyBasisPoints: 10_000,
+        },
+      ],
+    },
+  ],
+  quarantinePolicy: {
+    enabled: false,
+    rules: [
+      {
+        dimensionId: "integrity",
+        activationScoreAtOrBelowBasisPoints: 0,
+        minimumNegativeClaimSourceGroups: 1,
+        minimumNegativeWeightBasisPoints: 1,
+        reviewIntervalMs: 100,
+      },
+    ],
+    maximumActiveRecords: 1,
+  },
+  recoveryPolicy: {
+    rules: [
+      {
+        dimensionId: "integrity",
+        recoveryScoreAtOrAboveBasisPoints: 10_000,
+        maximumRecoveryUncertaintyBasisPoints: 0,
+        minimumRecoveryClaimSourceGroups: 1,
+        minimumRecoveryWeightBasisPoints: 1,
+        maximumRecoveryEvidenceAgeMs: 100,
+      },
+    ],
+  },
+  limits: EVIDENCE_TRUST_LIMITS_V1,
+  diagnosticsPolicyId: "diagnostics",
+  redactionPolicyId: "redaction",
+  ...overrides,
+});
+const local = (record, time) => ({
+  schemaVersion: 1,
+  kind: "record_admitted",
+  record,
+  origin: "local",
+  originBindingDigest: digest("a"),
+  originVerifierBindingDigest: null,
+  originProofDigest: null,
+  effectiveAtLogicalMs: time,
+  logicalTimeMs: time,
+});
+const externalReference = (referenceType, referenceId) => ({
+  schemaVersion: 1,
+  kind: "external",
+  referenceType,
+  referenceId,
+  referenceDigest: digest(referenceId.slice(-1)),
+});
+const claim = (
+  outcome = "satisfied",
+  criterionId = "criterion-a",
+  { causationId = null, rootId = "claim-root-a", sourceId = "peer-a" } = {},
+) =>
+  createEvidenceClaimV1({
+    schemaVersion: 1,
+    sourceId,
+    sourceKind: "peer",
+    causationId,
+    subject,
+    scope,
+    criterionId,
+    outcome,
+    content: null,
+    basisReferences: [externalReference("claim-root", rootId)],
+    observedAt: null,
+  });
+const attestation = (target, sourceId, disposition = "support") =>
+  createEvidenceAttestationV1({
+    schemaVersion: 1,
+    sourceId,
+    sourceKind: "peer",
+    causationId: null,
+    scope,
+    claimId: target.claimId,
+    claimDigest: target.claimId.slice("claim:".length),
+    disposition,
+    confidenceBasisPoints: 10_000,
+    basisReferences: [],
+    observedAt: null,
+  });
+const challenge = (target, kind = "claim") =>
+  createEvidenceChallengeV1({
+    schemaVersion: 1,
+    sourceId: "peer-a",
+    sourceKind: "peer",
+    causationId: null,
+    scope,
+    targetKind: kind,
+    targetId: kind === "claim" ? target.claimId : target.attestationId,
+    targetDigest: (kind === "claim"
+      ? target.claimId
+      : target.attestationId
+    ).slice(`${kind}:`.length),
+    reasonCode: "challenge_unresolved",
+    basisReferences: [externalReference("challenge-root", "challenge-root-a")],
+    observedAt: null,
+  });
+let setupSequence = 0;
+function setup(records = [], input = {}) {
+  const policy = createEvidenceFusionPolicyV1(policyInput(input));
+  let state = reduceEvidenceTrustStateV1(
+    createEvidenceTrustStateV1({
+      stateId: `fusion-${(setupSequence += 1)}`,
+    }),
+    { schemaVersion: 1, kind: "policy_registered", policy, logicalTimeMs: 0 },
+  ).state;
+  const policyDigest = digestEvidenceFusionPolicyV1(policy);
+  const upstream = createEvidenceTrustDependencyBindingV1({
+    schemaVersion: 1,
+    bindingName: "fusion-root-resolver",
+    bindingVersion: 1,
+    parentBindingDigest: null,
+    bindingKind: "content_resolver",
+    implementationId: "fusion-root-resolver-v1",
+    implementationDigest: digest("d"),
+    configurationDigest: digest("e"),
+    policyDigest,
+    subjectMappingDigest: null,
+    upstreamBindingDigest: null,
+    registeredAtLogicalMs: 0,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: null,
+  });
+  state = reduceEvidenceTrustStateV1(state, {
+    schemaVersion: 1,
+    kind: "dependency_binding_registered",
+    binding: upstream,
+    logicalTimeMs: 0,
+  }).state;
+  const authority = createEvidenceTrustDependencyBindingV1({
+    schemaVersion: 1,
+    bindingName: "fusion-causal-authority",
+    bindingVersion: 1,
+    parentBindingDigest: null,
+    bindingKind: "causal_authority",
+    implementationId: "fusion-causal-authority-v1",
+    implementationDigest: digest("f"),
+    configurationDigest: digest("1"),
+    policyDigest,
+    subjectMappingDigest: digest("2"),
+    upstreamBindingDigest: upstream.bindingDigest,
+    registeredAtLogicalMs: 0,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: null,
+  });
+  state = reduceEvidenceTrustStateV1(state, {
+    schemaVersion: 1,
+    kind: "dependency_binding_registered",
+    binding: authority,
+    logicalTimeMs: 0,
+  }).state;
+  const causalRegistry = {
+    resolve(bindingDigest) {
+      if (bindingDigest !== authority.bindingDigest) return null;
+      return {
+        authorityBindingDigest: authority.bindingDigest,
+        policyDigest,
+        upstreamBindingDigest: upstream.bindingDigest,
+        verify: () => true,
+      };
+    },
+  };
+  for (const [record, time] of records) {
+    const isClaimRecord = "outcome" in record;
+    const isChallengeRecord = "challengeId" in record;
+    const causalRecordId = isClaimRecord
+      ? record.claimId
+      : isChallengeRecord
+        ? record.challengeId
+        : null;
+    const alreadyPresent = state.records.some(
+      (item) => item.recordId === causalRecordId,
+    );
+    state = reduceEvidenceTrustStateV1(state, local(record, time), {
+      causalAuthorityVerifierRegistry: causalRegistry,
+    }).state;
+    if (alreadyPresent || causalRecordId === null) continue;
+    const recordKind = isChallengeRecord ? "challenge" : "claim";
+    const recordId = causalRecordId;
+    const recordDigest = recordId.slice(`${recordKind}:`.length);
+    const target =
+      recordKind === "challenge"
+        ? state.records.find(
+            (item) =>
+              item.recordId === record.targetId &&
+              item.recordDigest === record.targetDigest,
+          )
+        : null;
+    const targetClaim =
+      recordKind === "claim"
+        ? record
+        : target?.recordKind === "claim"
+          ? target.record
+          : state.records.find(
+              (item) =>
+                item.recordId === target?.record.claimId &&
+                item.recordDigest === target?.record.claimDigest,
+            )?.record;
+    const bases = record.basisReferences.map((reference) => ({
+      ...reference,
+      resolvedDigest: digest("3"),
+      trustedEffectiveAtLogicalMs: time,
+      resolverBindingDigest: upstream.bindingDigest,
+      resolutionProofDigest: digest("4"),
+    }));
+    state = reduceEvidenceTrustStateV1(
+      state,
+      {
+        schemaVersion: 1,
+        kind: "causal_authorization_recorded",
+        authorization: {
+          schemaVersion: 1,
+          recordId,
+          recordDigest,
+          recordKind,
+          policyDigest,
+          criterionId: targetClaim.criterionId,
+          subjectDigest: digestSubjectV1(targetClaim.subject),
+          scopeDigest: digestScopeV1(record.scope),
+          targetRecordId: target?.recordId ?? null,
+          targetRecordDigest: target?.recordDigest ?? null,
+          sourceRelation:
+            record.sourceId === targetClaim.subject.peerId
+              ? "subject_self"
+              : "work_assignee",
+          authorityBindingDigest: authority.bindingDigest,
+          authorityProofDigest: digest("5"),
+          bases,
+        },
+        logicalTimeMs: time,
+      },
+      { causalAuthorityVerifierRegistry: causalRegistry },
+    ).state;
+  }
+  const request = {
+    tenantId: "tenant-a",
+    subject,
+    scope,
+    policyId: policy.policyId,
+    policyVersion: 1,
+    policyDigest,
+    dependencyBindingDigests: deriveApplicableBindingDigests(
+      state,
+      policyDigest,
+      state.logicalTimeHighWaterMs,
+    ),
+  };
+  return { state, policy, request, causalRegistry };
+}
+const classify = (result, target) =>
+  result.claimClassifications.find((item) => item.claimId === target.claimId)
+    ?.classification;
+
+test("fusion classifies supported, contradicted, contested, and inconclusive deterministically", () => {
+  const base = claim();
+  for (const [label, records, expected] of [
+    [
+      "supported",
+      [
+        [base, 2],
+        [attestation(base, "peer-b"), 3],
+      ],
+      "supported",
+    ],
+    [
+      "contradicted",
+      [
+        [base, 2],
+        [attestation(base, "peer-c", "contradict"), 3],
+      ],
+      "contradicted",
+    ],
+    [
+      "contested",
+      [
+        [base, 2],
+        [attestation(base, "peer-b"), 3],
+        [attestation(base, "peer-c", "contradict"), 4],
+      ],
+      "contested",
+    ],
+    ["inconclusive", [[base, 2]], "inconclusive"],
+  ]) {
+    const { state, request } = setup(records);
+    assert.equal(
+      classify(evaluateEvidenceFusionV1(state, request, 10), base),
+      expected,
+      label,
+    );
+  }
+});
+
+test("same source/group cannot satisfy independence and intra-group conflict is excluded", () => {
+  const base = claim();
+  const bindings = policyInput().sourceBindings.map((binding) =>
+    binding.sourceId === "peer-c"
+      ? { ...binding, dependencyGroupId: "b" }
+      : binding,
+  );
+  const oneGroup = setup(
+    [
+      [base, 2],
+      [attestation(base, "peer-b"), 3],
+      [attestation(base, "peer-c", "contradict"), 4],
+    ],
+    { sourceBindings: bindings },
+  );
+  const result = evaluateEvidenceFusionV1(oneGroup.state, oneGroup.request, 10);
+  assert.equal(classify(result, base), "contradicted");
+  assert.ok(
+    result.recordExclusions.some((item) =>
+      item.reasonCodes.includes("dependency_group_conflict"),
+    ),
+  );
+});
+
+test("challenge outcomes gate Claim and challenged Attestation contribution", () => {
+  const base = claim();
+  const support = attestation(base, "peer-b");
+  const oppose = attestation(base, "peer-c", "contradict");
+  for (const [label, after, expected] of [
+    ["unresolved", [], "unavailable"],
+    ["dismissed", [[support, 5]], "supported"],
+    ["sustained", [[oppose, 5]], "unavailable"],
+    [
+      "contested",
+      [
+        [support, 5],
+        [oppose, 6],
+      ],
+      "unavailable",
+    ],
+  ]) {
+    const ch = challenge(base, "claim");
+    const { state, request } = setup([[base, 2], [ch, 4], ...after]);
+    assert.equal(
+      state.records.find((record) => record.recordId === ch.challengeId)
+        ?.status,
+      "active",
+      `${label} challenge lifecycle status`,
+    );
+    const decision = evaluateEvidenceFusionV1(state, request, 10);
+    assert.equal(
+      decision.challengeResolutions.length,
+      1,
+      `${label} resolution`,
+    );
+    assert.equal(classify(decision, base), expected, label);
+  }
+  const challengedAttestation = attestation(base, "peer-b");
+  const attChallenge = challenge(challengedAttestation, "attestation");
+  const { state, request } = setup([
+    [base, 2],
+    [challengedAttestation, 3],
+    [attChallenge, 5],
+  ]);
+  assert.equal(
+    classify(evaluateEvidenceFusionV1(state, request, 10), base),
+    "inconclusive",
+  );
+});
+
+test("root de-dup/conflict, caps, exact decay, order, binding set and semantic tamper fail closed", () => {
+  const first = claim("satisfied"),
+    duplicate = claim("satisfied", "criterion-a", {
+      causationId: "duplicate-cause",
+      sourceId: "peer-d",
+    }),
+    conflicting = claim("violated", "criterion-a", { sourceId: "peer-d" });
+  const support = attestation(first, "peer-b");
+  const duplicateSupport = attestation(duplicate, "peer-c");
+  const conflictingSupport = attestation(conflicting, "peer-c");
+  const dedup = setup([
+    [first, 2],
+    [duplicate, 3],
+    [support, 4],
+    [duplicateSupport, 5],
+  ]);
+  const decision = evaluateEvidenceFusionV1(dedup.state, dedup.request, 10);
+  assert.equal(decision.dimensions[0].includedClaimIds.length, 1);
+  const conflict = setup([
+    [first, 2],
+    [conflicting, 3],
+    [support, 4],
+    [conflictingSupport, 5],
+  ]);
+  assert.equal(
+    evaluateEvidenceFusionV1(conflict.state, conflict.request, 10).dimensions[0]
+      .effectiveWeightBasisPoints,
+    0,
+  );
+  const aged = evaluateEvidenceFusionV1(dedup.state, dedup.request, 104);
+  assert.equal(
+    aged.claimClassifications.find((item) => item.claimId === first.claimId)
+      .retainedWeightBasisPoints,
+    9000,
+  );
+  assert.deepEqual(
+    evaluateEvidenceFusionV1(dedup.state, dedup.request, 10),
+    decision,
+  );
+  assert.throws(
+    () =>
+      evaluateEvidenceFusionV1(
+        dedup.state,
+        { ...dedup.request, dependencyBindingDigests: [digest("b")] },
+        10,
+      ),
+    /bindings/u,
+  );
+  assert.throws(
+    () =>
+      reduceEvidenceTrustStateV1(
+        dedup.state,
+        {
+          schemaVersion: 1,
+          kind: "fusion_evaluated",
+          request: dedup.request,
+          logicalTimeMs: 0,
+        },
+        { causalAuthorityVerifierRegistry: dedup.causalRegistry },
+      ),
+    /rollback/u,
+  );
+  const reduced = reduceEvidenceTrustStateV1(
+    dedup.state,
+    {
+      schemaVersion: 1,
+      kind: "fusion_evaluated",
+      request: dedup.request,
+      logicalTimeMs: 10,
+    },
+    { causalAuthorityVerifierRegistry: dedup.causalRegistry },
+  ).state;
+  const tampered = structuredClone(reduced);
+  tampered.fusionDecisions[0].dimensions[0].scoreBasisPoints = 1;
+  tampered.fusionDecisions[0].fusionDecisionDigest =
+    digestEvidenceFusionDecisionV1(tampered.fusionDecisions[0]);
+  tampered.fusionDecisions[0].fusionDecisionId = `fusion-decision:${tampered.fusionDecisions[0].fusionDecisionDigest}`;
+  assert.throws(
+    () => validateEvidenceTrustStateV1(tampered),
+    /fusion decision/u,
+  );
+});
+
+test("historical Fusion survives later clock advances and retractions", () => {
+  const base = claim();
+  const support = attestation(base, "peer-b");
+  const configured = setup([
+    [base, 2],
+    [support, 3],
+  ]);
+  let state = reduceEvidenceTrustStateV1(
+    configured.state,
+    {
+      schemaVersion: 1,
+      kind: "fusion_evaluated",
+      request: configured.request,
+      logicalTimeMs: 10,
+    },
+    { causalAuthorityVerifierRegistry: configured.causalRegistry },
+  ).state;
+  const historical = state.fusionDecisions[0];
+  state = reduceEvidenceTrustStateV1(
+    state,
+    {
+      schemaVersion: 1,
+      kind: "advance_logical_time",
+      logicalTimeMs: 11,
+    },
+    { causalAuthorityVerifierRegistry: configured.causalRegistry },
+  ).state;
+  const retraction = createEvidenceRetractionV1({
+    schemaVersion: 1,
+    sourceId: "peer-a",
+    sourceKind: "peer",
+    causationId: null,
+    scope,
+    targetKind: "claim",
+    targetId: base.claimId,
+    targetDigest: base.claimId.slice("claim:".length),
+    reasonCode: "evidence_unavailable",
+    observedAt: null,
+  });
+  state = reduceEvidenceTrustStateV1(state, local(retraction, 12), {
+    causalAuthorityVerifierRegistry: configured.causalRegistry,
+  }).state;
+  assert.deepEqual(state.fusionDecisions, [historical]);
+  assert.equal(
+    state.records.find((item) => item.recordId === base.claimId)?.status,
+    "retracted",
+  );
+  assert.deepEqual(validateEvidenceTrustStateV1(state), state);
+});
+
+test("Fusion enforces its record ceiling and standalone canonical order", () => {
+  const base = claim();
+  const configured = setup([[base, 2]]);
+  const oversized = {
+    ...configured.state,
+    records: Array.from(
+      {
+        length: configured.policy.limits.maximumConsideredRecordsPerFusion + 1,
+      },
+      () => configured.state.records[0],
+    ),
+  };
+  assert.throws(
+    () => evaluateEvidenceFusionV1(oversized, configured.request, 10),
+    /considered-record capacity/u,
+  );
+
+  const satisfied = claim("satisfied");
+  const violated = claim("violated");
+  const conflict = setup([
+    [satisfied, 2],
+    [violated, 3],
+    [attestation(satisfied, "peer-b"), 4],
+    [attestation(violated, "peer-c"), 5],
+  ]);
+  const decision = evaluateEvidenceFusionV1(
+    conflict.state,
+    conflict.request,
+    10,
+  );
+  assert.equal(decision.claimClassifications.length, 2);
+  const reordered = structuredClone(decision);
+  reordered.claimClassifications.reverse();
+  reordered.fusionDecisionDigest = digestEvidenceFusionDecisionV1(reordered);
+  reordered.fusionDecisionId = `fusion-decision:${reordered.fusionDecisionDigest}`;
+  assert.throws(
+    () => validateEvidenceFusionDecisionV1(reordered),
+    /sorted and unique/u,
+  );
+});
