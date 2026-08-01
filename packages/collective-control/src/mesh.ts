@@ -12,3 +12,4 @@ export {
   type CollectiveExecutionDecisionV1,
   type CollectiveExecutionStateV1,
 } from "./lifecycle.js";
+export * from "./mesh-governance.js";
