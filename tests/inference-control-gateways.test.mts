@@ -1,15 +1,21 @@
-import type { JsonObject } from '@agentplat/core';
+import type { JsonObject } from "@agentplat/core";
 import type {
   ActionDispatchPermit,
   ActionGateway,
+  ActionGrantRepository,
   ActionScope,
-} from '@agentplat/inference-control/tools';
+} from "@agentplat/inference-control/tools";
+import {
+  issueActionGrantV1,
+  reconcileActionGrantV1,
+} from "@agentplat/inference-control/tools";
 import type {
   MessageDispatchPermit,
   OutboundMessageGateway,
-} from '@agentplat/inference-control/messages';
+} from "@agentplat/inference-control/messages";
 
 declare const actionGateway: ActionGateway;
+declare const actionGrantRepository: ActionGrantRepository;
 declare const messageGateway: OutboundMessageGateway;
 declare const scope: ActionScope;
 declare const actionPermit: ActionDispatchPermit;
@@ -18,11 +24,14 @@ const input: JsonObject = {};
 
 void actionGateway.invoke({
   schemaVersion: 1,
-  grantId: 'grant:one',
+  grantId: "grant:one",
   input,
   logicalTimeMs: 1,
 });
 void scope;
 void actionPermit;
+void actionGrantRepository;
+void issueActionGrantV1;
+void reconcileActionGrantV1;
 void messageGateway;
 void messagePermit;

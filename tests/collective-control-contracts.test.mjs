@@ -10,6 +10,7 @@ import {
   canonicalizeCollectiveJsonV1,
   collectiveDecisionRecordDigestV1,
   createCollectiveAuthorityStateV1,
+  createCollectiveDecisionRecordV1,
   createCollectiveExecutionStateV1,
   createDelegationMandateV1,
   createDelegationRevocationV1,
@@ -32,6 +33,7 @@ import {
 } from "@agentplat/collective-control";
 import {
   MemoryCollectiveAuthorityRepositoryV1,
+  MemoryCollectiveEvidenceSinkV1,
   MemoryCollectiveExecutionRepositoryV1,
 } from "@agentplat/collective-control/memory";
 
@@ -675,13 +677,24 @@ test("execution state narrows work, accounts budget and fences permit lifecycle"
   assert.equal(current.actionPermit.status, "indeterminate");
   assert.equal(current.budgetReservation.status, "indeterminate");
 
-  const terminalReplay = transitionGovernedActionPermitV1(current.state, {
+  const reconciled = transitionGovernedActionPermitV1(current.state, {
     permitId: current.actionPermit.permitId,
     expectedGeneration: current.actionPermit.generation,
     expectedDigest: current.actionPermit.permitDigest,
     nextStatus: "dispatched",
     outcomeId: "outcome:late",
     logicalTimeMs: 24,
+  });
+  assert.equal(reconciled.accepted, true);
+  assert.equal(reconciled.actionPermit.status, "dispatched");
+  assert.equal(reconciled.budgetReservation.status, "committed");
+  const terminalReplay = transitionGovernedActionPermitV1(reconciled.state, {
+    permitId: reconciled.actionPermit.permitId,
+    expectedGeneration: reconciled.actionPermit.generation,
+    expectedDigest: reconciled.actionPermit.permitDigest,
+    nextStatus: "failed",
+    outcomeId: "outcome:contradiction",
+    logicalTimeMs: 25,
   });
   assert.equal(terminalReplay.accepted, false);
   assert.equal(terminalReplay.code, "permit_transition_invalid");
@@ -767,4 +780,74 @@ test("execution state rejects scope widening, idempotency substitution and rollb
     () => validateCollectiveExecutionStateV1(rolledBack),
     /logical time|digest/,
   );
+});
+
+test("redacted evidence chain detects mutation, reorder and conflicting IDs", () => {
+  const sink = new MemoryCollectiveEvidenceSinkV1(
+    "tenant:alpha",
+    "policy-domain:alpha",
+    4,
+  );
+  const base = {
+    schemaVersion: 1,
+    tenantId: "tenant:alpha",
+    policyDomainId: "policy-domain:alpha",
+    kind: "effect.dispatch",
+    accepted: true,
+    reasonCode: "effect_dispatched",
+    logicalTimeMs: 30,
+    mandateId: "mandate:alpha",
+    mandateDigest: digest("mandate:evidence"),
+    workContractId: "work-contract:alpha",
+    workContractDigest: digest("work:evidence"),
+    permitId: "permit:alpha",
+    permitDigest: digest("permit:evidence"),
+    assignmentAuthorityId: "authority:alpha",
+    assignmentEpoch: 1,
+    fencingToken: "fence:alpha:1",
+    budgetDeltaKind: "commit",
+    budgetDeltaUnits: 10,
+    inputDigest: digest("input:evidence"),
+    actionDigest: digest("action:evidence"),
+    assessmentDigest: digest("assessment:evidence"),
+    trustDecisionDigest: digest("trust:evidence"),
+  };
+  const first = createCollectiveDecisionRecordV1({
+    ...base,
+    recordId: "record:evidence:1",
+    previousRecordDigest: null,
+  });
+  assert.equal(sink.append(first).code, "appended");
+  assert.equal(sink.append(first).code, "duplicate");
+  const second = createCollectiveDecisionRecordV1({
+    ...base,
+    recordId: "record:evidence:2",
+    logicalTimeMs: 31,
+    previousRecordDigest: first.recordDigest,
+  });
+  assert.equal(sink.append(second).accepted, true);
+  const reordered = createCollectiveDecisionRecordV1({
+    ...base,
+    recordId: "record:evidence:3",
+    logicalTimeMs: 32,
+    previousRecordDigest: first.recordDigest,
+  });
+  assert.equal(sink.append(reordered).code, "chain_conflict");
+  const conflictingId = createCollectiveDecisionRecordV1({
+    ...base,
+    recordId: first.recordId,
+    accepted: false,
+    reasonCode: "effect_denied",
+    budgetDeltaKind: "none",
+    budgetDeltaUnits: 0,
+    previousRecordDigest: second.recordDigest,
+  });
+  assert.equal(sink.append(conflictingId).code, "chain_conflict");
+  assert.deepEqual(sink.anchor(), {
+    schemaVersion: 1,
+    tenantId: "tenant:alpha",
+    policyDomainId: "policy-domain:alpha",
+    recordCount: 2,
+    latestRecordDigest: second.recordDigest,
+  });
 });

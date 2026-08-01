@@ -4,6 +4,7 @@ import type {
   DelegationProofVerificationV1,
   DelegationRevocationV1,
 } from "./contracts.js";
+export { MemoryCollectiveEvidenceSinkV1 } from "./evidence.js";
 import {
   acceptDelegationMandateV1,
   acceptDelegationRevocationV1,
@@ -22,6 +23,7 @@ import {
   transitionWorkContractV1,
   validateCollectiveExecutionStateV1,
   type CollectiveExecutionDecisionV1,
+  type CollectiveExecutionRepositoryV1,
   type CollectiveExecutionStateV1,
 } from "./lifecycle.js";
 import type {
@@ -84,7 +86,7 @@ export class MemoryCollectiveAuthorityRepositoryV1 {
 }
 
 /** Bounded single-process execution ledger; every accepted update is immutable. */
-export class MemoryCollectiveExecutionRepositoryV1 {
+export class MemoryCollectiveExecutionRepositoryV1 implements CollectiveExecutionRepositoryV1 {
   private current: CollectiveExecutionStateV1;
 
   constructor(
@@ -100,6 +102,32 @@ export class MemoryCollectiveExecutionRepositoryV1 {
 
   snapshot(): CollectiveExecutionStateV1 {
     return this.current;
+  }
+
+  read(): CollectiveExecutionStateV1 {
+    return this.current;
+  }
+
+  compareAndSwap(input: {
+    readonly expectedGeneration: number;
+    readonly expectedStateDigest: CollectiveDigestV1;
+    readonly nextState: CollectiveExecutionStateV1;
+  }): boolean {
+    if (
+      this.current.generation !== input.expectedGeneration ||
+      this.current.stateDigest !== input.expectedStateDigest
+    )
+      return false;
+    const next = validateCollectiveExecutionStateV1(input.nextState);
+    if (
+      next.tenantId !== this.current.tenantId ||
+      next.policyDomainId !== this.current.policyDomainId ||
+      next.generation !== this.current.generation + 1 ||
+      next.highWaterLogicalMs < this.current.highWaterLogicalMs
+    )
+      throw new Error("state_conflict");
+    this.current = next;
+    return true;
   }
 
   registerWork(input: {
