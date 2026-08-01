@@ -1,8 +1,8 @@
 # Agent Mesh `0.3.0-alpha.5` implementation plan
 
-Status: design frozen by commit `0de423c85cc6096a674ce2bc54915de7ea72aa1c`.
-The implementation candidate is complete; coordinated publication evidence is
-tracked separately in the acceptance checklist.
+Status: released as `0.3.0-alpha.5`. The design is frozen by commit
+`0de423c85cc6096a674ce2bc54915de7ea72aa1c`; coordinated publication evidence
+is recorded in the acceptance checklist.
 
 This milestone adds explicit production-facing adapters around the existing
 pure Mesh state machines. It does not change protocol v0, make a transport or
