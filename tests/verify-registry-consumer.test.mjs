@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   registryConsumerEnvironments,
   registryConsumerManifest,
+  REGISTRY_ALPHA5_PACKAGES,
   REGISTRY_CONSUMER_SCRIPTS,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
@@ -44,12 +45,29 @@ test('registry consumer copies Mesh, inference-control, and Trust verification s
       source: 'scripts/pack-consumers/trust-foundation.mjs',
       destination: 'verify-trust.mjs',
     },
+    {
+      source: 'scripts/pack-consumers/mesh-adapters-alpha5.mjs',
+      destination: 'verify-mesh-adapters.mjs',
+    },
   ]);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS), true);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS[0]), true);
-  assert.equal(REGISTRY_PACKAGES.at(-1), REGISTRY_TRUST_PACKAGE);
-  assert.equal(REGISTRY_PACKAGES.at(-2), REGISTRY_INFERENCE_CONTROL_PACKAGE);
-  assert.deepEqual(REGISTRY_PACKAGES.slice(0, -2), REGISTRY_MESH_PACKAGES);
+  assert.deepEqual(
+    REGISTRY_PACKAGES.slice(-REGISTRY_ALPHA5_PACKAGES.length),
+    REGISTRY_ALPHA5_PACKAGES,
+  );
+  assert.equal(
+    REGISTRY_PACKAGES.at(-(REGISTRY_ALPHA5_PACKAGES.length + 1)),
+    REGISTRY_TRUST_PACKAGE,
+  );
+  assert.equal(
+    REGISTRY_PACKAGES.at(-(REGISTRY_ALPHA5_PACKAGES.length + 2)),
+    REGISTRY_INFERENCE_CONTROL_PACKAGE,
+  );
+  assert.deepEqual(
+    REGISTRY_PACKAGES.slice(0, -(REGISTRY_ALPHA5_PACKAGES.length + 2)),
+    REGISTRY_MESH_PACKAGES,
+  );
 });
 
 test('registry consumer isolates install and execution environments', () => {

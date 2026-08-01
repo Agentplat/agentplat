@@ -1,6 +1,8 @@
 # Agent Mesh `0.3.0-alpha.5` implementation plan
 
-Status: design candidate.
+Status: design frozen by commit `0de423c85cc6096a674ce2bc54915de7ea72aa1c`.
+The implementation candidate is complete; coordinated publication evidence is
+tracked separately in the acceptance checklist.
 
 This milestone adds explicit production-facing adapters around the existing
 pure Mesh state machines. It does not change protocol v0, make a transport or
@@ -68,11 +70,11 @@ Alpha 5 does not provide:
 Three public packages are added. Existing package roots keep their Alpha 4
 behavior and none of the new packages is re-exported by Framework.
 
-| Package                    | Layer         | Responsibility                                                            |
-| -------------------------- | ------------- | ------------------------------------------------------------------------- |
-| `@agentplat/mesh-http`     | transport     | Fetch-compatible HTTP client, handler and bounded coarse receipts.        |
-| `@agentplat/mesh-postgres` | adapter       | PostgreSQL durability, migrations and worker-safe claims.                 |
-| `@agentplat/rooms-mesh`    | adapter       | Explicit Room/Mesh projections and opt-in idempotent bridge orchestration. |
+| Package                    | Layer     | Responsibility                                                             |
+| -------------------------- | --------- | -------------------------------------------------------------------------- |
+| `@agentplat/mesh-http`     | transport | Fetch-compatible HTTP client, handler and bounded coarse receipts.         |
+| `@agentplat/mesh-postgres` | adapter   | PostgreSQL durability, migrations and worker-safe claims.                  |
+| `@agentplat/rooms-mesh`    | adapter   | Explicit Room/Mesh projections and opt-in idempotent bridge orchestration. |
 
 Provider-neutral durability types and worker orchestration are exported only
 from `@agentplat/mesh/durability`. The Mesh root, `./loopback`,
@@ -353,23 +355,23 @@ service gain no required field and no dependency on Mesh.
 
 ## Failure matrix
 
-| Failure point                                      | Required outcome                                                                  |
-| -------------------------------------------------- | --------------------------------------------------------------------------------- |
-| HTTP body exceeds bound                            | reject before JSON parse or durable callback                                      |
-| channel authentication fails                       | coarse rejection; no protocol or key detail                                       |
-| process dies before inbox commit                   | no accepted receipt; sender may retry                                             |
-| process dies after inbox commit                    | inbox remains claimable; accepted message is not lost                             |
-| two workers claim the same inbox row               | only one live generation can commit                                               |
-| worker loses lease while processing                | stale commit rejected with no partial state/outbox                                |
-| database fails during transition                   | inbox, snapshot, journal and outbox all roll back                                 |
-| process dies after transition before delivery      | outbox remains claimable                                                          |
-| remote commits before sender outbox settlement     | same signed envelope is retried; receiver reports duplicate safely                |
-| route times out or returns overload                | bounded retry schedule; committed state is not rewritten                          |
-| conflicting message content reuses a message ID    | fail closed locally; no reducer invocation                                        |
-| bridge sees an event twice                         | one projection application per idempotency key                                    |
-| bridge receives unverified or merely parsed input  | public driver refuses it; no Room mutation                                         |
-| obsolete Mesh assignment produces a result         | existing assignment fence rejects it before Room projection                       |
-| shutdown or abort occurs                            | no new claims; in-flight operations settle or expire for later recovery            |
+| Failure point                                     | Required outcome                                                        |
+| ------------------------------------------------- | ----------------------------------------------------------------------- |
+| HTTP body exceeds bound                           | reject before JSON parse or durable callback                            |
+| channel authentication fails                      | coarse rejection; no protocol or key detail                             |
+| process dies before inbox commit                  | no accepted receipt; sender may retry                                   |
+| process dies after inbox commit                   | inbox remains claimable; accepted message is not lost                   |
+| two workers claim the same inbox row              | only one live generation can commit                                     |
+| worker loses lease while processing               | stale commit rejected with no partial state/outbox                      |
+| database fails during transition                  | inbox, snapshot, journal and outbox all roll back                       |
+| process dies after transition before delivery     | outbox remains claimable                                                |
+| remote commits before sender outbox settlement    | same signed envelope is retried; receiver reports duplicate safely      |
+| route times out or returns overload               | bounded retry schedule; committed state is not rewritten                |
+| conflicting message content reuses a message ID   | fail closed locally; no reducer invocation                              |
+| bridge sees an event twice                        | one projection application per idempotency key                          |
+| bridge receives unverified or merely parsed input | public driver refuses it; no Room mutation                              |
+| obsolete Mesh assignment produces a result        | existing assignment fence rejects it before Room projection             |
+| shutdown or abort occurs                          | no new claims; in-flight operations settle or expire for later recovery |
 
 ## Implementation increments
 

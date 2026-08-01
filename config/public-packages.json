@@ -88,7 +88,7 @@
       "layer": "collaboration",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./loopback"],
+      "browserEntrypoints": [".", "./durability", "./loopback"],
       "packSmoke": true
     },
     {
@@ -98,6 +98,24 @@
       "publish": true,
       "providerNeutral": true,
       "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/mesh-http",
+      "directory": "packages/mesh-http",
+      "layer": "transport",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": ["."],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/mesh-postgres",
+      "directory": "packages/mesh-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
       "packSmoke": true
     },
     {
@@ -184,6 +202,15 @@
     {
       "name": "@agentplat/rooms-api",
       "directory": "packages/rooms-api",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/rooms-mesh",
+      "directory": "packages/rooms-mesh",
       "layer": "adapter",
       "publish": true,
       "providerNeutral": true,

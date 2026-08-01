@@ -23,10 +23,16 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
 export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
 export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
+export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
+  '@agentplat/mesh-http',
+  '@agentplat/mesh-postgres',
+  '@agentplat/rooms-mesh',
+]);
 export const REGISTRY_PACKAGES = Object.freeze([
   ...REGISTRY_MESH_PACKAGES,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_TRUST_PACKAGE,
+  ...REGISTRY_ALPHA5_PACKAGES,
 ]);
 
 export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
@@ -45,6 +51,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/trust-foundation.mjs',
     destination: 'verify-trust.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/mesh-adapters-alpha5.mjs',
+    destination: 'verify-mesh-adapters.mjs',
   }),
 ]);
 
@@ -84,7 +94,10 @@ export function registryConsumerManifest(version) {
         REGISTRY_PACKAGES.map((packageName) => [packageName, version]),
       ),
     ),
-    devDependencies: Object.freeze({ typescript: '^5.3.0' }),
+    devDependencies: Object.freeze({
+      '@types/node': '^20.10.0',
+      typescript: '^5.3.0',
+    }),
   });
 }
 
@@ -151,10 +164,14 @@ export async function verifyRegistryConsumer({
               strict: true,
               noEmit: true,
               skipLibCheck: false,
-              types: [],
+              types: ['node'],
               lib: ['ES2022', 'DOM'],
             },
-            include: ['verify-types.ts', 'verify-inference-control-types.ts'],
+            include: [
+              'verify-types.ts',
+              'verify-inference-control-types.ts',
+              'verify-mesh-adapters-types.ts',
+            ],
           },
           null,
           2,
@@ -167,6 +184,10 @@ export async function verifyRegistryConsumer({
       copyFile(
         path.join(root, 'scripts/pack-consumers/inference-control-types.ts'),
         path.join(temporaryRoot, 'verify-inference-control-types.ts'),
+      ),
+      copyFile(
+        path.join(root, 'scripts/pack-consumers/mesh-adapters-alpha5-types.ts'),
+        path.join(temporaryRoot, 'verify-mesh-adapters-types.ts'),
       ),
       ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
         copyFile(
@@ -223,6 +244,11 @@ export async function verifyRegistryConsumer({
       stdio: 'inherit',
     });
     execFileSync(process.execPath, ['verify-trust.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
+    execFileSync(process.execPath, ['verify-mesh-adapters.mjs'], {
       cwd: temporaryRoot,
       env: cleanEnvironments.execution,
       stdio: 'inherit',

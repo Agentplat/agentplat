@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/postgres",
-  "version": "0.3.0-alpha.4",
+  "version": "0.3.0-alpha.5",
   "description": "Shared PostgreSQL pool, health and migration primitives for AgentPlat adapters.",
   "type": "module",
   "license": "Apache-2.0",
@@ -23,11 +23,9 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "pg": "^8.13.1"
-  },
-  "devDependencies": {
     "@types/node": "^20.10.0",
-    "@types/pg": "^8.11.10"
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1"
   },
   "publishConfig": {
     "access": "public"
