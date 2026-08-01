@@ -99,6 +99,16 @@ the [Alpha 5 release evidence](./alpha-5-release-evidence.json).
 - complete conformance suite;
 - release-scale benchmark report tied to the release commit.
 
+The exact wire negotiation, persistence migration, conformance and release
+increments are defined in the
+[Beta 1 implementation plan](./beta-1-implementation-plan.md). Evidence is
+tracked in the
+[Beta 1 acceptance checklist](./beta-1-acceptance-checklist.md), the security
+boundary is defined by the
+[compatibility freeze threat model](../security/compatibility-freeze-threat-model.md),
+and the resolved design findings are recorded in the
+[Beta 1 design review](./beta-1-design-review.md).
+
 ## Promotion gates
 
 Every preview requires:

@@ -178,6 +178,13 @@ The npm package version and wire version are independent.
 - Unknown critical extensions fail explicitly.
 - Incompatible versions never downgrade silently.
 
+The Beta 1 negotiation, downgrade fence, canonical fixture and mixed-version
+fanout contracts are specified in the
+[Beta 1 compatibility-freeze plan](./beta-1-implementation-plan.md). Version
+selection precedes signing and uses only construction-bound local policy plus a
+verified, admitted current Peer Card. Transport failures and remote responses
+never trigger a lower-version retry.
+
 ## Persistence compatibility
 
 Mesh events and checkpoints carry explicit schema versions. Persistence
@@ -193,6 +200,12 @@ Schema changes follow expand, migrate and contract:
 6. remove old structures in a later release.
 
 Importing a package never runs a migration automatically.
+
+Beta 1 additionally separates the durable wrapper schema, envelope wire
+version, snapshot content format, snapshot content schema and physical database
+migration version. Alpha 5 snapshots whose content format is not explicit stay
+visibly legacy until an application-selected codec validates and migrates them;
+shape inference is forbidden.
 
 ## Feature rollout
 
