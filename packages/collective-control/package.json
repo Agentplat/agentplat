@@ -1,0 +1,64 @@
+{
+  "name": "@agentplat/collective-control",
+  "version": "0.3.0-beta.1",
+  "description": "Provider-neutral governed delegation, work and action contracts for AgentPlat collectives.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./actions": {
+      "types": "./dist/actions.d.ts",
+      "import": "./dist/actions.js"
+    },
+    "./evaluation": {
+      "types": "./dist/evaluation.d.ts",
+      "import": "./dist/evaluation.js"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "import": "./dist/memory.js"
+    },
+    "./mesh": {
+      "types": "./dist/mesh.d.ts",
+      "import": "./dist/mesh.js"
+    },
+    "./rooms": {
+      "types": "./dist/rooms.d.ts",
+      "import": "./dist/rooms.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/core": "workspace:^",
+    "@agentplat/inference-control": "workspace:^",
+    "@agentplat/mesh": "workspace:^",
+    "@agentplat/mesh-protocol": "workspace:^",
+    "@agentplat/rooms": "workspace:^",
+    "@agentplat/trust": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/collective-control"
+  }
+}

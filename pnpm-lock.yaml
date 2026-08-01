@@ -17,6 +17,9 @@ importers:
       '@agentplat/auth':
         specifier: workspace:*
         version: link:packages/auth
+      '@agentplat/collective-control':
+        specifier: workspace:*
+        version: link:packages/collective-control
       '@agentplat/core':
         specifier: workspace:*
         version: link:packages/core
@@ -150,6 +153,27 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+
+  packages/collective-control:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/inference-control':
+        specifier: workspace:^
+        version: link:../inference-control
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+      '@agentplat/rooms':
+        specifier: workspace:^
+        version: link:../rooms
+      '@agentplat/trust':
+        specifier: workspace:^
+        version: link:../trust
 
   packages/core: {}
 
