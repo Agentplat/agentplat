@@ -1,0 +1,1212 @@
+{
+  "schemaVersion": 1,
+  "registration": {
+    "schemaVersion": 1,
+    "registrationId": "registration:beta2:normative:50:mixed:centralized_baseline",
+    "experimentVersion": 1,
+    "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+    "sourceCommit": "60213b3f3cd901f0649174b2b874efcb379fa720",
+    "dirtyWorktree": false,
+    "implementationDigest": "sha256:16758d10ba08593a1e251671d72a5eae686b6e085f92f75b0000f25f3665ff3f",
+    "configurationDigest": "sha256:2f9c81a4825c0849ed084a4e27c9ff7bbb2b10a9a7457870267ae01358dc5168",
+    "fixtureDigest": "sha256:d258e00e8bafeb73a574e1cc893c79596c0ed892873fcafba22b3be8e761200c",
+    "runner": "centralized_baseline",
+    "stratum": "mixed",
+    "agentCount": 50,
+    "seeds": [
+      503001,
+      503002,
+      503003,
+      503004,
+      503005,
+      503006,
+      503007,
+      503008,
+      503009,
+      503010
+    ],
+    "stoppingRule": "fixed_registered_seeds",
+    "topologyGenerator": "bounded-role-ring-v1",
+    "maximumDegree": 6,
+    "maximumInteractions": 5000,
+    "interactionAccountingVersion": "interaction-accounting-v1",
+    "decisionPolicyDigest": "sha256:63f71be309677441222cf5aa959157a21332cea17146d55345908c2f4fd5352d",
+    "scheduleGeneratorVersion": 1,
+    "aggregationSeed": 503901,
+    "bootstrapResamples": 10000,
+    "confidenceLevel": 0.95,
+    "equivalenceMargin": 0.05,
+    "redactionPolicyId": "redaction:collective-evaluation-v1",
+    "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388"
+  },
+  "mission": {
+    "schemaVersion": 1,
+    "missionId": "resource-allocation-recovery:50",
+    "missionVersion": 1,
+    "resources": [
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:000",
+        "locationKey": "central",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:001",
+        "locationKey": "east",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:002",
+        "locationKey": "north",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:003",
+        "locationKey": "south",
+        "capacityUnits": 4
+      }
+    ],
+    "tasks": [
+      {
+        "schemaVersion": 1,
+        "taskId": "task:000",
+        "resourceId": "resource:000",
+        "requiredRoleKey": "allocator",
+        "requiredCapabilityKey": "resource.allocate",
+        "dependencyTaskIds": [],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:001",
+        "resourceId": "resource:001",
+        "requiredRoleKey": "coordinator",
+        "requiredCapabilityKey": "mission.coordinate",
+        "dependencyTaskIds": [
+          "task:000"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:002",
+        "resourceId": "resource:002",
+        "requiredRoleKey": "executor",
+        "requiredCapabilityKey": "resource.execute",
+        "dependencyTaskIds": [
+          "task:001"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:003",
+        "resourceId": "resource:003",
+        "requiredRoleKey": "observer",
+        "requiredCapabilityKey": "mission.observe",
+        "dependencyTaskIds": [
+          "task:002"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      }
+    ],
+    "agents": [
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:00",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:01",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:02",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:03",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:04",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:05",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:06",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:07",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:08",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:09",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:10",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:11",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:12",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:13",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:14",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:15",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:16",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:17",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:18",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:19",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:20",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:21",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:22",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:23",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:24",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:25",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:26",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:27",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:28",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:29",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:30",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:31",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:32",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:33",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:34",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:35",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:36",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:37",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:38",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:39",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:40",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:41",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:42",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:43",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:44",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:45",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:46",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:47",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:48",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:49",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      }
+    ],
+    "permittedInteractionKinds": [
+      "assessment",
+      "decision",
+      "directive",
+      "dispatch",
+      "escalation",
+      "message",
+      "observation",
+      "recovery"
+    ],
+    "topology": {
+      "schemaVersion": 1,
+      "generator": "bounded-role-ring-v1",
+      "maximumDegree": 6
+    },
+    "limits": {
+      "schemaVersion": 1,
+      "maximumInteractions": 5000,
+      "maximumLogicalTime": 1000000,
+      "maximumQueueDepth": 1024,
+      "maximumEvidenceRecords": 4096
+    },
+    "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5"
+  },
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503001,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 91,
+        "total": 260
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 91,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:dd6e74325e909ba6deda7af2ec5a76b8c02df263d2c37bf441f359e5f0baf165",
+      "evidenceDigest": "sha256:5023d18cff94883614aef2e847d1180d7f94e5da72befddc6a87444b0cf371b3",
+      "exactReplay": true,
+      "sampleDigest": "sha256:625178f95d281c1695b1e52530b67dd44476b0bdca3462c57f63bc3d3354a119"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503002,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 56,
+        "total": 225
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 56,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:91957ed97c158db23b50013f5ce28185bd17ea27fa6a40d4385ce3ffafd2257b",
+      "evidenceDigest": "sha256:046ba9540ef302e584f694527290c7173f80e2e5d1bd6daf5a7186fdb73a856f",
+      "exactReplay": true,
+      "sampleDigest": "sha256:03c0558ffa704442e59b0a955f6cbe2b08c227f1a896399bcfae72f47817b0f1"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503003,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 57,
+        "total": 226
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 57,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:f2afeab79c08ff78751148b7dea1358d00f4a36de0d3d3bf6d6c9485051ca244",
+      "evidenceDigest": "sha256:a1731827ab60f603193a1e41a124702b3e3e06a2e2fd8f10b6323881376c4be6",
+      "exactReplay": true,
+      "sampleDigest": "sha256:8cf27a8e1d4a4dce420e8193e7e56bbb82c15b86edcbc1f3ee78ebb1a525e9de"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503004,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 22,
+        "total": 191
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 22,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:5801368519ab42cf53a53538c3c18fdc408a7c25b2becc6d742aaab818373757",
+      "evidenceDigest": "sha256:3d4734071588bda5d269d41fae7bfce2472a89a3ac0ba66d47804367638eba1e",
+      "exactReplay": true,
+      "sampleDigest": "sha256:8c4d8e238b6d2f38fea42c0b2eed12b67addc193c7d11584c286342fa66ef8d3"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503005,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 23,
+        "total": 192
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 23,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:5e5758ea1e57c8a75d1724b987679d55e1242333f68ee570b6171ec586256ed6",
+      "evidenceDigest": "sha256:f169fbfd693efc09272991115082a539d9b3cfa1efc80c7e24212bb96e755828",
+      "exactReplay": true,
+      "sampleDigest": "sha256:018d388653315148b54f15fb1fa12e13e8e1d398e76b28d4ee35e2e7f41b8911"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503006,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 68,
+        "total": 237
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 68,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:8c3676237ccf806b1cbf853bf75ad537577bc3c4a61fb49d89ea22c6763ab3ab",
+      "evidenceDigest": "sha256:6f182c849de344632d488268107de554bcae47a3242ba14eccfe15d3c8373270",
+      "exactReplay": true,
+      "sampleDigest": "sha256:32a6a98188b0f3351df0287f4e28574ef0118dbe30fe3e9e1b7cd319ae2d6ed1"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503007,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 69,
+        "total": 238
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 69,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:1f8f944f591406f3a7ac3f2355c53bbfeed46f553f77b2d837e886a761552669",
+      "evidenceDigest": "sha256:e6d98da645354a42f4fd6815f417ccd6cdab6aa163bc0ea0207e833a58027bab",
+      "exactReplay": true,
+      "sampleDigest": "sha256:72463d86a68b9f1e72a0f53669d5da4c97bd3660730cbaf767b8b491ab676c7d"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503008,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 65,
+        "total": 234
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 65,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:122eb544543ac4213f8d28769e7a604dabc9c78d3920834d86e48d121a2c4cf4",
+      "evidenceDigest": "sha256:bcb331c2ebfa0ffc232987fe6aaf6a97d98cbcd2ce08602abd1b98e82e3cde7a",
+      "exactReplay": true,
+      "sampleDigest": "sha256:2eb9900f2fcd83c3a960eb9e40c1e80c708672b0f4f3e230099a3f9c1d6271bf"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503009,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 32,
+        "total": 201
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 32,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:51643c940e6bb7042df8474d32436159c7e61c45cbf4ea6bbc5d4c4aff06988c",
+      "evidenceDigest": "sha256:f32c28d83a6e9ae6c1d66a58035b5e8dde46643b5aa5318bb2caae991dac309f",
+      "exactReplay": true,
+      "sampleDigest": "sha256:3a525f1b54be38135d729188733240420efa8046d93ceb3353252f05c05e70c4"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:55465b334f3e1038e846a14162598dab4beb6d3d79b5c3a6b6e09d0463294388",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 503010,
+      "runner": "centralized_baseline",
+      "stratum": "mixed",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 0,
+        "decision": 50,
+        "observation": 50,
+        "directive": 50,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 11,
+        "recovery": 83,
+        "total": 252
+      },
+      "uniqueDirectedEdges": 0,
+      "deliveredMessages": 0,
+      "recoveryInteractions": 83,
+      "exercisedFaultFamilies": [
+        "crash_resume",
+        "message_loss",
+        "message_duplicate",
+        "message_delay",
+        "message_reorder",
+        "partition_heal",
+        "clock_offset",
+        "repository_unavailable",
+        "handler_timeout_before_commit",
+        "handler_timeout_after_commit"
+      ],
+      "exercisedAdversaryFamilies": [
+        "mandate_unknown",
+        "mandate_stale_replay",
+        "mandate_revision_fork",
+        "mandate_reference_forged",
+        "context_manipulation",
+        "capability_inflation",
+        "budget_replay",
+        "assignment_stale",
+        "grant_substitution",
+        "colluding_evidence",
+        "secret_canary"
+      ],
+      "traceDigest": "sha256:b6c4dd23c988b8ed580750598671ed20724c490c9e239382040db87cc7f3c48e",
+      "evidenceDigest": "sha256:26d5c76b42fc5135fceb9941634aa66e07465d0fd70a8e6298dedb2ad467fa91",
+      "exactReplay": true,
+      "sampleDigest": "sha256:5777b2120371c179011761fd351a16c56190e26528ffe7ec8ca58a087fa402ce"
+    }
+  ],
+  "aggregate": {
+    "schemaVersion": 1,
+    "validSamples": 10,
+    "invalidSamples": 0,
+    "missionSuccess": {
+      "schemaVersion": 1,
+      "method": "wilson_95",
+      "numerator": 10,
+      "denominator": 10,
+      "estimate": 1,
+      "lower": 0.7224672001371107,
+      "upper": 0.9999999999999999
+    },
+    "p95RecoveryInteractions": 91,
+    "maximumInteractionsObserved": 260,
+    "authorizationViolations": 0,
+    "staleFenceViolations": 0,
+    "duplicateEffectViolations": 0,
+    "exactReplayFailures": 0
+  },
+  "status": "complete",
+  "invalidReason": null,
+  "artifactDigest": "sha256:cb5eedd72f2bbf7588f83dfe00ef8bdd7aae3ed4467f16dddeedf327115abc75",
+  "reportDigest": "sha256:123e9c62c37ad62065d688aa4a0d063ee8ec0331891b9ec65c06d6c7dbd59ce5"
+}

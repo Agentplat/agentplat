@@ -1,0 +1,982 @@
+{
+  "schemaVersion": 1,
+  "registration": {
+    "schemaVersion": 1,
+    "registrationId": "registration:beta2:normative:50:nominal:governed_collective",
+    "experimentVersion": 1,
+    "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+    "sourceCommit": "60213b3f3cd901f0649174b2b874efcb379fa720",
+    "dirtyWorktree": false,
+    "implementationDigest": "sha256:a373dbf7040930dc93ba9f3e61af0f844875648bc0da8b67a3a00f10cd5cf5e1",
+    "configurationDigest": "sha256:ddd5bbdc1e812776fcc56782d023fb22698f53bd5acb958b44752a556d29f127",
+    "fixtureDigest": "sha256:d258e00e8bafeb73a574e1cc893c79596c0ed892873fcafba22b3be8e761200c",
+    "runner": "governed_collective",
+    "stratum": "nominal",
+    "agentCount": 50,
+    "seeds": [
+      500001,
+      500002,
+      500003,
+      500004,
+      500005,
+      500006,
+      500007,
+      500008,
+      500009,
+      500010
+    ],
+    "stoppingRule": "fixed_registered_seeds",
+    "topologyGenerator": "bounded-role-ring-v1",
+    "maximumDegree": 6,
+    "maximumInteractions": 5000,
+    "interactionAccountingVersion": "interaction-accounting-v1",
+    "decisionPolicyDigest": "sha256:63f71be309677441222cf5aa959157a21332cea17146d55345908c2f4fd5352d",
+    "scheduleGeneratorVersion": 1,
+    "aggregationSeed": 500901,
+    "bootstrapResamples": 10000,
+    "confidenceLevel": 0.95,
+    "equivalenceMargin": 0.05,
+    "redactionPolicyId": "redaction:collective-evaluation-v1",
+    "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258"
+  },
+  "mission": {
+    "schemaVersion": 1,
+    "missionId": "resource-allocation-recovery:50",
+    "missionVersion": 1,
+    "resources": [
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:000",
+        "locationKey": "central",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:001",
+        "locationKey": "east",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:002",
+        "locationKey": "north",
+        "capacityUnits": 4
+      },
+      {
+        "schemaVersion": 1,
+        "resourceId": "resource:003",
+        "locationKey": "south",
+        "capacityUnits": 4
+      }
+    ],
+    "tasks": [
+      {
+        "schemaVersion": 1,
+        "taskId": "task:000",
+        "resourceId": "resource:000",
+        "requiredRoleKey": "allocator",
+        "requiredCapabilityKey": "resource.allocate",
+        "dependencyTaskIds": [],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:001",
+        "resourceId": "resource:001",
+        "requiredRoleKey": "coordinator",
+        "requiredCapabilityKey": "mission.coordinate",
+        "dependencyTaskIds": [
+          "task:000"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:002",
+        "resourceId": "resource:002",
+        "requiredRoleKey": "executor",
+        "requiredCapabilityKey": "resource.execute",
+        "dependencyTaskIds": [
+          "task:001"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      },
+      {
+        "schemaVersion": 1,
+        "taskId": "task:003",
+        "resourceId": "resource:003",
+        "requiredRoleKey": "observer",
+        "requiredCapabilityKey": "mission.observe",
+        "dependencyTaskIds": [
+          "task:002"
+        ],
+        "budgetUnits": 10,
+        "objectiveValue": 100
+      }
+    ],
+    "agents": [
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:00",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:01",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:02",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:03",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:04",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:05",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:06",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:07",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:08",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:09",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:10",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:11",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:12",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:13",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:14",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:15",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:16",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:17",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:18",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:19",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:20",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:21",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:22",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:23",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:24",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:25",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:26",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:27",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:28",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:29",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:30",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:31",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:32",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:33",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:34",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:35",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:36",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:37",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:38",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:39",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:40",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:41",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:42",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:43",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:44",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:45",
+        "roleKey": "allocator",
+        "capabilityKeys": [
+          "resource.allocate"
+        ],
+        "locationKey": "central"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:46",
+        "roleKey": "coordinator",
+        "capabilityKeys": [
+          "mission.coordinate"
+        ],
+        "locationKey": "east"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:47",
+        "roleKey": "executor",
+        "capabilityKeys": [
+          "resource.execute"
+        ],
+        "locationKey": "north"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:48",
+        "roleKey": "observer",
+        "capabilityKeys": [
+          "mission.observe"
+        ],
+        "locationKey": "south"
+      },
+      {
+        "schemaVersion": 1,
+        "agentId": "agent:49",
+        "roleKey": "recovery",
+        "capabilityKeys": [
+          "mission.recover"
+        ],
+        "locationKey": "west"
+      }
+    ],
+    "permittedInteractionKinds": [
+      "assessment",
+      "decision",
+      "directive",
+      "dispatch",
+      "escalation",
+      "message",
+      "observation",
+      "recovery"
+    ],
+    "topology": {
+      "schemaVersion": 1,
+      "generator": "bounded-role-ring-v1",
+      "maximumDegree": 6
+    },
+    "limits": {
+      "schemaVersion": 1,
+      "maximumInteractions": 5000,
+      "maximumLogicalTime": 1000000,
+      "maximumQueueDepth": 1024,
+      "maximumEvidenceRecords": 4096
+    },
+    "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5"
+  },
+  "samples": [
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500001,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:5ceaafc3bb44b853ee8228ed773b1070064fb59808373a8d392a4a7235147a23",
+      "evidenceDigest": "sha256:640729e8943691880e56aad1171d53bf0d5144814452707392c9d9dfc3d38e5f",
+      "exactReplay": true,
+      "sampleDigest": "sha256:32e9cb8c6dc704eaacf1ab4724a9d16f1b23322f8dad84f0f23d731c3e3f2715"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500002,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:21af0a25e3d71200d2c70f1063b8f4e75bf638d5b9475df818746ed67fb5af2f",
+      "evidenceDigest": "sha256:05d51f2d9339dc5cae43c6e5a15f5db522e4d811defabd64f295a7c7e38f1aa6",
+      "exactReplay": true,
+      "sampleDigest": "sha256:e46e82480ab0bc3a5ead663992c4b70b3c460c9b729ee35d4ec576f245065c31"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500003,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:dad772bff3f2a25340916d3fee573af234faf4bd1d2142a1d5fb9f4a5e253ce6",
+      "evidenceDigest": "sha256:0e333a05d0b52a1a465abd6a689443de03f232396a107a054f32cb63a81e7f8c",
+      "exactReplay": true,
+      "sampleDigest": "sha256:06aedec16ccc2cbb56a088cfe4a3c3e66263b309a008833c33b55942111bc9af"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500004,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:903aaa905d38d5450091aba8f52d96f7ac9819b58f931b077969e4db707527f5",
+      "evidenceDigest": "sha256:8fa32f15c8638eaff8d453a807f77ed12041b9875aa75b44564dfeb864d36466",
+      "exactReplay": true,
+      "sampleDigest": "sha256:ee430d3396ff1f0a13d152ca777bfc67aed325ecbf03b4a5d67322b67dde8bf2"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500005,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:7c3b96419545564d4eda0f5d75d5c6a7d7667547137e21a8f6ed8211bffaeccd",
+      "evidenceDigest": "sha256:f7bebf190c41da2d4006159b1f350b6e37be271aa9292135f6d8619d9bbd9a8c",
+      "exactReplay": true,
+      "sampleDigest": "sha256:ef35784bbd4a8d690176d6d77e17c37270a1d7406646caadc94d5cd31c6f5a6d"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500006,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:46902eb6a85073f660706d5da3c585a2763b1636fa128644395e2b167073b381",
+      "evidenceDigest": "sha256:00b620b732dbf53e50b4940817c8baefe7514f663ff100bf10fcc68ffa12110f",
+      "exactReplay": true,
+      "sampleDigest": "sha256:c3f572aeb517241a87b49ac10d74d2180e10e21cbf0444a10fd5285a5c0ac99a"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500007,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:1462ae826d74aa7463450cbf961845620db33fbc2d1a5b2d438d6b007c1f25dc",
+      "evidenceDigest": "sha256:c151d6a0492ea84a4a8324032983abdb90a81f440c418b15606def823f32391f",
+      "exactReplay": true,
+      "sampleDigest": "sha256:bf3afd3a1fa1caabcad1bcf77aedac69b4ca222fe2592b2db0af8a36c5e71dac"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500008,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:539b4c2cfca1875e511d9a1908f315fdf0be1695ad366b9f03f42ac4c7e04b86",
+      "evidenceDigest": "sha256:560e60263e82cc757dc1c84df02145cd972c26a964a6f65971b0dc71ea8a4e4b",
+      "exactReplay": true,
+      "sampleDigest": "sha256:57e3eb25ec195471dcd8473823dcb6dbb968271c79a3366d59284c0e22390df9"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500009,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:26bc847f084d74eb5c780d83ebd39b037ef9c1c434841ad63ff01442bc181f81",
+      "evidenceDigest": "sha256:f5686476c0ba3cd8066afade9787212f5ba5b61e10fba831a15e39ceaf84025b",
+      "exactReplay": true,
+      "sampleDigest": "sha256:4bb30516853cd548388e054ec3109cc45070383c0ce5a00a7f40b71e2c97ff1f"
+    },
+    {
+      "schemaVersion": 1,
+      "registrationDigest": "sha256:e80ad8a3eea5cb1f57220fbb960518545faee3ae5e3317908e0d34193a5c4258",
+      "missionDigest": "sha256:0ba8201944491d5e14bae6c24270ee260ff17ab249022e16e1212f16e8ec01b5",
+      "seed": 500010,
+      "runner": "governed_collective",
+      "stratum": "nominal",
+      "status": "valid",
+      "invalidReason": null,
+      "missionSuccess": true,
+      "partialSuccessUnits": 4,
+      "objectiveValue": 400,
+      "authorizationViolations": 0,
+      "staleFenceViolations": 0,
+      "duplicateEffectViolations": 0,
+      "interactionLedger": {
+        "message": 200,
+        "decision": 50,
+        "observation": 4,
+        "directive": 4,
+        "assessment": 4,
+        "dispatch": 4,
+        "escalation": 0,
+        "recovery": 0,
+        "total": 266
+      },
+      "uniqueDirectedEdges": 200,
+      "deliveredMessages": 200,
+      "recoveryInteractions": null,
+      "exercisedFaultFamilies": [],
+      "exercisedAdversaryFamilies": [],
+      "traceDigest": "sha256:6d73f02657bab97c924a995392eb07e12988229701b1a7629f9feb6c28f05c10",
+      "evidenceDigest": "sha256:82d88975e3d69d3a8762493d9bdfcada562c2c97dec34db72e8363846e97bfff",
+      "exactReplay": true,
+      "sampleDigest": "sha256:cac883f5d11464e696c37725a649ab669b55548a6704dd92f06d9c04b34235fe"
+    }
+  ],
+  "aggregate": {
+    "schemaVersion": 1,
+    "validSamples": 10,
+    "invalidSamples": 0,
+    "missionSuccess": {
+      "schemaVersion": 1,
+      "method": "wilson_95",
+      "numerator": 10,
+      "denominator": 10,
+      "estimate": 1,
+      "lower": 0.7224672001371107,
+      "upper": 0.9999999999999999
+    },
+    "p95RecoveryInteractions": null,
+    "maximumInteractionsObserved": 266,
+    "authorizationViolations": 0,
+    "staleFenceViolations": 0,
+    "duplicateEffectViolations": 0,
+    "exactReplayFailures": 0
+  },
+  "status": "complete",
+  "invalidReason": null,
+  "artifactDigest": "sha256:00e0dcf56f638044d05f91a8e13720e42673753d23a6a1c5cc9637962161714a",
+  "reportDigest": "sha256:64c63ede6e0c7b889b6b56928a1507b6fecdddf35290c08c07a4558554c4f9e3"
+}
