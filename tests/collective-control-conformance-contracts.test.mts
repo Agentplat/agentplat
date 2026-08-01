@@ -1,5 +1,6 @@
 import {
   CONTROL_CONFORMANCE_CASES_V1,
+  createControlConformanceFixturesV1,
   createControlConformanceReportV1,
   runControlConformanceV1,
   validateControlConformanceReportV1,
@@ -16,6 +17,7 @@ const capability: ControlConformanceCapability = "control.persistence";
 void caseId;
 void capability;
 void CONTROL_CONFORMANCE_CASES_V1;
+void createControlConformanceFixturesV1;
 void runControlConformanceV1;
 void createControlConformanceReportV1;
 void validateControlConformanceReportV1;

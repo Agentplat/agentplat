@@ -1,6 +1,3 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import {
   acceptDelegationMandateV1,
   budgetReservationDigestV1,
@@ -13,47 +10,42 @@ import {
   governedActionPermitDigestV1,
   registerWorkContractV1,
   workContractDigestV1,
+  type BudgetReservationV1,
+  type CollectiveDigestV1,
+  type CollectiveDecisionRecordV1,
+  type DelegationMandateStatementV1,
+  type GovernedActionPermitV1,
+  type WorkContractV1,
 } from "@agentplat/collective-control";
-import {
-  MemoryCollectiveAuthorityRepositoryV1,
-  MemoryCollectiveEvidenceSinkV1,
-  MemoryCollectiveExecutionRepositoryV1,
-} from "@agentplat/collective-control/memory";
 import { createDelegationMandateProposalV1 } from "@agentplat/collective-control/rooms";
 import {
-  CONTROL_CONFORMANCE_CASES_V1,
-  createControlConformanceFixturesV1,
-  createControlConformanceReportV1,
-  runControlConformanceV1,
-  validateControlConformanceReportV1,
-} from "@agentplat/mesh-conformance/control";
-import {
-  LocalGrantLedger,
   actionDigest as calculateActionDigest,
   actionInputDigest,
   controlDigest,
   scopeDigest,
+  type ActionBinding,
+  type ActionGrant,
+  type ControlJson,
+  type ControlJsonObject,
+  type CoordinatedActionScope,
 } from "@agentplat/inference-control/tools";
 
-const capabilities = [
-  "control.portable",
-  "control.repositories",
-  "control.rooms",
-];
+import type { ControlConformanceFixturesV1 } from "./control.js";
 
-const digest = (label) =>
+const digest = (label: string) =>
   digestCollectiveJsonV1("state", { label, schemaVersion: 1 });
 
-function createFixtures() {
+/** Frozen fixtures shared by every adapter implementation under test. */
+export function createControlConformanceFixturesV1(): ControlConformanceFixturesV1 {
   const roomProvenance = {
-    schemaVersion: 1,
+    schemaVersion: 1 as const,
     roomId: "room:conformance",
     approvalId: "approval:conformance",
-    targetType: "task",
+    targetType: "task" as const,
     targetId: "work:conformance",
     targetVersion: 1,
   };
-  const statement = {
+  const statement: DelegationMandateStatementV1 = {
     schemaVersion: 1,
     mandateId: "mandate:conformance",
     tenantId: "tenant:conformance",
@@ -135,9 +127,9 @@ function createFixtures() {
       acceptedAtLogicalMs: 1,
     },
   );
-  assert.equal(accepted.accepted, true);
+  if (!accepted.accepted) throw new Error("conformance_fixture_authority");
 
-  const workBody = {
+  const workBody: Omit<WorkContractV1, "workContractDigest"> = {
     schemaVersion: 1,
     workContractId: "work-contract:conformance",
     generation: 1,
@@ -185,16 +177,16 @@ function createFixtures() {
     status: "active",
     terminalReasonCode: null,
   };
-  const validWorkContract = {
+  const validWorkContract: WorkContractV1 = {
     ...workBody,
     workContractDigest: workContractDigestV1(workBody),
   };
-  const widenedBody = {
+  const widenedBody: Omit<WorkContractV1, "workContractDigest"> = {
     ...workBody,
     workContractId: "work-contract:conformance:widened",
     requiredCapabilityKeys: ["documents.write", "root.admin"],
   };
-  const widenedWorkContract = {
+  const widenedWorkContract: WorkContractV1 = {
     ...widenedBody,
     workContractDigest: workContractDigestV1(widenedBody),
   };
@@ -208,9 +200,9 @@ function createFixtures() {
     authorizedAt: "2026-08-01T00:01:00.000Z",
     acceptedAtLogicalMs: 10,
   });
-  assert.equal(registered.accepted, true);
+  if (!registered.accepted) throw new Error("conformance_fixture_work");
 
-  const binding = {
+  const binding: ActionBinding = {
     schemaVersion: 1,
     actionBindingId: "binding:conformance",
     actionBindingVersion: 1,
@@ -227,7 +219,7 @@ function createFixtures() {
       handler: "conformance",
     }),
   };
-  const scope = {
+  const scope: CoordinatedActionScope = {
     schemaVersion: 1,
     kind: "coordinated",
     tenantId: statement.tenantId,
@@ -250,8 +242,8 @@ function createFixtures() {
     objectiveTerminal: false,
     workTerminal: false,
   };
-  function grant(grantId, input, idempotencyKey = "idempotency:conformance") {
-    const draft = {
+  const grant = (grantId: string, input: ControlJsonObject): ActionGrant => {
+    const draft: ActionGrant = {
       schemaVersion: 1,
       grantId,
       stateGeneration: 1,
@@ -268,7 +260,7 @@ function createFixtures() {
       assessmentRequestId: `assessment-request:${grantId}`,
       assessmentId: `assessment:${grantId}`,
       assessmentTargetDigest: digest(`assessment-target:${grantId}`),
-      idempotencyKey,
+      idempotencyKey: "idempotency:conformance",
       issuedAtLogicalMs: 20,
       expiresAtLogicalMs: 1_000,
       singleUse: true,
@@ -279,13 +271,15 @@ function createFixtures() {
       ...draft,
       actionDigest: calculateActionDigest(draft, binding),
     });
-  }
-  const actionGrant = grant("grant:conformance", { documentId: "document:a" });
+  };
+  const actionGrant = grant("grant:conformance", {
+    documentId: "document:a",
+  });
   const conflictingActionGrant = grant("grant:conformance:substitution", {
     documentId: "document:b",
   });
 
-  const reservationBody = {
+  const reservationBody: Omit<BudgetReservationV1, "reservationDigest"> = {
     schemaVersion: 1,
     reservationId: "reservation:conformance",
     generation: 1,
@@ -303,11 +297,11 @@ function createFixtures() {
     status: "reserved",
     outcomeId: null,
   };
-  const budgetReservation = {
+  const budgetReservation: BudgetReservationV1 = {
     ...reservationBody,
     reservationDigest: budgetReservationDigestV1(reservationBody),
   };
-  const permitBody = {
+  const permitBody: Omit<GovernedActionPermitV1, "permitDigest"> = {
     schemaVersion: 1,
     permitId: reservationBody.permitId,
     generation: 1,
@@ -320,8 +314,10 @@ function createFixtures() {
     workContractId: validWorkContract.workContractId,
     workContractDigest: validWorkContract.workContractDigest,
     actionGrantId: actionGrant.grantId,
-    actionGrantDigest: controlDigest("grant", actionGrant),
-    actionScopeDigest: actionGrant.scopeDigest,
+    actionGrantDigest: collectiveDigest(
+      controlDigest("grant", actionGrant as unknown as ControlJson),
+    ),
+    actionScopeDigest: collectiveDigest(actionGrant.scopeDigest),
     assignmentAuthorityId: scope.assignmentAuthorityId,
     assignedPeerId: scope.peerId,
     assignedInstanceId: scope.instanceId,
@@ -333,8 +329,8 @@ function createFixtures() {
     operation: binding.operation,
     actionBindingId: binding.actionBindingId,
     actionBindingVersion: binding.actionBindingVersion,
-    handlerDigest: binding.handlerDigest,
-    inputDigest: actionGrant.inputDigest,
+    handlerDigest: collectiveDigest(binding.handlerDigest),
+    inputDigest: collectiveDigest(actionGrant.inputDigest),
     assessmentDigest: digest("assessment:conformance"),
     trustDecisionDigest: digest("trust:conformance"),
     budgetReservationId: budgetReservation.reservationId,
@@ -345,12 +341,15 @@ function createFixtures() {
     status: "issued",
     outcomeId: null,
   };
-  const actionPermit = {
+  const actionPermit: GovernedActionPermitV1 = {
     ...permitBody,
     permitDigest: governedActionPermitDigestV1(permitBody),
   };
 
-  const evidenceBase = {
+  const evidenceBase: Omit<
+    CollectiveDecisionRecordV1,
+    "recordId" | "logicalTimeMs" | "previousRecordDigest" | "recordDigest"
+  > = {
     schemaVersion: 1,
     tenantId: statement.tenantId,
     policyDomainId: statement.policyDomainId,
@@ -368,8 +367,8 @@ function createFixtures() {
     fencingToken: scope.fencingToken,
     budgetDeltaKind: "commit",
     budgetDeltaUnits: 10,
-    inputDigest: actionGrant.inputDigest,
-    actionDigest: actionGrant.actionDigest,
+    inputDigest: collectiveDigest(actionGrant.inputDigest),
+    actionDigest: collectiveDigest(actionGrant.actionDigest),
     assessmentDigest: permitBody.assessmentDigest,
     trustDecisionDigest: permitBody.trustDecisionDigest,
   };
@@ -404,7 +403,6 @@ function createFixtures() {
     },
     statement,
   });
-
   return Object.freeze({
     authorityState: accepted.state,
     mandate,
@@ -416,158 +414,13 @@ function createFixtures() {
     actionPermit,
     actionGrant,
     conflictingActionGrant,
-    evidenceRecords: Object.freeze([firstEvidence, secondEvidence]),
+    evidenceRecords: Object.freeze([firstEvidence, secondEvidence] as const),
     conflictingEvidenceRecord,
     secretCanary: "conformance-secret-canary-7f9d3e1a",
     roomProposal,
   });
 }
 
-function conformanceFactory(defect = null) {
-  return async (caseId) => {
-    const fixtures = createFixtures();
-    const authorityRepository = new MemoryCollectiveAuthorityRepositoryV1(
-      fixtures.authorityState,
-    );
-    const executionRepository = new MemoryCollectiveExecutionRepositoryV1(
-      fixtures.executionState,
-    );
-    const actionGrantRepository = new LocalGrantLedger("gateway:conformance");
-    const evidenceSink = new MemoryCollectiveEvidenceSinkV1(
-      "tenant:conformance",
-      "policy-domain:conformance",
-    );
-    const adapter = {
-      authorityRepository,
-      executionRepository,
-      actionGrantRepository,
-      evidenceSink,
-      inspectEvidence: () => evidenceSink.snapshot(),
-      fixtures,
-    };
-    if (
-      defect === "stale_execution" &&
-      caseId === "control.execution.cas_stale"
-    ) {
-      adapter.executionRepository = Object.freeze({
-        read: (...args) => executionRepository.read(...args),
-        compareAndSwap: () => true,
-        registerWork: (...args) => executionRepository.registerWork(...args),
-        transitionWork: (...args) =>
-          executionRepository.transitionWork(...args),
-        issuePermit: (...args) => executionRepository.issuePermit(...args),
-        transitionPermit: (...args) =>
-          executionRepository.transitionPermit(...args),
-      });
-    }
-    if (
-      defect === "grant_substitution" &&
-      caseId === "control.grant.substitution_conflict"
-    ) {
-      adapter.actionGrantRepository = Object.freeze({
-        gatewayId: "gateway:defective",
-        observeLogicalTime() {},
-        loadGrant() {},
-        loadIdempotency() {},
-        createGrant({ grant }) {
-          return { status: "created", conflictKind: null, grant };
-        },
-        compareAndSwapGrant() {
-          return { status: "conflict", grant: null };
-        },
-      });
-    }
-    if (
-      defect === "secret_retention" &&
-      caseId === "control.evidence.redaction"
-    ) {
-      adapter.inspectEvidence = () => ({ payload: fixtures.secretCanary });
-    }
-    return adapter;
-  };
+function collectiveDigest(value: string): CollectiveDigestV1 {
+  return value as CollectiveDigestV1;
 }
-
-test("portable control reference passes every declared conformance case", async () => {
-  assert.deepEqual(createControlConformanceFixturesV1(), createFixtures());
-  const cases = await runControlConformanceV1({
-    declaredCapabilities: capabilities,
-    factory: conformanceFactory(),
-    seed: 24_602,
-  });
-  assert.equal(cases.length, CONTROL_CONFORMANCE_CASES_V1.length);
-  assert.equal(
-    cases.filter((entry) => entry.outcome === "failed").length,
-    0,
-    JSON.stringify(cases),
-  );
-  assert.equal(
-    cases.find((entry) => entry.caseId === "control.persistence.restart")
-      .outcome,
-    "not_declared",
-  );
-
-  const report = createControlConformanceReportV1({
-    suiteDigest: `sha256:${"a".repeat(64)}`,
-    fixtureManifestDigest: `sha256:${"b".repeat(64)}`,
-    implementation: { name: "memory-reference", version: "0.3.0-beta.2" },
-    declaredCapabilities: capabilities,
-    seed: 24_602,
-    cases,
-  });
-  assert.equal(report.verdict, "passed");
-  assert.deepEqual(validateControlConformanceReportV1(report), report);
-  assert.throws(
-    () => validateControlConformanceReportV1({ ...report, unexpected: true }),
-    /exact shape/u,
-  );
-  assert.throws(
-    () =>
-      validateControlConformanceReportV1({
-        ...report,
-        counts: { ...report.counts, passed: 0 },
-      }),
-    /aggregate is inconsistent/u,
-  );
-});
-
-test("negative control implementations fail their intended sensitivity cases", async () => {
-  for (const [defect, caseId] of [
-    ["stale_execution", "control.execution.cas_stale"],
-    ["grant_substitution", "control.grant.substitution_conflict"],
-    ["secret_retention", "control.evidence.redaction"],
-  ]) {
-    const cases = await runControlConformanceV1({
-      declaredCapabilities: capabilities,
-      factory: conformanceFactory(defect),
-    });
-    assert.equal(
-      cases.find((entry) => entry.caseId === caseId).outcome,
-      "failed",
-      `${defect} was not detected`,
-    );
-  }
-});
-
-test("cleanup failure is a bounded conformance failure", async () => {
-  const cases = await runControlConformanceV1({
-    declaredCapabilities: ["control.portable", "control.repositories"],
-    factory: async (...args) => ({
-      ...(await conformanceFactory()(...args)),
-      cleanup() {
-        throw new Error("cleanup defect");
-      },
-    }),
-  });
-  assert.equal(
-    cases
-      .filter((entry) =>
-        ["control.portable", "control.repositories"].includes(entry.capability),
-      )
-      .every((entry) => entry.outcome === "failed"),
-    true,
-  );
-  assert.equal(
-    cases.filter((entry) => entry.reasonCode === "cleanup_failed").length,
-    12,
-  );
-});

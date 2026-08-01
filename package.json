@@ -41,6 +41,8 @@
     "preflight:collective-evaluation": "pnpm --filter @agentplat/collective-control --filter @agentplat/mesh-sim build && node scripts/collective-beta2-evaluation.mjs --mode preflight --output-directory /private/tmp/agentplat-beta2-evaluation-preflight",
     "evidence:collective-evaluation": "pnpm --filter @agentplat/collective-control --filter @agentplat/mesh-sim build && node scripts/collective-beta2-evaluation.mjs --mode normative",
     "verify:collective-evaluation": "pnpm --filter @agentplat/collective-control --filter @agentplat/mesh-sim build && node scripts/collective-beta2-evaluation.mjs --mode check",
+    "evidence:collective-postgres": "pnpm --filter @agentplat/collective-control-postgres --filter @agentplat/mesh-conformance build && node scripts/collective-beta2-postgres-conformance.mjs",
+    "verify:collective-postgres": "pnpm --filter @agentplat/collective-control-postgres --filter @agentplat/mesh-conformance build && node scripts/collective-beta2-postgres-conformance.mjs --mode check",
     "verify:alpha5-compatibility": "node scripts/verify-alpha5-compatibility.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
@@ -84,6 +86,7 @@
     "@agentplat/tools": "workspace:*",
     "@agentplat/workflows": "workspace:*",
     "prettier": "^3.1.0",
+    "pg": "^8.13.1",
     "semver": "^7.7.2",
     "typescript": "^5.3.0"
   }
