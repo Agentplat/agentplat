@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 
 import {
   createStaticMeshKeyResolver,
-  signMeshEnvelope,
+  createWebCryptoMeshEnvelopeSigner,
   verifyMeshEnvelope,
 } from "@agentplat/mesh-crypto";
 import { createMeshDurableWorker } from "@agentplat/mesh/durability";
@@ -16,6 +17,7 @@ import {
   PostgresMeshDurableRepository,
 } from "@agentplat/mesh-postgres";
 import {
+  MESH_PREVIOUS_WIRE_VERSION,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
@@ -28,8 +30,15 @@ const instanceId = `${peerId}-process-1`;
 const keyId = `${peerId}-key-1`;
 const port = Number(required("PEER_PORT"));
 const endpoints = JSON.parse(required("PEER_ENDPOINTS"));
+const targetWireVersions = JSON.parse(required("TARGET_WIRE_VERSIONS"));
+const currentSigner = createWebCryptoMeshEnvelopeSigner();
+const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+  signingPolicy: { allowedWireVersions: [MESH_PREVIOUS_WIRE_VERSION] },
+});
 const channelToken = required("CHANNEL_TOKEN");
 const schema = required("MESH_SCHEMA");
+const soakSeed = process.env.MESH_SOAK_SEED ?? "agentplat-beta1-soak";
+const processEpoch = Number(process.env.PROCESS_EPOCH ?? "1");
 const pool = createPostgresPool({
   max: 4,
 });
@@ -66,10 +75,14 @@ const resolver = createStaticMeshKeyResolver(keyRecords);
 const httpClient = createMeshHttpClient({
   allowedSchemes: ["http:"],
   timeoutMs: 2_000,
-  resolveEndpoint: ({ peerId: targetPeerId }) => ({
-    url: `${endpoints[targetPeerId]}/agentplat/mesh/v0/envelopes`,
-    headers: { authorization: `Bearer ${channelToken}` },
-  }),
+  resolveEndpoint: ({ peerId: targetPeerId }) => {
+    const wireVersion = wireVersionFor(targetPeerId);
+    return {
+      url: `${endpoints[targetPeerId]}/agentplat/mesh/v${wireVersion}/envelopes`,
+      ...(wireVersion === MESH_PREVIOUS_WIRE_VERSION ? { wireVersion } : {}),
+      headers: { authorization: `Bearer ${channelToken}` },
+    };
+  },
   onDiagnostic: (diagnostic) =>
     process.stderr.write(
       `${peerId} http ${diagnostic.kind}:${diagnostic.code}\n`,
@@ -109,6 +122,7 @@ const worker = createMeshDurableWorker({
         {
           messageId: verified.envelope.messageId,
           type: payload.type,
+          senderPeerId: verified.envelope.sender.peerId,
           ...(verified.envelope.causationId === undefined
             ? {}
             : { causationId: verified.envelope.causationId }),
@@ -119,10 +133,11 @@ const worker = createMeshDurableWorker({
     const outbox = [];
     if (payload.type === "peer.ping") {
       const now = new Date();
-      const acknowledgement = await signMeshEnvelope({
+      const wireVersion = wireVersionFor(verified.envelope.sender.peerId);
+      const acknowledgement = await signerFor(wireVersion).sign({
         envelope: {
           protocol: MESH_PROTOCOL,
-          wireVersion: MESH_WIRE_VERSION,
+          wireVersion,
           messageId: messageId(),
           tenantId,
           meshId,
@@ -181,18 +196,44 @@ const worker = createMeshDurableWorker({
   },
 });
 
-const handler = createMeshHttpHandler({
+let delayedReceiptMs = 0;
+let delayedIngressMs = 0;
+let overloadNextReceipt = false;
+const accept = async (envelope) => {
+  if (overloadNextReceipt) {
+    overloadNextReceipt = false;
+    return { accepted: false, disposition: "retryable", retryAfterMs: 25 };
+  }
+  const ingressDelay = delayedIngressMs;
+  delayedIngressMs = 0;
+  if (ingressDelay > 0) {
+    process.send?.({ kind: "ingress_delayed", messageId: envelope.messageId });
+    await new Promise((resolve) => setTimeout(resolve, ingressDelay));
+  }
+  const accepted = await repository.receive({ scope, envelope });
+  const delay = delayedReceiptMs;
+  delayedReceiptMs = 0;
+  if (delay > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+  return accepted.accepted
+    ? { accepted: true, duplicate: accepted.duplicate }
+    : accepted.code === "capacity_exceeded"
+      ? { accepted: false, disposition: "retryable", retryAfterMs: 100 }
+      : { accepted: false, disposition: "permanent_rejection" };
+};
+const currentHandler = createMeshHttpHandler({
   target: { ...scope },
   authenticate: (request) =>
     request.headers.get("authorization") === `Bearer ${channelToken}`,
-  async accept(envelope) {
-    const accepted = await repository.receive({ scope, envelope });
-    return accepted.accepted
-      ? { accepted: true, duplicate: accepted.duplicate }
-      : accepted.code === "capacity_exceeded"
-        ? { accepted: false, disposition: "retryable", retryAfterMs: 100 }
-        : { accepted: false, disposition: "permanent_rejection" };
-  },
+  accept,
+});
+const compatibilityHandler = createMeshHttpHandler({
+  target: { ...scope },
+  wireVersion: MESH_PREVIOUS_WIRE_VERSION,
+  authenticate: (request) =>
+    request.headers.get("authorization") === `Bearer ${channelToken}`,
+  accept,
 });
 
 const server = createServer(async (incoming, outgoing) => {
@@ -214,7 +255,11 @@ const server = createServer(async (incoming, outgoing) => {
           : { body: Readable.toWeb(incoming), duplex: "half" }),
       },
     );
-    const response = await handler(request);
+    const response = await (
+      requestUrlPath(request) === "/agentplat/mesh/v0/envelopes"
+        ? compatibilityHandler
+        : currentHandler
+    )(request);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch {
@@ -230,7 +275,12 @@ process.send?.({ kind: "ready", peerId });
 
 let stopped = false;
 const paused = process.env.START_PAUSED === "1";
-let notifiedAcknowledgement;
+const existingSnapshot = await repository.loadSnapshot(scope);
+const notifiedAcknowledgements = new Set(
+  existingSnapshot?.state.received
+    .filter((entry) => entry.type === "peer.ping_ack")
+    .map((entry) => entry.messageId) ?? [],
+);
 const loop = (async () => {
   while (!stopped) {
     if (paused) {
@@ -242,14 +292,14 @@ const loop = (async () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
     const snapshot = await repository.loadSnapshot(scope);
-    const acknowledgement = snapshot?.state.received.find(
-      (entry) => entry.type === "peer.ping_ack",
-    );
-    if (
-      acknowledgement &&
-      acknowledgement.messageId !== notifiedAcknowledgement
-    ) {
-      notifiedAcknowledgement = acknowledgement.messageId;
+    const acknowledgements =
+      snapshot?.state.received.filter(
+        (entry) =>
+          entry.type === "peer.ping_ack" &&
+          !notifiedAcknowledgements.has(entry.messageId),
+      ) ?? [];
+    for (const acknowledgement of acknowledgements) {
+      notifiedAcknowledgements.add(acknowledgement.messageId);
       process.send?.({ kind: "acknowledged", ...acknowledgement });
     }
   }
@@ -258,17 +308,18 @@ const loop = (async () => {
 process.on("message", async (command) => {
   if (command?.kind === "ping") {
     const now = new Date();
-    const envelope = await signMeshEnvelope({
+    const wireVersion = wireVersionFor(command.peerId);
+    const envelope = await signerFor(wireVersion).sign({
       envelope: {
         protocol: MESH_PROTOCOL,
-        wireVersion: MESH_WIRE_VERSION,
+        wireVersion,
         messageId: messageId(),
         tenantId,
         meshId,
         type: "peer.ping",
         sender: { peerId, instanceId },
         audience: { kind: "peer", peerId: command.peerId },
-        sequence: 1,
+        sequence: nextLocalSequence(),
         sentAt: now.toISOString(),
         expiresAt: new Date(now.getTime() + 30_000).toISOString(),
         payload: { type: "peer.ping" },
@@ -276,9 +327,20 @@ process.on("message", async (command) => {
       },
       privateKey,
     });
-    await httpClient.deliver({ envelope });
-    await httpClient.deliver({ envelope });
+    const attempts = command.attempts ?? 2;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await httpClient.deliver({ envelope });
+    }
     process.send?.({ kind: "ping_sent", messageId: envelope.messageId });
+  } else if (command?.kind === "delay_next_receipt") {
+    delayedReceiptMs = command.delayMs;
+    process.send?.({ kind: "fault_armed", fault: command.kind });
+  } else if (command?.kind === "delay_next_ingress") {
+    delayedIngressMs = command.delayMs;
+    process.send?.({ kind: "fault_armed", fault: command.kind });
+  } else if (command?.kind === "overload_next_receipt") {
+    overloadNextReceipt = true;
+    process.send?.({ kind: "fault_armed", fault: command.kind });
   } else if (command?.kind === "state") {
     process.send?.({
       kind: "state",
@@ -293,10 +355,42 @@ process.on("message", async (command) => {
   }
 });
 
+let localSequence = 0;
+
+function nextLocalSequence() {
+  localSequence += 1;
+  return localSequence;
+}
+
 function messageId() {
-  return Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString(
-    "base64url",
-  );
+  const sequence = nextLocalSequence();
+  return createHash("sha256")
+    .update(`${soakSeed}:${peerId}:${processEpoch}:${sequence}`)
+    .digest()
+    .subarray(0, 16)
+    .toString("base64url");
+}
+
+function wireVersionFor(targetPeerId) {
+  const value = targetWireVersions[targetPeerId];
+  if (value !== MESH_PREVIOUS_WIRE_VERSION && value !== MESH_WIRE_VERSION) {
+    throw new TypeError(`No compatible wire version for ${targetPeerId}`);
+  }
+  return value;
+}
+
+function signerFor(wireVersion) {
+  return wireVersion === MESH_PREVIOUS_WIRE_VERSION
+    ? compatibilitySigner
+    : currentSigner;
+}
+
+function requestUrlPath(request) {
+  try {
+    return new URL(request.url).pathname;
+  } catch {
+    return "";
+  }
 }
 
 function required(name) {

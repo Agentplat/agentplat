@@ -1,0 +1,34 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "XXXXXXXXXXXXXXXXXXXXXA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "objective.cancel",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "mesh",
+    "topic": "objective"
+  },
+  "sequence": 8,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:02:00.000Z",
+  "causationId": "RRRRRRRRRRRRRRRRRRRRRA",
+  "payloadHash": "sha256:zEvvs4zCe31fNXTxQ5g4U8u1Lz4zBigSqsByppdrUXI",
+  "payload": {
+    "type": "objective.cancel",
+    "cancellationId": "cancellation-a",
+    "objectiveId": "objective-a",
+    "objectiveRevision": 2,
+    "objectiveDocumentId": "objective-document-b"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "W5JGykHrlRQnbRSkTwDUrUaCeujE2jcBfN99o5GKrrQJIFyyzTYEmFhWPBxepwRXHLCnBO4DWTey4yuwlvvcBw"
+  }
+}

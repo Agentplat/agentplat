@@ -28,8 +28,24 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agentplat_release
+          POSTGRES_USER: agentplat_release
+          POSTGRES_PASSWORD: agentplat_release
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentplat_release -d agentplat_release"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 20
@@ -56,24 +72,45 @@ jobs:
         run: |
           pnpm run audit:public:release
           pnpm run check
+          pnpm run verify:mesh-postgres-faults
+          pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
+          pnpm run benchmark:mesh-adapters
         env:
+          AGENTPLAT_POSTGRES_TEST: "1"
           NPM_CONFIG_USERCONFIG: /dev/null
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_release
+          PGUSER: agentplat_release
+          PGPASSWORD: agentplat_release
       - name: Dry-run package publication
         if: ${{ inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
           NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: '1'
+          NPM_PUBLISH_DRY_RUN: "1"
       - name: Publish packages
         if: ${{ !inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: '0'
+          NPM_PUBLISH_DRY_RUN: "0"
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Verify exact packages from a clean registry consumer
+      - name: Verify exact packages from a Node 20 pnpm registry consumer
         if: ${{ !inputs.dry_run }}
         run: pnpm run verify:registry-consumer
         env:
+          AGENTPLAT_REGISTRY_CONSUMER_PM: pnpm
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: ${{ !inputs.dry_run }}
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Verify exact packages from a Node 22 npm registry consumer
+        if: ${{ !inputs.dry_run }}
+        run: node scripts/verify-registry-consumer.mjs
+        env:
+          AGENTPLAT_REGISTRY_CONSUMER_PM: npm
           NPM_CONFIG_USERCONFIG: /dev/null

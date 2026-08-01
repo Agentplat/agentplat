@@ -1,0 +1,52 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "IIIIIIIIIIIIIIIIIIIIIA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "lease.takeover_proposal",
+  "sender": {
+    "peerId": "peer-b",
+    "instanceId": "instance-b"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-c"
+  },
+  "sequence": 20,
+  "sentAt": "2026-07-30T01:01:00.000Z",
+  "expiresAt": "2026-07-30T01:02:00.000Z",
+  "causationId": "HHHHHHHHHHHHHHHHHHHHHA",
+  "payloadHash": "sha256:xALq-6coZm1mxeCdtFdjglAsdEe8KDo_dphETryJyvQ",
+  "payload": {
+    "type": "lease.takeover_proposal",
+    "takeoverProposalId": "takeover-proposal-a",
+    "proposalAuthority": "witness",
+    "candidateConsentProposalId": "candidate-consent-proposal-a",
+    "proposerPeerId": "peer-b",
+    "proposedAssigneePeerId": "peer-c",
+    "proposedAssignmentEpoch": 2,
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-b",
+    "ownerEpoch": 1,
+    "assigneePeerId": "peer-a",
+    "awardId": "award-a",
+    "acceptanceId": "acceptance-a",
+    "assignmentEpoch": 1,
+    "assignmentAuthorityId": "award-a",
+    "fencingToken": "award-a",
+    "leaseExpiresAt": "2026-07-30T01:00:00.000Z",
+    "leaseRenewalSequence": 1,
+    "latestLeaseRenewalId": "lease-renewal-a"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "CNnydnHp56CLs21vaPANH84_unAjKiyOkUknuq70NNK-F9seCi2Q0FTF12atDWXlCLXEta6XTfg251a0YriLAg"
+  }
+}

@@ -92,6 +92,21 @@
       "packSmoke": true
     },
     {
+      "name": "@agentplat/mesh-conformance",
+      "directory": "packages/mesh-conformance",
+      "layer": "testing",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        ".",
+        "./durability",
+        "./protocol",
+        "./rooms",
+        "./transport"
+      ],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/mesh-crypto",
       "directory": "packages/mesh-crypto",
       "layer": "foundation",

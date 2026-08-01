@@ -217,7 +217,7 @@ const scenarioDefinitions = [
     "27",
     "packed-and-registry-trust-flow",
     "tests/verify-registry-consumer.test.mjs",
-    "registry consumer copies Mesh, inference-control, and Trust verification scenarios",
+    "registry consumer copies compatibility and conformance scenarios",
     ["packed_tarball", "exact_registry_consumer"],
   ],
 ];

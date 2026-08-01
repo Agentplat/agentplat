@@ -2,8 +2,20 @@
 /** Exact protocol identifier signed by every Mesh peer. */
 export const MESH_PROTOCOL = 'agentplat.mesh' as const;
 
-/** Alpha releases use wire version zero until beta fixtures are frozen. */
-export const MESH_WIRE_VERSION = 0 as const;
+/** Current wire version emitted by Beta writers. */
+export const MESH_WIRE_VERSION = 1 as const;
+
+/** Preceding wire version retained for explicit Alpha compatibility. */
+export const MESH_PREVIOUS_WIRE_VERSION = 0 as const;
+
+/** Complete built-in read set in ascending preference order. */
+export const MESH_SUPPORTED_WIRE_VERSIONS = Object.freeze([
+  MESH_PREVIOUS_WIRE_VERSION,
+  MESH_WIRE_VERSION,
+] as const);
+
+/** Wire versions understood by this release line. */
+export type MeshWireVersion = (typeof MESH_SUPPORTED_WIRE_VERSIONS)[number];
 
 /** Reference signature suite for the initial protocol. */
 export const MESH_SIGNATURE_ALGORITHM = 'Ed25519' as const;
@@ -664,9 +676,10 @@ export type MeshMessagePayload =
 /** Shared fields that participate in envelope identity and signing. */
 export interface MeshEnvelopeHeader<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > {
   readonly protocol: typeof MESH_PROTOCOL;
-  readonly wireVersion: typeof MESH_WIRE_VERSION;
+  readonly wireVersion: TWireVersion;
   readonly messageId: string;
   readonly tenantId: string;
   readonly meshId: string;
@@ -686,7 +699,8 @@ export interface MeshEnvelopeHeader<
 /** Producer input before payload hashing and signature generation. */
 export interface UnsignedMeshEnvelope<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
-> extends MeshEnvelopeHeader<TPayload> {
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+> extends MeshEnvelopeHeader<TPayload, TWireVersion> {
   readonly payload: TPayload;
   readonly proof: MeshProofHeader;
 }
@@ -694,7 +708,8 @@ export interface UnsignedMeshEnvelope<
 /** Structurally complete signed wire envelope. */
 export interface MeshEnvelope<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
-> extends MeshEnvelopeHeader<TPayload> {
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+> extends MeshEnvelopeHeader<TPayload, TWireVersion> {
   readonly payloadHash: string;
   readonly payload: TPayload;
   readonly proof: MeshProof;
@@ -703,7 +718,8 @@ export interface MeshEnvelope<
 /** Canonical document signed after hashing the payload. */
 export type MeshSigningDocument<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
-> = Omit<MeshEnvelope<TPayload>, 'payload' | 'proof'> & {
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+> = Omit<MeshEnvelope<TPayload, TWireVersion>, 'payload' | 'proof'> & {
   proof: MeshProofHeader;
 };
 
@@ -713,8 +729,9 @@ declare const verifiedMeshEnvelopeBrand: unique symbol;
 /** Envelope produced by an approved signer or strict wire parser. */
 export type SignedMeshEnvelope<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > = Readonly<
-  MeshEnvelope<TPayload> & {
+  MeshEnvelope<TPayload, TWireVersion> & {
     [signedMeshEnvelopeBrand]: true;
   }
 >;
@@ -722,11 +739,38 @@ export type SignedMeshEnvelope<
 /** Signed envelope whose digest and proof have been verified locally. */
 export type VerifiedMeshEnvelope<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > = Readonly<
-  SignedMeshEnvelope<TPayload> & {
+  SignedMeshEnvelope<TPayload, TWireVersion> & {
     [verifiedMeshEnvelopeBrand]: true;
   }
 >;
+
+/** Explicit compatibility aliases for version-narrowed consumers. */
+export type MeshEnvelopeV0<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = MeshEnvelope<TPayload, typeof MESH_PREVIOUS_WIRE_VERSION>;
+export type MeshEnvelopeV1<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = MeshEnvelope<TPayload, typeof MESH_WIRE_VERSION>;
+export type SignedMeshEnvelopeV0<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = SignedMeshEnvelope<TPayload, typeof MESH_PREVIOUS_WIRE_VERSION>;
+export type SignedMeshEnvelopeV1<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = SignedMeshEnvelope<TPayload, typeof MESH_WIRE_VERSION>;
+export type UnsignedMeshEnvelopeV0<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = UnsignedMeshEnvelope<TPayload, typeof MESH_PREVIOUS_WIRE_VERSION>;
+export type UnsignedMeshEnvelopeV1<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = UnsignedMeshEnvelope<TPayload, typeof MESH_WIRE_VERSION>;
+export type VerifiedMeshEnvelopeV0<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = VerifiedMeshEnvelope<TPayload, typeof MESH_PREVIOUS_WIRE_VERSION>;
+export type VerifiedMeshEnvelopeV1<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+> = VerifiedMeshEnvelope<TPayload, typeof MESH_WIRE_VERSION>;
 
 /** Explicit parser and protocol bounds. */
 export interface MeshProtocolLimits {
@@ -800,6 +844,8 @@ export interface MeshProtocolIssue {
 /** Optional limit overrides used by pure parsing and serialization helpers. */
 export interface MeshProtocolOptions {
   readonly limits?: Partial<MeshProtocolLimits>;
+  /** Optional read-policy narrowing; unsupported versions cannot be added. */
+  readonly acceptedWireVersions?: readonly MeshWireVersion[];
 }
 
 /** Local context applied after structural envelope validation. */

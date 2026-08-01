@@ -1,6 +1,11 @@
 import {
   MESH_DURABILITY_SCHEMA_VERSION,
+  MESH_DURABLE_ENVELOPE_FORMAT,
   MESH_DURABLE_GENESIS_DIGEST,
+  MESH_DURABLE_JOURNAL_VERSION,
+  MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT,
+  MESH_DURABLE_OPAQUE_SNAPSHOT_FORMAT,
+  MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION,
   computeMeshDurableValueDigest,
   createMeshDurableJournalEntry,
   normalizeMeshDurableScope,
@@ -20,6 +25,7 @@ import type {
   MeshDurableRepository,
   MeshDurableScope,
   MeshDurableSettleOutboxInput,
+  MeshDurableSnapshotDescriptor,
 } from "@agentplat/mesh/durability";
 import {
   canonicalizeMeshJsonBytes,
@@ -35,6 +41,7 @@ import {
   normalizePostgresIdentifier,
   quotePostgresIdentifier,
 } from "@agentplat/postgres";
+import { Buffer } from "node:buffer";
 import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 type Row = QueryResultRow & Record<string, unknown>;
@@ -97,6 +104,7 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
     const scope = normalizeMeshDurableScope(input.scope);
     const envelope = validateInboundEnvelope(input.envelope, scope);
     const envelopeDigest = await digestEnvelope(envelope);
+    const envelopeBytes = canonicalEnvelopeBytes(envelope);
     return this.#transaction(async (database) => {
       await database.query(
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
@@ -141,14 +149,19 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
       const inserted = await database.query<Row>(
         `INSERT INTO public.mesh_inbox
            (tenant_id, mesh_id, peer_id, instance_id, message_id,
-            envelope, envelope_digest)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
+            envelope, envelope_digest, wrapper_schema_version,
+            envelope_format, envelope_wire_version, envelope_bytes)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11)
          RETURNING received_at`,
         [
           ...scopeValues(scope),
           envelope.messageId,
           JSON.stringify(envelope),
           envelopeDigest,
+          MESH_DURABILITY_SCHEMA_VERSION,
+          MESH_DURABLE_ENVELOPE_FORMAT,
+          envelope.wireVersion,
+          Buffer.from(envelopeBytes),
         ],
       );
       return Object.freeze({
@@ -290,20 +303,35 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
       if (input.outcome === "applied") {
         const state = cloneStrictJson(input.nextState as MeshJsonValue);
         const stateDigest = await computeMeshDurableValueDigest(state);
+        const descriptor = normalizeSnapshotDescriptor(
+          input.nextStateDescriptor,
+        );
         const revision = input.expectedSnapshotRevision + 1;
         const snapshotResult = await database.query<Row>(
           `INSERT INTO public.mesh_peer_snapshots
              (tenant_id, mesh_id, peer_id, instance_id, revision, state,
-              state_digest, committed_at)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7,
+              state_digest, wrapper_schema_version, snapshot_format,
+              snapshot_schema_version, committed_at)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10,
                    transaction_timestamp())
            ON CONFLICT (tenant_id, mesh_id, peer_id, instance_id)
            DO UPDATE SET revision = EXCLUDED.revision,
                          state = EXCLUDED.state,
                          state_digest = EXCLUDED.state_digest,
+                         wrapper_schema_version = EXCLUDED.wrapper_schema_version,
+                         snapshot_format = EXCLUDED.snapshot_format,
+                         snapshot_schema_version = EXCLUDED.snapshot_schema_version,
                          committed_at = EXCLUDED.committed_at
            RETURNING *`,
-          [...scopeValues(scope), revision, JSON.stringify(state), stateDigest],
+          [
+            ...scopeValues(scope),
+            revision,
+            JSON.stringify(state),
+            stateDigest,
+            MESH_DURABILITY_SCHEMA_VERSION,
+            descriptor.format,
+            descriptor.schemaVersion,
+          ],
         );
         snapshot = await mapSnapshot(snapshotResult.rows[0]!, scope);
       }
@@ -379,9 +407,9 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
              (tenant_id, mesh_id, peer_id, instance_id, sequence, entry_id,
               previous_digest, digest, transition_id, inbox_message_id,
               snapshot_revision, snapshot_digest, kind, reason_code,
-              occurred_at)
+              occurred_at, wrapper_schema_version, journal_version)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                   $13, $14, $15::timestamptz)`,
+                   $13, $14, $15::timestamptz, $16, $17)`,
           [
             ...scopeValues(scope),
             entry.sequence,
@@ -395,6 +423,8 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
             entry.kind,
             entry.reasonCode ?? null,
             entry.occurredAt,
+            MESH_DURABILITY_SCHEMA_VERSION,
+            MESH_DURABLE_JOURNAL_VERSION,
           ],
         );
         journal.push(entry);
@@ -414,11 +444,15 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
           targetPeerId,
         );
         const envelopeDigest = await digestEnvelope(envelope);
+        const envelopeBytes = canonicalEnvelopeBytes(envelope);
         const inserted = await database.query<Row>(
           `INSERT INTO public.mesh_outbox
              (tenant_id, mesh_id, peer_id, instance_id, effect_id, message_id,
-              target_peer_id, envelope, envelope_digest)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+              target_peer_id, envelope, envelope_digest,
+              wrapper_schema_version, envelope_format,
+              envelope_wire_version, envelope_bytes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11,
+                   $12, $13)
            RETURNING *`,
           [
             ...scopeValues(scope),
@@ -427,6 +461,10 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
             targetPeerId ?? null,
             JSON.stringify(envelope),
             envelopeDigest,
+            MESH_DURABILITY_SCHEMA_VERSION,
+            MESH_DURABLE_ENVELOPE_FORMAT,
+            envelope.wireVersion,
+            Buffer.from(envelopeBytes),
           ],
         );
         outbox.push(await mapOutbox(inserted.rows[0]!, scope));
@@ -715,21 +753,115 @@ async function digestEnvelope(envelope: SignedMeshEnvelope): Promise<string> {
   return computeMeshDurableValueDigest(envelope as unknown as MeshJsonValue);
 }
 
-async function restoreEnvelope(input: unknown): Promise<SignedMeshEnvelope> {
+function canonicalEnvelopeBytes(envelope: SignedMeshEnvelope): Uint8Array {
+  const canonical = canonicalizeMeshJsonBytes(envelope);
+  if (!canonical.ok) {
+    throw new TypeError("Mesh envelope cannot be encoded canonically");
+  }
+  return canonical.value;
+}
+
+function normalizeSnapshotDescriptor(
+  input: MeshDurableSnapshotDescriptor | undefined,
+): MeshDurableSnapshotDescriptor {
+  const descriptor =
+    input ??
+    Object.freeze({
+      format: MESH_DURABLE_OPAQUE_SNAPSHOT_FORMAT,
+      schemaVersion: 0,
+    });
+  const keys =
+    descriptor && typeof descriptor === "object"
+      ? Object.keys(descriptor).sort()
+      : [];
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    keys.length !== 2 ||
+    keys[0] !== "format" ||
+    keys[1] !== "schemaVersion" ||
+    typeof descriptor.format !== "string" ||
+    descriptor.format.length < 3 ||
+    new TextEncoder().encode(descriptor.format).byteLength > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(descriptor.format) ||
+    descriptor.format === MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT ||
+    !Number.isSafeInteger(descriptor.schemaVersion) ||
+    descriptor.schemaVersion < 0 ||
+    descriptor.schemaVersion > 65_535
+  ) {
+    throw new TypeError("Mesh snapshot descriptor is invalid");
+  }
+  return Object.freeze({ ...descriptor });
+}
+
+function durabilitySchemaVersion(value: unknown): 1 | 2 {
+  const version = Number(value ?? MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION);
+  if (
+    version !== MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION &&
+    version !== MESH_DURABILITY_SCHEMA_VERSION
+  ) {
+    throw new TypeError("Persisted Mesh wrapper schema version is invalid");
+  }
+  return version;
+}
+
+function assertEnvelopeMetadata(
+  row: Row,
+  schemaVersion: 1 | 2,
+  envelope: SignedMeshEnvelope,
+  canonicalBytes: Uint8Array,
+): void {
+  if (schemaVersion === MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION) return;
+  if (
+    row.envelope_format !== MESH_DURABLE_ENVELOPE_FORMAT ||
+    safeInteger(row.envelope_wire_version, "envelope wire version") !==
+      envelope.wireVersion ||
+    row.envelope_bytes == null ||
+    !bytesEqual(canonicalBytes, row.envelope_bytes)
+  ) {
+    throw new TypeError("Persisted Mesh envelope metadata is invalid");
+  }
+}
+
+function bytesEqual(expected: Uint8Array, actual: unknown): boolean {
+  if (
+    !(actual instanceof Uint8Array) ||
+    actual.byteLength !== expected.length
+  ) {
+    return false;
+  }
+  return expected.every((value, index) => actual[index] === value);
+}
+
+async function restoreEnvelope(
+  input: unknown,
+  persistedBytes?: unknown,
+): Promise<{
+  readonly envelope: SignedMeshEnvelope;
+  readonly bytes: Uint8Array;
+}> {
   const canonical = canonicalizeMeshJsonBytes(input);
   if (!canonical.ok) {
     throw new TypeError("Persisted Mesh envelope is invalid");
   }
   const parsed = parseSignedMeshEnvelope(canonical.value);
   if (!parsed.ok) throw new TypeError("Persisted Mesh envelope is invalid");
-  return parsed.value;
+  if (
+    persistedBytes !== undefined &&
+    persistedBytes !== null &&
+    !bytesEqual(canonical.value, persistedBytes)
+  ) {
+    throw new TypeError("Persisted Mesh envelope bytes are not canonical");
+  }
+  return Object.freeze({ envelope: parsed.value, bytes: canonical.value });
 }
 
 async function mapInbox(
   row: Row,
   scope: MeshDurableScope,
 ): Promise<MeshDurableInboxRecord> {
-  const envelope = await restoreEnvelope(row.envelope);
+  const restored = await restoreEnvelope(row.envelope, row.envelope_bytes);
+  const envelope = restored.envelope;
   const envelopeDigest = await digestEnvelope(envelope);
   if (
     envelope.messageId !== String(row.message_id) ||
@@ -739,12 +871,24 @@ async function mapInbox(
   }
   const status = String(row.status) as MeshDurableInboxRecord["status"];
   const claim = mapClaim(row, status === "processing");
+  const schemaVersion = durabilitySchemaVersion(row.wrapper_schema_version);
+  assertEnvelopeMetadata(row, schemaVersion, envelope, restored.bytes);
   return Object.freeze({
-    schemaVersion: MESH_DURABILITY_SCHEMA_VERSION,
+    schemaVersion,
     scope,
     messageId: envelope.messageId,
     envelope,
     envelopeDigest,
+    ...(schemaVersion === MESH_DURABILITY_SCHEMA_VERSION
+      ? {
+          envelopeFormat: String(row.envelope_format),
+          envelopeWireVersion: safeInteger(
+            row.envelope_wire_version,
+            "inbox envelope wire version",
+          ),
+          envelopeBytes: Buffer.from(restored.bytes).toString("base64url"),
+        }
+      : {}),
     status,
     attempts: safeInteger(row.attempts, "inbox attempts"),
     receivedAt: iso(row.received_at),
@@ -759,7 +903,8 @@ async function mapOutbox(
   row: Row,
   scope: MeshDurableScope,
 ): Promise<MeshDurableOutboxRecord> {
-  const envelope = await restoreEnvelope(row.envelope);
+  const restored = await restoreEnvelope(row.envelope, row.envelope_bytes);
+  const envelope = restored.envelope;
   const envelopeDigest = await digestEnvelope(envelope);
   if (
     envelope.messageId !== String(row.message_id) ||
@@ -769,13 +914,25 @@ async function mapOutbox(
   }
   const status = String(row.status) as MeshDurableOutboxRecord["status"];
   const claim = mapClaim(row, status === "delivering");
+  const schemaVersion = durabilitySchemaVersion(row.wrapper_schema_version);
+  assertEnvelopeMetadata(row, schemaVersion, envelope, restored.bytes);
   return Object.freeze({
-    schemaVersion: MESH_DURABILITY_SCHEMA_VERSION,
+    schemaVersion,
     scope,
     effectId: String(row.effect_id),
     messageId: envelope.messageId,
     envelope,
     envelopeDigest,
+    ...(schemaVersion === MESH_DURABILITY_SCHEMA_VERSION
+      ? {
+          envelopeFormat: String(row.envelope_format),
+          envelopeWireVersion: safeInteger(
+            row.envelope_wire_version,
+            "outbox envelope wire version",
+          ),
+          envelopeBytes: Buffer.from(restored.bytes).toString("base64url"),
+        }
+      : {}),
     ...(row.target_peer_id == null
       ? {}
       : { targetPeerId: String(row.target_peer_id) }),
@@ -798,8 +955,27 @@ async function mapSnapshot(
   if (stateDigest !== String(row.state_digest)) {
     throw new TypeError("Persisted Mesh snapshot integrity check failed");
   }
+  const schemaVersion = durabilitySchemaVersion(row.wrapper_schema_version);
+  const hasSnapshotFormat = row.snapshot_format !== undefined;
+  const hasSnapshotSchemaVersion = row.snapshot_schema_version !== undefined;
+  if (hasSnapshotFormat !== hasSnapshotSchemaVersion) {
+    throw new TypeError("Persisted Mesh snapshot descriptor is incomplete");
+  }
+  const descriptor = hasSnapshotFormat
+    ? persistedSnapshotDescriptor(
+        row.snapshot_format,
+        row.snapshot_schema_version,
+        schemaVersion,
+      )
+    : undefined;
+  if (
+    schemaVersion === MESH_DURABILITY_SCHEMA_VERSION &&
+    descriptor === undefined
+  ) {
+    throw new TypeError("Persisted Mesh snapshot descriptor is missing");
+  }
   return Object.freeze({
-    schemaVersion: MESH_DURABILITY_SCHEMA_VERSION,
+    schemaVersion,
     scope,
     revision: positiveInteger(
       safeInteger(row.revision, "snapshot revision"),
@@ -808,6 +984,12 @@ async function mapSnapshot(
     ),
     state,
     stateDigest,
+    ...(descriptor === undefined
+      ? {}
+      : {
+          snapshotFormat: descriptor.format,
+          snapshotSchemaVersion: descriptor.schemaVersion,
+        }),
     committedAt: iso(row.committed_at),
   });
 }
@@ -816,6 +998,14 @@ async function mapJournal(
   row: Row,
   scope: MeshDurableScope,
 ): Promise<MeshDurableJournalEntry> {
+  const schemaVersion = durabilitySchemaVersion(row.wrapper_schema_version);
+  if (
+    schemaVersion === MESH_DURABILITY_SCHEMA_VERSION &&
+    safeInteger(row.journal_version, "journal chain version") !==
+      MESH_DURABLE_JOURNAL_VERSION
+  ) {
+    throw new TypeError("Persisted Mesh journal version is invalid");
+  }
   const entry = await createMeshDurableJournalEntry({
     scope,
     sequence: safeInteger(row.sequence, "journal sequence"),
@@ -834,11 +1024,38 @@ async function mapJournal(
         : { reasonCode: String(row.reason_code) }),
     },
     occurredAt: iso(row.occurred_at),
+    schemaVersion,
   });
   if (entry.digest !== String(row.digest)) {
     throw new TypeError("Persisted Mesh journal integrity check failed");
   }
   return entry;
+}
+
+function persistedSnapshotDescriptor(
+  formatValue: unknown,
+  schemaVersionValue: unknown,
+  wrapperSchemaVersion: 1 | 2,
+): MeshDurableSnapshotDescriptor {
+  const format = String(formatValue);
+  const schemaVersion = safeInteger(
+    schemaVersionValue,
+    "snapshot content schema version",
+  );
+  if (
+    format.length < 3 ||
+    new TextEncoder().encode(format).byteLength > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(format) ||
+    schemaVersion < 0 ||
+    schemaVersion > 65_535 ||
+    (wrapperSchemaVersion === MESH_DURABILITY_SCHEMA_VERSION &&
+      format === MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT) ||
+    (wrapperSchemaVersion === MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION &&
+      format !== MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT)
+  ) {
+    throw new TypeError("Persisted Mesh snapshot descriptor is invalid");
+  }
+  return Object.freeze({ format, schemaVersion });
 }
 
 function mapClaim(row: Row, required: boolean): MeshDurableClaim | undefined {
@@ -895,12 +1112,16 @@ function assertCommitInput(
     (input.outcome === "applied" && input.nextState === undefined) ||
     (input.outcome === "rejected" &&
       (input.nextState !== undefined ||
+        input.nextStateDescriptor !== undefined ||
         input.outbox.length !== 0 ||
         input.reasonCode === undefined)) ||
     (input.outcome === "applied" && input.reasonCode !== undefined) ||
     (input.outcome !== "applied" && input.outcome !== "rejected")
   ) {
     throw new TypeError("Mesh durable commit input is invalid");
+  }
+  if (input.outcome === "applied") {
+    normalizeSnapshotDescriptor(input.nextStateDescriptor);
   }
   if (input.reasonCode !== undefined) {
     boundedReason(input.reasonCode, "reasonCode");

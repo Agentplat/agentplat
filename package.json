@@ -1,6 +1,6 @@
 {
   "name": "agentplat",
-  "version": "0.3.0-alpha.5",
+  "version": "0.3.0-beta.1",
   "private": true,
   "description": "Open-core runtime primitives for building agentic platforms.",
   "license": "Apache-2.0",
@@ -31,12 +31,20 @@
     "verify:release": "node scripts/verify-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
     "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",
+    "fixtures:mesh-protocol:write": "pnpm --filter @agentplat/mesh-protocol build && node scripts/mesh-protocol-fixtures.mjs --write",
+    "verify:mesh-protocol-fixtures": "pnpm --filter @agentplat/mesh-protocol build && node scripts/mesh-protocol-fixtures.mjs",
+    "fixtures:mesh-persistence:write": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-sim build && node scripts/mesh-persistence-fixtures.mjs --write",
+    "verify:mesh-persistence-fixtures": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-sim build && node scripts/mesh-persistence-fixtures.mjs",
+    "verify:mesh-compatibility": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol build && node scripts/mesh-beta1-compatibility.mjs",
+    "verify:mesh-postgres-faults": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-postgres build && node scripts/mesh-beta1-postgres-fault-matrix.mjs",
+    "verify:mesh-soak": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node scripts/mesh-beta1-soak.mjs",
+    "verify:alpha5-compatibility": "node scripts/verify-alpha5-compatibility.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:pack"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",
@@ -49,6 +57,7 @@
     "@agentplat/mcp": "workspace:*",
     "@agentplat/memory": "workspace:*",
     "@agentplat/mesh": "workspace:*",
+    "@agentplat/mesh-conformance": "workspace:*",
     "@agentplat/mesh-crypto": "workspace:*",
     "@agentplat/mesh-http": "workspace:*",
     "@agentplat/mesh-postgres": "workspace:*",

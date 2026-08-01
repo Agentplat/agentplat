@@ -5,7 +5,7 @@ import { createHash, webcrypto as crypto } from 'node:crypto';
 import {
   DEFAULT_MESH_CRYPTO_POLICY,
   createStaticMeshKeyResolver,
-  signMeshEnvelope,
+  createWebCryptoMeshEnvelopeSigner,
   verifyMeshEnvelope,
 } from '@agentplat/mesh-crypto';
 import {
@@ -28,6 +28,9 @@ import {
 
 const AT = '2026-07-30T00:00:01.000Z';
 const RECOVERY_AT = '2026-07-30T00:01:25.000Z';
+const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+  signingPolicy: { allowedWireVersions: [0] },
+});
 const peerIds = Object.freeze(['peer-a', 'peer-b', 'peer-c', 'peer-d']);
 const identity = Object.freeze({
   tenantId: 'tenant-packed',
@@ -90,8 +93,9 @@ function withPayloadHash(value) {
 }
 
 async function signed(value, peerId, keys, resolver, verifiedAt = AT) {
-  const result = await signMeshEnvelope({
-    envelope: withPayloadHash(value),
+  const preparedEnvelope = withPayloadHash(value);
+  const result = await compatibilitySigner.sign({
+    envelope: preparedEnvelope,
     privateKey: keys[peerId].privateKey,
   });
   const verified = await verifyMeshEnvelope({

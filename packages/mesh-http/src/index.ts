@@ -1,16 +1,21 @@
 import {
   DEFAULT_MESH_PROTOCOL_LIMITS,
+  MESH_PREVIOUS_WIRE_VERSION,
+  MESH_WIRE_VERSION,
   canonicalizeMeshJsonBytes,
   parseSignedMeshEnvelope,
   validateSignedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
 import type {
   MeshProtocolOptions,
+  MeshWireVersion,
   SignedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
 
 export const MESH_HTTP_RECEIPT_SCHEMA_VERSION = 1 as const;
-export const DEFAULT_MESH_HTTP_PATH = "/agentplat/mesh/v0/envelopes";
+export const MESH_HTTP_V0_PATH = "/agentplat/mesh/v0/envelopes";
+export const MESH_HTTP_V1_PATH = "/agentplat/mesh/v1/envelopes";
+export const DEFAULT_MESH_HTTP_PATH = MESH_HTTP_V1_PATH;
 
 export interface MeshHttpTarget {
   readonly tenantId: string;
@@ -21,6 +26,8 @@ export interface MeshHttpTarget {
 export interface MeshHttpEndpoint {
   readonly url: string;
   readonly headers?: Readonly<Record<string, string>>;
+  /** Required when delivering a compatibility v0 envelope. */
+  readonly wireVersion?: MeshWireVersion;
 }
 
 export type MeshHttpEndpointResolver = (
@@ -120,6 +127,8 @@ export interface MeshHttpHandlerOptions {
     context: MeshHttpIngressContext,
   ) => MeshHttpIngressDecision | Promise<MeshHttpIngressDecision>;
   readonly path?: string;
+  /** Defaults to the current v1 route; v0 must be enabled explicitly. */
+  readonly wireVersion?: MeshWireVersion;
   readonly authenticate?: MeshHttpChannelAuthenticator;
   readonly cors?: MeshHttpCorsPolicy;
   readonly maximumBodyBytes?: number;
@@ -187,7 +196,11 @@ export function createMeshHttpClient(
       let url: URL;
       let headers: Headers;
       try {
-        ({ url, headers } = validateEndpoint(endpoint, allowedSchemes));
+        ({ url, headers } = validateEndpoint(
+          endpoint,
+          allowedSchemes,
+          envelope.wireVersion,
+        ));
       } catch {
         diagnostic(options, {
           kind: "client.failure",
@@ -287,7 +300,16 @@ export function createMeshHttpHandler(
     throw new TypeError("Mesh HTTP durable acceptor is required");
   }
   const target = freezeIngressTarget(options.target);
-  const path = exactPath(options.path ?? DEFAULT_MESH_HTTP_PATH);
+  const wireVersion = meshHttpWireVersion(
+    options.wireVersion ?? MESH_WIRE_VERSION,
+  );
+  const path = exactPath(
+    options.path ??
+      (wireVersion === MESH_WIRE_VERSION
+        ? MESH_HTTP_V1_PATH
+        : MESH_HTTP_V0_PATH),
+  );
+  assertPathVersionCoherence(path, wireVersion);
   const protocolMaximum =
     options.protocolOptions?.limits?.maximumEnvelopeBytes ??
     DEFAULT_MESH_PROTOCOL_LIMITS.maximumEnvelopeBytes;
@@ -377,7 +399,10 @@ export function createMeshHttpHandler(
       diagnostic(options, { kind: "handler.failure", code: "body_failure" });
       return respond(413, "permanent_rejection");
     }
-    const parsed = parseSignedMeshEnvelope(bytes, options.protocolOptions);
+    const parsed = parseSignedMeshEnvelope(bytes, {
+      ...options.protocolOptions,
+      acceptedWireVersions: [wireVersion],
+    });
     if (!parsed.ok) return respond(400, "permanent_rejection");
     const envelope = parsed.value;
     if (!envelopeTargets(envelope, target)) {
@@ -446,12 +471,17 @@ function targetFor(
 function validateEndpoint(
   endpoint: MeshHttpEndpoint,
   allowedSchemes: ReadonlySet<string>,
+  envelopeWireVersion: MeshWireVersion,
 ): { url: URL; headers: Headers } {
   if (!endpoint || typeof endpoint !== "object") {
     throw new TypeError("Mesh HTTP endpoint is required");
   }
   const url = new URL(endpoint.url);
+  const endpointWireVersion = meshHttpWireVersion(
+    endpoint.wireVersion ?? MESH_WIRE_VERSION,
+  );
   if (
+    endpointWireVersion !== envelopeWireVersion ||
     !allowedSchemes.has(url.protocol) ||
     url.username !== "" ||
     url.password !== "" ||
@@ -459,6 +489,7 @@ function validateEndpoint(
   ) {
     throw new TypeError("Mesh HTTP endpoint URL is not allowed");
   }
+  assertPathVersionCoherence(url.pathname, endpointWireVersion);
   const headers = new Headers();
   for (const [name, value] of Object.entries(endpoint.headers ?? {})) {
     const lower = name.toLowerCase();
@@ -512,6 +543,26 @@ function exactPath(value: string): string {
     throw new TypeError("Mesh HTTP path must be an exact absolute path");
   }
   return value;
+}
+
+function meshHttpWireVersion(value: MeshWireVersion): MeshWireVersion {
+  if (value !== MESH_PREVIOUS_WIRE_VERSION && value !== MESH_WIRE_VERSION) {
+    throw new TypeError("Mesh HTTP wire version is unsupported");
+  }
+  return value;
+}
+
+function assertPathVersionCoherence(
+  path: string,
+  wireVersion: MeshWireVersion,
+): void {
+  if (
+    (path === MESH_HTTP_V0_PATH &&
+      wireVersion !== MESH_PREVIOUS_WIRE_VERSION) ||
+    (path === MESH_HTTP_V1_PATH && wireVersion !== MESH_WIRE_VERSION)
+  ) {
+    throw new TypeError("Mesh HTTP path and wire version do not match");
+  }
 }
 
 interface NormalizedCorsPolicy {

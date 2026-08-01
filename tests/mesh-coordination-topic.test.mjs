@@ -6,7 +6,7 @@ import test from 'node:test';
 import {
   DEFAULT_MESH_CRYPTO_POLICY,
   createStaticMeshKeyResolver,
-  signMeshEnvelope,
+  createWebCryptoMeshEnvelopeSigner,
 } from '@agentplat/mesh-crypto';
 import {
   createMeshCoordinationInboundState,
@@ -25,6 +25,9 @@ const fixtureRoot = new URL(
 const peerCardFixture = fixture('peer-card.json');
 const capabilityFixture = fixture('capability-advertise.json');
 const verifiedAt = '2026-07-30T00:00:01.000Z';
+const dualWireSigner = createWebCryptoMeshEnvelopeSigner({
+  signingPolicy: { allowedWireVersions: [0, 1] },
+});
 
 function fixture(name) {
   return JSON.parse(readFileSync(new URL(name, fixtureRoot), 'utf8'));
@@ -87,7 +90,10 @@ async function signed(kind, peerId, number, privateKey) {
     source.payload.capabilityId = `capability-${suffix}`;
     source.payload.ownerPeerId = peerId;
   }
-  return signMeshEnvelope({ envelope: source, privateKey });
+  return dualWireSigner.sign({
+    envelope: source,
+    privateKey,
+  });
 }
 
 async function setup({

@@ -8,6 +8,10 @@ export {
   createMeshSigningDocument,
   parseMeshJson,
   parseSignedMeshEnvelope,
+  parseSignedMeshEnvelopeV0,
+  parseSignedMeshEnvelopeV1,
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
+  validateSignedMeshEnvelopeV0,
+  validateSignedMeshEnvelopeV1,
 } from './validation.js';

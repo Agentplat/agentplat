@@ -80,6 +80,7 @@ const cryptoRejectionCodes = new Set<MeshCryptoRejectionCode>([
   'invalid_envelope',
   'invalid_verification_time',
   'unsupported_algorithm',
+  'unsupported_wire_version',
   'payload_hash_mismatch',
   'key_not_found',
   'key_resolution_failed',
@@ -125,6 +126,13 @@ export function createMeshDiscoveryInboundProcessor(
       allowedAlgorithms: Object.freeze([
         ...options.cryptoPolicy.allowedAlgorithms,
       ]),
+      ...(options.cryptoPolicy.allowedWireVersions === undefined
+        ? {}
+        : {
+            allowedWireVersions: Object.freeze([
+              ...options.cryptoPolicy.allowedWireVersions,
+            ]),
+          }),
     }),
     crypto,
     ...(options.protocolOptions === undefined
@@ -137,6 +145,13 @@ export function createMeshDiscoveryInboundProcessor(
                   limits: Object.freeze({
                     ...options.protocolOptions.limits,
                   }),
+                }),
+            ...(options.protocolOptions.acceptedWireVersions === undefined
+              ? {}
+              : {
+                  acceptedWireVersions: Object.freeze([
+                    ...options.protocolOptions.acceptedWireVersions,
+                  ]),
                 }),
           }),
         }),
@@ -169,6 +184,13 @@ export function createMeshObjectiveInboundProcessor(
       allowedAlgorithms: Object.freeze([
         ...options.cryptoPolicy.allowedAlgorithms,
       ]),
+      ...(options.cryptoPolicy.allowedWireVersions === undefined
+        ? {}
+        : {
+            allowedWireVersions: Object.freeze([
+              ...options.cryptoPolicy.allowedWireVersions,
+            ]),
+          }),
     }),
     crypto,
     ...(options.protocolOptions === undefined
@@ -181,6 +203,13 @@ export function createMeshObjectiveInboundProcessor(
                   limits: Object.freeze({
                     ...options.protocolOptions.limits,
                   }),
+                }),
+            ...(options.protocolOptions.acceptedWireVersions === undefined
+              ? {}
+              : {
+                  acceptedWireVersions: Object.freeze([
+                    ...options.protocolOptions.acceptedWireVersions,
+                  ]),
                 }),
           }),
         }),
@@ -224,6 +253,13 @@ export function createMeshAllocationInboundProcessor(
       allowedAlgorithms: Object.freeze([
         ...options.cryptoPolicy.allowedAlgorithms,
       ]),
+      ...(options.cryptoPolicy.allowedWireVersions === undefined
+        ? {}
+        : {
+            allowedWireVersions: Object.freeze([
+              ...options.cryptoPolicy.allowedWireVersions,
+            ]),
+          }),
     }),
     crypto,
     ...(options.protocolOptions === undefined
@@ -236,6 +272,13 @@ export function createMeshAllocationInboundProcessor(
                   limits: Object.freeze({
                     ...options.protocolOptions.limits,
                   }),
+                }),
+            ...(options.protocolOptions.acceptedWireVersions === undefined
+              ? {}
+              : {
+                  acceptedWireVersions: Object.freeze([
+                    ...options.protocolOptions.acceptedWireVersions,
+                  ]),
                 }),
           }),
         }),
@@ -1421,7 +1464,7 @@ function assertProcessorOptions(
     Object.getPrototypeOf(options.cryptoPolicy) !== Object.prototype ||
     !hasExactDataKeys(
       options.cryptoPolicy,
-      ['allowedAlgorithms'],
+      ['allowedAlgorithms', 'allowedWireVersions'],
       ['allowedAlgorithms']
     ) ||
     !isDenseDataArray(options.cryptoPolicy.allowedAlgorithms) ||
@@ -1429,6 +1472,12 @@ function assertProcessorOptions(
     options.cryptoPolicy.allowedAlgorithms.some(
       (algorithm) => typeof algorithm !== 'string'
     ) ||
+    (options.cryptoPolicy.allowedWireVersions !== undefined &&
+      (!isDenseDataArray(options.cryptoPolicy.allowedWireVersions) ||
+        options.cryptoPolicy.allowedWireVersions.length < 1 ||
+        options.cryptoPolicy.allowedWireVersions.some(
+          (version) => !Number.isSafeInteger(version)
+        ))) ||
     (options.supportedCriticalExtensions !== undefined &&
       (!isDenseDataArray(options.supportedCriticalExtensions) ||
         options.supportedCriticalExtensions.length >
@@ -1440,9 +1489,19 @@ function assertProcessorOptions(
         ))) ||
     (options.protocolOptions !== undefined &&
       (!isPlainDataRecord(options.protocolOptions) ||
-        !hasExactDataKeys(options.protocolOptions, ['limits'], []) ||
+        !hasExactDataKeys(
+          options.protocolOptions,
+          ['acceptedWireVersions', 'limits'],
+          []
+        ) ||
         (options.protocolOptions.limits !== undefined &&
-          !isPlainDataRecord(options.protocolOptions.limits))))
+          !isPlainDataRecord(options.protocolOptions.limits)) ||
+        (options.protocolOptions.acceptedWireVersions !== undefined &&
+          (!isDenseDataArray(options.protocolOptions.acceptedWireVersions) ||
+            options.protocolOptions.acceptedWireVersions.length < 1 ||
+            options.protocolOptions.acceptedWireVersions.some(
+              (version) => !Number.isSafeInteger(version)
+            )))))
   ) {
     throw new TypeError('Invalid Mesh discovery inbound processor options');
   }

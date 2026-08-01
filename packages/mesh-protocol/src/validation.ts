@@ -11,8 +11,10 @@ import {
   DEFAULT_MESH_PROTOCOL_LIMITS,
   MESH_AUDIENCE_TOPICS,
   MESH_MESSAGE_TYPES,
+  MESH_PREVIOUS_WIRE_VERSION,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
+  MESH_SUPPORTED_WIRE_VERSIONS,
   MESH_WIRE_VERSION,
   type CapabilityAdvertisePayload,
   type CapabilityWithdrawPayload,
@@ -42,6 +44,7 @@ import {
   type MeshSender,
   type MeshSigningDocument,
   type MeshTimestampOrder,
+  type MeshWireVersion,
   type ObjectiveAnnouncePayload,
   type ObjectiveCancelPayload,
   type ObjectiveDocumentContent,
@@ -53,6 +56,8 @@ import {
   type PeerPingAckPayload,
   type PeerPingPayload,
   type SignedMeshEnvelope,
+  type SignedMeshEnvelopeV0,
+  type SignedMeshEnvelopeV1,
   type TrustObservationPayload,
   type WorkBidPayload,
   type WorkAcceptPayload,
@@ -224,6 +229,9 @@ export function parseSignedMeshEnvelope(
   options: MeshProtocolOptions = {}
 ): MeshProtocolResult<SignedMeshEnvelope> {
   const limits = resolveLimits(options.limits);
+  const acceptedWireVersions = resolveAcceptedWireVersions(
+    options.acceptedWireVersions
+  );
   const parsed = parseStrictJsonDocument(input, strictLimits(limits));
   if (!parsed.ok) return failure(parsed.code, parsed.path);
   if (
@@ -232,7 +240,32 @@ export function parseSignedMeshEnvelope(
   ) {
     return failure('structural_limit_exceeded', '$["payload"]');
   }
-  return validateSignedMeshEnvelope(parsed.value, { limits });
+  return validateSignedMeshEnvelope(parsed.value, {
+    acceptedWireVersions: [...acceptedWireVersions],
+    limits,
+  });
+}
+
+/** Strictly parses one compatibility wire-v0 envelope. */
+export function parseSignedMeshEnvelopeV0(
+  input: Uint8Array,
+  options: Omit<MeshProtocolOptions, 'acceptedWireVersions'> = {}
+): MeshProtocolResult<SignedMeshEnvelopeV0> {
+  return parseSignedMeshEnvelope(input, {
+    ...options,
+    acceptedWireVersions: [MESH_PREVIOUS_WIRE_VERSION],
+  }) as MeshProtocolResult<SignedMeshEnvelopeV0>;
+}
+
+/** Strictly parses one current wire-v1 envelope. */
+export function parseSignedMeshEnvelopeV1(
+  input: Uint8Array,
+  options: Omit<MeshProtocolOptions, 'acceptedWireVersions'> = {}
+): MeshProtocolResult<SignedMeshEnvelopeV1> {
+  return parseSignedMeshEnvelope(input, {
+    ...options,
+    acceptedWireVersions: [MESH_WIRE_VERSION],
+  }) as MeshProtocolResult<SignedMeshEnvelopeV1>;
 }
 
 /**
@@ -245,6 +278,9 @@ export function validateSignedMeshEnvelope(
 ): MeshProtocolResult<SignedMeshEnvelope> {
   const limits = resolveLimits(options.limits);
   try {
+    const acceptedWireVersions = resolveAcceptedWireVersions(
+      options.acceptedWireVersions
+    );
     const envelopeCanonicalization = canonicalizeJsonValue(
       input,
       strictLimits(limits),
@@ -256,7 +292,7 @@ export function validateSignedMeshEnvelope(
         envelopeCanonicalization.path
       );
     }
-    const envelope = validateEnvelope(input, limits);
+    const envelope = validateEnvelope(input, limits, acceptedWireVersions);
     const payloadCanonicalization = canonicalizeJsonValue(
       envelope.payload,
       strictLimits(limits),
@@ -274,6 +310,28 @@ export function validateSignedMeshEnvelope(
   }
 }
 
+/** Validates and narrows one in-memory compatibility wire-v0 envelope. */
+export function validateSignedMeshEnvelopeV0(
+  input: unknown,
+  options: Omit<MeshProtocolOptions, 'acceptedWireVersions'> = {}
+): MeshProtocolResult<SignedMeshEnvelopeV0> {
+  return validateSignedMeshEnvelope(input, {
+    ...options,
+    acceptedWireVersions: [MESH_PREVIOUS_WIRE_VERSION],
+  }) as MeshProtocolResult<SignedMeshEnvelopeV0>;
+}
+
+/** Validates and narrows one in-memory current wire-v1 envelope. */
+export function validateSignedMeshEnvelopeV1(
+  input: unknown,
+  options: Omit<MeshProtocolOptions, 'acceptedWireVersions'> = {}
+): MeshProtocolResult<SignedMeshEnvelopeV1> {
+  return validateSignedMeshEnvelope(input, {
+    ...options,
+    acceptedWireVersions: [MESH_WIRE_VERSION],
+  }) as MeshProtocolResult<SignedMeshEnvelopeV1>;
+}
+
 /**
  * Applies receiver scope, freshness and critical-extension support.
  * This stage does not perform peer admission or replay acceptance.
@@ -286,6 +344,7 @@ export function validateMeshEnvelopeContext(
   const limits = resolveLimits(options.limits);
   try {
     const structuralValidation = validateSignedMeshEnvelope(envelope, {
+      acceptedWireVersions: options.acceptedWireVersions,
       limits,
     });
     if (!structuralValidation.ok) return structuralValidation;
@@ -415,7 +474,8 @@ export function canonicalizeMeshPayload(
 
 function validateEnvelope(
   input: unknown,
-  limits: Readonly<MeshProtocolLimits>
+  limits: Readonly<MeshProtocolLimits>,
+  acceptedWireVersions: ReadonlySet<MeshWireVersion>
 ): MeshEnvelope {
   const envelope = assertClosedRecord(
     input,
@@ -427,9 +487,15 @@ function validateEnvelope(
   if (envelope.protocol !== MESH_PROTOCOL) {
     fail('invalid_protocol', '$["protocol"]');
   }
-  if (envelope.wireVersion !== MESH_WIRE_VERSION) {
+  if (
+    !MESH_SUPPORTED_WIRE_VERSIONS.includes(
+      envelope.wireVersion as MeshWireVersion
+    ) ||
+    !acceptedWireVersions.has(envelope.wireVersion as MeshWireVersion)
+  ) {
     fail('unsupported_wire_version', '$["wireVersion"]');
   }
+  const wireVersion = envelope.wireVersion as MeshWireVersion;
 
   const messageId = assertMessageId(envelope.messageId, '$["messageId"]');
   const tenantId = assertIdentifier(envelope.tenantId, '$["tenantId"]', limits);
@@ -482,7 +548,7 @@ function validateEnvelope(
     envelope.payloadHash,
     '$["payloadHash"]'
   );
-  const payload = validatePayload(type, envelope.payload, limits);
+  const payload = validatePayload(type, envelope.payload, limits, wireVersion);
   const proof = validateProof(envelope.proof, limits);
   const extensions =
     envelope.extensions === undefined
@@ -521,7 +587,7 @@ function validateEnvelope(
 
   return {
     protocol: MESH_PROTOCOL,
-    wireVersion: MESH_WIRE_VERSION,
+    wireVersion,
     messageId,
     tenantId,
     meshId,
@@ -604,7 +670,8 @@ function validateAudience(
 function validatePayload(
   type: MeshMessagePayload['type'],
   input: unknown,
-  limits: Readonly<MeshProtocolLimits>
+  limits: Readonly<MeshProtocolLimits>,
+  wireVersion: MeshWireVersion
 ): MeshMessagePayload {
   if (type === 'peer.hello') {
     const payload = assertClosedRecord(
@@ -697,7 +764,10 @@ function validatePayload(
         '$["payload"]["instanceId"]',
         limits
       ),
-      protocolVersions: validateProtocolVersions(payload.protocolVersions),
+      protocolVersions: validateProtocolVersions(
+        payload.protocolVersions,
+        wireVersion
+      ),
       transportHints: validateBoundedStringArray(
         payload.transportHints,
         '$["payload"]["transportHints"]',
@@ -4298,7 +4368,10 @@ function assertRfc3339PayloadTimestamp(
   }
 }
 
-function validateProtocolVersions(input: unknown): readonly number[] {
+function validateProtocolVersions(
+  input: unknown,
+  envelopeWireVersion: MeshWireVersion
+): readonly number[] {
   const path = '$["payload"]["protocolVersions"]';
   if (
     !Array.isArray(input) ||
@@ -4319,7 +4392,7 @@ function validateProtocolVersions(input: unknown): readonly number[] {
     ) {
       fail('invalid_payload', `${path}[${index}]`);
     }
-    if (value === MESH_WIRE_VERSION) includesCurrentWireVersion = true;
+    if (value === envelopeWireVersion) includesCurrentWireVersion = true;
     previous = value;
     result.push(value);
   }
@@ -4778,7 +4851,11 @@ function canonicalizeMeshJsonInternal(
       readonly ok: false;
       readonly issues: readonly MeshProtocolIssue[];
     } {
-  const limits = resolveLimits(options.limits);
+  // Generic canonicalization is also used for bounded simulator artifacts,
+  // whose aggregate document ceilings are intentionally larger than one wire
+  // envelope. Envelope parsing and validation continue to use resolveLimits,
+  // which only permits narrowing the frozen protocol maxima.
+  const limits = resolveGenericJsonLimits(options.limits);
   const result = canonicalizeJsonValue(
     input,
     strictLimits(limits),
@@ -4792,7 +4869,7 @@ function canonicalizeMeshJsonInternal(
       };
 }
 
-function resolveLimits(
+function resolveGenericJsonLimits(
   overrides: Partial<MeshProtocolLimits> | undefined
 ): Readonly<MeshProtocolLimits> {
   const result = {
@@ -4808,6 +4885,49 @@ function resolveLimits(
     }
   }
   return Object.freeze(result);
+}
+
+function resolveLimits(
+  overrides: Partial<MeshProtocolLimits> | undefined
+): Readonly<MeshProtocolLimits> {
+  const result = {
+    ...DEFAULT_MESH_PROTOCOL_LIMITS,
+  } as Record<keyof MeshProtocolLimits, number>;
+  if (overrides) {
+    for (const key of Object.keys(overrides) as (keyof MeshProtocolLimits)[]) {
+      const value = overrides[key];
+      if (value !== undefined && (!Number.isSafeInteger(value) || value < 1)) {
+        throw new RangeError(`Invalid Mesh protocol limit: ${key}`);
+      }
+      if (value !== undefined && value > DEFAULT_MESH_PROTOCOL_LIMITS[key]) {
+        throw new RangeError(
+          `Mesh protocol limit may only be narrowed: ${key}`
+        );
+      }
+      if (value !== undefined) result[key] = value;
+    }
+  }
+  return Object.freeze(result);
+}
+
+function resolveAcceptedWireVersions(
+  versions: readonly MeshWireVersion[] | undefined
+): ReadonlySet<MeshWireVersion> {
+  const requested = versions ?? MESH_SUPPORTED_WIRE_VERSIONS;
+  if (requested.length === 0) {
+    throw new RangeError('At least one Mesh wire version must be accepted');
+  }
+  const accepted = new Set<MeshWireVersion>();
+  for (const version of requested) {
+    if (!MESH_SUPPORTED_WIRE_VERSIONS.includes(version)) {
+      throw new RangeError(`Unsupported Mesh wire version policy: ${version}`);
+    }
+    if (accepted.has(version)) {
+      throw new RangeError(`Duplicate Mesh wire version policy: ${version}`);
+    }
+    accepted.add(version);
+  }
+  return accepted;
 }
 
 function strictLimits(limits: Readonly<MeshProtocolLimits>): StrictJsonLimits {

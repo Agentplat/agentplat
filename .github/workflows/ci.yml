@@ -28,6 +28,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 20
@@ -37,25 +39,56 @@ jobs:
       - run: pnpm --filter @agentplat/sessions-redis test
       - run: pnpm --filter @agentplat/audit-postgres test
         env:
-          AGENTPLAT_POSTGRES_TEST: '1'
+          AGENTPLAT_POSTGRES_TEST: "1"
           PGHOST: 127.0.0.1
-          PGPORT: '5432'
+          PGPORT: "5432"
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/mesh-postgres test
         env:
-          AGENTPLAT_POSTGRES_TEST: '1'
+          AGENTPLAT_POSTGRES_TEST: "1"
           PGHOST: 127.0.0.1
-          PGPORT: '5432'
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
+      - name: Verify Mesh PostgreSQL fault matrix, soak and benchmark
+        run: |
+          pnpm run verify:mesh-postgres-faults
+          pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
+          pnpm run benchmark:mesh-adapters
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/rooms-postgres test
         env:
-          AGENTPLAT_POSTGRES_TEST: '1'
+          AGENTPLAT_POSTGRES_TEST: "1"
           PGHOST: 127.0.0.1
-          PGPORT: '5432'
+          PGPORT: "5432"
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+
+  node22-npm-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - run: pnpm run build
+      - name: Verify packed plain-ESM npm consumer under Node 22
+        run: pnpm run verify:pack
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null

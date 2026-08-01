@@ -1,0 +1,51 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "WWWWWWWWWWWWWWWWWWWWWA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "work.offer",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-b"
+  },
+  "sequence": 9,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:01:00.000Z",
+  "payloadHash": "sha256:jD9n0UrdQC4M7UF7pSZyHVniGMUgJzJr8gIqB-dqlLQ",
+  "payload": {
+    "type": "work.offer",
+    "offerId": "offer-a",
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-a",
+    "ownerEpoch": 1,
+    "offerAttempt": 1,
+    "requiredCapabilityKeys": [
+      "summarize"
+    ],
+    "matchingAttributes": {
+      "language": "en"
+    },
+    "inputSummary": "Summarize the approved material.",
+    "completionCriteria": [
+      "Return a concise summary."
+    ],
+    "budgetReservationUnits": 100,
+    "bidDeadline": "2026-07-30T00:01:00.000Z",
+    "workDeadline": "2026-07-30T01:00:00.000Z"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "uQtwhc_ethSxNayPVtW4l5hCl_4goJDDJS8Qh1VaKrPWkOrHQdPoYO0g9TiteoS80WLrmfAe0AslJp9e8jGfBA"
+  }
+}

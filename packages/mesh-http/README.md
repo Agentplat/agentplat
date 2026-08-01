@@ -36,8 +36,11 @@ const client = createMeshHttpClient({
 await client.deliver({ envelope: signedEnvelope });
 ```
 
-The handler strictly parses one protocol-v0 envelope and acknowledges it only
-after the injected acceptor returns success. It does not verify signatures or
+The default handler and client path is `/agentplat/mesh/v1/envelopes`. A v0
+compatibility endpoint must explicitly bind both `wireVersion: 0` and
+`/agentplat/mesh/v0/envelopes`; path probing and version fallback are refused.
+Each handler strictly parses its bound version and acknowledges it only after
+the injected acceptor returns success. It does not verify signatures or
 admission; the durable worker must use the normal Mesh inbound boundary before
 state mutation.
 

@@ -2,6 +2,7 @@ import type {
   MeshMessagePayload,
   MeshProtocolOptions,
   MeshSignatureAlgorithm,
+  MeshWireVersion,
   SignedMeshEnvelope,
   UnsignedMeshEnvelope,
   VerifiedMeshEnvelope,
@@ -57,6 +58,18 @@ export interface MeshKeyResolver {
 /** Cryptographic suites and key states accepted by one local peer. */
 export interface MeshCryptoPolicy {
   readonly allowedAlgorithms: readonly MeshSignatureAlgorithm[];
+  /** Defaults to every built-in readable version when omitted. */
+  readonly allowedWireVersions?: readonly MeshWireVersion[];
+}
+
+/** Immutable outbound policy; compatibility v0 must be listed explicitly. */
+export interface MeshSigningPolicy {
+  readonly allowedWireVersions: readonly MeshWireVersion[];
+}
+
+/** Construction options for a policy-bound reference signer. */
+export interface WebCryptoMeshEnvelopeSignerOptions {
+  readonly signingPolicy?: MeshSigningPolicy;
 }
 
 /** Input required to canonicalize and hash one protocol payload. */
@@ -71,8 +84,9 @@ export interface MeshDigestRequest<
 /** Input required to hash and sign one outbound envelope. */
 export interface MeshSignRequest<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > {
-  readonly envelope: UnsignedMeshEnvelope<TPayload>;
+  readonly envelope: UnsignedMeshEnvelope<TPayload, TWireVersion>;
   readonly privateKey: CryptoKey;
   readonly crypto?: Crypto;
   readonly protocolOptions?: MeshProtocolOptions;
@@ -81,8 +95,9 @@ export interface MeshSignRequest<
 /** Input required for bounded local signature verification. */
 export interface MeshVerifyRequest<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > {
-  readonly envelope: SignedMeshEnvelope<TPayload>;
+  readonly envelope: SignedMeshEnvelope<TPayload, TWireVersion>;
   readonly resolver: MeshKeyResolver;
   readonly policy: MeshCryptoPolicy;
   readonly verifiedAt: string;
@@ -97,6 +112,7 @@ export type MeshCryptoRejectionCode =
   | 'invalid_envelope'
   | 'invalid_verification_time'
   | 'unsupported_algorithm'
+  | 'unsupported_wire_version'
   | 'payload_hash_mismatch'
   | 'key_not_found'
   | 'key_resolution_failed'
@@ -115,7 +131,8 @@ export type MeshCryptoErrorCode =
   | 'invalid_envelope'
   | 'invalid_private_key'
   | 'invalid_public_key'
-  | 'unsupported_algorithm';
+  | 'unsupported_algorithm'
+  | 'unsupported_wire_version';
 
 /** Typed operational failure for digest and signing APIs. */
 export class MeshCryptoError extends Error {
@@ -129,10 +146,11 @@ export class MeshCryptoError extends Error {
 /** Result returned by the reference envelope verifier. */
 export type MeshVerificationResult<
   TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
 > =
   | {
       readonly verified: true;
-      readonly envelope: VerifiedMeshEnvelope<TPayload>;
+      readonly envelope: VerifiedMeshEnvelope<TPayload, TWireVersion>;
       readonly key: MeshKeyRecord;
     }
   | {
@@ -142,16 +160,22 @@ export type MeshVerificationResult<
 
 /** Injectable signer used by production and loopback drivers. */
 export interface MeshEnvelopeSigner {
-  sign<TPayload extends MeshMessagePayload>(
-    request: MeshSignRequest<TPayload>
-  ): Promise<SignedMeshEnvelope<TPayload>>;
+  sign<
+    TPayload extends MeshMessagePayload,
+    TWireVersion extends MeshWireVersion = MeshWireVersion,
+  >(
+    request: MeshSignRequest<TPayload, TWireVersion>
+  ): Promise<SignedMeshEnvelope<TPayload, TWireVersion>>;
 }
 
 /** Injectable verifier used before local admission and replay checks. */
 export interface MeshEnvelopeVerifier {
-  verify<TPayload extends MeshMessagePayload>(
-    request: MeshVerifyRequest<TPayload>
-  ): Promise<MeshVerificationResult<TPayload>>;
+  verify<
+    TPayload extends MeshMessagePayload,
+    TWireVersion extends MeshWireVersion = MeshWireVersion,
+  >(
+    request: MeshVerifyRequest<TPayload, TWireVersion>
+  ): Promise<MeshVerificationResult<TPayload, TWireVersion>>;
 }
 
 /** Construction bound for the static in-memory key resolver. */

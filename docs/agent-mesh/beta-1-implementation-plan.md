@@ -1,7 +1,7 @@
 # Agent Mesh `0.3.0-beta.1` compatibility-freeze implementation plan
 
-Status: design frozen; implementation not started. This plan, its acceptance
-checklist and its threat model were accepted in public
+Status: implementation candidate complete; exact-commit release evidence
+pending. This plan, its acceptance checklist and its threat model were accepted in public
 [PR #46](https://github.com/Agentplat/agentplat/pull/46) as the normative design
 freeze with zero open P0/P1 findings. The freeze is anchored by merge commit
 [`9d726581f5689a4d72c4f31d8a2a4049d0112ccf`](https://github.com/Agentplat/agentplat/commit/9d726581f5689a4d72c4f31d8a2a4049d0112ccf).

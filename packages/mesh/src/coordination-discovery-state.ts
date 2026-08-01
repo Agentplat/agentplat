@@ -1,4 +1,5 @@
 import {
+  MESH_SUPPORTED_WIRE_VERSIONS,
   compareMeshTimestamps,
   type MeshAudienceTopic,
 } from '@agentplat/mesh-protocol';
@@ -15,11 +16,16 @@ import type {
   MeshPeerViewProjection,
 } from './coordination-discovery-contracts.js';
 import type { MeshCoordinationState } from './coordination-contracts.js';
+import type {
+  MeshWireVersionHighWater,
+  MeshWireVersionSelection,
+} from './coordination-wire-version-contracts.js';
 import { assertFrozenMeshCoordinationState } from './coordination-state.js';
 import {
   assertMeshLogicalTime,
   assertMeshMessageId,
   createFrozenRecord,
+  recordEntries,
 } from './state.js';
 
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/;
@@ -74,7 +80,7 @@ export function createMeshDiscoveryState(
   });
   const frozenSubscriptions = freezeSubscriptions(subscriptions, limits);
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     identity: freezeIdentity(options.identity),
     admittedPeers: createFrozenRecord(
       admissions,
@@ -83,6 +89,7 @@ export function createMeshDiscoveryState(
     peerCards: createFrozenRecord<MeshPeerCardProjection>([]),
     peerViews: createFrozenRecord<MeshPeerViewProjection>([]),
     capabilities: createFrozenRecord<MeshCapabilityProjection>([]),
+    wireVersionHighWaters: createFrozenRecord<MeshWireVersionHighWater>([]),
     subscriptions: frozenSubscriptions,
     limits,
     lastLogicalTime: 0,
@@ -95,7 +102,7 @@ export function restoreMeshDiscoveryState(
 ): MeshDiscoveryState {
   const parsed = validateSnapshot(snapshot);
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     identity: freezeIdentity(parsed.identity),
     admittedPeers: createFrozenRecord(
       parsed.admittedPeers.map(([key, value]) => [
@@ -112,9 +119,59 @@ export function restoreMeshDiscoveryState(
     capabilities: createFrozenRecord(
       parsed.capabilities.map(([key, value]) => [key, freezeCapability(value)])
     ),
+    wireVersionHighWaters: createFrozenRecord(
+      parsed.wireVersionHighWaters.map(([key, value]) => [
+        key,
+        Object.freeze({ ...value }),
+      ])
+    ),
     subscriptions: Object.freeze([...parsed.subscriptions]),
     limits: Object.freeze({ ...parsed.limits }),
     lastLogicalTime: parsed.lastLogicalTime,
+  });
+}
+
+/** Persists one selector result in the independently restorable high-water map. */
+export function recordMeshDiscoveryWireVersionSelection(
+  state: MeshDiscoveryState,
+  selection: MeshWireVersionSelection
+): MeshDiscoveryState {
+  assertFrozenMeshDiscoveryState(state);
+  if (!selection?.selected) {
+    throw new TypeError('A successful Mesh wire-version selection is required');
+  }
+  const key = wireVersionHighWaterKey(selection.highWater.peerId);
+  validateWireVersionHighWater(
+    key,
+    selection.highWater,
+    state.identity,
+    state.admittedPeers
+  );
+  const existing = state.wireVersionHighWaters[key];
+  if (
+    existing !== undefined &&
+    selection.highWater.wireVersion < existing.wireVersion &&
+    selection.binding.resetApplied !== true
+  ) {
+    throw new TypeError('Mesh wire-version high-water cannot decrease');
+  }
+  if (
+    selection.binding.tenantId !== selection.highWater.tenantId ||
+    selection.binding.meshId !== selection.highWater.meshId ||
+    selection.binding.peerId !== selection.highWater.peerId ||
+    selection.binding.instanceId !== selection.highWater.instanceId ||
+    selection.binding.wireVersion !== selection.highWater.wireVersion
+  ) {
+    throw new TypeError('Mesh wire-version selection binding is inconsistent');
+  }
+  return Object.freeze({
+    ...state,
+    wireVersionHighWaters: createFrozenRecord([
+      ...recordEntries(state.wireVersionHighWaters).filter(
+        ([candidate]) => candidate !== key
+      ),
+      [key, Object.freeze({ ...selection.highWater })],
+    ]),
   });
 }
 
@@ -152,12 +209,14 @@ export function assertFrozenMeshDiscoveryState(
     !Object.isFrozen(state.peerCards) ||
     !Object.isFrozen(state.peerViews) ||
     !Object.isFrozen(state.capabilities) ||
+    !Object.isFrozen(state.wireVersionHighWaters) ||
     !Object.isFrozen(state.subscriptions) ||
     !Object.isFrozen(state.limits) ||
     Object.getPrototypeOf(state.admittedPeers) !== null ||
     Object.getPrototypeOf(state.peerCards) !== null ||
     Object.getPrototypeOf(state.peerViews) !== null ||
     Object.getPrototypeOf(state.capabilities) !== null ||
+    Object.getPrototypeOf(state.wireVersionHighWaters) !== null ||
     Object.values(state.admittedPeers).some(
       (entry) => !Object.isFrozen(entry) || !Object.isFrozen(entry.instanceIds)
     ) ||
@@ -176,6 +235,9 @@ export function assertFrozenMeshDiscoveryState(
         !Object.isFrozen(entry.outputMediaTypes) ||
         !Object.isFrozen(entry.attributes) ||
         Object.getPrototypeOf(entry.attributes) !== null
+    ) ||
+    Object.values(state.wireVersionHighWaters).some(
+      (entry) => !Object.isFrozen(entry)
     )
   ) {
     throw new TypeError('Mesh discovery state must be an immutable snapshot');
@@ -195,6 +257,10 @@ function validateSnapshot(snapshot: unknown): {
     string,
     MeshCapabilityProjection,
   ])[];
+  readonly wireVersionHighWaters: readonly (readonly [
+    string,
+    MeshWireVersionHighWater,
+  ])[];
   readonly subscriptions: readonly MeshAudienceTopic[];
   readonly limits: MeshDiscoveryLimits;
   readonly lastLogicalTime: number;
@@ -202,7 +268,16 @@ function validateSnapshot(snapshot: unknown): {
   if (!snapshot || typeof snapshot !== 'object') {
     throw new TypeError('Mesh discovery snapshot is required');
   }
-  const candidate = snapshot as MeshDiscoveryState;
+  const candidate = snapshot as Omit<
+    MeshDiscoveryState,
+    'schemaVersion' | 'wireVersionHighWaters'
+  > & {
+    readonly schemaVersion: 1 | 2;
+    readonly wireVersionHighWaters?: Readonly<
+      Record<string, MeshWireVersionHighWater>
+    >;
+  };
+  const isLegacy = candidate.schemaVersion === 1;
   assertExactKeys(
     candidate,
     [
@@ -215,6 +290,7 @@ function validateSnapshot(snapshot: unknown): {
       'peerViews',
       'schemaVersion',
       'subscriptions',
+      ...(isLegacy ? [] : ['wireVersionHighWaters']),
     ],
     [
       'admittedPeers',
@@ -226,9 +302,10 @@ function validateSnapshot(snapshot: unknown): {
       'peerViews',
       'schemaVersion',
       'subscriptions',
+      ...(isLegacy ? [] : ['wireVersionHighWaters']),
     ]
   );
-  if (candidate.schemaVersion !== 1) {
+  if (candidate.schemaVersion !== 1 && candidate.schemaVersion !== 2) {
     throw new TypeError('Mesh discovery schema version is unsupported');
   }
   freezeIdentity(candidate.identity);
@@ -238,6 +315,8 @@ function validateSnapshot(snapshot: unknown): {
   assertRecordObject(candidate.peerCards, 'peerCards');
   assertRecordObject(candidate.peerViews, 'peerViews');
   assertRecordObject(candidate.capabilities, 'capabilities');
+  const wireVersionHighWaters = candidate.wireVersionHighWaters ?? {};
+  assertRecordObject(wireVersionHighWaters, 'wireVersionHighWaters');
   if (!Array.isArray(candidate.subscriptions)) {
     throw new TypeError('Mesh discovery subscriptions must be an array');
   }
@@ -247,13 +326,25 @@ function validateSnapshot(snapshot: unknown): {
   const peerCards = Object.entries(candidate.peerCards);
   const peerViews = Object.entries(candidate.peerViews);
   const capabilities = Object.entries(candidate.capabilities);
+  const highWaters = Object.entries(wireVersionHighWaters);
   if (
     admittedPeers.length > limits.maximumAdmissions ||
     peerCards.length > limits.maximumPeerCards ||
     peerViews.length > limits.maximumPeerViews ||
-    capabilities.length > limits.maximumCapabilities
+    capabilities.length > limits.maximumCapabilities ||
+    highWaters.length >
+      limits.maximumPeerCards * limits.maximumInstancesPerAdmission
   ) {
     throw new RangeError('Mesh discovery snapshot exceeds its limits');
+  }
+
+  for (const [key, highWater] of highWaters) {
+    validateWireVersionHighWater(
+      key,
+      highWater,
+      candidate.identity,
+      candidate.admittedPeers
+    );
   }
 
   for (const [peerId, admission] of admittedPeers) {
@@ -325,6 +416,7 @@ function validateSnapshot(snapshot: unknown): {
     peerCards,
     peerViews,
     capabilities,
+    wireVersionHighWaters: highWaters,
     subscriptions: candidate.subscriptions,
     limits,
     lastLogicalTime: candidate.lastLogicalTime,
@@ -379,8 +471,13 @@ function validatePeerCard(
   assertStringArray(card.capabilityIds, 'Peer Card capabilityIds');
   if (
     !Array.isArray(card.protocolVersions) ||
+    card.protocolVersions.length < 1 ||
+    card.protocolVersions.length > 8 ||
     card.protocolVersions.some(
-      (version) => !Number.isSafeInteger(version) || version < 0
+      (version, index) =>
+        !Number.isSafeInteger(version) ||
+        version < 0 ||
+        (index > 0 && version <= card.protocolVersions[index - 1]!)
     ) ||
     !Number.isSafeInteger(card.cardRevision) ||
     card.cardRevision < 1 ||
@@ -539,6 +636,51 @@ function freezePeerCard(card: MeshPeerCardProjection): MeshPeerCardProjection {
     transportHints: Object.freeze([...card.transportHints]),
     capabilityIds: Object.freeze([...card.capabilityIds]),
   });
+}
+
+function validateWireVersionHighWater(
+  key: string,
+  highWater: MeshWireVersionHighWater,
+  identity: MeshPeerIdentity,
+  admittedPeers: Readonly<Record<string, MeshDiscoveryAdmission>>
+): void {
+  assertExactKeys(
+    highWater,
+    [
+      'cardRevision',
+      'instanceId',
+      'meshId',
+      'peerCardId',
+      'peerId',
+      'tenantId',
+      'wireVersion',
+    ],
+    ['instanceId', 'meshId', 'peerId', 'tenantId', 'wireVersion']
+  );
+  for (const field of ['tenantId', 'meshId', 'peerId', 'instanceId'] as const) {
+    assertIdentifier(highWater[field], `high-water ${field}`);
+  }
+  if (highWater.peerCardId !== undefined) {
+    assertIdentifier(highWater.peerCardId, 'high-water peerCardId');
+  }
+  if (
+    (highWater.peerCardId === undefined) !==
+      (highWater.cardRevision === undefined) ||
+    (highWater.cardRevision !== undefined &&
+      (!Number.isSafeInteger(highWater.cardRevision) ||
+        highWater.cardRevision < 1)) ||
+    !MESH_SUPPORTED_WIRE_VERSIONS.includes(highWater.wireVersion) ||
+    key !== wireVersionHighWaterKey(highWater.peerId) ||
+    highWater.tenantId !== identity.tenantId ||
+    highWater.meshId !== identity.meshId ||
+    !admittedPeers[highWater.peerId]?.instanceIds.includes(highWater.instanceId)
+  ) {
+    throw new TypeError('Mesh discovery wire-version high-water is invalid');
+  }
+}
+
+function wireVersionHighWaterKey(peerId: string): string {
+  return peerId;
 }
 
 function freezeCapability(

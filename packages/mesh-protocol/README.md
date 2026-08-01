@@ -2,6 +2,12 @@
 
 Closed, bounded and transport-neutral wire contracts for AgentPlat Mesh peers.
 
+Beta 1 writes `wireVersion: 1` and reads both the frozen current version and
+the preceding `wireVersion: 0` compatibility profile. The general parser
+accepts both; `parseSignedMeshEnvelopeV0` and `parseSignedMeshEnvelopeV1`
+narrow to one exact version. Parser limit overrides may only narrow the frozen
+wire ceilings.
+
 The implementation provides:
 
 - strict UTF-8 and JSON parsing that rejects duplicate decoded keys, malformed
@@ -27,7 +33,8 @@ The implementation provides:
   proofs;
 - receiver-context checks for tenant and Mesh scope, audience, freshness and
   critical-extension support; and
-- public, structurally valid conformance fixtures in `fixtures/v0`.
+- frozen v0 byte-lock fixtures and signed v1 conformance fixtures under
+  `fixtures/v0` and `fixtures/v1`.
 
 Use `parseSignedMeshEnvelope` with the decompressed `Uint8Array` at a wire
 boundary. Accepting bytes rather than pre-decoded text prevents lossy UTF-8
@@ -55,7 +62,7 @@ boundary until their reducers and state authorization are implemented.
 
 ## Frozen limits
 
-Protocol v0 applies these structural limits before a payload can enter a
+Protocol v0 and v1 apply these structural limits before a payload can enter a
 reducer:
 
 | Limit                                  |             Maximum |
@@ -77,7 +84,7 @@ these narrower limits:
 
 | Field                                          | Rule                                                                                                                        |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `protocolVersions`                             | 1–8 sorted unique non-negative safe integers and must include `0`                                                           |
+| `protocolVersions`                             | 1–8 sorted unique non-negative safe integers and must include the Peer Card envelope's own wire version                     |
 | Peer Card transport hints                      | At most 8 sorted unique non-empty strings; 2,048 UTF-8 bytes each and 8,192 bytes in aggregate                              |
 | Peer Card capability IDs                       | At most 32 sorted unique identifiers                                                                                        |
 | Capability key                                 | Non-empty; at most 4,096 UTF-8 bytes                                                                                        |

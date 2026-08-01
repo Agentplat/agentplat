@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   DEFAULT_MESH_CRYPTO_POLICY,
+  DEFAULT_MESH_SIGNING_POLICY,
   MeshCryptoError,
   StaticMeshKeyResolver,
   WebCryptoMeshEnvelopeSigner,
@@ -18,6 +19,7 @@ import {
   verifyMeshEnvelope,
 } from '@agentplat/mesh-crypto';
 import {
+  MESH_PREVIOUS_WIRE_VERSION,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
@@ -142,6 +144,77 @@ test('canonical payload hashing matches fixed SHA-256 vectors', async () => {
   ]) {
     assert.equal(await computeMeshPayloadHash({ payload }), expected);
   }
+});
+
+test('v0 signing is explicit and wire-version substitution invalidates proof', async () => {
+  assert.deepEqual(DEFAULT_MESH_SIGNING_POLICY.allowedWireVersions, [1]);
+  const keys = await keyPair();
+  await assert.rejects(
+    () =>
+      signMeshEnvelope({
+        envelope: unsignedHello({
+          wireVersion: MESH_PREVIOUS_WIRE_VERSION,
+        }),
+        privateKey: keys.privateKey,
+      }),
+    (error) =>
+      error instanceof MeshCryptoError &&
+      error.code === 'unsupported_wire_version'
+  );
+
+  const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+    signingPolicy: {
+      allowedWireVersions: [MESH_PREVIOUS_WIRE_VERSION],
+    },
+  });
+  const v0 = await compatibilitySigner.sign({
+    envelope: unsignedHello({ wireVersion: MESH_PREVIOUS_WIRE_VERSION }),
+    privateKey: keys.privateKey,
+  });
+  assert.equal(v0.wireVersion, MESH_PREVIOUS_WIRE_VERSION);
+  const resolver = createStaticMeshKeyResolver([keyRecord(keys.publicKey)]);
+  assert.equal(
+    (
+      await verifyMeshEnvelope({
+        envelope: v0,
+        resolver,
+        policy: DEFAULT_MESH_CRYPTO_POLICY,
+        verifiedAt,
+      })
+    ).verified,
+    true
+  );
+  expectRejection(
+    await verifyMeshEnvelope({
+      envelope: v0,
+      resolver,
+      policy: {
+        allowedAlgorithms: [MESH_SIGNATURE_ALGORITHM],
+        allowedWireVersions: [MESH_WIRE_VERSION],
+      },
+      verifiedAt,
+    }),
+    'unsupported_wire_version'
+  );
+
+  const v1 = await signMeshEnvelope({
+    envelope: unsignedHello(),
+    privateKey: keys.privateKey,
+  });
+  const substituted = validateSignedMeshEnvelope({
+    ...v1,
+    wireVersion: MESH_PREVIOUS_WIRE_VERSION,
+  });
+  assert.equal(substituted.ok, true);
+  expectRejection(
+    await verifyMeshEnvelope({
+      envelope: substituted.value,
+      resolver,
+      policy: DEFAULT_MESH_CRYPTO_POLICY,
+      verifiedAt,
+    }),
+    'signature_invalid'
+  );
 });
 
 test('public Ed25519 conformance fixture verifies without private material', async () => {
@@ -274,6 +347,11 @@ test('reference signer and verifier cover every Alpha 1 message type', async () 
 
 test('reference signer and verifier cover Alpha 2 payload shapes and tampering', async () => {
   const keys = await keyPair();
+  const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+    signingPolicy: {
+      allowedWireVersions: [MESH_PREVIOUS_WIRE_VERSION],
+    },
+  });
   const resolver = createStaticMeshKeyResolver([
     keyRecord(keys.publicKey),
     keyRecord(keys.publicKey, { peerId: 'peer-b', keyId: 'key-b' }),
@@ -312,7 +390,7 @@ test('reference signer and verifier cover Alpha 2 payload shapes and tampering',
         'utf8'
       )
     );
-    const signed = await signMeshEnvelope({
+    const signed = await compatibilitySigner.sign({
       envelope,
       privateKey: keys.privateKey,
     });

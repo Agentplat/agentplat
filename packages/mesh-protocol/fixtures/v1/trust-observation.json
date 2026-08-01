@@ -1,0 +1,54 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "AAAAAAAAAAAAAAAAAAAABQ",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "type": "trust.observation",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-b"
+  },
+  "sequence": 35,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:04:00.000Z",
+  "payloadHash": "sha256:NcVy_873dZD1lQzEDxd05XS0XucEya4ttsh801IQejc",
+  "payload": {
+    "type": "trust.observation",
+    "observationId": "observation:00013fb11f4c1dbb750a1565df85f2f1cc3a34716770231f3cd624d77029a98d",
+    "subject": {
+      "kind": "peer",
+      "peerId": "peer-a"
+    },
+    "scope": {
+      "kind": "mesh"
+    },
+    "policyId": "policy-a",
+    "policyVersion": 1,
+    "policyDigest": "c1f7278b77bb9eb3977b9d5373b60680c8bf81ae32ab0aebd7c16b4b9884e4d8",
+    "profileDigest": "104c4491498717b382d124bbe81ae4e87648fbab08ecba7e24135ead5fc97554",
+    "fusionDecisionDigest": "0170fe1b852fc4776968e128e0f1ee552cf68bbf6f8365a16ca5a3f761e7ed90",
+    "dimensionId": "dimension-a",
+    "scoreBand": "high",
+    "uncertaintyBand": "low",
+    "disposition": "eligible",
+    "evidenceIds": [
+      "attestation:f8318373b604044ad4e9764839c4287defe31c9a55337eb9d7f9328308f7c3f6",
+      "claim:5c02337f46ec7143b2ab82b9f0913226420e335952b3c4d882cfe4a0562ee01d"
+    ],
+    "observedAt": "2026-07-30T00:00:00.000Z",
+    "validUntil": "2026-07-30T02:00:00.000Z",
+    "reasonCodes": [
+      "accepted"
+    ]
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "k6mpr1Kr7caGqKOcNdM9jD1hjHO9SDkzaj7SDZlxyE-e1owkLSDStceGeZl7IKDJlI_Hx3x0NBwDqhuvxayUBw"
+  }
+}
