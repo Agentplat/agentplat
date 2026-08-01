@@ -16,12 +16,14 @@ import type {
 import {
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
+  MESH_SUPPORTED_WIRE_VERSIONS,
   MESH_WIRE_VERSION,
   canonicalizeMeshJsonBytes,
   validateSignedMeshEnvelope,
   type MeshProtocolOptions,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
+  type MeshWireVersion,
 } from '@agentplat/mesh-protocol';
 
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
@@ -124,6 +126,8 @@ export interface MeshSimulationPeer {
   readonly admissionPolicy: MeshAdmissionPolicy;
   readonly privateKey: CryptoKey;
   readonly outboundSequence?: number;
+  /** Construction-bound outbound wire version for mixed-version scenarios. */
+  readonly wireVersion?: MeshWireVersion;
   readonly crypto?: Crypto;
   readonly protocolOptions?: MeshProtocolOptions;
 }
@@ -881,7 +885,7 @@ class DeterministicMeshSimulationKernel implements MeshSimulationKernel {
     const sentAt = timestampAt(this.config.startTime, this.#logicalTime);
     const unsigned: UnsignedMeshEnvelope = {
       protocol: MESH_PROTOCOL,
-      wireVersion: MESH_WIRE_VERSION,
+      wireVersion: peer.config.wireVersion ?? MESH_WIRE_VERSION,
       messageId: deterministicMessageId(() =>
         this.random(`message:${peer.config.peerId}`)
       ),
@@ -1251,6 +1255,8 @@ function validateConfig(config: MeshSimulationConfig): void {
       (peer.outboundSequence !== undefined &&
         (!Number.isSafeInteger(peer.outboundSequence) ||
           peer.outboundSequence < 0)) ||
+      (peer.wireVersion !== undefined &&
+        !MESH_SUPPORTED_WIRE_VERSIONS.includes(peer.wireVersion)) ||
       peerIds.has(peer.peerId)
     )
       throw new TypeError('Invalid or duplicate Mesh simulation peer');
@@ -1315,6 +1321,7 @@ function configurationProjection(
       peerId: peer.peerId,
       state: peer.state,
       outboundSequence: peer.outboundSequence ?? 0,
+      wireVersion: peer.wireVersion ?? MESH_WIRE_VERSION,
     })),
     links: config.links,
     limits: config.limits,
@@ -1416,6 +1423,7 @@ function freezeSimulationConfig(
           ...(peer.outboundSequence === undefined
             ? {}
             : { outboundSequence: peer.outboundSequence }),
+          wireVersion: peer.wireVersion ?? MESH_WIRE_VERSION,
           ...(peer.crypto === undefined ? {} : { crypto: peer.crypto }),
           ...(peer.protocolOptions === undefined
             ? {}

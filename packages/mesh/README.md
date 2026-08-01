@@ -10,6 +10,16 @@ Its peer kernel is defined as a synchronous state transition:
 state + input + logical time -> next state + ordered effects
 ```
 
+Beta 1 adds authenticated wire-version selection on the explicit
+`@agentplat/mesh/coordination` subpath. `createMeshWireVersionPolicy` snapshots
+local v0/v1 policy and explicit compatibility bootstraps;
+`selectMeshPeerWireVersion` chooses the highest intersection only after a Peer
+Card is verified and admitted. A retained per-peer high-water mark survives
+process restarts while remaining bound to the selected instance and Peer Card
+lineage. Only an exact local reset or explicit compatibility bootstrap bound to
+a new admitted lineage can cross that fence. Transport failures and receipts
+are never negotiation inputs.
+
 The Alpha 1 implementation provides:
 
 - deeply immutable peer, admission, liveness and replay snapshots;

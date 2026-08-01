@@ -1,0 +1,57 @@
+{
+  "name": "@agentplat/mesh-conformance",
+  "version": "0.3.0-beta.1",
+  "description": "Provider-neutral compatibility runners for Agentplat Mesh adapters.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "import": "./dist/protocol.js"
+    },
+    "./transport": {
+      "types": "./dist/transport.d.ts",
+      "import": "./dist/transport.js"
+    },
+    "./durability": {
+      "types": "./dist/durability.d.ts",
+      "import": "./dist/durability.js"
+    },
+    "./rooms": {
+      "types": "./dist/rooms.d.ts",
+      "import": "./dist/rooms.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/mesh": "workspace:^",
+    "@agentplat/mesh-protocol": "workspace:^",
+    "@agentplat/rooms-mesh": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/mesh-conformance"
+  }
+}

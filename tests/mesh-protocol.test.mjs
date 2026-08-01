@@ -3,6 +3,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  MESH_PREVIOUS_WIRE_VERSION,
+  MESH_SUPPORTED_WIRE_VERSIONS,
+  MESH_WIRE_VERSION,
   canonicalizeMeshJson,
   canonicalizeMeshJsonBytes,
   canonicalizeMeshPayload,
@@ -10,6 +13,8 @@ import {
   createMeshSigningDocument,
   parseMeshJson,
   parseSignedMeshEnvelope,
+  parseSignedMeshEnvelopeV0,
+  parseSignedMeshEnvelopeV1,
   validateMeshEnvelopeContext,
   validateSignedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -20,12 +25,66 @@ const fixtureUrl = (name) =>
     `../packages/mesh-protocol/fixtures/v0/${name}.json`,
     import.meta.url
   );
+const versionFixtureUrl = (version, name) =>
+  new URL(
+    `../packages/mesh-protocol/fixtures/${version}/${name}`,
+    import.meta.url
+  );
 
 const utf8Encoder = new TextEncoder();
 const loadFixtureText = (name) => readFile(fixtureUrl(name), 'utf8');
 const loadFixtureBytes = (name) => readFile(fixtureUrl(name));
 
 const loadFixture = async (name) => JSON.parse(await loadFixtureText(name));
+
+test('Beta readers accept v0/v1 while version-specific parsers narrow exactly', async () => {
+  assert.deepEqual(MESH_SUPPORTED_WIRE_VERSIONS, [0, 1]);
+  assert.equal(MESH_PREVIOUS_WIRE_VERSION, 0);
+  assert.equal(MESH_WIRE_VERSION, 1);
+
+  const v0Bytes = await loadFixtureBytes('peer-ping');
+  assert.equal(parseSignedMeshEnvelope(v0Bytes).ok, true);
+  assert.equal(parseSignedMeshEnvelopeV0(v0Bytes).ok, true);
+  expectIssue(
+    parseSignedMeshEnvelopeV1(v0Bytes),
+    'unsupported_wire_version',
+    '$["wireVersion"]'
+  );
+
+  const v0 = await loadFixture('peer-ping');
+  const v1 = { ...v0, wireVersion: MESH_WIRE_VERSION };
+  const v1Bytes = new TextEncoder().encode(JSON.stringify(v1));
+  assert.equal(parseSignedMeshEnvelope(v1Bytes).ok, true);
+  assert.equal(parseSignedMeshEnvelopeV1(v1Bytes).ok, true);
+  expectIssue(
+    parseSignedMeshEnvelopeV0(v1Bytes),
+    'unsupported_wire_version',
+    '$["wireVersion"]'
+  );
+  expectIssue(
+    validateSignedMeshEnvelope(v1, {
+      acceptedWireVersions: [MESH_PREVIOUS_WIRE_VERSION],
+    }),
+    'unsupported_wire_version',
+    '$["wireVersion"]'
+  );
+});
+
+test('every frozen v1 message family passes the exact v1 parser', async () => {
+  const manifest = JSON.parse(
+    await readFile(versionFixtureUrl('v1', 'manifest.json'), 'utf8')
+  );
+  assert.equal(manifest.wireVersion, MESH_WIRE_VERSION);
+  assert.equal(manifest.entries.length, manifest.fixtureCount);
+  for (const entry of manifest.entries) {
+    const result = parseSignedMeshEnvelopeV1(
+      await readFile(versionFixtureUrl('v1', entry.file))
+    );
+    assert.equal(result.ok, true, entry.file);
+    assert.equal(result.value.type, entry.messageType);
+    assert.equal(result.value.wireVersion, MESH_WIRE_VERSION);
+  }
+});
 
 test('Work Progress, Checkpoint and Result fixtures enforce the wire boundary', async () => {
   const fixtures = await Promise.all(
@@ -3024,12 +3083,8 @@ test('Alpha 4 Evidence and Trust fixtures are content-bound, closed v0 records',
   }
 
   const claim = fixtures.find(([name]) => name === 'evidence-claim')[1];
-  const attestation = fixtures.find(
-    ([name]) => name === 'evidence-attest'
-  )[1];
-  const challenge = fixtures.find(
-    ([name]) => name === 'evidence-challenge'
-  )[1];
+  const attestation = fixtures.find(([name]) => name === 'evidence-attest')[1];
+  const challenge = fixtures.find(([name]) => name === 'evidence-challenge')[1];
   const observation = fixtures.find(
     ([name]) => name === 'trust-observation'
   )[1];

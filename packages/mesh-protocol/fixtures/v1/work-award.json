@@ -1,0 +1,52 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "AAAAAAAAAAAAAAAAAAAAAQ",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "work.award",
+  "sender": {
+    "peerId": "peer-b",
+    "instanceId": "instance-b"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-a"
+  },
+  "sequence": 11,
+  "sentAt": "2026-07-30T00:00:02.000Z",
+  "expiresAt": "2026-07-30T00:00:30.000Z",
+  "causationId": "BBBBBBBBBBBBBBBBBBBBBA",
+  "payloadHash": "sha256:ouB6Or91wym5YNoVP4HY1_BQF5tpqUuNpRrA-sSGsaU",
+  "payload": {
+    "type": "work.award",
+    "awardId": "award-a",
+    "offerId": "offer-a",
+    "bidId": "bid-a",
+    "bidRevision": 1,
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-b",
+    "ownerEpoch": 1,
+    "offerAttempt": 1,
+    "assigneePeerId": "peer-a",
+    "assignmentEpoch": 1,
+    "authorityKind": "award",
+    "assignmentAuthorityId": "award-a",
+    "fencingToken": "award-a",
+    "budgetReservationUnits": 100,
+    "workDeadline": "2026-07-30T01:00:00.000Z",
+    "leaseStartsAt": "2026-07-30T00:00:02.000Z",
+    "leaseExpiresAt": "2026-07-30T00:30:00.000Z",
+    "acceptanceDeadline": "2026-07-30T00:15:00.000Z"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "i9Ncw8jl1ZPwy5lIG6df9dD4Y8lSy1fdEEaCZhH19ktw6NJWBlnObONpgC6_dMgbArHDRkk6Yu0N0caKlEPFCA"
+  }
+}

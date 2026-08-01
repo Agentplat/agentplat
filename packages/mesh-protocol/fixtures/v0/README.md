@@ -1,5 +1,10 @@
 # Protocol v0 structural fixtures
 
+`manifest.json` byte-locks every historical fixture and records independently
+recomputed canonical envelope, payload and signing-document digests. Beta
+readers must continue accepting these files exactly; do not regenerate the v0
+JSON documents.
+
 These fixtures exercise strict parsing, closed schemas, message-specific
 constraints and canonical binary representations for the Alpha 1 subset and
 the Alpha 2 discovery/capability, Objective, Work Offer, Work Bid, Work Award,

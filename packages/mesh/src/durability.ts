@@ -8,7 +8,17 @@ import type {
   SignedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
 
-export const MESH_DURABILITY_SCHEMA_VERSION = 1 as const;
+export const MESH_DURABILITY_SCHEMA_VERSION = 2 as const;
+export const MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION = 1 as const;
+export type MeshDurabilitySchemaVersion =
+  | typeof MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION
+  | typeof MESH_DURABILITY_SCHEMA_VERSION;
+export const MESH_DURABLE_ENVELOPE_FORMAT =
+  "application/vnd.agentplat.mesh-envelope+json" as const;
+export const MESH_DURABLE_OPAQUE_SNAPSHOT_FORMAT = "application/json" as const;
+export const MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT =
+  "application/json; profile=legacy-opaque" as const;
+export const MESH_DURABLE_JOURNAL_VERSION = 1 as const;
 export const MESH_DURABLE_GENESIS_DIGEST =
   "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
@@ -31,11 +41,15 @@ export type MeshDurableInboxStatus =
   "pending" | "processing" | "applied" | "rejected";
 
 export interface MeshDurableInboxRecord {
-  readonly schemaVersion: typeof MESH_DURABILITY_SCHEMA_VERSION;
+  readonly schemaVersion: MeshDurabilitySchemaVersion;
   readonly scope: MeshDurableScope;
   readonly messageId: string;
   readonly envelope: SignedMeshEnvelope;
   readonly envelopeDigest: string;
+  /** Present on schema-2 writes; legacy rows remain explicitly distinguishable. */
+  readonly envelopeFormat?: string;
+  readonly envelopeWireVersion?: number;
+  readonly envelopeBytes?: string;
   readonly status: MeshDurableInboxStatus;
   readonly attempts: number;
   readonly receivedAt: string;
@@ -46,11 +60,13 @@ export interface MeshDurableInboxRecord {
 }
 
 export interface MeshDurablePeerSnapshot {
-  readonly schemaVersion: typeof MESH_DURABILITY_SCHEMA_VERSION;
+  readonly schemaVersion: MeshDurabilitySchemaVersion;
   readonly scope: MeshDurableScope;
   readonly revision: number;
   readonly state: MeshJsonValue;
   readonly stateDigest: string;
+  readonly snapshotFormat?: string;
+  readonly snapshotSchemaVersion?: number;
   readonly committedAt: string;
 }
 
@@ -61,7 +77,8 @@ export interface MeshDurableJournalDraft {
 }
 
 export interface MeshDurableJournalEntry extends MeshDurableJournalDraft {
-  readonly schemaVersion: typeof MESH_DURABILITY_SCHEMA_VERSION;
+  readonly schemaVersion: MeshDurabilitySchemaVersion;
+  readonly journalVersion?: typeof MESH_DURABLE_JOURNAL_VERSION;
   readonly scope: MeshDurableScope;
   readonly sequence: number;
   readonly previousDigest: string;
@@ -84,10 +101,13 @@ export interface MeshDurableOutboundDraft {
 }
 
 export interface MeshDurableOutboxRecord extends MeshDurableOutboundDraft {
-  readonly schemaVersion: typeof MESH_DURABILITY_SCHEMA_VERSION;
+  readonly schemaVersion: MeshDurabilitySchemaVersion;
   readonly scope: MeshDurableScope;
   readonly messageId: string;
   readonly envelopeDigest: string;
+  readonly envelopeFormat?: string;
+  readonly envelopeWireVersion?: number;
+  readonly envelopeBytes?: string;
   readonly status: MeshDurableOutboxStatus;
   readonly attempts: number;
   readonly availableAt: string;
@@ -122,9 +142,43 @@ export interface MeshDurableCommitInboxInput {
   readonly transitionId: string;
   readonly outcome: "applied" | "rejected";
   readonly nextState?: MeshJsonValue;
+  /** Defaults to explicit opaque JSON schema 0 for source compatibility. */
+  readonly nextStateDescriptor?: MeshDurableSnapshotDescriptor;
   readonly journal: readonly MeshDurableJournalDraft[];
   readonly outbox: readonly MeshDurableOutboundDraft[];
   readonly reasonCode?: string;
+}
+
+/** Caller-owned snapshot content identity, separate from wrapper/DB versions. */
+export interface MeshDurableSnapshotDescriptor {
+  readonly format: string;
+  readonly schemaVersion: number;
+}
+
+/** Provider-neutral codec contract for typed snapshot content. */
+export interface MeshDurableSnapshotCodec<T = unknown> {
+  readonly descriptor: MeshDurableSnapshotDescriptor;
+  /** Exact content schemas accepted by decode; defaults to the current one. */
+  readonly readableSchemaVersions?: readonly number[];
+  encode(value: T): MeshJsonValue;
+  decode(state: MeshJsonValue, schemaVersion?: number): T;
+  /** Deterministically migrates one readable legacy schema to the current one. */
+  migrate?(state: MeshJsonValue, fromSchemaVersion: number): MeshJsonValue;
+}
+
+export interface MeshDurableSnapshotEncoding {
+  readonly descriptor: MeshDurableSnapshotDescriptor;
+  readonly state: MeshJsonValue;
+  readonly stateDigest: string;
+}
+
+export interface MeshDurableSnapshotCodecRegistry {
+  readonly formats: readonly string[];
+  encode<T>(format: string, value: T): Promise<MeshDurableSnapshotEncoding>;
+  decode<T = unknown>(snapshot: MeshDurablePeerSnapshot): Promise<T>;
+  migrate(
+    snapshot: MeshDurablePeerSnapshot,
+  ): Promise<MeshDurableSnapshotEncoding>;
 }
 
 export type MeshDurableCommitResult =
@@ -495,6 +549,178 @@ export function normalizeMeshDurableScope(
   });
 }
 
+/**
+ * Creates an immutable, exact-format snapshot codec registry. Codec selection
+ * never guesses from state shape and every decode verifies the stored digest.
+ */
+export function createMeshDurableSnapshotCodecRegistry(
+  codecs: readonly MeshDurableSnapshotCodec[],
+  options: {
+    readonly protocolOptions?: MeshProtocolOptions;
+    readonly crypto?: Crypto;
+  } = {},
+): MeshDurableSnapshotCodecRegistry {
+  if (!Array.isArray(codecs) || codecs.length < 1 || codecs.length > 64) {
+    throw new RangeError("Mesh snapshot codec count is outside its range");
+  }
+  const registered = new Map<
+    string,
+    {
+      readonly descriptor: MeshDurableSnapshotDescriptor;
+      readonly readable: ReadonlySet<number>;
+      readonly encode: (value: unknown) => MeshJsonValue;
+      readonly decode: (state: MeshJsonValue, schemaVersion: number) => unknown;
+      readonly migrate?: (
+        state: MeshJsonValue,
+        fromSchemaVersion: number,
+      ) => MeshJsonValue;
+    }
+  >();
+  for (const codec of codecs) {
+    if (
+      !codec ||
+      typeof codec !== "object" ||
+      typeof codec.encode !== "function" ||
+      typeof codec.decode !== "function"
+    ) {
+      throw new TypeError("Mesh snapshot codec is invalid");
+    }
+    const descriptor = normalizeSnapshotDescriptor(codec.descriptor);
+    if (registered.has(descriptor.format)) {
+      throw new TypeError("Mesh snapshot codec format is duplicated");
+    }
+    const versions = codec.readableSchemaVersions ?? [descriptor.schemaVersion];
+    if (
+      !Array.isArray(versions) ||
+      versions.length < 1 ||
+      versions.length > 64
+    ) {
+      throw new RangeError(
+        "Mesh snapshot readable schema count is outside its range",
+      );
+    }
+    const readable = new Set<number>();
+    for (const version of versions) {
+      const normalized = snapshotSchemaVersion(version);
+      if (readable.has(normalized)) {
+        throw new TypeError("Mesh snapshot readable schema is duplicated");
+      }
+      readable.add(normalized);
+    }
+    if (!readable.has(descriptor.schemaVersion)) {
+      throw new TypeError("Mesh snapshot codec must read its current schema");
+    }
+    const encodeSnapshot = codec.encode;
+    const decodeSnapshot = codec.decode;
+    const migrateSnapshot = codec.migrate;
+    registered.set(
+      descriptor.format,
+      Object.freeze({
+        descriptor,
+        readable,
+        encode: (value: unknown) => encodeSnapshot(value),
+        decode: (state: MeshJsonValue, schemaVersion: number) =>
+          decodeSnapshot(state, schemaVersion),
+        ...(migrateSnapshot === undefined
+          ? {}
+          : {
+              migrate: (state: MeshJsonValue, fromSchemaVersion: number) =>
+                migrateSnapshot(state, fromSchemaVersion),
+            }),
+      }),
+    );
+  }
+
+  const encode = async <T>(
+    format: string,
+    value: T,
+  ): Promise<MeshDurableSnapshotEncoding> => {
+    const registration = requireSnapshotCodec(registered, format);
+    return snapshotEncoding(
+      registration.descriptor,
+      registration.encode(value),
+      options,
+    );
+  };
+
+  const decode = async <T = unknown>(
+    snapshot: MeshDurablePeerSnapshot,
+  ): Promise<T> => {
+    const metadata = snapshotMetadata(snapshot);
+    const registration = requireSnapshotCodec(registered, metadata.format);
+    if (!registration.readable.has(metadata.schemaVersion)) {
+      throw new TypeError("Mesh snapshot schema version is unsupported");
+    }
+    const actualDigest = await computeMeshDurableValueDigest(
+      snapshot.state,
+      options,
+    );
+    if (actualDigest !== snapshot.stateDigest) {
+      throw new TypeError("Mesh snapshot state digest does not match");
+    }
+    return deepFreezeDurableValue(
+      registration.decode(
+        cloneSnapshotState(snapshot.state, options.protocolOptions),
+        metadata.schemaVersion,
+      ),
+    ) as T;
+  };
+
+  const migrate = async (
+    snapshot: MeshDurablePeerSnapshot,
+  ): Promise<MeshDurableSnapshotEncoding> => {
+    const metadata = snapshotMetadata(snapshot);
+    const registration = requireSnapshotCodec(registered, metadata.format);
+    await decode(snapshot);
+    if (metadata.schemaVersion === registration.descriptor.schemaVersion) {
+      return snapshotEncoding(registration.descriptor, snapshot.state, options);
+    }
+    if (registration.migrate === undefined) {
+      throw new TypeError("Mesh snapshot migration is unavailable");
+    }
+    const first = registration.migrate(
+      cloneSnapshotState(snapshot.state, options.protocolOptions),
+      metadata.schemaVersion,
+    );
+    const second = registration.migrate(
+      cloneSnapshotState(snapshot.state, options.protocolOptions),
+      metadata.schemaVersion,
+    );
+    const firstCanonical = canonicalSnapshotBytes(
+      first,
+      options.protocolOptions,
+    );
+    const secondCanonical = canonicalSnapshotBytes(
+      second,
+      options.protocolOptions,
+    );
+    if (!bytesEqual(firstCanonical, secondCanonical)) {
+      throw new TypeError("Mesh snapshot migration is nondeterministic");
+    }
+    const decoded = registration.decode(
+      cloneSnapshotState(first, options.protocolOptions),
+      registration.descriptor.schemaVersion,
+    );
+    const normalized = registration.encode(deepFreezeDurableValue(decoded));
+    if (
+      !bytesEqual(
+        firstCanonical,
+        canonicalSnapshotBytes(normalized, options.protocolOptions),
+      )
+    ) {
+      throw new TypeError("Mesh snapshot migration is not canonical");
+    }
+    return snapshotEncoding(registration.descriptor, normalized, options);
+  };
+
+  return Object.freeze({
+    formats: Object.freeze([...registered.keys()].sort()),
+    encode,
+    decode,
+    migrate,
+  });
+}
+
 export async function computeMeshDurableValueDigest(
   value: MeshJsonValue,
   options: {
@@ -526,6 +752,7 @@ export async function createMeshDurableJournalEntry(input: {
   readonly draft: MeshDurableJournalDraft;
   readonly occurredAt: string;
   readonly crypto?: Crypto;
+  readonly schemaVersion?: MeshDurabilitySchemaVersion;
 }): Promise<MeshDurableJournalEntry> {
   const scope = normalizeMeshDurableScope(input.scope);
   const sequence = boundedInteger(
@@ -545,8 +772,18 @@ export async function createMeshDurableJournalEntry(input: {
     assertMessageId(input.inboxMessageId);
   }
   assertTimestamp(input.occurredAt, "occurredAt");
+  const schemaVersion = input.schemaVersion ?? MESH_DURABILITY_SCHEMA_VERSION;
+  if (
+    schemaVersion !== MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION &&
+    schemaVersion !== MESH_DURABILITY_SCHEMA_VERSION
+  ) {
+    throw new TypeError("Mesh durability schema version is unsupported");
+  }
   const document = {
-    schemaVersion: MESH_DURABILITY_SCHEMA_VERSION,
+    schemaVersion,
+    ...(schemaVersion === MESH_DURABILITY_SCHEMA_VERSION
+      ? { journalVersion: MESH_DURABLE_JOURNAL_VERSION }
+      : {}),
     scope: {
       tenantId: scope.tenantId,
       meshId: scope.meshId,
@@ -573,7 +810,10 @@ export async function createMeshDurableJournalEntry(input: {
     },
   );
   return Object.freeze({
-    schemaVersion: MESH_DURABILITY_SCHEMA_VERSION,
+    schemaVersion,
+    ...(schemaVersion === MESH_DURABILITY_SCHEMA_VERSION
+      ? { journalVersion: MESH_DURABLE_JOURNAL_VERSION }
+      : {}),
     scope,
     sequence,
     previousDigest: input.previousDigest,
@@ -595,16 +835,33 @@ export async function verifyMeshDurableJournal(input: {
   readonly entries: readonly MeshDurableJournalEntry[];
   readonly anchorDigest?: string;
   readonly anchorSequence?: number;
+  readonly expectedHeadDigest?: string;
+  readonly expectedHeadSequence?: number;
   readonly crypto?: Crypto;
 }): Promise<boolean> {
+  if (
+    (input.anchorDigest === undefined) !==
+      (input.anchorSequence === undefined) ||
+    (input.expectedHeadDigest === undefined) !==
+      (input.expectedHeadSequence === undefined)
+  ) {
+    throw new TypeError("Mesh durable journal anchor is incomplete");
+  }
   let previousDigest = input.anchorDigest ?? MESH_DURABLE_GENESIS_DIGEST;
   let sequence = input.anchorSequence ?? 0;
   assertDigest(previousDigest, "anchor digest");
   nonNegativeInteger(sequence, "anchor sequence");
+  if (input.expectedHeadDigest !== undefined) {
+    assertDigest(input.expectedHeadDigest, "expected head digest");
+    nonNegativeInteger(input.expectedHeadSequence!, "expected head sequence");
+  }
   for (const entry of input.entries) {
     if (
       entry.sequence !== sequence + 1 ||
-      entry.previousDigest !== previousDigest
+      entry.previousDigest !== previousDigest ||
+      (entry.schemaVersion === MESH_DURABILITY_SCHEMA_VERSION
+        ? entry.journalVersion !== MESH_DURABLE_JOURNAL_VERSION
+        : entry.journalVersion !== undefined)
     ) {
       return false;
     }
@@ -619,12 +876,17 @@ export async function verifyMeshDurableJournal(input: {
       draft: entry,
       occurredAt: entry.occurredAt,
       crypto: input.crypto,
+      schemaVersion: entry.schemaVersion,
     });
     if (rebuilt.digest !== entry.digest) return false;
     previousDigest = entry.digest;
     sequence = entry.sequence;
   }
-  return true;
+  return (
+    input.expectedHeadDigest === undefined ||
+    (previousDigest === input.expectedHeadDigest &&
+      sequence === input.expectedHeadSequence)
+  );
 }
 
 function normalizeProcessorResult(
@@ -889,6 +1151,179 @@ function boundedInteger(value: number, label: string, maximum: number): number {
 function nonNegativeInteger(value: number, label: string): number {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new RangeError(`Mesh durable ${label} is outside its range`);
+  }
+  return value;
+}
+
+function normalizeSnapshotDescriptor(
+  descriptor: MeshDurableSnapshotDescriptor,
+): MeshDurableSnapshotDescriptor {
+  if (!descriptor || typeof descriptor !== "object") {
+    throw new TypeError("Mesh snapshot descriptor is required");
+  }
+  const keys = Object.keys(descriptor).sort();
+  if (
+    keys.length !== 2 ||
+    keys[0] !== "format" ||
+    keys[1] !== "schemaVersion"
+  ) {
+    throw new TypeError("Mesh snapshot descriptor must have an exact shape");
+  }
+  return Object.freeze({
+    format: snapshotFormat(descriptor.format),
+    schemaVersion: snapshotSchemaVersion(descriptor.schemaVersion),
+  });
+}
+
+function snapshotMetadata(snapshot: MeshDurablePeerSnapshot): {
+  readonly format: string;
+  readonly schemaVersion: number;
+} {
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new TypeError("Mesh snapshot is required");
+  }
+  const keys = Object.keys(snapshot).sort();
+  const expectedKeys = [
+    "committedAt",
+    "revision",
+    "schemaVersion",
+    "scope",
+    "snapshotFormat",
+    "snapshotSchemaVersion",
+    "state",
+    "stateDigest",
+  ];
+  if (
+    keys.length !== expectedKeys.length ||
+    keys.some((key, index) => key !== expectedKeys[index])
+  ) {
+    throw new TypeError("Mesh snapshot must have an exact shape");
+  }
+  if (
+    snapshot.snapshotFormat === undefined ||
+    snapshot.snapshotSchemaVersion === undefined
+  ) {
+    throw new TypeError("Legacy Mesh snapshot requires an explicit backfill");
+  }
+  if (
+    snapshot.schemaVersion !== MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION &&
+    snapshot.schemaVersion !== MESH_DURABILITY_SCHEMA_VERSION
+  ) {
+    throw new TypeError("Mesh snapshot wrapper schema is unsupported");
+  }
+  normalizeMeshDurableScope(snapshot.scope);
+  boundedInteger(
+    snapshot.revision,
+    "snapshot revision",
+    Number.MAX_SAFE_INTEGER,
+  );
+  assertTimestamp(snapshot.committedAt, "snapshot committedAt");
+  assertDigest(snapshot.stateDigest, "snapshot state digest");
+  const metadata = {
+    format: snapshotFormat(snapshot.snapshotFormat),
+    schemaVersion: snapshotSchemaVersion(snapshot.snapshotSchemaVersion),
+  };
+  if (
+    (snapshot.schemaVersion === MESH_PREVIOUS_DURABILITY_SCHEMA_VERSION) !==
+    (metadata.format === MESH_DURABLE_LEGACY_OPAQUE_SNAPSHOT_FORMAT)
+  ) {
+    throw new TypeError("Mesh snapshot format does not match its wrapper");
+  }
+  return metadata;
+}
+
+function snapshotFormat(value: string): string {
+  if (
+    typeof value !== "string" ||
+    value.length < 3 ||
+    new TextEncoder().encode(value).byteLength > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    throw new TypeError("Mesh snapshot format is invalid");
+  }
+  return value;
+}
+
+function snapshotSchemaVersion(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0 || value > 65_535) {
+    throw new RangeError("Mesh snapshot schema version is outside its range");
+  }
+  return value;
+}
+
+function requireSnapshotCodec(
+  registered: ReadonlyMap<
+    string,
+    {
+      readonly descriptor: MeshDurableSnapshotDescriptor;
+      readonly readable: ReadonlySet<number>;
+      readonly encode: (value: unknown) => MeshJsonValue;
+      readonly decode: (state: MeshJsonValue, schemaVersion: number) => unknown;
+      readonly migrate?: (
+        state: MeshJsonValue,
+        fromSchemaVersion: number,
+      ) => MeshJsonValue;
+    }
+  >,
+  format: string,
+) {
+  const normalized = snapshotFormat(format);
+  const registration = registered.get(normalized);
+  if (!registration) {
+    throw new TypeError("Mesh snapshot format is unsupported");
+  }
+  return registration;
+}
+
+async function snapshotEncoding(
+  descriptor: MeshDurableSnapshotDescriptor,
+  state: MeshJsonValue,
+  options: {
+    readonly protocolOptions?: MeshProtocolOptions;
+    readonly crypto?: Crypto;
+  },
+): Promise<MeshDurableSnapshotEncoding> {
+  const snapshot = cloneSnapshotState(state, options.protocolOptions);
+  return Object.freeze({
+    descriptor,
+    state: snapshot,
+    stateDigest: await computeMeshDurableValueDigest(snapshot, options),
+  });
+}
+
+function cloneSnapshotState(
+  state: MeshJsonValue,
+  protocolOptions: MeshProtocolOptions | undefined,
+): MeshJsonValue {
+  const bytes = canonicalSnapshotBytes(state, protocolOptions);
+  return deepFreezeDurableValue(
+    JSON.parse(new TextDecoder().decode(bytes)) as MeshJsonValue,
+  );
+}
+
+function canonicalSnapshotBytes(
+  state: MeshJsonValue,
+  protocolOptions: MeshProtocolOptions | undefined,
+): Uint8Array {
+  const canonical = canonicalizeMeshJsonBytes(state, protocolOptions);
+  if (!canonical.ok) {
+    throw new TypeError("Mesh snapshot state must be bounded strict JSON");
+  }
+  return canonical.value;
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.byteLength !== right.byteLength) return false;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function deepFreezeDurableValue<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value)) deepFreezeDurableValue(nested);
   }
   return value;
 }

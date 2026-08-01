@@ -6,6 +6,7 @@ import {
   MESH_DURABLE_GENESIS_DIGEST,
   computeMeshDurableValueDigest,
   createMeshDurableJournalEntry,
+  createMeshDurableSnapshotCodecRegistry,
   createMeshDurableWorker,
   normalizeMeshDurableScope,
   verifyMeshDurableJournal,
@@ -98,6 +99,152 @@ async function records() {
   return { inbox, outboundEnvelope };
 }
 
+test("snapshot codecs use exact formats, verify digests and migrate deterministically", async () => {
+  const format = "application/vnd.example.peer-state+json";
+  const registry = createMeshDurableSnapshotCodecRegistry([
+    {
+      descriptor: { format, schemaVersion: 2 },
+      readableSchemaVersions: [1, 2],
+      encode(value) {
+        return { count: value.count, label: value.label };
+      },
+      decode(state, schemaVersion) {
+        assert.equal(typeof state.count, "number");
+        return {
+          count: state.count,
+          label: schemaVersion === 1 ? "current" : state.label,
+        };
+      },
+      migrate(state, fromSchemaVersion) {
+        assert.equal(fromSchemaVersion, 1);
+        return { count: state.count, label: "current" };
+      },
+    },
+  ]);
+  assert.deepEqual(registry.formats, [format]);
+
+  const encoded = await registry.encode(format, {
+    count: 2,
+    label: "current",
+  });
+  assert.equal(encoded.descriptor.schemaVersion, 2);
+  assert.equal(Object.isFrozen(encoded.state), true);
+
+  const legacyState = { count: 1 };
+  const legacy = Object.freeze({
+    schemaVersion: 2,
+    scope,
+    revision: 1,
+    state: legacyState,
+    stateDigest: await computeMeshDurableValueDigest(legacyState),
+    snapshotFormat: format,
+    snapshotSchemaVersion: 1,
+    committedAt: "2026-08-01T00:00:00.000Z",
+  });
+  assert.deepEqual(await registry.decode(legacy), {
+    count: 1,
+    label: "current",
+  });
+  const migrated = await registry.migrate(legacy);
+  assert.deepEqual(migrated.state, { count: 1, label: "current" });
+  assert.equal(migrated.descriptor.schemaVersion, 2);
+
+  await assert.rejects(
+    () => registry.decode({ ...legacy, stateDigest: encoded.stateDigest }),
+    /digest does not match/u,
+  );
+  await assert.rejects(
+    () =>
+      registry.decode({
+        ...legacy,
+        snapshotFormat: "application/vnd.example.other+json",
+      }),
+    /format is unsupported/u,
+  );
+  await assert.rejects(
+    () =>
+      registry.decode({
+        ...legacy,
+        snapshotFormat: undefined,
+        snapshotSchemaVersion: undefined,
+      }),
+    /explicit backfill/u,
+  );
+});
+
+test("snapshot codec registry rejects nondeterministic migrations", async () => {
+  let invocation = 0;
+  const format = "application/vnd.example.nondeterministic+json";
+  const registry = createMeshDurableSnapshotCodecRegistry([
+    {
+      descriptor: { format, schemaVersion: 2 },
+      readableSchemaVersions: [1, 2],
+      encode(value) {
+        return value;
+      },
+      decode(state) {
+        return state;
+      },
+      migrate(state) {
+        invocation += 1;
+        return { ...state, invocation };
+      },
+    },
+  ]);
+  const state = { count: 1 };
+  const stateDigest = await computeMeshDurableValueDigest(state);
+  await assert.rejects(
+    () =>
+      registry.migrate({
+        schemaVersion: 2,
+        scope,
+        revision: 1,
+        state,
+        stateDigest,
+        snapshotFormat: format,
+        snapshotSchemaVersion: 1,
+        committedAt: "2026-08-01T00:00:00.000Z",
+      }),
+    /nondeterministic/u,
+  );
+});
+
+test("snapshot codec registration and decoded state are construction-bound", async () => {
+  const format = "application/vnd.example.bound-state+json";
+  let observedFrozenState = false;
+  const codec = {
+    descriptor: { format, schemaVersion: 1 },
+    encode(value) {
+      return { value: value.value };
+    },
+    decode(state) {
+      observedFrozenState = Object.isFrozen(state);
+      return { value: state.value };
+    },
+  };
+  const registry = createMeshDurableSnapshotCodecRegistry([codec]);
+  codec.encode = () => ({ value: "mutated" });
+  codec.decode = () => ({ value: "mutated" });
+  const encoded = await registry.encode(format, { value: "original" });
+  assert.deepEqual(encoded.state, { value: "original" });
+  const state = { value: "original" };
+  assert.deepEqual(
+    await registry.decode({
+      schemaVersion: 2,
+      scope,
+      revision: 1,
+      state,
+      stateDigest: await computeMeshDurableValueDigest(state),
+      snapshotFormat: format,
+      snapshotSchemaVersion: 1,
+      committedAt: "2026-08-01T00:00:00.000Z",
+    }),
+    { value: "original" },
+  );
+  assert.equal(observedFrozenState, true);
+  assert.equal(Object.isFrozen(state), false);
+});
+
 test("durable value and journal digests are deterministic and tamper evident", async () => {
   assert.equal(
     await computeMeshDurableValueDigest({ b: 2, a: 1 }),
@@ -127,6 +274,28 @@ test("durable value and journal digests are deterministic and tamper evident", a
   assert.equal(
     await verifyMeshDurableJournal({ entries: [first, second] }),
     true,
+  );
+  assert.equal(
+    await verifyMeshDurableJournal({
+      entries: [first],
+      expectedHeadDigest: second.digest,
+      expectedHeadSequence: second.sequence,
+    }),
+    false,
+  );
+  assert.equal(
+    await verifyMeshDurableJournal({
+      entries: [first, { ...second, journalVersion: 2 }],
+    }),
+    false,
+  );
+  await assert.rejects(
+    () =>
+      verifyMeshDurableJournal({
+        entries: [first, second],
+        expectedHeadDigest: second.digest,
+      }),
+    /anchor is incomplete/u,
   );
   assert.equal(first.inboxMessageId, "_AAAAAAAAAAAAAAAAAAAAA");
   assert.equal(

@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 
 import { signMeshEnvelope } from '@agentplat/mesh-crypto';
 import { computeMeshDurableValueDigest } from '@agentplat/mesh/durability';
-import { createMeshHttpHandler } from '@agentplat/mesh-http';
+import {
+  DEFAULT_MESH_HTTP_PATH,
+  createMeshHttpHandler,
+} from '@agentplat/mesh-http';
 import {
   PostgresMeshDurableRepository,
   createPostgresPool,
@@ -52,16 +55,16 @@ const handler = createMeshHttpHandler({
   accept: async () => ({ accepted: true }),
 });
 const response = await handler(
-  new Request('https://peer-b.example/agentplat/mesh/v0/envelopes', {
+  new Request(`https://peer-b.example${DEFAULT_MESH_HTTP_PATH}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: body.value,
-  }),
+  })
 );
 assert.equal(response.status, 202);
 assert.match(
   await computeMeshDurableValueDigest({ stable: true }),
-  /^sha256:/u,
+  /^sha256:/u
 );
 
 const pool = createPostgresPool({ max: 1 });
@@ -111,5 +114,5 @@ assert.equal((await bridge.apply(projection)).status, 'duplicate');
 assert.equal(applications, 1);
 
 console.log(
-  'Verified packed HTTP, durability, PostgreSQL and Rooms bridge contracts.',
+  'Verified packed HTTP, durability, PostgreSQL and Rooms bridge contracts.'
 );

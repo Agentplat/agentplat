@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
   DEFAULT_MESH_CRYPTO_POLICY,
   createStaticMeshKeyResolver,
-  signMeshEnvelope,
+  createWebCryptoMeshEnvelopeSigner,
 } from '@agentplat/mesh-crypto';
 import {
   createMeshAllocationInboundProcessor,
@@ -32,6 +32,10 @@ import {
   MESH_SIGNATURE_ALGORITHM,
   canonicalizeMeshPayload,
 } from '@agentplat/mesh-protocol';
+
+const dualWireSigner = createWebCryptoMeshEnvelopeSigner({
+  signingPolicy: { allowedWireVersions: [0, 1] },
+});
 
 const fixtureRoot = new URL(
   '../packages/mesh-protocol/fixtures/v0/',
@@ -126,7 +130,7 @@ async function signedBid(sequence, number) {
   const envelope = structuredClone(bidFixture);
   envelope.sequence = sequence;
   envelope.messageId = messageId(number);
-  return signMeshEnvelope({
+  return dualWireSigner.sign({
     envelope,
     privateKey: keyPairs['peer-a'].privateKey,
   });
@@ -140,7 +144,7 @@ function hashed(envelope) {
 }
 
 async function signed(envelope, peerId) {
-  return signMeshEnvelope({
+  return dualWireSigner.sign({
     envelope,
     privateKey: keyPairs[peerId].privateKey,
   });

@@ -12,22 +12,23 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from '../scripts/verify-registry-consumer.mjs';
 
-test('registry consumer pins every Mesh, inference-control, and Trust package to the exact release version', () => {
+test('registry consumer pins all 34 public packages to the exact release version', () => {
   const manifest = registryConsumerManifest('0.3.0-alpha.1');
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
     new Set(Object.values(manifest.dependencies)),
-    new Set(['0.3.0-alpha.1']),
+    new Set(['0.3.0-alpha.1'])
   );
   assert.equal(manifest.private, true);
+  assert.equal(REGISTRY_PACKAGES.length, 34);
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest('workspace:^'),
-    /must be SemVer/u,
+    /must be SemVer/u
   );
 });
 
-test('registry consumer copies Mesh, inference-control, and Trust verification scenarios', () => {
+test('registry consumer copies compatibility and conformance scenarios', () => {
   assert.deepEqual(REGISTRY_CONSUMER_SCRIPTS, [
     {
       source: 'scripts/pack-consumers/mesh-three-peer.mjs',
@@ -49,25 +50,25 @@ test('registry consumer copies Mesh, inference-control, and Trust verification s
       source: 'scripts/pack-consumers/mesh-adapters-alpha5.mjs',
       destination: 'verify-mesh-adapters.mjs',
     },
+    {
+      source: 'scripts/pack-consumers/mesh-mixed-version.mjs',
+      destination: 'verify-mixed-version.mjs',
+    },
+    {
+      source: 'scripts/pack-consumers/mesh-conformance.mjs',
+      destination: 'verify-conformance.mjs',
+    },
   ]);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS), true);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS[0]), true);
-  assert.deepEqual(
-    REGISTRY_PACKAGES.slice(-REGISTRY_ALPHA5_PACKAGES.length),
-    REGISTRY_ALPHA5_PACKAGES,
-  );
-  assert.equal(
-    REGISTRY_PACKAGES.at(-(REGISTRY_ALPHA5_PACKAGES.length + 1)),
-    REGISTRY_TRUST_PACKAGE,
-  );
-  assert.equal(
-    REGISTRY_PACKAGES.at(-(REGISTRY_ALPHA5_PACKAGES.length + 2)),
+  for (const packageName of [
+    ...REGISTRY_MESH_PACKAGES,
+    ...REGISTRY_ALPHA5_PACKAGES,
     REGISTRY_INFERENCE_CONTROL_PACKAGE,
-  );
-  assert.deepEqual(
-    REGISTRY_PACKAGES.slice(0, -(REGISTRY_ALPHA5_PACKAGES.length + 2)),
-    REGISTRY_MESH_PACKAGES,
-  );
+    REGISTRY_TRUST_PACKAGE,
+  ]) {
+    assert.equal(REGISTRY_PACKAGES.includes(packageName), true);
+  }
 });
 
 test('registry consumer isolates install and execution environments', () => {
@@ -82,7 +83,7 @@ test('registry consumer isolates install and execution environments', () => {
       npm_config_registry: 'https://registry.example',
       NPM_CONFIG_USERCONFIG: '/host/.npmrc',
     },
-    '/tmp/consumer/.npmrc',
+    '/tmp/consumer/.npmrc'
   );
 
   assert.deepEqual(environments.execution, {

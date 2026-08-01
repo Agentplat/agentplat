@@ -15,7 +15,7 @@ import {
 } from "@agentplat/mesh/trust";
 import {
   createStaticMeshKeyResolver,
-  signMeshEnvelope,
+  createWebCryptoMeshEnvelopeSigner,
 } from "@agentplat/mesh-crypto";
 import {
   EVIDENCE_TRUST_LIMITS_V1,
@@ -32,6 +32,10 @@ import {
   reduceEvidenceTrustStateV1,
   sha256TrustBytesV1,
 } from "../packages/trust/dist/index.js";
+
+const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+  signingPolicy: { allowedWireVersions: [0] },
+});
 
 test("Mesh Trust filtering only preserves candidates or returns a subset", () => {
   const candidates = Object.freeze([
@@ -578,7 +582,7 @@ async function signedClaim(messageId = "AAAAAAAAAAAAAAAAAAAAAQ") {
     basisReferences: [],
     observedAt: null,
   });
-  const envelope = await signMeshEnvelope({
+  const envelope = await compatibilitySigner.sign({
     envelope: {
       protocol: "agentplat.mesh",
       wireVersion: 0,
@@ -624,7 +628,7 @@ async function signedClaim(messageId = "AAAAAAAAAAAAAAAAAAAAAQ") {
 }
 
 async function signTrustPayload(keys, messageId, sequence, payload) {
-  return signMeshEnvelope({
+  return compatibilitySigner.sign({
     envelope: {
       protocol: "agentplat.mesh",
       wireVersion: 0,

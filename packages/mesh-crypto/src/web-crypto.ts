@@ -1,11 +1,14 @@
 import {
+  MESH_SUPPORTED_WIRE_VERSIONS,
   MESH_SIGNATURE_ALGORITHM,
+  MESH_WIRE_VERSION,
   canonicalizeMeshPayload,
   canonicalizeMeshSigningDocument,
   compareMeshTimestamps,
   validateSignedMeshEnvelope,
   type MeshEnvelope,
   type MeshMessagePayload,
+  type MeshWireVersion,
   type SignedMeshEnvelope,
   type VerifiedMeshEnvelope,
 } from '@agentplat/mesh-protocol';
@@ -20,8 +23,10 @@ import {
   type MeshEnvelopeVerifier,
   type MeshKeyRecord,
   type MeshSignRequest,
+  type MeshSigningPolicy,
   type MeshVerificationResult,
   type MeshVerifyRequest,
+  type WebCryptoMeshEnvelopeSignerOptions,
 } from './contracts.js';
 
 const placeholderPayloadHash =
@@ -33,6 +38,13 @@ const placeholderSignature =
 export const DEFAULT_MESH_CRYPTO_POLICY: Readonly<MeshCryptoPolicy> =
   Object.freeze({
     allowedAlgorithms: Object.freeze([MESH_SIGNATURE_ALGORITHM]),
+    allowedWireVersions: MESH_SUPPORTED_WIRE_VERSIONS,
+  });
+
+/** Strict outbound default: only the current wire version may be signed. */
+export const DEFAULT_MESH_SIGNING_POLICY: Readonly<MeshSigningPolicy> =
+  Object.freeze({
+    allowedWireVersions: Object.freeze([MESH_WIRE_VERSION]),
   });
 
 /** Computes the canonical SHA-256 payload representation. */
@@ -76,19 +88,26 @@ async function computeMeshPayloadHashInternal<
 }
 
 /** Hashes, constructs and signs one structurally valid outbound envelope. */
-export async function signMeshEnvelope<TPayload extends MeshMessagePayload>(
-  request: MeshSignRequest<TPayload>
-): Promise<SignedMeshEnvelope<TPayload>> {
+export async function signMeshEnvelope<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshSignRequest<TPayload, TWireVersion>
+): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
   try {
-    return await signMeshEnvelopeInternal(request);
+    return await signMeshEnvelopeInternal(request, DEFAULT_MESH_SIGNING_POLICY);
   } catch (error) {
     throw normalizeCryptoError(error);
   }
 }
 
-async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
-  request: MeshSignRequest<TPayload>
-): Promise<SignedMeshEnvelope<TPayload>> {
+async function signMeshEnvelopeInternal<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshSignRequest<TPayload, TWireVersion>,
+  signingPolicy: Readonly<MeshSigningPolicy>
+): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
   if (!request || typeof request !== 'object') {
     throw new MeshCryptoError('invalid_envelope');
   }
@@ -107,6 +126,9 @@ async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
   if (inputEnvelope.proof.algorithm !== MESH_SIGNATURE_ALGORITHM) {
     throw new MeshCryptoError('unsupported_algorithm');
   }
+  if (!signingPolicy.allowedWireVersions.includes(inputEnvelope.wireVersion)) {
+    throw new MeshCryptoError('unsupported_wire_version');
+  }
   if (!isEd25519Key(privateKey, 'private', 'sign')) {
     throw new MeshCryptoError('invalid_private_key');
   }
@@ -124,15 +146,17 @@ async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
   if (!inputValidation.ok) {
     throw new MeshCryptoError('invalid_envelope');
   }
-  const envelopeSnapshot =
-    inputValidation.value as SignedMeshEnvelope<TPayload>;
+  const envelopeSnapshot = inputValidation.value as SignedMeshEnvelope<
+    TPayload,
+    TWireVersion
+  >;
   const crypto = resolveCrypto(injectedCrypto);
   const payloadHash = await computeMeshPayloadHash({
     payload: envelopeSnapshot.payload,
     crypto,
     protocolOptions,
   });
-  const structuralCandidate: MeshEnvelope<TPayload> = {
+  const structuralCandidate: MeshEnvelope<TPayload, TWireVersion> = {
     ...envelopeSnapshot,
     payloadHash,
   };
@@ -143,8 +167,10 @@ async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
   if (!structuralValidation.ok) {
     throw new MeshCryptoError('invalid_envelope');
   }
-  const structuralEnvelope =
-    structuralValidation.value as SignedMeshEnvelope<TPayload>;
+  const structuralEnvelope = structuralValidation.value as SignedMeshEnvelope<
+    TPayload,
+    TWireVersion
+  >;
   const signingBytes = canonicalizeMeshSigningDocument(
     structuralEnvelope,
     protocolOptions
@@ -167,7 +193,7 @@ async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
     throw new MeshCryptoError('crypto_operation_failed');
   }
 
-  const signedCandidate: MeshEnvelope<TPayload> = {
+  const signedCandidate: MeshEnvelope<TPayload, TWireVersion> = {
     ...structuralEnvelope,
     proof: {
       ...structuralEnvelope.proof,
@@ -179,13 +205,16 @@ async function signMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
     protocolOptions
   );
   if (!signedValidation.ok) throw new MeshCryptoError('invalid_envelope');
-  return signedValidation.value as SignedMeshEnvelope<TPayload>;
+  return signedValidation.value as SignedMeshEnvelope<TPayload, TWireVersion>;
 }
 
 /** Verifies digest, proof, key binding, validity and revocation fail-closed. */
-export async function verifyMeshEnvelope<TPayload extends MeshMessagePayload>(
-  request: MeshVerifyRequest<TPayload>
-): Promise<MeshVerificationResult<TPayload>> {
+export async function verifyMeshEnvelope<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshVerifyRequest<TPayload, TWireVersion>
+): Promise<MeshVerificationResult<TPayload, TWireVersion>> {
   try {
     return await verifyMeshEnvelopeInternal(request);
   } catch (error) {
@@ -195,9 +224,12 @@ export async function verifyMeshEnvelope<TPayload extends MeshMessagePayload>(
   }
 }
 
-async function verifyMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
-  request: MeshVerifyRequest<TPayload>
-): Promise<MeshVerificationResult<TPayload>> {
+async function verifyMeshEnvelopeInternal<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshVerifyRequest<TPayload, TWireVersion>
+): Promise<MeshVerificationResult<TPayload, TWireVersion>> {
   if (!request || typeof request !== 'object') {
     return rejection('invalid_envelope');
   }
@@ -215,7 +247,16 @@ async function verifyMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
     protocolOptions
   );
   if (!structuralValidation.ok) return rejection('invalid_envelope');
-  const envelope = structuralValidation.value as SignedMeshEnvelope<TPayload>;
+  const envelope = structuralValidation.value as SignedMeshEnvelope<
+    TPayload,
+    TWireVersion
+  >;
+  const allowedWireVersions = snapshotWireVersions(
+    request.policy.allowedWireVersions ?? MESH_SUPPORTED_WIRE_VERSIONS
+  );
+  if (!allowedWireVersions.includes(envelope.wireVersion)) {
+    return rejection('unsupported_wire_version');
+  }
   if (
     envelope.proof.algorithm !== MESH_SIGNATURE_ALGORITHM ||
     !allowedAlgorithms.includes(envelope.proof.algorithm)
@@ -301,7 +342,7 @@ async function verifyMeshEnvelopeInternal<TPayload extends MeshMessagePayload>(
 
   return {
     verified: true,
-    envelope: envelope as VerifiedMeshEnvelope<TPayload>,
+    envelope: envelope as VerifiedMeshEnvelope<TPayload, TWireVersion>,
     key,
   };
 }
@@ -356,25 +397,39 @@ export async function exportMeshEd25519PublicKey(
 
 /** Reference Web Crypto signer implementation. */
 export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
-  sign<TPayload extends MeshMessagePayload>(
-    request: MeshSignRequest<TPayload>
-  ): Promise<SignedMeshEnvelope<TPayload>> {
-    return signMeshEnvelope(request);
+  readonly #signingPolicy: Readonly<MeshSigningPolicy>;
+
+  constructor(options: WebCryptoMeshEnvelopeSignerOptions = {}) {
+    this.#signingPolicy = snapshotSigningPolicy(options.signingPolicy);
+  }
+
+  sign<
+    TPayload extends MeshMessagePayload,
+    TWireVersion extends MeshWireVersion = MeshWireVersion,
+  >(
+    request: MeshSignRequest<TPayload, TWireVersion>
+  ): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
+    return signMeshEnvelopeWithPolicy(request, this.#signingPolicy);
   }
 }
 
 /** Reference Web Crypto verifier implementation. */
 export class WebCryptoMeshEnvelopeVerifier implements MeshEnvelopeVerifier {
-  verify<TPayload extends MeshMessagePayload>(
-    request: MeshVerifyRequest<TPayload>
-  ): Promise<MeshVerificationResult<TPayload>> {
+  verify<
+    TPayload extends MeshMessagePayload,
+    TWireVersion extends MeshWireVersion = MeshWireVersion,
+  >(
+    request: MeshVerifyRequest<TPayload, TWireVersion>
+  ): Promise<MeshVerificationResult<TPayload, TWireVersion>> {
     return verifyMeshEnvelope(request);
   }
 }
 
 /** Creates the reference signer without requiring `new`. */
-export function createWebCryptoMeshEnvelopeSigner(): WebCryptoMeshEnvelopeSigner {
-  return new WebCryptoMeshEnvelopeSigner();
+export function createWebCryptoMeshEnvelopeSigner(
+  options: WebCryptoMeshEnvelopeSignerOptions = {}
+): WebCryptoMeshEnvelopeSigner {
+  return new WebCryptoMeshEnvelopeSigner(options);
 }
 
 /** Creates the reference verifier without requiring `new`. */
@@ -482,7 +537,58 @@ function snapshotProtocolOptions(
     ...(options.limits === undefined
       ? {}
       : { limits: Object.freeze({ ...options.limits }) }),
+    ...(options.acceptedWireVersions === undefined
+      ? {}
+      : {
+          acceptedWireVersions: Object.freeze([
+            ...options.acceptedWireVersions,
+          ]),
+        }),
   });
+}
+
+async function signMeshEnvelopeWithPolicy<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshSignRequest<TPayload, TWireVersion>,
+  signingPolicy: Readonly<MeshSigningPolicy>
+): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
+  try {
+    return await signMeshEnvelopeInternal(request, signingPolicy);
+  } catch (error) {
+    throw normalizeCryptoError(error);
+  }
+}
+
+function snapshotSigningPolicy(
+  policy: MeshSigningPolicy | undefined
+): Readonly<MeshSigningPolicy> {
+  return Object.freeze({
+    allowedWireVersions: snapshotWireVersions(
+      policy?.allowedWireVersions ??
+        DEFAULT_MESH_SIGNING_POLICY.allowedWireVersions
+    ),
+  });
+}
+
+function snapshotWireVersions(
+  versions: readonly MeshWireVersion[]
+): readonly MeshWireVersion[] {
+  if (!Array.isArray(versions) || versions.length === 0) {
+    throw new MeshCryptoError('unsupported_wire_version');
+  }
+  const result: MeshWireVersion[] = [];
+  for (const version of versions) {
+    if (
+      !MESH_SUPPORTED_WIRE_VERSIONS.includes(version) ||
+      result.includes(version)
+    ) {
+      throw new MeshCryptoError('unsupported_wire_version');
+    }
+    result.push(version);
+  }
+  return Object.freeze(result);
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -503,9 +609,10 @@ function normalizeCryptoError(error: unknown): MeshCryptoError {
     : new MeshCryptoError('crypto_operation_failed');
 }
 
-function rejection<TPayload extends MeshMessagePayload>(
-  code: MeshCryptoRejectionCode | MeshCryptoError['code']
-): MeshVerificationResult<TPayload> {
+function rejection(code: MeshCryptoRejectionCode | MeshCryptoError['code']): {
+  readonly verified: false;
+  readonly code: MeshCryptoRejectionCode;
+} {
   return {
     verified: false,
     code:

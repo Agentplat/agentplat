@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "diagnosticOnly": true,
+  "profiles": {
+    "typical": {
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1
+    },
+    "boundary": {
+      "samples": 8,
+      "operationsPerSample": 4,
+      "concurrency": 1
+    },
+    "postgres": {
+      "samples": 16,
+      "operationsPerSample": 1,
+      "concurrency": 1
+    }
+  },
+  "workloads": [
+    "protocol.parse.v0.typical",
+    "protocol.parse.v1.typical",
+    "protocol.canonicalize.v1.boundary",
+    "crypto.hash_sign_verify.typical",
+    "negotiation.mixed_cohort.typical",
+    "http.ingress_exact_retry.typical",
+    "postgres.receipt.typical",
+    "postgres.claim_transition_journal_outbox.typical",
+    "snapshot.migrate_restore.boundary",
+    "conformance.protocol_runner.typical"
+  ]
+}

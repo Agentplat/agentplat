@@ -9,6 +9,7 @@ import type {
 
 import type { MeshLogicalTime, MeshPeerIdentity } from './contracts.js';
 import type { MeshCoordinationState } from './coordination-contracts.js';
+import type { MeshWireVersionHighWater } from './coordination-wire-version-contracts.js';
 
 /** Local admission is configured independently from discovery self-claims. */
 export interface MeshDiscoveryAdmission {
@@ -87,12 +88,15 @@ export interface MeshDiscoveryLimits {
 
 /** Immutable discovery projection composed with the coordination core. */
 export interface MeshDiscoveryState {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly identity: MeshPeerIdentity;
   readonly admittedPeers: Readonly<Record<string, MeshDiscoveryAdmission>>;
   readonly peerCards: Readonly<Record<string, MeshPeerCardProjection>>;
   readonly peerViews: Readonly<Record<string, MeshPeerViewProjection>>;
   readonly capabilities: Readonly<Record<string, MeshCapabilityProjection>>;
+  readonly wireVersionHighWaters: Readonly<
+    Record<string, MeshWireVersionHighWater>
+  >;
   readonly subscriptions: readonly MeshAudienceTopic[];
   readonly limits: MeshDiscoveryLimits;
   readonly lastLogicalTime: MeshLogicalTime;

@@ -18,6 +18,12 @@ Use `signMeshEnvelope` for the reference outbound path and
 implementations are available through `createWebCryptoMeshEnvelopeSigner` and
 `createWebCryptoMeshEnvelopeVerifier`.
 
+The Beta 1 signer writes v1 by default. Producing a compatibility v0 envelope
+requires an immutable construction-bound `signingPolicy` that lists v0; the
+signer never relabels an envelope. The verifier reads v0 and v1 by default and
+may be narrowed through `allowedWireVersions`. Because `wireVersion` is in the
+signing document, copying a valid proof between versions fails verification.
+
 Key resolution is synchronous by design so ordinary inbound verification cannot
 trigger network access. `StaticMeshKeyResolver` rejects duplicate bindings and
 configurations above its explicit record limit.

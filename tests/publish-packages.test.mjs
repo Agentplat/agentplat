@@ -370,7 +370,7 @@ test('release workflow defaults to dry-run and scopes the npm token to publishin
   assert.doesNotMatch(publishStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
   assert.equal(
     workflow.match(/NPM_CONFIG_USERCONFIG: \/dev\/null/g)?.length,
-    4
+    5
   );
 });
 

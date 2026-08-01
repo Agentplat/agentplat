@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { signMeshEnvelope } from "@agentplat/mesh-crypto";
-import { verifyMeshDurableJournal } from "@agentplat/mesh/durability";
+import {
+  MESH_DURABILITY_SCHEMA_VERSION,
+  MESH_DURABLE_ENVELOPE_FORMAT,
+  MESH_DURABLE_JOURNAL_VERSION,
+  verifyMeshDurableJournal,
+} from "@agentplat/mesh/durability";
 import {
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
@@ -10,6 +15,7 @@ import {
 import {
   PostgresMeshDurableRepository,
   createPostgresPool,
+  getCompatibilityStatus,
   getMigrationStatus,
   rollbackConfirmation,
   rollbackMigrations,
@@ -97,7 +103,13 @@ test(
         schema,
         createSchema: true,
       });
-      assert.equal(migrated.currentVersion, 1);
+      assert.equal(migrated.currentVersion, 2);
+      assert.deepEqual(await getCompatibilityStatus(pool, { schema }), {
+        legacyInboxRows: 0,
+        legacyOutboxRows: 0,
+        legacySnapshotRows: 0,
+        betaRowsMissingCanonicalBytes: 0,
+      });
       const repository = new PostgresMeshDurableRepository(pool, {
         schema,
         maximumPendingInboxRowsPerScope: 8,
@@ -215,6 +227,10 @@ test(
         limit: 1,
         leaseDurationMs: 30_000,
       });
+      assert.equal(current.schemaVersion, MESH_DURABILITY_SCHEMA_VERSION);
+      assert.equal(current.envelopeFormat, MESH_DURABLE_ENVELOPE_FORMAT);
+      assert.equal(current.envelopeWireVersion, MESH_WIRE_VERSION);
+      assert.equal(typeof current.envelopeBytes, "string");
       assert.equal(current.claim.generation, stale.claim.generation + 1);
       assert.deepEqual(
         await repository.commitInboxTransition({
@@ -240,7 +256,14 @@ test(
       });
       assert.equal(committed.committed, true);
       assert.equal(committed.snapshot.revision, 1);
+      assert.equal(committed.snapshot.snapshotFormat, "application/json");
+      assert.equal(committed.snapshot.snapshotSchemaVersion, 0);
       assert.equal(committed.outbox.length, 1);
+      assert.equal(typeof committed.outbox[0].envelopeBytes, "string");
+      assert.equal(
+        committed.journal[0].journalVersion,
+        MESH_DURABLE_JOURNAL_VERSION,
+      );
       assert.equal(
         await verifyMeshDurableJournal({ entries: committed.journal }),
         true,
@@ -326,6 +349,10 @@ test(
         leaseDurationMs: 30_000,
       });
       assert.deepEqual(retriedDelivery.envelope, ambiguousDelivery.envelope);
+      assert.equal(
+        retriedDelivery.envelopeBytes,
+        ambiguousDelivery.envelopeBytes,
+      );
       const remoteDuplicate = await repository.receive({
         scope: remoteScope,
         envelope: retriedDelivery.envelope,
@@ -358,18 +385,49 @@ test(
 
       const journal = await repository.inspectJournal({ scope, limit: 10 });
       assert.equal(await verifyMeshDurableJournal({ entries: journal }), true);
+      await pool.query(
+        `ALTER TABLE ${schema}.mesh_journal
+           DROP CONSTRAINT mesh_journal_compatibility_metadata_check`,
+      );
+      try {
+        await pool.query(
+          `UPDATE ${schema}.mesh_journal SET journal_version = 2
+            WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+              AND instance_id = $4`,
+          [scope.tenantId, scope.meshId, scope.peerId, scope.instanceId],
+        );
+        await assert.rejects(
+          () => repository.inspectJournal({ scope, limit: 10 }),
+          /journal version is invalid/u,
+        );
+      } finally {
+        await pool.query(
+          `UPDATE ${schema}.mesh_journal SET journal_version = 1
+            WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+              AND instance_id = $4`,
+          [scope.tenantId, scope.meshId, scope.peerId, scope.instanceId],
+        );
+        await pool.query(
+          `ALTER TABLE ${schema}.mesh_journal
+             ADD CONSTRAINT mesh_journal_compatibility_metadata_check CHECK (
+               wrapper_schema_version IN (1, 2) AND journal_version = 1
+             )`,
+        );
+      }
       repository.close();
       assert.equal((await pool.query("SELECT 1 AS ok")).rows[0].ok, 1);
 
       const status = await getMigrationStatus(pool, { schema });
-      assert.equal(status.currentVersion, 1);
+      assert.equal(status.currentVersion, 2);
       const rolledBack = await rollbackMigrations(pool, {
         schema,
-        expectedCurrentVersion: 1,
+        expectedCurrentVersion: 2,
         confirm: rollbackConfirmation(schema),
         allowDataLoss: true,
+        verifiedBackup: true,
+        allowIncompatibleRows: true,
       });
-      assert.equal(rolledBack.currentVersion, 0);
+      assert.equal(rolledBack.currentVersion, 1);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       await pool.end();

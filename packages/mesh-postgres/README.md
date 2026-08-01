@@ -21,7 +21,17 @@ const repository = new PostgresMeshDurableRepository(pool, {
 
 Import and construction do not connect, migrate or start workers. Migrations
 are explicit and destructive rollback requires the exact confirmation returned
-by `rollbackConfirmation`, the expected version and `allowDataLoss: true`.
+by `rollbackConfirmation`, the expected version, `allowDataLoss: true`, a
+verified external backup and an explicit decision for any Beta-only rows.
+
+Migration 2 is additive. It records the durable wrapper version, envelope
+format/wire version/canonical bytes, snapshot content format/schema and journal
+version without guessing legacy snapshot content. `getCompatibilityStatus`
+returns counts only. Applications migrate opaque Alpha snapshots through
+`backfillLegacySnapshots` with an explicit deterministic codec in bounded,
+resumable batches. `getRollbackReadiness` reports whether retained Beta rows
+can be read by the preceding Alpha reader, including v1 envelopes, typed snapshots and
+schema-2 journal entries that cannot be represented by that reader.
 
 The pool remains caller-owned. `repository.close()` intentionally does not call
 `pool.end()`.

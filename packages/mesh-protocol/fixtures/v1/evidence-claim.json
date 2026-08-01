@@ -1,0 +1,48 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "AAAAAAAAAAAAAAAAAAAAAQ",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "type": "evidence.claim",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "mesh",
+    "topic": "evidence"
+  },
+  "sequence": 31,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:04:00.000Z",
+  "payloadHash": "sha256:SnnQmWIwEcGokc2IWaSsLc8owr-b-3iI-bbNiEtkUWc",
+  "payload": {
+    "type": "evidence.claim",
+    "claimId": "claim:5c02337f46ec7143b2ab82b9f0913226420e335952b3c4d882cfe4a0562ee01d",
+    "subject": {
+      "kind": "peer",
+      "peerId": "peer-a"
+    },
+    "scope": {
+      "kind": "mesh"
+    },
+    "criterionId": "criterion-a",
+    "outcome": "satisfied",
+    "assertionDigest": "b32d61f44d7cd801fe9376bf4fbfebaf29e7f77c9a4052c4b7a1c7dfae8d8973",
+    "content": {
+      "kind": "inline_summary",
+      "mediaType": "text_plain",
+      "summary": "ok",
+      "contentDigest": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
+      "encodedBytes": 2
+    },
+    "basisReferences": [],
+    "observedAt": null
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "tui78tecgz_TR2Ph7Hzk36957z6YtcnkBcgMCzej2agJnRmjlfVsQzsbQuKMTg_uMNZmf_l9tNVnaC7a_zYBDg"
+  }
+}

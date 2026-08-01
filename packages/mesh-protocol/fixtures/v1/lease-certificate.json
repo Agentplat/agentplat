@@ -1,0 +1,38 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "KKKKKKKKKKKKKKKKKKKKKA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "lease.certificate",
+  "sender": {
+    "peerId": "peer-b",
+    "instanceId": "instance-b"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-a"
+  },
+  "sequence": 22,
+  "sentAt": "2026-07-30T01:01:20.000Z",
+  "expiresAt": "2026-07-30T01:02:20.000Z",
+  "causationId": "IIIIIIIIIIIIIIIIIIIIIA",
+  "payloadHash": "sha256:XnHU44yyhb2UtWYvuvgJ4VE6AW2_LoUwK5RxT0otxaU",
+  "payload": {
+    "type": "lease.certificate",
+    "certificateId": "certificate-a",
+    "certificateAssemblerPeerId": "peer-b",
+    "takeoverProposalId": "takeover-proposal-a",
+    "leaseVoteIds": [
+      "lease-vote-a",
+      "lease-vote-b"
+    ],
+    "objectiveId": "objective-a"
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "L9qN8BprlByFuASnp1hSGI1I44nycgbCxDq0__weWnkjND8bxInsOOk8tT_Sr1-6sMgZctSpHQ_yzACuFc44Bw"
+  }
+}

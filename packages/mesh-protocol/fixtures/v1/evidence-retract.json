@@ -1,0 +1,39 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "AAAAAAAAAAAAAAAAAAAABA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "evidence.retract",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-b"
+  },
+  "sequence": 34,
+  "sentAt": "2026-07-30T00:00:00.000Z",
+  "expiresAt": "2026-07-30T00:04:00.000Z",
+  "payloadHash": "sha256:EBCfEdWS0-quzSbdrGcJ_zOLF65dAJtW1ig6ay-KvUw",
+  "payload": {
+    "type": "evidence.retract",
+    "retractionId": "retraction:58087568658e8c72019798d7a60fafab38436082335824cd3abe4286b877af58",
+    "scope": {
+      "kind": "objective",
+      "objectiveRevision": 1
+    },
+    "targetKind": "attestation",
+    "targetId": "attestation:f8318373b604044ad4e9764839c4287defe31c9a55337eb9d7f9328308f7c3f6",
+    "targetDigest": "f8318373b604044ad4e9764839c4287defe31c9a55337eb9d7f9328308f7c3f6",
+    "reasonCode": "accepted",
+    "observedAt": null
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "-Tq_V2pu1PGnlmBly-BN-w1HcrCsvFduTk7EhxS8owYnxShwxTRhWuTPoB__AXO-EtXQ3duRR4IS7l0Um6QUBQ"
+  }
+}

@@ -1,11 +1,13 @@
 import {
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
+  MESH_SUPPORTED_WIRE_VERSIONS,
   MESH_WIRE_VERSION,
   type MeshMessagePayload,
   type MeshProtocolOptions,
   type SignedMeshEnvelope,
   type UnsignedMeshEnvelope,
+  type MeshWireVersion,
 } from '@agentplat/mesh-protocol';
 import type {
   MeshCryptoPolicy,
@@ -103,6 +105,8 @@ export interface MeshLoopbackPeerOptions {
   readonly messageIds?: MeshLoopbackMessageIdSource;
   readonly admissionPolicy?: MeshAdmissionPolicy;
   readonly outboundSequence?: number;
+  /** Construction-bound outbound version; compatibility v0 needs a v0 signer. */
+  readonly wireVersion?: MeshWireVersion;
   readonly crypto?: Crypto;
   readonly protocolOptions?: MeshProtocolOptions;
   readonly supportedCriticalExtensions?: readonly string[];
@@ -225,7 +229,9 @@ class InMemoryMeshLoopbackTransport implements MeshLoopbackTransport {
       options.state.identity.instanceId,
     ]);
     if (this.#seenInstances.has(instanceKey)) {
-      throw new TypeError('Mesh loopback peer instance cannot be re-registered');
+      throw new TypeError(
+        'Mesh loopback peer instance cannot be re-registered'
+      );
     }
     this.#seenInstances.add(instanceKey);
     this.#peers.set(key, peer);
@@ -283,9 +289,7 @@ class InMemoryMeshLoopbackTransport implements MeshLoopbackTransport {
       this.#closed ||
       this.#queue.length + this.#inFlight + batchSize >
         this.#maximumQueueDepth ||
-      this.#queuedBytes +
-        this.#inFlightBytes +
-        byteLength * batchSize >
+      this.#queuedBytes + this.#inFlightBytes + byteLength * batchSize >
         this.#maximumQueuedBytes
     ) {
       return Promise.resolve(
@@ -501,6 +505,7 @@ class LoopbackPeer implements MeshLoopbackPeer {
   readonly #transport: InMemoryMeshLoopbackTransport;
   readonly #options: MeshLoopbackPeerOptions;
   readonly #prepared = new Map<string, SignedMeshEnvelope>();
+  readonly #wireVersion: MeshWireVersion;
   #state: MeshPeerState;
   #outboundSequence: number;
   #tail: Promise<void> = Promise.resolve();
@@ -517,11 +522,15 @@ class LoopbackPeer implements MeshLoopbackPeer {
     this.#state = options.state;
     this.address = freezeAddress(options.state.identity);
     this.#outboundSequence = options.outboundSequence ?? 0;
+    this.#wireVersion = options.wireVersion ?? MESH_WIRE_VERSION;
     if (
       !Number.isSafeInteger(this.#outboundSequence) ||
       this.#outboundSequence < 0
     ) {
       throw new RangeError('Invalid Mesh loopback outbound sequence');
+    }
+    if (!MESH_SUPPORTED_WIRE_VERSIONS.includes(this.#wireVersion)) {
+      throw new TypeError('Invalid Mesh loopback wire version');
     }
   }
 
@@ -536,7 +545,9 @@ class LoopbackPeer implements MeshLoopbackPeer {
     });
   }
 
-  dispatch(input: MeshLoopbackPeerCommand): Promise<MeshLoopbackDispatchResult> {
+  dispatch(
+    input: MeshLoopbackPeerCommand
+  ): Promise<MeshLoopbackDispatchResult> {
     return this.#transport.dispatchFrom(this, input);
   }
 
@@ -549,10 +560,7 @@ class LoopbackPeer implements MeshLoopbackPeer {
       const time = freezeTime(this.#options.clock.now());
       const transition = reduceMeshPeer(this.#state, input, time.logicalTime);
       this.#state = transition.state;
-      const interpreted = await this.#interpret(
-        transition.effects,
-        time
-      );
+      const interpreted = await this.#interpret(transition.effects, time);
       return Object.freeze({
         state: this.#state,
         effects: transition.effects,
@@ -572,12 +580,10 @@ class LoopbackPeer implements MeshLoopbackPeer {
         resolver: this.#options.resolver,
         cryptoPolicy: this.#options.cryptoPolicy,
         admissionPolicy:
-          this.#options.admissionPolicy ??
-          ALLOW_PREPROVISIONED_MESH_ADMISSION,
+          this.#options.admissionPolicy ?? ALLOW_PREPROVISIONED_MESH_ADMISSION,
         crypto: this.#options.crypto,
         protocolOptions: this.#options.protocolOptions,
-        supportedCriticalExtensions:
-          this.#options.supportedCriticalExtensions,
+        supportedCriticalExtensions: this.#options.supportedCriticalExtensions,
       });
       if (!decision.accepted) {
         return Object.freeze({
@@ -630,8 +636,7 @@ class LoopbackPeer implements MeshLoopbackPeer {
                 messageId: envelope.messageId,
                 type: envelope.type,
                 audiencePeerId: effect.intent.audiencePeerId,
-                expiresAt:
-                  time.logicalTime + effect.intent.maximumLifetimeMs,
+                expiresAt: time.logicalTime + effect.intent.maximumLifetimeMs,
               }),
             }),
             time.logicalTime
@@ -698,7 +703,7 @@ class LoopbackPeer implements MeshLoopbackPeer {
     const intent = effect.intent;
     const unsigned: UnsignedMeshEnvelope = {
       protocol: MESH_PROTOCOL,
-      wireVersion: MESH_WIRE_VERSION,
+      wireVersion: this.#wireVersion,
       messageId,
       tenantId: this.#state.identity.tenantId,
       meshId: this.#state.identity.meshId,
@@ -832,8 +837,7 @@ function encodeBase64Url(bytes: Uint8Array): string {
     const first = bytes[index];
     const second = bytes[index + 1];
     const third = bytes[index + 2];
-    const combined =
-      (first << 16) | ((second ?? 0) << 8) | (third ?? 0);
+    const combined = (first << 16) | ((second ?? 0) << 8) | (third ?? 0);
     output += alphabet[(combined >>> 18) & 63];
     output += alphabet[(combined >>> 12) & 63];
     if (second !== undefined) output += alphabet[(combined >>> 6) & 63];

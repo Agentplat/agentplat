@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  MESH_PREVIOUS_WIRE_VERSION,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
   canonicalizeMeshJsonBytes,
 } from "@agentplat/mesh-protocol";
-import { signMeshEnvelope } from "@agentplat/mesh-crypto";
+import { createWebCryptoMeshEnvelopeSigner } from "@agentplat/mesh-crypto";
 import {
   DEFAULT_MESH_HTTP_PATH,
+  MESH_HTTP_V0_PATH,
+  MESH_HTTP_V1_PATH,
   createMeshHttpClient,
   createMeshHttpHandler,
 } from "@agentplat/mesh-http";
@@ -18,10 +21,14 @@ async function envelope(overrides = {}) {
     "sign",
     "verify",
   ]);
-  return signMeshEnvelope({
+  const wireVersion = overrides.wireVersion ?? MESH_WIRE_VERSION;
+  const signer = createWebCryptoMeshEnvelopeSigner({
+    signingPolicy: { allowedWireVersions: [wireVersion] },
+  });
+  return signer.sign({
     envelope: {
       protocol: MESH_PROTOCOL,
-      wireVersion: MESH_WIRE_VERSION,
+      wireVersion,
       messageId: "AAAAAAAAAAAAAAAAAAAAAQ",
       tenantId: "tenant-a",
       meshId: "mesh-a",
@@ -45,6 +52,99 @@ const target = {
   peerId: "peer-b",
   instanceId: "peer-b-1",
 };
+
+test("HTTP paths bind exact wire versions and v0 is explicit", async () => {
+  assert.equal(DEFAULT_MESH_HTTP_PATH, MESH_HTTP_V1_PATH);
+  const v0 = await envelope({ wireVersion: MESH_PREVIOUS_WIRE_VERSION });
+  const bytes = canonicalizeMeshJsonBytes(v0).value;
+  let accepted = 0;
+  const current = createMeshHttpHandler({
+    target,
+    accept: async () => ({ accepted: true }),
+  });
+  assert.equal(
+    (
+      await current(
+        new Request(`https://peer-b.example${MESH_HTTP_V1_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: bytes,
+        }),
+      )
+    ).status,
+    400,
+  );
+
+  const compatibility = createMeshHttpHandler({
+    target,
+    wireVersion: MESH_PREVIOUS_WIRE_VERSION,
+    accept: async () => {
+      accepted += 1;
+      return { accepted: true };
+    },
+  });
+  assert.equal(
+    (
+      await compatibility(
+        new Request(`https://peer-b.example${MESH_HTTP_V0_PATH}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: bytes,
+        }),
+      )
+    ).status,
+    202,
+  );
+  assert.equal(accepted, 1);
+  assert.throws(
+    () =>
+      createMeshHttpHandler({
+        target,
+        path: MESH_HTTP_V0_PATH,
+        accept: async () => ({ accepted: true }),
+      }),
+    /path and wire version do not match/u,
+  );
+
+  let attempts = 0;
+  const incompatibleClient = createMeshHttpClient({
+    resolveEndpoint: () => ({
+      url: `https://peer-b.example${MESH_HTTP_V0_PATH}`,
+    }),
+    fetch: async () => {
+      attempts += 1;
+      return new Response(null, { status: 500 });
+    },
+  });
+  assert.equal(
+    (await incompatibleClient.deliver({ envelope: v0 })).receipt.disposition,
+    "permanent_rejection",
+  );
+  assert.equal(attempts, 0);
+
+  const compatibilityClient = createMeshHttpClient({
+    resolveEndpoint: () => ({
+      url: `https://peer-b.example${MESH_HTTP_V0_PATH}`,
+      wireVersion: MESH_PREVIOUS_WIRE_VERSION,
+    }),
+    fetch: async () => {
+      attempts += 1;
+      return Response.json(
+        {
+          schemaVersion: 1,
+          disposition: "accepted",
+          messageId: v0.messageId,
+        },
+        { status: 202 },
+      );
+    },
+  });
+  assert.equal(
+    (await compatibilityClient.deliver({ envelope: v0 })).receipt.disposition,
+    "accepted",
+  );
+  assert.equal(attempts, 1);
+});
 
 test("HTTP handler durably accepts strict envelopes and coarsens duplicates", async () => {
   const signed = await envelope();

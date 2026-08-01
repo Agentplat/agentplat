@@ -1,6 +1,7 @@
 export * from './coordination-contracts.js';
 export * from './coordination-discovery-contracts.js';
 export * from './coordination-inbound-contracts.js';
+export * from './coordination-wire-version-contracts.js';
 export * from './coordination-topic-contracts.js';
 export * from './coordination-objective-topic-contracts.js';
 export * from './coordination-objective-work-contracts.js';
@@ -26,6 +27,7 @@ export {
   DEFAULT_MESH_DISCOVERY_LIMITS,
   createMeshDiscoveryRuntimeState,
   createMeshDiscoveryState,
+  recordMeshDiscoveryWireVersionSelection,
   restoreMeshDiscoveryState,
 } from './coordination-discovery-state.js';
 export {
@@ -34,6 +36,11 @@ export {
   matchMeshDiscoveryCapabilities,
   selectMeshDiscoveryTopicRecipients,
 } from './coordination-discovery.js';
+export {
+  createMeshWireVersionPolicy,
+  createMeshWireVersionResetDecision,
+  selectMeshPeerWireVersion,
+} from './coordination-wire-version.js';
 export {
   DEFAULT_MESH_COORDINATION_INBOUND_LIMITS,
   createMeshCoordinationInboundState,

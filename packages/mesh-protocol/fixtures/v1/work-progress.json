@@ -1,0 +1,47 @@
+{
+  "protocol": "agentplat.mesh",
+  "wireVersion": 1,
+  "messageId": "CCCCCCCCCCCCCCCCCCCCCA",
+  "tenantId": "tenant-a",
+  "meshId": "mesh-a",
+  "objectiveId": "objective-a",
+  "type": "work.progress",
+  "sender": {
+    "peerId": "peer-a",
+    "instanceId": "instance-a"
+  },
+  "audience": {
+    "kind": "peer",
+    "peerId": "peer-b"
+  },
+  "sequence": 14,
+  "sentAt": "2026-07-30T00:10:00.000Z",
+  "expiresAt": "2026-07-30T00:15:00.000Z",
+  "causationId": "AAAAAAAAAAAAAAAAAAAAAg",
+  "payloadHash": "sha256:nqqjQ-9DNjyn9x_2Km2zt69CMeYuYMGhYqlVyta1leQ",
+  "payload": {
+    "type": "work.progress",
+    "progressId": "progress-a",
+    "progressSequence": 1,
+    "objectiveId": "objective-a",
+    "objectiveDocumentId": "objective-document-a",
+    "objectiveRevision": 1,
+    "workItemId": "work-item-a",
+    "workItemRevision": 1,
+    "ownerPeerId": "peer-b",
+    "ownerEpoch": 1,
+    "assigneePeerId": "peer-a",
+    "awardId": "award-a",
+    "acceptanceId": "acceptance-a",
+    "assignmentEpoch": 1,
+    "assignmentAuthorityId": "award-a",
+    "fencingToken": "award-a",
+    "leaseExpiresAt": "2026-07-30T00:30:00.000Z",
+    "progressSummary": "The assigned peer has started the summary."
+  },
+  "proof": {
+    "algorithm": "Ed25519",
+    "keyId": "fixture-key-v1",
+    "value": "tcu-PIMbXhkqy0lm-U0M2TA2EmekYJDDNLvz7RFs8y6k7_5mW4p0aEcf5vVRLuhOvZC1Lc-woUM5vLT99541CQ"
+  }
+}
