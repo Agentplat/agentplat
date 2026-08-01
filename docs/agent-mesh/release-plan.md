@@ -87,7 +87,9 @@ network, persistence and bridge boundary is defined by the
 The design findings and exact normative commit are recorded in the
 [Alpha 5 design review](./alpha-5-design-review.md).
 Resolved implementation findings and failure-matrix evidence are recorded in
-the [Alpha 5 implementation audit](./alpha-5-implementation-audit.md).
+the [Alpha 5 implementation audit](./alpha-5-implementation-audit.md). The
+release commit, workflows, tag and 33-package registry ledger are recorded in
+the [Alpha 5 release evidence](./alpha-5-release-evidence.json).
 
 ### `0.3.0-beta.1`: compatibility freeze
 

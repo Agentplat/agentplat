@@ -1,7 +1,8 @@
 # Agent Mesh `0.3.0-alpha.5` implementation audit
 
-Status: candidate audit complete. Release-commit, CI and registry evidence are
-pending coordinated publication.
+Status: accepted. Candidate findings are resolved and exact-commit CI, dry
+publication, coordinated npm publication, registry verification and the
+annotated release tag are recorded in the Alpha 5 release evidence.
 
 This audit compares the implementation candidate with the normative Alpha 5
 design commit `0de423c85cc6096a674ce2bc54915de7ea72aa1c`. It covers architecture,
@@ -114,5 +115,9 @@ worker batch ceiling of 256.
   zero, the catalog contains 33 packages, and 33 tarballs with 45 declared
   exports install/import from an isolated consumer.
 
-Final acceptance still requires exact-commit CI, dry publication, coordinated
-npm publication, integrity verification and the annotated release tag.
+Final acceptance is recorded in the
+[Alpha 5 acceptance checklist](./alpha-5-acceptance-checklist.md) and the
+machine-readable
+[Alpha 5 release evidence](./alpha-5-release-evidence.json). Exact-commit CI,
+dry publication, coordinated npm publication, all 33 registry integrities and
+the annotated release tag passed with zero open P0/P1/P2 findings.
