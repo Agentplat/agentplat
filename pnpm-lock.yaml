@@ -332,6 +332,9 @@ importers:
 
   packages/mesh-sim:
     dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
       '@agentplat/mesh':
         specifier: workspace:^
         version: link:../mesh
@@ -341,6 +344,15 @@ importers:
       '@agentplat/mesh-protocol':
         specifier: workspace:^
         version: link:../mesh-protocol
+      '@agentplat/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+      '@agentplat/runtime-mock':
+        specifier: workspace:^
+        version: link:../runtime-mock
+      '@agentplat/sessions':
+        specifier: workspace:^
+        version: link:../sessions
 
   packages/model:
     dependencies:
