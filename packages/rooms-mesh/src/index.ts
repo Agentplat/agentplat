@@ -1,4 +1,13 @@
 import type { MeshAllocationInboundDecision } from "@agentplat/mesh/coordination";
+import {
+  createDelegationMandateProposalV1,
+  projectCollectiveDecisionToRoomEvidenceV1,
+  type DelegationMandateProposalV1,
+} from "@agentplat/collective-control/rooms";
+import type {
+  CollectiveDecisionRecordV1,
+  DelegationMandateStatementV1,
+} from "@agentplat/collective-control";
 import { computeMeshDurableValueDigest } from "@agentplat/mesh/durability";
 import { canonicalizeMeshPayload } from "@agentplat/mesh-protocol";
 import type {
@@ -9,11 +18,104 @@ import type {
   WorkResultPayload,
 } from "@agentplat/mesh-protocol";
 import type {
+  Approval,
   CreateArtifactInput,
   Room,
   RoomService,
   RoomTask,
 } from "@agentplat/rooms";
+
+export interface RoomCollectiveEvidenceProjectionV1 {
+  readonly schemaVersion: 1;
+  readonly kind: "room.artifact";
+  readonly tenantId: string;
+  readonly roomId: string;
+  readonly input: Readonly<CreateArtifactInput>;
+}
+
+/**
+ * Turns an explicitly approved Room decision into an unsigned proposal.
+ * It performs no signing, mandate installation, persistence or execution.
+ */
+export function projectApprovedRoomDecisionToMandateProposalV1(input: {
+  readonly room: Room;
+  readonly approval: Approval;
+  readonly proposalId: string;
+  readonly statement: DelegationMandateStatementV1;
+}): DelegationMandateProposalV1 {
+  const { room, approval, statement } = input;
+  if (
+    !room ||
+    !approval ||
+    room.status !== "active" ||
+    approval.status !== "approved" ||
+    approval.tenantId !== room.tenantId ||
+    approval.roomId !== room.id ||
+    approval.decidedAt === undefined ||
+    approval.decidedBy === undefined ||
+    statement.tenantId !== room.tenantId
+  )
+    throw new TypeError("Room approval is not an accepted proposal source");
+  return createDelegationMandateProposalV1({
+    proposalId: input.proposalId,
+    roomDecision: {
+      schemaVersion: 1,
+      roomId: room.id,
+      approvalId: approval.id,
+      targetType: approval.targetType,
+      targetId: approval.targetId,
+      targetVersion: approval.targetVersion ?? null,
+      decidedAt: approval.decidedAt,
+      decidedBy: approval.decidedBy,
+    },
+    statement,
+  });
+}
+
+/** Pure evidence projection containing identifiers and digests only. */
+export function projectCollectiveDecisionToRoomArtifactV1(input: {
+  readonly room: Room;
+  readonly record: CollectiveDecisionRecordV1;
+  readonly createdBy?: string;
+}): RoomCollectiveEvidenceProjectionV1 {
+  if (!input.room || input.room.status !== "active")
+    throw new TypeError("Collective evidence requires an active Room");
+  const evidence = projectCollectiveDecisionToRoomEvidenceV1({
+    roomId: input.room.id,
+    record: input.record,
+  });
+  if (evidence.tenantId !== input.room.tenantId)
+    throw new TypeError("Room and collective evidence scopes do not match");
+  const stableId = `collective-evidence-${evidence.recordId}`;
+  return deepFreeze({
+    schemaVersion: 1 as const,
+    kind: "room.artifact" as const,
+    tenantId: input.room.tenantId,
+    roomId: input.room.id,
+    input: {
+      id: stableId,
+      type: "collective-decision-evidence",
+      title: `Collective decision ${evidence.decisionKind}`,
+      content: evidence as unknown as CreateArtifactInput["content"],
+      contentType: "application/json",
+      authors: input.createdBy === undefined ? [] : [input.createdBy],
+      provenance: {
+        sourceMessageIds: [],
+        sourceArtifactIds: [],
+        sourceMemoryIds: [],
+      },
+      assumptions: [],
+      risks: [],
+      ...(input.createdBy === undefined ? {} : { createdBy: input.createdBy }),
+      metadata: {
+        collectiveControlSchemaVersion: 1,
+        policyDomainId: evidence.policyDomainId,
+        recordId: evidence.recordId,
+        recordDigest: evidence.recordDigest,
+      },
+    },
+  });
+}
 
 export const ROOM_MESH_PROJECTION_SCHEMA_VERSION = 1 as const;
 

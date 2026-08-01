@@ -12,6 +12,7 @@ import {
   createCollectiveAuthorityStateV1,
   validateCollectiveAuthorityStateV1,
   type CollectiveAuthorityDecisionV1,
+  type CollectiveAuthorityRepositoryV1,
   type CollectiveAuthorityStateV1,
   type MandateAuthorizationDecisionV1,
 } from "./state.js";
@@ -35,7 +36,7 @@ import type {
 } from "./contracts.js";
 
 /** Bounded single-process reference repository; it makes no durability claim. */
-export class MemoryCollectiveAuthorityRepositoryV1 {
+export class MemoryCollectiveAuthorityRepositoryV1 implements CollectiveAuthorityRepositoryV1 {
   private current: CollectiveAuthorityStateV1;
 
   constructor(
@@ -54,6 +55,32 @@ export class MemoryCollectiveAuthorityRepositoryV1 {
 
   snapshot(): CollectiveAuthorityStateV1 {
     return this.current;
+  }
+
+  read(): CollectiveAuthorityStateV1 {
+    return this.current;
+  }
+
+  compareAndSwap(input: {
+    readonly expectedGeneration: number;
+    readonly expectedStateDigest: CollectiveDigestV1;
+    readonly nextState: CollectiveAuthorityStateV1;
+  }): boolean {
+    if (
+      this.current.generation !== input.expectedGeneration ||
+      this.current.stateDigest !== input.expectedStateDigest
+    )
+      return false;
+    const next = validateCollectiveAuthorityStateV1(input.nextState);
+    if (
+      next.tenantId !== this.current.tenantId ||
+      next.policyDomainId !== this.current.policyDomainId ||
+      next.generation !== this.current.generation + 1 ||
+      next.highWaterLogicalMs < this.current.highWaterLogicalMs
+    )
+      throw new Error("state_conflict");
+    this.current = next;
+    return true;
   }
 
   acceptMandate(input: {

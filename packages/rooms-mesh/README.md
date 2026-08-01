@@ -19,6 +19,13 @@ metadata and event actors are never converted into Mesh admission, assignment
 or lease authority. The result is an unsigned payload; this package does not
 sign, publish, bid, award, accept or execute it.
 
+`projectApprovedRoomDecisionToMandateProposalV1` applies the same rule to
+collective control: an explicitly resolved human approval becomes an unsigned,
+digest-bound proposal for an application-owned issuer. It does not install a
+mandate. `projectCollectiveDecisionToRoomArtifactV1` creates an ordinary draft
+artifact containing bounded identifiers and digests only; applying it remains
+explicit.
+
 An accepted `work.progress`, `work.checkpoint` or `work.result` decision can be
 projected into an ordinary Room message or draft artifact. Applying it is
 explicit and uses deterministic IDs plus an idempotency key. The included Room

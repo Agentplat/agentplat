@@ -20,6 +20,9 @@ importers:
       '@agentplat/collective-control':
         specifier: workspace:*
         version: link:packages/collective-control
+      '@agentplat/collective-control-postgres':
+        specifier: workspace:*
+        version: link:packages/collective-control-postgres
       '@agentplat/core':
         specifier: workspace:*
         version: link:packages/core
@@ -174,6 +177,27 @@ importers:
       '@agentplat/trust':
         specifier: workspace:^
         version: link:../trust
+
+  packages/collective-control-postgres:
+    dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
+      '@agentplat/inference-control':
+        specifier: workspace:^
+        version: link:../inference-control
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
 
   packages/core: {}
 
@@ -411,6 +435,9 @@ importers:
 
   packages/rooms-mesh:
     dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
       '@agentplat/mesh':
         specifier: workspace:^
         version: link:../mesh

@@ -33,6 +33,11 @@ import {
   type WorkContractV1,
 } from "@agentplat/collective-control/mesh";
 import type { MandateRoomProvenanceV1 } from "@agentplat/collective-control/rooms";
+import {
+  createDelegationMandateProposalV1,
+  projectCollectiveDecisionToRoomEvidenceV1,
+  type DelegationMandateProposalV1,
+} from "@agentplat/collective-control/rooms";
 
 declare const mandate: DelegationMandateV1;
 declare const permit: GovernedActionPermitV1;
@@ -77,6 +82,9 @@ void executionState;
 void authorityRepository;
 void executionRepository;
 void (null as MandateRoomProvenanceV1 | null);
+void (null as DelegationMandateProposalV1 | null);
+void createDelegationMandateProposalV1;
+void projectCollectiveDecisionToRoomEvidenceV1;
 void COLLECTIVE_CONTROL_SCHEMA_VERSION;
 void COLLECTIVE_EVALUATION_CONTRACT_VERSION;
 
