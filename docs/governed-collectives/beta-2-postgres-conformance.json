@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.2",
+  "sourceCommit": "89354e214ac4445ac1ffc0309cd06cc0e2ce183b",
+  "status": "passed",
+  "report": {
+    "schemaVersion": 1,
+    "conformanceVersion": 1,
+    "suiteDigest": "sha256:504f9ea54b4c2c5135ab53e2cf1755c370c24d3f9ab348b01c254194d13c4b52",
+    "fixtureManifestDigest": "sha256:c9e71e99bb2eacd851d6a2bd3042512231c433aea479ffabae798f5fd25c55e0",
+    "implementation": {
+      "name": "collective-control-postgres",
+      "version": "0.3.0-beta.2"
+    },
+    "declaredCapabilities": [
+      "control.persistence",
+      "control.portable",
+      "control.repositories",
+      "control.rooms"
+    ],
+    "seed": 24603,
+    "cases": [
+      {
+        "caseId": "control.authority.unknown_digest",
+        "capability": "control.portable",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 92
+      },
+      {
+        "caseId": "control.work.scope_widening",
+        "capability": "control.portable",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 29
+      },
+      {
+        "caseId": "control.permit.single_use",
+        "capability": "control.portable",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 36
+      },
+      {
+        "caseId": "control.permit.indeterminate_retained",
+        "capability": "control.portable",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 28
+      },
+      {
+        "caseId": "control.authority.cas_stale",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 25
+      },
+      {
+        "caseId": "control.execution.cas_stale",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 23
+      },
+      {
+        "caseId": "control.grant.exact_idempotency",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 113
+      },
+      {
+        "caseId": "control.grant.substitution_conflict",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 28
+      },
+      {
+        "caseId": "control.grant.cas_stale",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 27
+      },
+      {
+        "caseId": "control.evidence.chain",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 28
+      },
+      {
+        "caseId": "control.evidence.conflict",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 26
+      },
+      {
+        "caseId": "control.evidence.redaction",
+        "capability": "control.repositories",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 27
+      },
+      {
+        "caseId": "control.rooms.proposal_inert",
+        "capability": "control.rooms",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 26
+      },
+      {
+        "caseId": "control.persistence.restart",
+        "capability": "control.persistence",
+        "outcome": "passed",
+        "reasonCode": null,
+        "durationMs": 30
+      }
+    ],
+    "counts": {
+      "passed": 14,
+      "failed": 0,
+      "notDeclared": 0,
+      "total": 14
+    },
+    "verdict": "passed"
+  },
+  "evidenceDigest": "sha256:cc3255a1cc18853a4ec9466e316446852fa6ae69dbb7b2ab7d3b299371fd60c1"
+}

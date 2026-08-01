@@ -29,6 +29,8 @@ import {
   type ControlJson,
 } from "@agentplat/inference-control/tools";
 
+export { createControlConformanceFixturesV1 } from "./control-fixtures.js";
+
 export const CONTROL_CONFORMANCE_VERSION = 1 as const;
 
 export const CONTROL_CONFORMANCE_CAPABILITIES = Object.freeze([

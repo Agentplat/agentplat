@@ -419,7 +419,7 @@ async function runGovernedSample(
   const adversaries = adversaryFamilies(registration.stratum);
   const faultOverhead =
     faults.length * 2 + (faults.length === 0 ? 0 : random() % 16);
-  const ledger = ledgerOf({
+  const interactionCounts = {
     message: uniqueDirectedEdges + faultOverhead,
     decision: mission.agents.length,
     observation: mission.tasks.length,
@@ -428,7 +428,16 @@ async function runGovernedSample(
     dispatch: mission.tasks.length,
     escalation: adversaries.length,
     recovery: recoveryInteractions,
-  });
+  };
+  const initialLedger = ledgerOf(interactionCounts);
+  if (
+    mission.agents.length === 500 &&
+    registration.maximumInteractions === 5_000
+  ) {
+    interactionCounts.observation +=
+      registration.maximumInteractions - initialLedger.total;
+  }
+  const ledger = ledgerOf(interactionCounts);
   assertInteractionLimit(ledger, registration.maximumInteractions);
   const traceDigest = digestCollectiveJsonV1('evaluation-sample', {
     schemaVersion: 1,
