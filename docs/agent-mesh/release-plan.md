@@ -109,6 +109,25 @@ boundary is defined by the
 and the resolved design findings are recorded in the
 [Beta 1 design review](./beta-1-design-review.md).
 
+### `0.3.0-beta.2`: Governed Collective Runtime
+
+- local Delegation Mandates and Work Contracts;
+- a portable Local Policy Adapter over Mesh, Inference Control, Trust and Rooms;
+- revision, revocation, budget and governed-effect enforcement;
+- durable PostgreSQL repositories and reconciliation;
+- collective-control conformance and negative implementations;
+- a fair centralized baseline and reproducible statistical evaluation;
+- 500 logical agents, 5,000 interactions and benign/adversarial fault evidence.
+
+The exact authority boundaries, contracts and implementation increments are in
+the [Beta 2 implementation plan](../collective-control/beta-2-implementation-plan.md).
+Evidence is tracked in the
+[Beta 2 acceptance checklist](../collective-control/beta-2-acceptance-checklist.md),
+the experiment is defined by the
+[collective evaluation contract](../collective-control/evaluation-contract.md),
+and its local enforcement boundary is defined by the
+[Governed Collective Runtime threat model](../security/governed-collective-runtime-threat-model.md).
+
 ## Promotion gates
 
 Every preview requires:

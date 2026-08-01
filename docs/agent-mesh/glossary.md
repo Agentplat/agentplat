@@ -3,47 +3,52 @@
 This glossary defines the public vocabulary for Agent Mesh code,
 documentation, examples, release notes and protocol fixtures.
 
-| Term                     | Meaning                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Agent Mesh               | A set of independently executing peers that coordinate through bounded local state and a versioned protocol.  |
-| Mesh Peer                | One participating runtime instance with its own identity, policies, peer view and work journal.               |
-| Peer Card                | A signed, expiring declaration of protocol versions, addresses and self-claimed capabilities.                 |
-| Peer View                | The bounded local set of active neighbors and passive candidates known to one peer.                           |
-| Capability Advertisement | A signed, expiring self-claim that a peer supports one bounded capability contract.                           |
-| Objective                | A signed goal with constraints, success criteria, budgets, risk policy and expiry.                            |
-| Work Item                | A bounded unit of work derived locally from an Objective.                                                     |
-| Work Offer               | A request for capable peers to propose execution of a Work Item.                                              |
-| Work Bid                 | A peer's signed proposal with capability fit, capacity, estimates and assumptions.                            |
-| Work Award               | The signed selection of an assignee for one Work Item revision.                                               |
-| Assignment Authority     | The accepted award or recovery certificate that binds one assignment epoch and fencing token.                 |
-| Lease                    | Time-bounded authority to execute or coordinate a Work Item.                                                  |
-| Epoch                    | A monotonically increasing generation for assignment and recovery.                                            |
-| Fencing Token            | A value that prevents a stale epoch from committing state or external actions.                                |
-| Recovery Witness         | A peer named by Objective policy that may vote on one post-expiry takeover proposal.                          |
-| Recovery Certificate     | A signed record containing a threshold of valid witness votes that fences an older assignment epoch.          |
-| Work Journal             | Append-only local events used to project Work Item state and support recovery.                                |
-| Evidence Claim           | A peer's signed statement about an observation or result, with provenance.                                    |
-| Attestation              | A peer's independent support, contradiction or inconclusive evaluation of a claim.                            |
-| Evidence Challenge       | A bounded request to contest one exact claim or attestation without creating a negative fact by itself.       |
-| Evidence Retraction      | An append-only withdrawal of one claim or attestation by its original author.                                 |
-| Source Binding           | A local policy mapping one evidence source to allowed roles, weight caps and a dependency group.              |
-| Dependency Group         | A locally configured shared-control or shared-failure group used to cap correlated evidence.                  |
-| Fusion Decision          | A local result produced from claims, attestations and an explicit evidence policy.                            |
-| Trust Profile            | A local, capability-scoped estimate with multiple dimensions, uncertainty and decay.                          |
-| Eligibility Decision     | A local comparison of one exact Trust Profile with explicit per-dimension score and uncertainty requirements. |
-| Quarantine               | Temporary, scoped isolation after locally verifiable policy conditions are satisfied.                         |
-| Quarantine Recovery      | An append-only transition based on new independent evidence that lifts one exact local quarantine.            |
-| Inference Control        | Local context, output and action evaluation around an agent execution.                                        |
-| Inference Assessment     | A structured allow, revise, retry, abstain, escalate or deny result.                                          |
-| Context Zone             | A closed local classification that separates trusted instructions and policies from untrusted data.           |
-| Control Checkpoint       | A configured pre-run, streaming, post-run, pre-tool or pre-message assessment boundary.                       |
-| Release Mode             | Off, observe, buffered or incremental local handling of provider output.                                      |
-| Control Capability       | A declared provider-wrapper control point such as input inspection, output assessment or tool interception.   |
-| Action Gateway           | The local enforcement boundary for tools and other external effects.                                          |
-| Action Grant             | Short-lived, scoped authority to execute one action under a valid epoch and policy.                           |
-| Control Plane            | Optional services that configure, start or observe a Mesh without owning steady-state coordination.           |
-| Observability Plane      | Optional event, audit and metrics consumers that do not determine Mesh behavior.                              |
-| Resilience Lab           | The deterministic simulator, fault catalog, invariant suite and benchmark harness.                            |
+| Term                          | Meaning                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Agent Mesh                    | A set of independently executing peers that coordinate through bounded local state and a versioned protocol.  |
+| Mesh Peer                     | One participating runtime instance with its own identity, policies, peer view and work journal.               |
+| Peer Card                     | A signed, expiring declaration of protocol versions, addresses and self-claimed capabilities.                 |
+| Peer View                     | The bounded local set of active neighbors and passive candidates known to one peer.                           |
+| Capability Advertisement      | A signed, expiring self-claim that a peer supports one bounded capability contract.                           |
+| Objective                     | A signed goal with constraints, success criteria, budgets, risk policy and expiry.                            |
+| Work Item                     | A bounded unit of work derived locally from an Objective.                                                     |
+| Work Offer                    | A request for capable peers to propose execution of a Work Item.                                              |
+| Work Bid                      | A peer's signed proposal with capability fit, capacity, estimates and assumptions.                            |
+| Work Award                    | The signed selection of an assignee for one Work Item revision.                                               |
+| Assignment Authority          | The accepted award or recovery certificate that binds one assignment epoch and fencing token.                 |
+| Lease                         | Time-bounded authority to execute or coordinate a Work Item.                                                  |
+| Epoch                         | A monotonically increasing generation for assignment and recovery.                                            |
+| Fencing Token                 | A value that prevents a stale epoch from committing state or external actions.                                |
+| Recovery Witness              | A peer named by Objective policy that may vote on one post-expiry takeover proposal.                          |
+| Recovery Certificate          | A signed record containing a threshold of valid witness votes that fences an older assignment epoch.          |
+| Work Journal                  | Append-only local events used to project Work Item state and support recovery.                                |
+| Evidence Claim                | A peer's signed statement about an observation or result, with provenance.                                    |
+| Attestation                   | A peer's independent support, contradiction or inconclusive evaluation of a claim.                            |
+| Evidence Challenge            | A bounded request to contest one exact claim or attestation without creating a negative fact by itself.       |
+| Evidence Retraction           | An append-only withdrawal of one claim or attestation by its original author.                                 |
+| Source Binding                | A local policy mapping one evidence source to allowed roles, weight caps and a dependency group.              |
+| Dependency Group              | A locally configured shared-control or shared-failure group used to cap correlated evidence.                  |
+| Fusion Decision               | A local result produced from claims, attestations and an explicit evidence policy.                            |
+| Trust Profile                 | A local, capability-scoped estimate with multiple dimensions, uncertainty and decay.                          |
+| Eligibility Decision          | A local comparison of one exact Trust Profile with explicit per-dimension score and uncertainty requirements. |
+| Quarantine                    | Temporary, scoped isolation after locally verifiable policy conditions are satisfied.                         |
+| Quarantine Recovery           | An append-only transition based on new independent evidence that lifts one exact local quarantine.            |
+| Inference Control             | Local context, output and action evaluation around an agent execution.                                        |
+| Inference Assessment          | A structured allow, revise, retry, abstain, escalate or deny result.                                          |
+| Context Zone                  | A closed local classification that separates trusted instructions and policies from untrusted data.           |
+| Control Checkpoint            | A configured pre-run, streaming, post-run, pre-tool or pre-message assessment boundary.                       |
+| Release Mode                  | Off, observe, buffered or incremental local handling of provider output.                                      |
+| Control Capability            | A declared provider-wrapper control point such as input inspection, output assessment or tool interception.   |
+| Action Gateway                | The local enforcement boundary for tools and other external effects.                                          |
+| Action Grant                  | Short-lived, scoped authority to execute one action under a valid epoch and policy.                           |
+| Delegation Mandate            | A locally accepted, versioned authorization that bounds subjects, objectives, capabilities, budget and time.  |
+| Work Contract                 | A local immutable intersection of a current mandate, Objective policy and Mesh assignment.                    |
+| Local Policy Adapter          | The opt-in boundary that composes mandate, Mesh, Trust, inference and action decisions without widening them. |
+| Governed Action Permit        | A short-lived single-use binding between a current Work Contract, Action Grant, budget and fenced effect.     |
+| Collective Evaluation Harness | A versioned runner and report contract for fair seeded comparisons of collective and centralized execution.   |
+| Control Plane                 | Optional services that configure, start or observe a Mesh without owning steady-state coordination.           |
+| Observability Plane           | Optional event, audit and metrics consumers that do not determine Mesh behavior.                              |
+| Resilience Lab                | The deterministic simulator, fault catalog, invariant suite and benchmark harness.                            |
 
 Avoid language that implies a global brain, global truth, global reputation,
 exactly-once delivery or universal safety guarantees.
