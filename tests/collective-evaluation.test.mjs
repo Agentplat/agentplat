@@ -159,3 +159,23 @@ test("statistical and role-coherence helpers meet fixed protocol bounds", () => 
   assert.equal(role.unsafeActions, 0);
   assert.ok(role.usefulDecisionRate >= 0.7);
 });
+
+test("500-agent governed stress consumes the registered 5,000-interaction budget", async () => {
+  const mission = createReferenceCollectiveMissionV1({ agentCount: 500 });
+  const registered = registration(
+    mission,
+    "governed_collective",
+    "mixed",
+    [50_001],
+  );
+  const sample = await runCollectiveEvaluationSampleV1({
+    registration: registered,
+    mission,
+    seed: registered.seeds[0],
+  });
+  assert.equal(sample.missionSuccess, true);
+  assert.equal(sample.interactionLedger.total, 5_000);
+  assert.equal(sample.authorizationViolations, 0);
+  assert.equal(sample.staleFenceViolations, 0);
+  assert.equal(sample.duplicateEffectViolations, 0);
+});
