@@ -128,6 +128,28 @@ the experiment is defined by the
 and its local enforcement boundary is defined by the
 [Governed Collective Runtime threat model](../security/governed-collective-runtime-threat-model.md).
 
+### `0.3.0-beta.3`: Adaptive Mission Runtime
+
+- high-level mission intent without precomputed tasks or assignments;
+- peer-local plan-fragment proposals and deterministic bounded plan views;
+- dynamic role formation through real Mesh allocation and governed Work;
+- causal replanning after observations, capability changes and failures;
+- provider-neutral environment and invariant-monitor ports;
+- a truthful closed-loop evaluation whose ledger and verdicts derive from
+  executed events;
+- a registered 500-agent/5,000-interaction campaign using production reducers.
+
+The additive package boundary, invariants and implementation increments are in
+the [Beta 3 implementation plan](../adaptive-mission/beta-3-implementation-plan.md).
+Evidence is tracked in the
+[Beta 3 acceptance checklist](../adaptive-mission/beta-3-acceptance-checklist.md),
+the experiment is defined by the
+[evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md), and its
+security boundary is defined by the
+[Adaptive Mission Runtime threat model](../security/adaptive-mission-runtime-threat-model.md).
+The closed findings and freeze verdict are recorded in the
+[Beta 3 design review](../adaptive-mission/beta-3-design-review.md).
+
 ## Promotion gates
 
 Every preview requires:
