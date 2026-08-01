@@ -56,6 +56,18 @@ export interface CollectiveAuthorityStateV1 {
   readonly stateDigest: CollectiveDigestV1;
 }
 
+export type CollectiveAuthorityRepositoryValueV1<T> = T | Promise<T>;
+
+/** Opaque state storage port; authority semantics remain in this package. */
+export interface CollectiveAuthorityRepositoryV1 {
+  read(): CollectiveAuthorityRepositoryValueV1<CollectiveAuthorityStateV1>;
+  compareAndSwap(input: {
+    readonly expectedGeneration: number;
+    readonly expectedStateDigest: CollectiveDigestV1;
+    readonly nextState: CollectiveAuthorityStateV1;
+  }): CollectiveAuthorityRepositoryValueV1<boolean>;
+}
+
 export type CollectiveAuthorityRejectionCodeV1 =
   | "logical_time_regressed"
   | "scope_mismatch"

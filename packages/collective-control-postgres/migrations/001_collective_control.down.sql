@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_evidence_records;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_evidence_anchors;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_action_grants;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_grant_clocks;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_action_permits;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_budget_reservations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_work_contracts;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_revocations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_mandates;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_execution_states;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_authority_states;

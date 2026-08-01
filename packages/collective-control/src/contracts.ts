@@ -19,7 +19,8 @@ export type CollectiveDigestDomainV1 =
   | "experiment-registration"
   | "mission"
   | "evaluation-sample"
-  | "evaluation-report";
+  | "evaluation-report"
+  | "room-proposal";
 
 export interface MandateObjectiveSelectorV1 {
   readonly schemaVersion: 1;

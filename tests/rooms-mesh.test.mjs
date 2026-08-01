@@ -3,10 +3,16 @@ import test from "node:test";
 
 import { InMemoryRoomRepository, RoomService } from "@agentplat/rooms";
 import {
+  createCollectiveDecisionRecordV1,
+  digestCollectiveJsonV1,
+} from "@agentplat/collective-control";
+import {
   createMemoryRoomMeshIdempotencyRepository,
   createRoomMeshBridge,
   createRoomServiceMeshSink,
   projectAcceptedMeshWorkToRoom,
+  projectApprovedRoomDecisionToMandateProposalV1,
+  projectCollectiveDecisionToRoomArtifactV1,
   projectRoomTaskToMeshWork,
   projectRoomToMeshObjective,
 } from "@agentplat/rooms-mesh";
@@ -252,4 +258,143 @@ test("projection scope mismatches and failed sinks are rejected without burning 
   await assert.rejects(bridge.apply(projection), /temporary sink failure/u);
   assert.equal((await bridge.apply(projection)).status, "applied");
   assert.equal(attempts, 2);
+});
+
+test("approved Room decisions produce inert mandate proposals only", async () => {
+  const { service } = fixture();
+  const { room } = await roomAndTask(service);
+  const approval = {
+    id: "approval-a",
+    tenantId: room.tenantId,
+    roomId: room.id,
+    targetType: "room",
+    targetId: room.id,
+    status: "approved",
+    requestedBy: "participant-requester",
+    decidedBy: "participant-human",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    decidedAt: "2026-08-01T00:00:00.000Z",
+  };
+  const statement = {
+    schemaVersion: 1,
+    mandateId: "mandate:room-a",
+    tenantId: room.tenantId,
+    policyDomainId: "policy-domain:room-a",
+    issuerId: "issuer:room-a",
+    revision: 1,
+    predecessorDigest: null,
+    subjectPeerIds: ["peer:worker-a"],
+    objective: {
+      schemaVersion: 1,
+      meshId: "mesh:room-a",
+      objectiveId: "objective:room-a",
+      objectiveDocumentId: "objective-document:room-a",
+      minimumObjectiveRevision: 1,
+      maximumObjectiveRevision: 1,
+    },
+    work: {
+      schemaVersion: 1,
+      workItemIds: [],
+      permittedRoleKeys: ["executor"],
+      maximumWorkItemRevision: 1,
+    },
+    permittedCapabilityKeys: ["analysis"],
+    permittedActions: [
+      {
+        schemaVersion: 1,
+        namespace: "documents",
+        toolId: "writer",
+        operation: "draft",
+      },
+    ],
+    budget: {
+      schemaVersion: 1,
+      totalBudgetUnits: 100,
+      maximumWorkBudgetUnits: 50,
+      maximumActionBudgetUnits: 10,
+      maximumConcurrentWorkReservations: 2,
+      maximumConcurrentActionReservations: 2,
+      reservationLifetimeMs: 60_000,
+    },
+    validFrom: "2026-08-01T00:00:00.000Z",
+    validUntil: "2026-08-02T00:00:00.000Z",
+    roomProvenance: {
+      schemaVersion: 1,
+      roomId: room.id,
+      approvalId: approval.id,
+      targetType: approval.targetType,
+      targetId: approval.targetId,
+      targetVersion: null,
+    },
+    evidence: {
+      schemaVersion: 1,
+      redactionPolicyId: "redaction:room-a",
+      retentionClass: "standard",
+      requireDurablePreDispatchEvidence: true,
+    },
+  };
+
+  const proposal = projectApprovedRoomDecisionToMandateProposalV1({
+    room,
+    approval,
+    proposalId: "proposal:room-a",
+    statement,
+  });
+  assert.match(proposal.proposalDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(proposal.roomDecision.approvalId, approval.id);
+  assert.equal("proof" in proposal, false);
+  assert.equal("mandateDigest" in proposal, false);
+
+  assert.throws(
+    () =>
+      projectApprovedRoomDecisionToMandateProposalV1({
+        room,
+        approval: { ...approval, status: "requested" },
+        proposalId: "proposal:rejected",
+        statement,
+      }),
+    /not an accepted proposal source/u,
+  );
+});
+
+test("collective decisions project to bounded digest-only Room artifacts", async () => {
+  const { service } = fixture();
+  const { room } = await roomAndTask(service);
+  const digest = (label) => digestCollectiveJsonV1("state", { label });
+  const record = createCollectiveDecisionRecordV1({
+    schemaVersion: 1,
+    recordId: "record:room-a",
+    tenantId: room.tenantId,
+    policyDomainId: "policy-domain:room-a",
+    kind: "effect.dispatch",
+    accepted: false,
+    reasonCode: "policy_denied",
+    logicalTimeMs: 42,
+    mandateId: "mandate:room-a",
+    mandateDigest: digest("mandate"),
+    workContractId: "work-contract:room-a",
+    workContractDigest: digest("work"),
+    permitId: "permit:room-a",
+    permitDigest: digest("permit"),
+    assignmentAuthorityId: "authority:room-a",
+    assignmentEpoch: 1,
+    fencingToken: "fence:room-a:1",
+    budgetDeltaKind: "none",
+    budgetDeltaUnits: 0,
+    inputDigest: digest("input:canary-is-only-in-the-digest-source"),
+    actionDigest: digest("action"),
+    assessmentDigest: digest("assessment"),
+    trustDecisionDigest: digest("trust"),
+    previousRecordDigest: null,
+  });
+  const projection = projectCollectiveDecisionToRoomArtifactV1({
+    room,
+    record,
+  });
+  assert.equal(projection.kind, "room.artifact");
+  assert.equal(projection.input.content.recordDigest, record.recordDigest);
+  assert.equal(JSON.stringify(projection).includes("canary-is-only"), false);
+  const before = await service.getRoomState(room.tenantId, room.id);
+  assert.equal(before.artifacts.length, 0);
 });

@@ -22,6 +22,7 @@ const digestDomains = new Set<CollectiveDigestDomainV1>([
   "mission",
   "evaluation-sample",
   "evaluation-report",
+  "room-proposal",
 ]);
 
 export class CollectiveControlValidationError extends Error {
