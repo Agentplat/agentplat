@@ -78,6 +78,15 @@ The independent review verdicts and exact normative commit are recorded in the
 - Room bridge;
 - multi-process reference example.
 
+The exact adapter boundaries, crash semantics and implementation increments are
+defined in the [Alpha 5 implementation plan](./alpha-5-implementation-plan.md).
+Release evidence is tracked in the
+[Alpha 5 acceptance checklist](./alpha-5-acceptance-checklist.md), and the
+network, persistence and bridge boundary is defined by the
+[Mesh adapters threat model](../security/mesh-adapters-threat-model.md).
+The design findings and exact normative commit are recorded in the
+[Alpha 5 design review](./alpha-5-design-review.md).
+
 ### `0.3.0-beta.1`: compatibility freeze
 
 - `wireVersion: 1`;
