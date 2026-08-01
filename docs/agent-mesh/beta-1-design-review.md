@@ -1,6 +1,7 @@
 # Agent Mesh `0.3.0-beta.1` design review
 
-Status: design review complete; normative merge commit pending.
+Status: accepted and frozen by public merge commit
+[`9d726581f5689a4d72c4f31d8a2a4049d0112ccf`](https://github.com/Agentplat/agentplat/commit/9d726581f5689a4d72c4f31d8a2a4049d0112ccf).
 
 This record reviews the Beta 1 implementation plan, acceptance checklist and
 compatibility threat model against the published Alpha 5 contracts. It covers
@@ -190,6 +191,8 @@ is completed against exact commits.
 
 ## Normative commit
 
-Pending the design-freeze PR merge. The exact public merge commit and PR URL
-must be recorded in the acceptance checklist before any production
-implementation begins.
+The design was accepted in public
+[PR #46](https://github.com/Agentplat/agentplat/pull/46) and frozen by merge
+commit
+[`9d726581f5689a4d72c4f31d8a2a4049d0112ccf`](https://github.com/Agentplat/agentplat/commit/9d726581f5689a4d72c4f31d8a2a4049d0112ccf).
+Production implementation must remain within that reviewed scope.

@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-beta.1` acceptance checklist
 
-Status: design candidate. A checkbox is closed only by evidence tied to the
+Status: design frozen. A checkbox is closed only by evidence tied to the
 exact reviewed design or release commit. Local results from another commit are
 not release evidence.
 
@@ -9,9 +9,9 @@ not release evidence.
 - [ ] Version is `0.3.0-beta.1` across the root and every public package.
 - [ ] Compatibility baseline is annotated tag `v0.3.0-alpha.5` at
       `5d11f715947bd7d3e5b8f7311c8f6f68c8c33a98`.
-- [ ] Design plan, threat model, package boundaries and non-goals are reviewed.
-- [ ] Design review records zero open P0/P1/P2 findings.
-- [ ] Exact normative design commit is recorded before implementation.
+- [x] Design plan, threat model, package boundaries and non-goals are reviewed.
+- [x] Design review records zero open P0/P1/P2 findings.
+- [x] Exact normative design commit is recorded before implementation.
 - [ ] Production implementation contains no unreviewed scope outside the
       frozen design.
 
@@ -216,9 +216,10 @@ not release evidence.
 
 ## Evidence
 
-Normative design commit: pending.
+Normative design commit:
+[`9d726581f5689a4d72c4f31d8a2a4049d0112ccf`](https://github.com/Agentplat/agentplat/commit/9d726581f5689a4d72c4f31d8a2a4049d0112ccf).
 
-Design PR: pending.
+Design PR: [#46](https://github.com/Agentplat/agentplat/pull/46).
 
 Implementation commit and PR: pending.
 
