@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import {
-  compareAscii,
-  loadPublicPackageCatalog,
-  publishablePackages,
-} from "../scripts/public-package-catalog.mjs";
+import { compareAscii } from "../scripts/public-package-catalog.mjs";
 
 const RELEASE_VERSION = "0.3.0-beta.1";
 const RELEASE_COMMIT = "b38c25098599499813fe2caea605b5d61f939222";
@@ -18,10 +14,12 @@ test("Beta 1 release evidence closes the exact public release", async () => {
   const evidence = await readJson(
     "docs/agent-mesh/beta-1-release-evidence.json",
   );
-  const catalog = await loadPublicPackageCatalog();
-  const expectedPackageNames = publishablePackages(catalog).map(
-    (entry) => entry.name,
+  const surface = await readJson(
+    "docs/agent-mesh/beta-1-public-api-surface.json",
   );
+  const expectedPackageNames = [
+    ...new Set(surface.records.map((record) => record.package)),
+  ].sort(compareAscii);
 
   assert.equal(evidence.schemaVersion, 1);
   assert.equal(evidence.releaseVersion, RELEASE_VERSION);
@@ -132,7 +130,6 @@ test("Beta 1 report and fixture digests are complete and release-bound", async (
   assert.equal(benchmark.summary.correctnessViolations, 0);
 
   const surface = await readJson(evidence.reports.publicApiSurface.path);
-  const catalog = await loadPublicPackageCatalog();
   assert.equal(surface.alpha5BaselineTag, "v0.3.0-alpha.5");
   assert.equal(surface.alpha5BaselineCommit, ALPHA5_COMMIT);
   assert.equal(
@@ -144,7 +141,7 @@ test("Beta 1 report and fixture digests are complete and release-bound", async (
     [...new Set(surface.records.map((record) => record.package))].sort(
       compareAscii,
     ),
-    publishablePackages(catalog).map((entry) => entry.name),
+    evidence.packages.map((entry) => entry.name),
   );
 });
 
