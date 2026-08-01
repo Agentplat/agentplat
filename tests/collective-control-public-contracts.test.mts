@@ -16,7 +16,12 @@ import {
   MemoryCollectiveExecutionRepositoryV1,
 } from "@agentplat/collective-control/memory";
 import {
+  createGovernedMeshObjectiveInboundProcessorV1,
+  createWorkContractFromMeshV1,
+  evaluateWorkContractCurrentnessV1,
+  parseDelegationMandateReferenceV1,
   registerWorkContractV1,
+  type GovernedMeshObjectiveInboundProcessorV1,
   type WorkContractV1,
 } from "@agentplat/collective-control/mesh";
 import type { MandateRoomProvenanceV1 } from "@agentplat/collective-control/rooms";
@@ -43,6 +48,11 @@ const executionRepository = new MemoryCollectiveExecutionRepositoryV1(
 );
 
 void registerWorkContractV1;
+void createGovernedMeshObjectiveInboundProcessorV1;
+void createWorkContractFromMeshV1;
+void evaluateWorkContractCurrentnessV1;
+void parseDelegationMandateReferenceV1;
+void (null as GovernedMeshObjectiveInboundProcessorV1 | null);
 void issueGovernedActionPermitV1;
 void mandate;
 void permit;
