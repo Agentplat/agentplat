@@ -44,6 +44,8 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 20
@@ -74,10 +76,10 @@ jobs:
           pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
           pnpm run benchmark:mesh-adapters
         env:
-          AGENTPLAT_POSTGRES_TEST: '1'
+          AGENTPLAT_POSTGRES_TEST: "1"
           NPM_CONFIG_USERCONFIG: /dev/null
           PGHOST: 127.0.0.1
-          PGPORT: '5432'
+          PGPORT: "5432"
           PGDATABASE: agentplat_release
           PGUSER: agentplat_release
           PGPASSWORD: agentplat_release
@@ -87,13 +89,13 @@ jobs:
         env:
           NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: '1'
+          NPM_PUBLISH_DRY_RUN: "1"
       - name: Publish packages
         if: ${{ !inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: '0'
+          NPM_PUBLISH_DRY_RUN: "0"
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Verify exact packages from a Node 20 pnpm registry consumer
         if: ${{ !inputs.dry_run }}

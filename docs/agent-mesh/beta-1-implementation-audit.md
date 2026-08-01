@@ -161,6 +161,17 @@ commit.
   `@types/pg` dependency. The 34-package isolated declaration compile now
   passes without `skipLibCheck` or workspace hoisting.
 
+### B1-IA-013 — Shallow CI checkout omitted the frozen baseline tag
+
+- Severity: P1.
+- State: resolved.
+- Finding: the artifact compatibility gate correctly required the exact Alpha
+  5 tag, but the default CI and release checkout fetched only the candidate
+  commit and could not resolve that immutable baseline.
+- Resolution: CI and release checkouts fetch complete history and tags. The
+  pack gate remains fail-closed when the tag is missing or resolves to any
+  commit other than the frozen Alpha 5 baseline.
+
 ## Candidate verification
 
 The candidate has passed:
