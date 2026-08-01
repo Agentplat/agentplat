@@ -106,6 +106,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
     destination: 'verify-collective-control.mjs',
   }),
 ]);
+export const REGISTRY_POSTGRES_CONSUMER_SCRIPT = Object.freeze({
+  source: 'scripts/pack-consumers/collective-control-postgres-beta2.mjs',
+  destination: 'verify-collective-control-postgres.mjs',
+});
 
 const RUNTIME_ENVIRONMENT_KEYS = new Set([
   'COMSPEC',
@@ -114,6 +118,13 @@ const RUNTIME_ENVIRONMENT_KEYS = new Set([
   'LC_CTYPE',
   'PATH',
   'PATHEXT',
+  'DATABASE_URL',
+  'PGDATABASE',
+  'PGHOST',
+  'PGPASSWORD',
+  'PGPORT',
+  'PGSSLMODE',
+  'PGUSER',
   'SYSTEMROOT',
   'TEMP',
   'TMP',
@@ -145,6 +156,7 @@ export function registryConsumerManifest(version) {
     ),
     devDependencies: Object.freeze({
       '@types/node': '^20.10.0',
+      pg: '^8.13.1',
       typescript: '^5.3.0',
     }),
   });
@@ -170,10 +182,14 @@ export function registryConsumerEnvironments(environment, userConfigPath) {
 export async function verifyRegistryConsumer({
   environment = process.env,
   packageManager = process.env.AGENTPLAT_REGISTRY_CONSUMER_PM ?? 'pnpm',
+  profile = process.env.AGENTPLAT_REGISTRY_CONSUMER_PROFILE ?? 'portable',
   root = process.cwd(),
 } = {}) {
   if (packageManager !== 'pnpm' && packageManager !== 'npm') {
     throw new TypeError('Registry consumer package manager is invalid');
+  }
+  if (profile !== 'portable' && profile !== 'postgres') {
+    throw new TypeError('Registry consumer profile is invalid');
   }
   const rootManifest = JSON.parse(
     await readFile(path.join(root, 'package.json'), 'utf8')
@@ -273,6 +289,10 @@ export async function verifyRegistryConsumer({
       ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
         copyFile(path.join(root, source), path.join(temporaryRoot, destination))
       ),
+      copyFile(
+        path.join(root, REGISTRY_POSTGRES_CONSUMER_SCRIPT.source),
+        path.join(temporaryRoot, REGISTRY_POSTGRES_CONSUMER_SCRIPT.destination)
+      ),
       mkdir(path.join(temporaryRoot, 'store'), { recursive: true }),
     ]);
 
@@ -331,49 +351,37 @@ export async function verifyRegistryConsumer({
       env: cleanEnvironments.execution,
       stdio: 'inherit',
     });
-    execFileSync(process.execPath, ['verify-mesh.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-allocation-recovery.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-inference-control.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-trust.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-mesh-adapters.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-mixed-version.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-conformance.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
-    execFileSync(process.execPath, ['verify-collective-control.mjs'], {
-      cwd: temporaryRoot,
-      env: cleanEnvironments.execution,
-      stdio: 'inherit',
-    });
+    if (profile === 'portable') {
+      for (const script of [
+        'verify-mesh.mjs',
+        'verify-allocation-recovery.mjs',
+        'verify-inference-control.mjs',
+        'verify-trust.mjs',
+        'verify-mesh-adapters.mjs',
+        'verify-mixed-version.mjs',
+        'verify-conformance.mjs',
+        'verify-collective-control.mjs',
+      ]) {
+        execFileSync(process.execPath, [script], {
+          cwd: temporaryRoot,
+          env: cleanEnvironments.execution,
+          stdio: 'inherit',
+        });
+      }
+    } else {
+      execFileSync(
+        process.execPath,
+        [REGISTRY_POSTGRES_CONSUMER_SCRIPT.destination],
+        {
+          cwd: temporaryRoot,
+          env: cleanEnvironments.execution,
+          stdio: 'inherit',
+        }
+      );
+    }
 
     console.log(
-      `Verified ${REGISTRY_PACKAGES.length} exact registry packages and ${importSpecifiers.length} export subpaths at ${rootManifest.version} from an independent clean ${packageManager} consumer.`
+      `Verified ${REGISTRY_PACKAGES.length} exact registry packages and ${importSpecifiers.length} export subpaths at ${rootManifest.version} from an independent clean ${packageManager} ${profile} consumer.`
     );
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });

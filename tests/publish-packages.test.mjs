@@ -368,9 +368,13 @@ test('release workflow defaults to dry-run and scopes the npm token to publishin
   assert.match(dryRunStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
   assert.match(publishStep, /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
   assert.doesNotMatch(publishStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
+  assert.match(
+    workflow,
+    /name: Verify exact packages from a PostgreSQL durable registry consumer[\s\S]+AGENTPLAT_REGISTRY_CONSUMER_PROFILE: postgres/
+  );
   assert.equal(
     workflow.match(/NPM_CONFIG_USERCONFIG: \/dev\/null/g)?.length,
-    5
+    6
   );
 });
 

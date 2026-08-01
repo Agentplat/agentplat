@@ -9,6 +9,7 @@ import {
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
   REGISTRY_PACKAGES,
+  REGISTRY_POSTGRES_CONSUMER_SCRIPT,
   REGISTRY_TRUST_PACKAGE,
 } from '../scripts/verify-registry-consumer.mjs';
 
@@ -65,6 +66,11 @@ test('registry consumer copies compatibility and conformance scenarios', () => {
   ]);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS), true);
   assert.equal(Object.isFrozen(REGISTRY_CONSUMER_SCRIPTS[0]), true);
+  assert.deepEqual(REGISTRY_POSTGRES_CONSUMER_SCRIPT, {
+    source: 'scripts/pack-consumers/collective-control-postgres-beta2.mjs',
+    destination: 'verify-collective-control-postgres.mjs',
+  });
+  assert.equal(Object.isFrozen(REGISTRY_POSTGRES_CONSUMER_SCRIPT), true);
   for (const packageName of [
     ...REGISTRY_MESH_PACKAGES,
     ...REGISTRY_ALPHA5_PACKAGES,
@@ -86,15 +92,21 @@ test('registry consumer isolates install and execution environments', () => {
       NODE_PATH: '/host/node_modules',
       npm_config_registry: 'https://registry.example',
       NPM_CONFIG_USERCONFIG: '/host/.npmrc',
+      PGHOST: '127.0.0.1',
+      PGDATABASE: 'agentplat_test',
     },
     '/tmp/consumer/.npmrc'
   );
 
   assert.deepEqual(environments.execution, {
     PATH: '/usr/bin',
+    PGHOST: '127.0.0.1',
+    PGDATABASE: 'agentplat_test',
   });
   assert.deepEqual(environments.install, {
     PATH: '/usr/bin',
+    PGHOST: '127.0.0.1',
+    PGDATABASE: 'agentplat_test',
     HTTPS_PROXY: 'https://proxy.example',
     NPM_CONFIG_USERCONFIG: '/tmp/consumer/.npmrc',
   });

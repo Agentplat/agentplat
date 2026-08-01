@@ -53,6 +53,14 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - run: pnpm --filter @agentplat/collective-control-postgres test
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - name: Verify Mesh PostgreSQL fault matrix, soak and benchmark
         run: |
           pnpm run verify:mesh-postgres-faults
