@@ -17,3 +17,5 @@ export {
   type CollectiveExecutionRejectionCodeV1,
   type CollectiveExecutionStateV1,
 } from "./lifecycle.js";
+export * from "./governed-actions.js";
+export * from "./local-policy.js";

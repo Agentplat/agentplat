@@ -1,18 +1,26 @@
 import {
   COLLECTIVE_CONTROL_SCHEMA_VERSION,
   createCollectiveAuthorityStateV1,
+  createCollectiveDecisionRecordV1,
   createCollectiveExecutionStateV1,
   type CollectiveAuthorityStateV1,
   type CollectiveExecutionStateV1,
+  type CollectiveEvidenceSinkV1,
   type DelegationMandateV1,
 } from "@agentplat/collective-control";
 import {
+  createGovernedActionGatewayFactoryV1,
+  createLocalCollectiveActionGuardV1,
+  dispatchGovernedActionV1,
   issueGovernedActionPermitV1,
+  LocalPolicyAdapterV1,
+  reconcileGovernedActionV1,
   type GovernedActionPermitV1,
 } from "@agentplat/collective-control/actions";
 import { COLLECTIVE_EVALUATION_CONTRACT_VERSION } from "@agentplat/collective-control/evaluation";
 import {
   MemoryCollectiveAuthorityRepositoryV1,
+  MemoryCollectiveEvidenceSinkV1,
   MemoryCollectiveExecutionRepositoryV1,
 } from "@agentplat/collective-control/memory";
 import {
@@ -54,6 +62,14 @@ void evaluateWorkContractCurrentnessV1;
 void parseDelegationMandateReferenceV1;
 void (null as GovernedMeshObjectiveInboundProcessorV1 | null);
 void issueGovernedActionPermitV1;
+void createGovernedActionGatewayFactoryV1;
+void createLocalCollectiveActionGuardV1;
+void dispatchGovernedActionV1;
+void reconcileGovernedActionV1;
+void LocalPolicyAdapterV1;
+void createCollectiveDecisionRecordV1;
+void (null as CollectiveEvidenceSinkV1 | null);
+void MemoryCollectiveEvidenceSinkV1;
 void mandate;
 void permit;
 void workContract;

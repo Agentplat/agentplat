@@ -71,6 +71,18 @@ export interface CollectiveExecutionDecisionV1 {
   readonly actionPermit: GovernedActionPermitV1 | null;
 }
 
+export type CollectiveExecutionRepositoryValueV1<T> = T | Promise<T>;
+
+/** Opaque state storage port; lifecycle semantics remain in this package. */
+export interface CollectiveExecutionRepositoryV1 {
+  read(): CollectiveExecutionRepositoryValueV1<CollectiveExecutionStateV1>;
+  compareAndSwap(input: {
+    readonly expectedGeneration: number;
+    readonly expectedStateDigest: CollectiveDigestV1;
+    readonly nextState: CollectiveExecutionStateV1;
+  }): CollectiveExecutionRepositoryValueV1<boolean>;
+}
+
 const DEFAULT_EXECUTION_LIMITS: CollectiveExecutionLimitsV1 = Object.freeze({
   maximumWorkContracts: 65_536,
   maximumBudgetReservations: 131_072,
@@ -718,6 +730,7 @@ function validPermitTransition(
   from: GovernedActionPermitStatusV1,
   to: GovernedActionPermitStatusV1,
 ): boolean {
+  if (from === "indeterminate") return to === "dispatched" || to === "failed";
   if (TERMINAL_PERMIT.has(from) || from === to) return false;
   if (from === "issued") return to === "reserved" || to === "expired";
   if (from === "reserved")
