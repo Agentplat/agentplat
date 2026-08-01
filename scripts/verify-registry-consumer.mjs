@@ -37,6 +37,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/audit',
   '@agentplat/audit-postgres',
   '@agentplat/auth',
+  '@agentplat/collective-control',
+  '@agentplat/collective-control-postgres',
   '@agentplat/core',
   '@agentplat/events',
   '@agentplat/framework',
@@ -98,6 +100,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/mesh-conformance.mjs',
     destination: 'verify-conformance.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/collective-control-beta2.mjs',
+    destination: 'verify-collective-control.mjs',
   }),
 ]);
 
@@ -238,6 +244,7 @@ export async function verifyRegistryConsumer({
               'verify-types.ts',
               'verify-inference-control-types.ts',
               'verify-mesh-adapters-types.ts',
+              'verify-collective-control-types.ts',
             ],
           },
           null,
@@ -255,6 +262,13 @@ export async function verifyRegistryConsumer({
       copyFile(
         path.join(root, 'scripts/pack-consumers/mesh-adapters-alpha5-types.ts'),
         path.join(temporaryRoot, 'verify-mesh-adapters-types.ts')
+      ),
+      copyFile(
+        path.join(
+          root,
+          'scripts/pack-consumers/collective-control-beta2-types.ts'
+        ),
+        path.join(temporaryRoot, 'verify-collective-control-types.ts')
       ),
       ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
         copyFile(path.join(root, source), path.join(temporaryRoot, destination))
@@ -348,6 +362,11 @@ export async function verifyRegistryConsumer({
       stdio: 'inherit',
     });
     execFileSync(process.execPath, ['verify-conformance.mjs'], {
+      cwd: temporaryRoot,
+      env: cleanEnvironments.execution,
+      stdio: 'inherit',
+    });
+    execFileSync(process.execPath, ['verify-collective-control.mjs'], {
       cwd: temporaryRoot,
       env: cleanEnvironments.execution,
       stdio: 'inherit',

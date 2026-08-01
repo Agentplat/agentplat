@@ -150,8 +150,9 @@ This provider-neutral collaboration package owns:
 - no import-time I/O, global registry, network listener or model SDK.
 
 The public catalog classifies it as `collaboration`, publishable,
-provider-neutral and pack-smoke required. Beta 2 declares no browser entrypoint
-until dependency traversal proves the complete governed path browser-safe.
+provider-neutral and pack-smoke required. Dependency traversal proves the root
+contracts and `./evaluation` graph browser-safe, so those two entrypoints are
+declared for browsers; adapters that can dispatch effects remain server-only.
 
 Planned subpaths:
 

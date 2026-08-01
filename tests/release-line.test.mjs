@@ -9,7 +9,7 @@ import {
   TRUST_PACKAGE_NAME,
 } from '../scripts/release-line.mjs';
 
-const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1] = RELEASE_LINES;
+const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2] = RELEASE_LINES;
 
 test('release-line guard accepts the historical 29-package Alpha 3 cohort before Trust is cataloged', async (t) => {
   const root = await createReleaseLineFixture({ line: ALPHA_3 });
@@ -39,6 +39,13 @@ test('release-line guard accepts the coordinated 34-package Beta 1 cohort', asyn
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
+test('release-line guard accepts the coordinated 36-package Beta 2 cohort', async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_2 });
+  t.after(() => rm(root, { force: true, recursive: true }));
+
+  assert.equal(await assertReleaseLine({ root }), true);
+});
+
 test('release-line guard rejects Alpha 4 versions in a 29-package cohort', async (t) => {
   const root = await createReleaseLineFixture({
     line: ALPHA_3,
@@ -48,7 +55,7 @@ test('release-line guard rejects Alpha 4 versions in a 29-package cohort', async
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line alpha3 requires root version 0\.3\.0-alpha\.3/i,
+    /release line alpha3 requires root version 0\.3\.0-alpha\.3/i
   );
 });
 
@@ -61,7 +68,7 @@ test('release-line guard rejects a 31-package Alpha 4 cohort', async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires exactly 29 Alpha 3 packages/i
   );
 });
 
@@ -74,7 +81,7 @@ test('release-line guard rejects a 30-package Alpha 3 cohort', async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires exactly 29 Alpha 3 packages/i
   );
 });
 
@@ -87,7 +94,7 @@ test('release-line guard rejects a mixed manifest version before release operati
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /must use 0\.3\.0-alpha\.4 on release line alpha4/i,
+    /must use 0\.3\.0-alpha\.4 on release line alpha4/i
   );
 });
 
@@ -100,7 +107,7 @@ test('release-line guard rejects a root-version mismatch', async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line alpha4 requires root version 0\.3\.0-alpha\.4/i,
+    /release line alpha4 requires root version 0\.3\.0-alpha\.4/i
   );
 });
 
@@ -113,7 +120,7 @@ test('release-line guard rejects a catalog/workspace mismatch', async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /workspace manifests to match the catalog in ASCII order/i,
+    /workspace manifests to match the catalog in ASCII order/i
   );
 });
 
@@ -126,7 +133,7 @@ test('release-line guard rejects Alpha 3 when Trust appears in the catalog', asy
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires exactly 29 Alpha 3 packages/i
   );
 });
 
@@ -139,7 +146,7 @@ test('release-line guard rejects Alpha 4 when Trust is absent', async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires exactly 29 Alpha 3 packages/i
   );
 });
 
@@ -165,7 +172,7 @@ async function createReleaseLineFixture({
   const root = await mkdtemp(path.join(os.tmpdir(), 'agentplat-release-line-'));
   const names = Array.from(
     { length: packageCount },
-    (_, index) => `package-${index}`,
+    (_, index) => `package-${index}`
   );
   if (includeTrust) names[0] = TRUST_PACKAGE_NAME.slice('@agentplat/'.length);
   if (duplicateTrust) names[1] = TRUST_PACKAGE_NAME.slice('@agentplat/'.length);
@@ -194,11 +201,11 @@ async function createReleaseLineFixture({
   await Promise.all([
     writeFile(
       path.join(root, 'package.json'),
-      `${JSON.stringify({ name: 'fixture', version }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'fixture', version }, null, 2)}\n`
     ),
     writeFile(
       path.join(root, 'config/public-packages.json'),
-      `${JSON.stringify(catalog, null, 2)}\n`,
+      `${JSON.stringify(catalog, null, 2)}\n`
     ),
     ...manifestEntries.map(async (entry) => {
       const manifestPath = path.join(root, entry.directory, 'package.json');
@@ -208,8 +215,8 @@ async function createReleaseLineFixture({
         `${JSON.stringify(
           { name: entry.name, version: packageVersion },
           null,
-          2,
-        )}\n`,
+          2
+        )}\n`
       );
     }),
   ]);

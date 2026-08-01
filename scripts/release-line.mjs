@@ -33,6 +33,12 @@ export const RELEASE_LINES = Object.freeze([
     releaseVersion: '0.3.0-beta.1',
     trustPackageCount: 1,
   }),
+  Object.freeze({
+    catalogPackageCount: 36,
+    id: 'beta2',
+    releaseVersion: '0.3.0-beta.2',
+    trustPackageCount: 1,
+  }),
 ]);
 
 /**
@@ -48,17 +54,17 @@ export async function assertReleaseLine({
 } = {}) {
   const resolvedCatalog = catalog ?? (await loadPublicPackageCatalog(root));
   const trustPackageCount = resolvedCatalog.packages.filter(
-    (entry) => entry.name === TRUST_PACKAGE_NAME,
+    (entry) => entry.name === TRUST_PACKAGE_NAME
   ).length;
   const line = RELEASE_LINES.find(
     (candidate) =>
       candidate.catalogPackageCount === resolvedCatalog.packages.length &&
-      candidate.trustPackageCount === trustPackageCount,
+      candidate.trustPackageCount === trustPackageCount
   );
 
   assert.ok(
     line,
-    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, or 34 Beta 1 packages with it exactly once`,
+    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, or 36 Beta 2 packages with it exactly once`
   );
 
   const resolvedRootManifest =
@@ -67,25 +73,25 @@ export async function assertReleaseLine({
   assert.equal(
     resolvedRootManifest.version,
     line.releaseVersion,
-    `Release line ${line.id} requires root version ${line.releaseVersion}`,
+    `Release line ${line.id} requires root version ${line.releaseVersion}`
   );
 
   const manifests = await discoverWorkspacePackageManifests(root);
   assert.equal(
     manifests.length,
     line.catalogPackageCount,
-    `Release line ${line.id} requires exactly ${line.catalogPackageCount} workspace manifests`,
+    `Release line ${line.id} requires exactly ${line.catalogPackageCount} workspace manifests`
   );
   assert.deepEqual(
     manifests.map((record) => record.directory),
     resolvedCatalog.packages.map((entry) => entry.directory),
-    `Release line ${line.id} requires workspace manifests to match the catalog in ASCII order`,
+    `Release line ${line.id} requires workspace manifests to match the catalog in ASCII order`
   );
   for (const { manifest } of manifests) {
     assert.equal(
       manifest.version,
       line.releaseVersion,
-      `${manifest.name} must use ${line.releaseVersion} on release line ${line.id}`,
+      `${manifest.name} must use ${line.releaseVersion} on release line ${line.id}`
     );
   }
 
