@@ -27,6 +27,10 @@
     "./rooms": {
       "types": "./dist/rooms.d.ts",
       "import": "./dist/rooms.js"
+    },
+    "./control": {
+      "types": "./dist/control.d.ts",
+      "import": "./dist/control.js"
     }
   },
   "files": [
@@ -39,6 +43,8 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@agentplat/collective-control": "workspace:^",
+    "@agentplat/inference-control": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-protocol": "workspace:^",
     "@agentplat/rooms-mesh": "workspace:^"

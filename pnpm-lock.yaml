@@ -281,6 +281,12 @@ importers:
 
   packages/mesh-conformance:
     dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
+      '@agentplat/inference-control':
+        specifier: workspace:^
+        version: link:../inference-control
       '@agentplat/mesh':
         specifier: workspace:^
         version: link:../mesh
