@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "designCommit": "9d726581f5689a4d72c4f31d8a2a4049d0112ccf",
+  "designEvidenceCommit": "a0ec2baa6926229b6741049bff1de673cb9295c2",
+  "releaseCommit": "b38c25098599499813fe2caea605b5d61f939222",
+  "gitTag": "v0.3.0-beta.1",
+  "gitTagObject": "9692bceb3e9d5d55fa5b0651738f1332fe6376a4",
+  "distributionTag": "next",
+  "stagingTag": "agentplat-stage-b38c25098599",
+  "designPullRequest": "https://github.com/Agentplat/agentplat/pull/46",
+  "designEvidencePullRequest": "https://github.com/Agentplat/agentplat/pull/47",
+  "implementationPullRequest": "https://github.com/Agentplat/agentplat/pull/48",
+  "ciWorkflow": "https://github.com/Agentplat/agentplat/actions/runs/30684328707",
+  "dryRunWorkflow": "https://github.com/Agentplat/agentplat/actions/runs/30684349222",
+  "publicationWorkflow": "https://github.com/Agentplat/agentplat/actions/runs/30684566608",
+  "publicationCompletedAt": "2026-08-01T04:59:38Z",
+  "previousNext": {
+    "defaultForExistingPackages": "0.3.0-alpha.5",
+    "exceptions": {
+      "@agentplat/mesh-conformance": null
+    }
+  },
+  "registryConsumers": {
+    "node20Pnpm": "passed",
+    "node22Npm": "passed"
+  },
+  "verifiedPackageCount": 34,
+  "stagingTagsRemaining": 0,
+  "reports": {
+    "compatibility": {
+      "path": "docs/agent-mesh/beta-1-compatibility-report.json",
+      "sha256": "5520489facfbdd197e36d717538025438cc865474c6914e1db1d8c06ef686fdb"
+    },
+    "postgresFaults": {
+      "path": "docs/agent-mesh/beta-1-postgres-fault-report.json",
+      "sha256": "f9ab002022d1be3e92f71a0db9cc1d837ce2ae2b055de3914237aa77ab13e301"
+    },
+    "soak": {
+      "path": "docs/agent-mesh/beta-1-soak-report.json",
+      "sha256": "9ef0d9e1f1b560dd8304a9afb557118c774cd746b28f50be84e3513118c72619"
+    },
+    "benchmark": {
+      "path": "docs/agent-mesh/beta-1-benchmark-report.json",
+      "sha256": "c73dca2b51e31de2799f4c1b7dc66b2dbc4d4ba6d13e282da2475dd517990045"
+    },
+    "publicApiSurface": {
+      "path": "docs/agent-mesh/beta-1-public-api-surface.json",
+      "sha256": "7f9a88c2f0df18eb8ffebd0b17f8d6faffbb35c558c9cdf9cd1b72151b6ffb99"
+    }
+  },
+  "fixtures": {
+    "protocolV0": {
+      "path": "packages/mesh-protocol/fixtures/v0/manifest.json",
+      "sha256": "8845072c3d4e8e59e5266c87cb22c2646739c65f6bd6d4e955dfaf1be14a1322"
+    },
+    "protocolV1": {
+      "path": "packages/mesh-protocol/fixtures/v1/manifest.json",
+      "sha256": "7e725276c1215dea469860fbc444f2cd357cd0acc7d4987c2098996e670e0534"
+    },
+    "persistence": {
+      "path": "packages/mesh/fixtures/beta1/manifest.json",
+      "sha256": "3bc5881dc7ed47cf62b7ee74f7b17afe4c729283367b0d52875f6946e97eb37f"
+    }
+  },
+  "packages": [
+    {
+      "name": "@agentplat/audit",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-FW0eC0ZCdIQy+wuORXpTwcujiG8+CHL9qitzhSF5hQSj9vVr0wL6Fm1bU34c3M7P+jY7npp5lmvfIICiUwRjMQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:30.371Z"
+    },
+    {
+      "name": "@agentplat/audit-postgres",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-9bWXN+yQMPHZIn6ACb5j0JxLyL6U+37ZwXcZI5KucLW0/JIYneDbdWeLmom1YVCbAzJbkObgalaNqyC2IwH3TQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.11",
+      "publishedAt": "2026-08-01T04:52:33.349Z"
+    },
+    {
+      "name": "@agentplat/auth",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-HSwgci7t8eg+mZAa1CA6xYza2916NF6WDisN5wNOvgbMkCe/YjPEHEG5fO3awUbV47vuaEuu2tliz4PmMdneXQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:34.800Z"
+    },
+    {
+      "name": "@agentplat/core",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-nikjLiIISDAPQKB4ZZlU2aG5Xeaq1jO7ZNJTgzCMPtywt6K0eZWY0YrzZIvuxwM6Q0k47NSath8neKbnRH2sfw==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:19.960Z"
+    },
+    {
+      "name": "@agentplat/events",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-95Nyo6HXWLfLyYdVNZg3ezAkhoqu9RWG+ehXA2cfM0DcXUmbJFQQ/MAfC/jLf5cBxy7cOYylUl4PCBR2azD23A==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:36.345Z"
+    },
+    {
+      "name": "@agentplat/framework",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-sdbZKbCkR/WKNoOAv/q4YlFvZ5OvYHOyLMqraxRIxFkFGT/+XgWa9xAExLfAfIMCOA/jt3QdaMmWLTFltBx2tw==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:40.587Z"
+    },
+    {
+      "name": "@agentplat/inference-control",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-yGCwPM/oGmBRAdttflJWM4zGRzLxZhYjIe4Nj1gumM2WOjbpYJq67H5nP83x77mXeusanVYCwngZNmHUqrxe6Q==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.3",
+      "publishedAt": "2026-08-01T04:52:43.887Z"
+    },
+    {
+      "name": "@agentplat/mcp",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-NFS/fKsheT4LDrHBDCXQNmiSGfdM8KTnrTUPrr/UNdEnv4vwKWwBzrWMTwghe5GGCWLc0I3SyZHBr1uLxNU90w==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:45.440Z"
+    },
+    {
+      "name": "@agentplat/memory",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-l1SSS6C//8uHMdY0vPWcl3xorva6TIuiiCBvSKjoYZVsLnyQe8HbSTEIkqS780CBE96bo30xVHZwpi9Q3lLx1g==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:46.883Z"
+    },
+    {
+      "name": "@agentplat/mesh",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-ok2Q03HEDsUZM3gXBxt7A4TascqAOl5tbWZKGVQbH140s409e/LJu+FFie6E5Bwbh5FCDAsyrBmVTFkKFMirGg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.1",
+      "publishedAt": "2026-08-01T04:52:51.928Z"
+    },
+    {
+      "name": "@agentplat/mesh-conformance",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-1LgvKJfT6Ya0fQ33rj4gqfeetsNXKPlnQLqiqTwuKGC5U6SWavu0mWBnSjrcew9o7HlS2RY3IoeKQlNSxt+pGw==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:54.795Z"
+    },
+    {
+      "name": "@agentplat/mesh-crypto",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-TAWCicz8BlPmSI5FuJzP6VG7RhxlNDcnJKdEeOMdXtJABj9G3/HKW7t4G9+luV9Xr46jjd6s3SzCXbWzpXZQ+Q==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.1",
+      "publishedAt": "2026-08-01T04:52:50.174Z"
+    },
+    {
+      "name": "@agentplat/mesh-http",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-INFT4wiDpo/xn94w95e9pwhij+xj/97PlFkDVg85GVIQs/nSeVmS0lJhgydFENBmbgKZKBz3MlheBsEnVdRDRg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.5",
+      "publishedAt": "2026-08-01T04:52:56.329Z"
+    },
+    {
+      "name": "@agentplat/mesh-postgres",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-GeMuq378/zV1zGB1dySJaI4FZtIN90/LDCMPU8koFLqTQ/FDd441JNMD6xEVVrmhan5jLLqFxMz+wVDYijWlag==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.5",
+      "publishedAt": "2026-08-01T04:52:57.912Z"
+    },
+    {
+      "name": "@agentplat/mesh-protocol",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-zo51bOHk+htEigkzGitDBb8+xEdCQvu/zWiQgchFAQCkzFjrEjUL3voq+fsf9Tc65oCrW1PvqMGtlMstYo2otA==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.1",
+      "publishedAt": "2026-08-01T04:52:48.556Z"
+    },
+    {
+      "name": "@agentplat/mesh-sim",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-SbXc8ALqxCFfnZ7/GAbZ8JhAxPkJg7SRBnGDStXk57XZoOpRszZZSnQhrKwSkIndgpG6bdDoyPmshuD1JtoZPg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.1",
+      "publishedAt": "2026-08-01T04:52:59.385Z"
+    },
+    {
+      "name": "@agentplat/model",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-cfMtLPNPy57h4Rqb7eJTbd6y5lFdLba36OOlD3N+N3+RZz3SBwqJ6Y+Mkb80T7v7imQR0gRBUv/g1fIt+94WeQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:21.523Z"
+    },
+    {
+      "name": "@agentplat/model-anthropic",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-+aEJcQ7vsBXG6vJBF8Lo8h1P3LjF14TIXA8KF3pCR5BJHFfs9/aRnw6bgGWyTrW/dljzXIewP/PG9v2ZOr1TXA==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.10",
+      "publishedAt": "2026-08-01T04:53:00.779Z"
+    },
+    {
+      "name": "@agentplat/model-gemini",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-4EuXSFjJAwsTRGU3gDhuylF8H6Yri5WiQ1mGmPuY5ZTa/RWhpStrh6MXKL0saoVzajp2gUwsTiIN/gpR9GbZ8w==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.10",
+      "publishedAt": "2026-08-01T04:53:02.264Z"
+    },
+    {
+      "name": "@agentplat/model-openai-compatible",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-Ee/21+ash1c5fpa0b/1/mNXHvac5sHTgX2cSVMTtzJ9/Cx8O1dk0eBE7sAdCdeo4WzR4EvBwzXofn07rye1jGA==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:37.811Z"
+    },
+    {
+      "name": "@agentplat/postgres",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-N08vuK+hib9SKb8lgsxH1DU/3LmB2mQUkNFGu0nGODhKOCqJYssp+GDQJjJqonuNXr94Si9j5ABRImfv+1Skgw==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.11",
+      "publishedAt": "2026-08-01T04:52:31.895Z"
+    },
+    {
+      "name": "@agentplat/provider-openai",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-xukV0N40cbw66JQUAQpQsm/xctQUKjLZASRdQx0uCJ70YFMYfsQGyHJ9XGp20b+KS1z+0+0HM7Tme7+Jjfz4Xg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:53:03.664Z"
+    },
+    {
+      "name": "@agentplat/rooms",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-Kpnl8cZ/zxj5OrV3n613XNZDRdPMuHXRfnj+UTdiTKUC6fmjT1z04dbDpvSMEvtD/dL61t8843/yuim0PZrzaQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:39.255Z"
+    },
+    {
+      "name": "@agentplat/rooms-api",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-NfVrhsdoIaPz/cjutm60xgL4Eccd0GLEZTyJvcM0DqjaYM6zu2gdJuClCC8i1QLOY6whdKjf3ygmE7O/2Qu0Og==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:53:05.031Z"
+    },
+    {
+      "name": "@agentplat/rooms-mesh",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-RzfYaSoG9prAnayeC8XTevSNHtwT1trYyclOk5zE9yud+HBT9yVaAmwm4+daei+DmSpb8eOg41uMSKSxEDq+zw==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.5",
+      "publishedAt": "2026-08-01T04:52:53.260Z"
+    },
+    {
+      "name": "@agentplat/rooms-postgres",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-qnw6f3q+SQyNzMBHQ3kpHXA6J/AWbUdI0ZtCOmLaD1u1xmKIkb0aBfGYQtI8bCyJIXUCw0KxF6ME3OeUDj0HVg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:53:06.517Z"
+    },
+    {
+      "name": "@agentplat/runtime",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-7XYAp1IeAh50yAm+PgQoYQ1bw+/EpgyO25GlbYQdvGG+lWIUEzgma0bdnIQcaDUVUq+Rg9nREu8Ee8fujetTnQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:25.890Z"
+    },
+    {
+      "name": "@agentplat/runtime-mock",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-YEEyO6XbMOivLswN9E9iinie12osGXgJ04E86WugwocWQrK/ufhJHZUf3Ba6cdtnAuc0/2MBmsRyd+fvnOXppQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:53:07.940Z"
+    },
+    {
+      "name": "@agentplat/sessions",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-08xXHSj9tVQneXxNzs5buMQJNF074qwpF8Q9wJrMcB7to19Fu8NHiIpMhRyw0g307tpf44u3OhvbjsKkdqx3/A==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.2",
+      "publishedAt": "2026-08-01T04:52:28.861Z"
+    },
+    {
+      "name": "@agentplat/sessions-redis",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-WMaIq53TBzX7dlOB1yT8iXInXrxgzvyxElFR0h2L6AMkX81lJVCxYsqT0ybCquEN4rFr5mGiiMqRiSLBsThUcg==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.11",
+      "publishedAt": "2026-08-01T04:53:09.441Z"
+    },
+    {
+      "name": "@agentplat/streaming",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-ETeapCCpicHoAFV22tC8UlXCZ5X1mzKtRJ86XPdInI38HoONJ66l05YNnoWb/cR/HRfHvma7WR0NouqImwhBbQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:27.410Z"
+    },
+    {
+      "name": "@agentplat/tools",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-oVeyfjKc576GuwuVPT8FprJ7SQ3dRp3/km85DYTN+DqjMYBoWkkMao3o1qqbgXezuUHrio5QyS0DLT5fkFT0rQ==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:22.881Z"
+    },
+    {
+      "name": "@agentplat/trust",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-Xe7yUJhhX//vd1ss+pmpn0mSLLePh3Bbw2IOf+YQFOXvnsMAzRDnDLxkV2zrPmngpi5SYaRT+X/Qb61R5FS8SA==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.3.0-alpha.4",
+      "publishedAt": "2026-08-01T04:52:42.197Z"
+    },
+    {
+      "name": "@agentplat/workflows",
+      "version": "0.3.0-beta.1",
+      "integrity": "sha512-K0Pjyic7aCa+7KcOJuqH+v0U27t/xLfv8Il+p4F0Bon/X+0U12nbCcOjMTy+qdatOEkpS2lqFJXUIBKCStDq1w==",
+      "next": "0.3.0-beta.1",
+      "latest": "0.2.0-beta.1",
+      "publishedAt": "2026-08-01T04:52:24.383Z"
+    }
+  ]
+}

@@ -1,217 +1,217 @@
 # Agent Mesh `0.3.0-beta.1` acceptance checklist
 
-Status: design frozen. A checkbox is closed only by evidence tied to the
-exact reviewed design or release commit. Local results from another commit are
-not release evidence.
+Status: accepted. Every checkbox is closed by evidence tied to the exact
+reviewed design or release commit. Local results from another commit are not
+release evidence.
 
 ## Release identity and design freeze
 
-- [ ] Version is `0.3.0-beta.1` across the root and every public package.
-- [ ] Compatibility baseline is annotated tag `v0.3.0-alpha.5` at
+- [x] Version is `0.3.0-beta.1` across the root and every public package.
+- [x] Compatibility baseline is annotated tag `v0.3.0-alpha.5` at
       `5d11f715947bd7d3e5b8f7311c8f6f68c8c33a98`.
 - [x] Design plan, threat model, package boundaries and non-goals are reviewed.
 - [x] Design review records zero open P0/P1/P2 findings.
 - [x] Exact normative design commit is recorded before implementation.
-- [ ] Production implementation contains no unreviewed scope outside the
+- [x] Production implementation contains no unreviewed scope outside the
       frozen design.
 
 ## Public package and API compatibility
 
-- [ ] Public catalog contains exactly 34 coordinated packages.
-- [ ] `@agentplat/mesh-conformance` is provider-neutral, side-effect-free on
+- [x] Public catalog contains exactly 34 coordinated packages.
+- [x] `@agentplat/mesh-conformance` is provider-neutral, side-effect-free on
       import and isolated from production dependency graphs.
-- [ ] Framework does not re-export Mesh or conformance packages.
-- [ ] Alpha 5 public-contract source fixtures compile unchanged against packed
+- [x] Framework does not re-export Mesh or conformance packages.
+- [x] Alpha 5 public-contract source fixtures compile unchanged against packed
       Beta 1 declarations.
-- [ ] Packed public-surface reports cover every package and export subpath.
-- [ ] No Alpha 5 export or subpath is removed or renamed.
-- [ ] No input is narrowed and no required parameter/property is added to an
+- [x] Packed public-surface reports cover every package and export subpath.
+- [x] No Alpha 5 export or subpath is removed or renamed.
+- [x] No input is narrowed and no required parameter/property is added to an
       existing contract.
-- [ ] Versioned closed unions and discriminants remain source-compatible.
-- [ ] Browser entrypoints gain no Node built-in or provider-specific edge.
-- [ ] Runtime, Sessions, Rooms and Framework defaults remain unchanged.
-- [ ] All imports perform no network, database, migration, registration or
+- [x] Versioned closed unions and discriminants remain source-compatible.
+- [x] Browser entrypoints gain no Node built-in or provider-specific edge.
+- [x] Runtime, Sessions, Rooms and Framework defaults remain unchanged.
+- [x] All imports perform no network, database, migration, registration or
       telemetry side effect.
 
 ## Wire version 1
 
-- [ ] Current, previous and supported wire-version constants are public and
+- [x] Current, previous and supported wire-version constants are public and
       exact: `1`, `0` and `[0, 1]`.
-- [ ] General envelope types and parsers represent both supported read
+- [x] General envelope types and parsers represent both supported read
       versions without erasing the exact version.
-- [ ] Producer helpers default to v1.
-- [ ] V0 production requires an explicit construction-bound signing policy.
-- [ ] No existing payload shape or message family changes in Beta 1.
-- [ ] `wireVersion` remains part of the signed document.
-- [ ] Version replacement invalidates verification.
-- [ ] Retries preserve exact canonical signed bytes.
-- [ ] Parser policies can narrow but cannot add unsupported versions.
-- [ ] Unknown wire versions fail explicitly without fallback.
-- [ ] Peer Card protocol versions are sorted, unique, bounded and include the
+- [x] Producer helpers default to v1.
+- [x] V0 production requires an explicit construction-bound signing policy.
+- [x] No existing payload shape or message family changes in Beta 1.
+- [x] `wireVersion` remains part of the signed document.
+- [x] Version replacement invalidates verification.
+- [x] Retries preserve exact canonical signed bytes.
+- [x] Parser policies can narrow but cannot add unsupported versions.
+- [x] Unknown wire versions fail explicitly without fallback.
+- [x] Peer Card protocol versions are sorted, unique, bounded and include the
       envelope's own version.
-- [ ] Unknown optional extensions remain ordinary signed data.
-- [ ] Unknown critical extensions fail before state mutation.
+- [x] Unknown optional extensions remain ordinary signed data.
+- [x] Unknown critical extensions fail before state mutation.
 
 ## Canonical protocol fixtures
 
-- [ ] Every committed v0 fixture is byte-identical to Alpha 5.
-- [ ] Every implemented message type has exactly one valid v1 fixture.
-- [ ] Fixture manifest accounts for every file with no duplicate/untracked
+- [x] Every committed v0 fixture is byte-identical to Alpha 5.
+- [x] Every implemented message type has exactly one valid v1 fixture.
+- [x] Fixture manifest accounts for every file with no duplicate/untracked
       vector.
-- [ ] File, canonical envelope, payload and signing-document digests recompute.
-- [ ] Public test keys and signatures verify; no private fixture key ships.
-- [ ] Deterministic generation reproduces all v1 bytes.
-- [ ] Malformed fixture classes produce their exact bounded coarse outcome.
-- [ ] V0 and v1 fixtures cannot substitute for each other's signature.
+- [x] File, canonical envelope, payload and signing-document digests recompute.
+- [x] Public test keys and signatures verify; no private fixture key ships.
+- [x] Deterministic generation reproduces all v1 bytes.
+- [x] Malformed fixture classes produce their exact bounded coarse outcome.
+- [x] V0 and v1 fixtures cannot substitute for each other's signature.
 
 ## Negotiation and downgrade resistance
 
-- [ ] Selection consumes only local policy and a verified, admitted, current
+- [x] Selection consumes only local policy and a verified, admitted, current
       Peer Card projection.
-- [ ] HTTP routes, transport hints and unverified remote responses cannot
+- [x] HTTP routes, transport hints and unverified remote responses cannot
       select a version.
-- [ ] Bootstrap defaults to v1 and v0 bootstrap is per-peer explicit policy.
-- [ ] Highest allowed common version is selected deterministically.
-- [ ] No common version returns unavailable without a send.
-- [ ] Selection binds peer, instance, card ID/revision and prior high-water.
-- [ ] Stale, expired, forged or wrong-lineage Peer Cards cannot select.
-- [ ] Lower selection than the retained high-water fails closed.
-- [ ] Transport failure, timeout, overload or unsupported response cannot clear
+- [x] Bootstrap defaults to v1 and v0 bootstrap is per-peer explicit policy.
+- [x] Highest allowed common version is selected deterministically.
+- [x] No common version returns unavailable without a send.
+- [x] Selection binds peer, instance, card ID/revision and prior high-water.
+- [x] Stale, expired, forged or wrong-lineage Peer Cards cannot select.
+- [x] Lower selection than the retained high-water fails closed.
+- [x] Transport failure, timeout, overload or unsupported response cannot clear
       the high-water.
-- [ ] Reset is explicit and bound to a newer admitted instance/card lineage.
-- [ ] Mixed-version fanout partitions recipients before signing.
-- [ ] Version-specific fanout uses distinct message/effect IDs and immutable
+- [x] Reset is explicit and bound to a newer admitted instance/card lineage.
+- [x] Mixed-version fanout partitions recipients before signing.
+- [x] Version-specific fanout uses distinct message/effect IDs and immutable
       outbox bytes.
 
 ## Crypto and transport compatibility
 
-- [ ] Signer validates the selected version before private-key use.
-- [ ] Verifier accepts v0/v1 independently from negotiation policy.
-- [ ] V1 HTTP path accepts only v1 envelopes.
-- [ ] V0 HTTP path is disabled by default and accepts only v0 when enabled.
-- [ ] Client never rewrites version, probes fallback paths or follows
+- [x] Signer validates the selected version before private-key use.
+- [x] Verifier accepts v0/v1 independently from negotiation policy.
+- [x] V1 HTTP path accepts only v1 envelopes.
+- [x] V0 HTTP path is disabled by default and accepts only v0 when enabled.
+- [x] Client never rewrites version, probes fallback paths or follows
       redirects.
-- [ ] Remote receipts do not reveal Peer Cards, version high-water, keys,
+- [x] Remote receipts do not reveal Peer Cards, version high-water, keys,
       admission or database state.
-- [ ] Alpha 5 sender reaches Beta 1 v0 reader.
-- [ ] Explicit Beta 1 v0 sender reaches Alpha 5.
-- [ ] Beta 1 current-only mode refuses an Alpha 5-only peer before send.
-- [ ] Beta/Beta selects and verifies v1.
+- [x] Alpha 5 sender reaches Beta 1 v0 reader.
+- [x] Explicit Beta 1 v0 sender reaches Alpha 5.
+- [x] Beta 1 current-only mode refuses an Alpha 5-only peer before send.
+- [x] Beta/Beta selects and verifies v1.
 
 ## Durable records and snapshots
 
-- [ ] Durable wrapper schema 2 is distinct from envelope, snapshot and database
+- [x] Durable wrapper schema 2 is distinct from envelope, snapshot and database
       versions.
-- [ ] Schema-1 records remain strictly readable in compatibility mode.
-- [ ] Inbox/outbox expose and validate the exact envelope wire version.
-- [ ] Canonical stored envelope bytes/digest recompute on every load.
-- [ ] Snapshot format and snapshot schema version are explicit on Beta writes.
-- [ ] Legacy untyped snapshots remain visibly legacy and cannot masquerade as
+- [x] Schema-1 records remain strictly readable in compatibility mode.
+- [x] Inbox/outbox expose and validate the exact envelope wire version.
+- [x] Canonical stored envelope bytes/digest recompute on every load.
+- [x] Snapshot format and snapshot schema version are explicit on Beta writes.
+- [x] Legacy untyped snapshots remain visibly legacy and cannot masquerade as
       a current typed format.
-- [ ] Snapshot codec registry is construction-bound and exact-format selected.
-- [ ] Codecs validate, deep-freeze, canonicalize and migrate deterministically.
-- [ ] Unsupported/lossy downgrade is refused.
-- [ ] Full tenant/Mesh/peer/instance scope remains on every durable record.
-- [ ] Accepted receipt still occurs only after inbox commit.
-- [ ] Snapshot, journal, outbox and inbox settlement remain one transaction.
-- [ ] Stale/expired claims cannot mutate or settle work.
-- [ ] Journal chain version and digests detect omission, reorder or rewrite.
-- [ ] Outbox retry preserves exact signed bytes across restart.
+- [x] Snapshot codec registry is construction-bound and exact-format selected.
+- [x] Codecs validate, deep-freeze, canonicalize and migrate deterministically.
+- [x] Unsupported/lossy downgrade is refused.
+- [x] Full tenant/Mesh/peer/instance scope remains on every durable record.
+- [x] Accepted receipt still occurs only after inbox commit.
+- [x] Snapshot, journal, outbox and inbox settlement remain one transaction.
+- [x] Stale/expired claims cannot mutate or settle work.
+- [x] Journal chain version and digests detect omission, reorder or rewrite.
+- [x] Outbox retry preserves exact signed bytes across restart.
 
 ## PostgreSQL migration 2
 
-- [ ] Migration is explicit, schema-qualified, checksum-bound and advisory
+- [x] Migration is explicit, schema-qualified, checksum-bound and advisory
       locked.
-- [ ] Concurrent migration attempts converge on one installed history.
-- [ ] Alpha 5 migration-1 schemas are adopted without data loss.
-- [ ] Exactly derivable metadata is backfilled and validated.
-- [ ] Opaque snapshot rows are counted and left explicitly unresolved until a
+- [x] Concurrent migration attempts converge on one installed history.
+- [x] Alpha 5 migration-1 schemas are adopted without data loss.
+- [x] Exactly derivable metadata is backfilled and validated.
+- [x] Opaque snapshot rows are counted and left explicitly unresolved until a
       caller codec migrates them.
-- [ ] Codec backfill is bounded, idempotent and resumable.
-- [ ] Interrupted migration/backfill resumes without partial logical state.
-- [ ] Row counts, full scopes and canonical digests match before current-only
+- [x] Codec backfill is bounded, idempotent and resumable.
+- [x] Interrupted migration/backfill resumes without partial logical state.
+- [x] Row counts, full scopes and canonical digests match before current-only
       mode.
-- [ ] Beta writes cannot omit required metadata.
-- [ ] Migration status reports versions/counts without application content.
-- [ ] Normal rollback prefers the additive schema and Alpha-compatible readers.
-- [ ] Destructive down requires exact confirmation, `allowDataLoss`, verified
+- [x] Beta writes cannot omit required metadata.
+- [x] Migration status reports versions/counts without application content.
+- [x] Normal rollback prefers the additive schema and Alpha-compatible readers.
+- [x] Destructive down requires exact confirmation, `allowDataLoss`, verified
       backup and zero incompatible row or an explicit loss decision.
-- [ ] Caller-owned pools are never closed by migrations or repositories.
+- [x] Caller-owned pools are never closed by migrations or repositories.
 
 ## Persistence fixtures
 
-- [ ] Core peer, coordination, discovery and inbound states have canonical
+- [x] Core peer, coordination, discovery and inbound states have canonical
       fixtures.
-- [ ] Objective/Work schema versions 1 and 2 remain readable.
-- [ ] Allocation schema versions 1 through 6 remain readable.
-- [ ] Simulator snapshot/replay fixtures reproduce deterministically.
-- [ ] Durable wrapper schemas 1 and 2 are represented.
-- [ ] Migration-1 adoption and migration-2 expanded SQL manifests are frozen.
-- [ ] Alpha 5 dump-manifest migration reproduces expected counts and digests.
-- [ ] Fixtures contain no private key, credential or sensitive application
+- [x] Objective/Work schema versions 1 and 2 remain readable.
+- [x] Allocation schema versions 1 through 6 remain readable.
+- [x] Simulator snapshot/replay fixtures reproduce deterministically.
+- [x] Durable wrapper schemas 1 and 2 are represented.
+- [x] Migration-1 adoption and migration-2 expanded SQL manifests are frozen.
+- [x] Alpha 5 dump-manifest migration reproduces expected counts and digests.
+- [x] Fixtures contain no private key, credential or sensitive application
       content.
 
 ## Public conformance package
 
-- [ ] Root capability/report contracts reject unknown fields and inconsistent
+- [x] Root capability/report contracts reject unknown fields and inconsistent
       counts.
-- [ ] Protocol runner covers v0/v1 parse, canonicalization and signatures.
-- [ ] Transport runner covers exact-byte retry, bounds and coarse receipts.
-- [ ] Durability runner covers commit receipt, conflicts, claims, atomicity,
+- [x] Protocol runner covers v0/v1 parse, canonicalization and signatures.
+- [x] Transport runner covers exact-byte retry, bounds and coarse receipts.
+- [x] Durability runner covers commit receipt, conflicts, claims, atomicity,
       journal and recovery.
-- [ ] Rooms runner covers projection scope, stable idempotency and sink retry.
-- [ ] Required protocol cases cannot be skipped.
-- [ ] Every declared optional capability makes its cases mandatory.
-- [ ] Undeclared optional capabilities are `not_declared`, not falsely passed.
-- [ ] Harness uses caller factories, scopes, clocks, seeds and cleanup.
-- [ ] No destructive resource operation occurs without explicit consent.
-- [ ] Abort, timeout and cleanup failure are bounded and separately reported.
-- [ ] Reports contain no raw envelope, payload, snapshot, credential or
+- [x] Rooms runner covers projection scope, stable idempotency and sink retry.
+- [x] Required protocol cases cannot be skipped.
+- [x] Every declared optional capability makes its cases mandatory.
+- [x] Undeclared optional capabilities are `not_declared`, not falsely passed.
+- [x] Harness uses caller factories, scopes, clocks, seeds and cleanup.
+- [x] No destructive resource operation occurs without explicit consent.
+- [x] Abort, timeout and cleanup failure are bounded and separately reported.
+- [x] Reports contain no raw envelope, payload, snapshot, credential or
       connection string.
-- [ ] Agentplat reference implementations pass.
-- [ ] Every deliberately broken implementation fails its expected case.
-- [ ] Tarball and registry consumers can run the conformance package without
+- [x] Agentplat reference implementations pass.
+- [x] Every deliberately broken implementation fails its expected case.
+- [x] Tarball and registry consumers can run the conformance package without
       workspace links.
 
 ## Compatibility matrix, soak and benchmarks
 
-- [ ] Beta/Beta v1, Beta/Alpha v0 and Alpha/Beta v0 cells pass.
-- [ ] Current-only, no-common-version, unknown-version and downgrade cells fail
+- [x] Beta/Beta v1, Beta/Alpha v0 and Alpha/Beta v0 cells pass.
+- [x] Current-only, no-common-version, unknown-version and downgrade cells fail
       exactly as designed.
-- [ ] Mixed-version multi-process workload converges after rolling restarts.
-- [ ] Fault injection covers every inbox/outbox/migration crash window.
-- [ ] Network duplicate, reorder, timeout and overload retain deterministic
+- [x] Mixed-version multi-process workload converges after rolling restarts.
+- [x] Fault injection covers every inbox/outbox/migration crash window.
+- [x] Network duplicate, reorder, timeout and overload retain deterministic
       outcomes.
-- [ ] Database interruption/recovery loses no accepted work.
-- [ ] No stale assignment or database claim mutates state.
-- [ ] Soak completes with bounded queues, zero integrity mismatch and complete
+- [x] Database interruption/recovery loses no accepted work.
+- [x] No stale assignment or database claim mutates state.
+- [x] Soak completes with bounded queues, zero integrity mismatch and complete
       cleanup.
-- [ ] Benchmark manifest covers typical and boundary sizes.
-- [ ] Report records environment, versions, concurrency, samples, median, p95,
+- [x] Benchmark manifest covers typical and boundary sizes.
+- [x] Report records environment, versions, concurrency, samples, median, p95,
       p99, throughput and errors.
-- [ ] Correctness thresholds are normative; performance values are not
+- [x] Correctness thresholds are normative; performance values are not
       misrepresented as universal SLOs.
-- [ ] Benchmark and soak evidence bind the exact release commit.
+- [x] Benchmark and soak evidence bind the exact release commit.
 
 ## Quality, audit and publication
 
-- [ ] Build, strict public types, unit tests and adapter tests pass.
-- [ ] Inference Control and Trust scenario catalogs remain green.
-- [ ] Public terminology, dependency, secret and package audits pass over
+- [x] Build, strict public types, unit tests and adapter tests pass.
+- [x] Inference Control and Trust scenario catalogs remain green.
+- [x] Public terminology, dependency, secret and package audits pass over
       source, build, fixtures, reports and tarballs.
-- [ ] Architecture/API, protocol/security, persistence/migration and
+- [x] Architecture/API, protocol/security, persistence/migration and
       conformance audits have zero open P0/P1/P2 findings.
-- [ ] All 34 packages install/import from cataloged tarballs.
-- [ ] Every declared browser entrypoint passes browser traversal.
-- [ ] Release manifests, packed files, versions and dependency ranges verify.
-- [ ] Node 20/pnpm strict-TypeScript clean consumer passes.
-- [ ] Node 22/npm plain-ESM clean consumer passes from an independent cache.
-- [ ] Dry publication succeeds for the exact release commit.
-- [ ] All 34 packages publish as `0.3.0-beta.1` under npm `next`.
-- [ ] Every registry SHA512 integrity matches the final ledger.
-- [ ] No staging distribution tag remains.
-- [ ] Annotated `v0.3.0-beta.1` resolves to the published commit.
-- [ ] Final machine-readable compatibility, benchmark and release evidence is
+- [x] All 34 packages install/import from cataloged tarballs.
+- [x] Every declared browser entrypoint passes browser traversal.
+- [x] Release manifests, packed files, versions and dependency ranges verify.
+- [x] Node 20/pnpm strict-TypeScript clean consumer passes.
+- [x] Node 22/npm plain-ESM clean consumer passes from an independent cache.
+- [x] Dry publication succeeds for the exact release commit.
+- [x] All 34 packages publish as `0.3.0-beta.1` under npm `next`.
+- [x] Every registry SHA512 integrity matches the final ledger.
+- [x] No staging distribution tag remains.
+- [x] Annotated `v0.3.0-beta.1` resolves to the published commit.
+- [x] Final machine-readable compatibility, benchmark and release evidence is
       merged into public `main` with zero open item.
 
 ## Evidence
@@ -221,12 +221,30 @@ Normative design commit:
 
 Design PR: [#46](https://github.com/Agentplat/agentplat/pull/46).
 
-Implementation commit and PR: pending.
+Implementation commit:
+[`b38c25098599499813fe2caea605b5d61f939222`](https://github.com/Agentplat/agentplat/commit/b38c25098599499813fe2caea605b5d61f939222).
 
-Compatibility and fixture manifests: pending.
+Implementation PR: [#48](https://github.com/Agentplat/agentplat/pull/48).
 
-Soak and benchmark report: pending.
+Compatibility and fixture manifests:
+[compatibility report](./beta-1-compatibility-report.json),
+[v0 manifest](../../packages/mesh-protocol/fixtures/v0/manifest.json),
+[v1 manifest](../../packages/mesh-protocol/fixtures/v1/manifest.json) and
+[persistence manifest](../../packages/mesh/fixtures/beta1/manifest.json).
 
-Dry-run and publication workflows: pending.
+Scale and failure evidence:
+[PostgreSQL fault report](./beta-1-postgres-fault-report.json),
+[soak report](./beta-1-soak-report.json) and
+[benchmark report](./beta-1-benchmark-report.json).
 
-Registry integrity ledger and final evidence: pending.
+Dry-run workflow:
+[30684349222](https://github.com/Agentplat/agentplat/actions/runs/30684349222).
+
+Publication workflow:
+[30684566608](https://github.com/Agentplat/agentplat/actions/runs/30684566608).
+
+Annotated release tag:
+[`v0.3.0-beta.1`](https://github.com/Agentplat/agentplat/tree/v0.3.0-beta.1).
+
+Registry integrity ledger and final evidence:
+[Beta 1 release evidence](./beta-1-release-evidence.json).

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "candidateCommit": "b38c25098599499813fe2caea605b5d61f939222",
+  "status": "passed",
+  "cells": [
+    {
+      "id": "beta1_to_beta1",
+      "outcome": "accepted",
+      "selectedWireVersion": 1,
+      "evidence": {
+        "parser": "v1",
+        "signature": "verified"
+      }
+    },
+    {
+      "id": "beta1_compatibility_to_alpha5",
+      "outcome": "accepted",
+      "selectedWireVersion": 0,
+      "evidence": {
+        "parser": "v0",
+        "signingPolicy": "explicit"
+      }
+    },
+    {
+      "id": "alpha5_to_beta1",
+      "outcome": "accepted",
+      "selectedWireVersion": 0,
+      "evidence": {
+        "frozenFixture": "signed-peer-hello",
+        "signature": "verified"
+      }
+    },
+    {
+      "id": "beta1_current_only_to_alpha5",
+      "outcome": "unavailable",
+      "selectedWireVersion": null,
+      "evidence": {
+        "sent": false
+      }
+    },
+    {
+      "id": "beta1_pinned_v1_to_stale_v0",
+      "outcome": "downgrade_rejected",
+      "selectedWireVersion": null,
+      "evidence": {
+        "sent": false
+      }
+    },
+    {
+      "id": "beta1_mixed_topic",
+      "outcome": "partitioned",
+      "selectedWireVersion": null,
+      "evidence": {
+        "selectedWireVersions": [0, 1],
+        "exactBytes": true,
+        "distinctMessageIds": true
+      }
+    },
+    {
+      "id": "unknown_v2_to_beta1",
+      "outcome": "unsupported",
+      "selectedWireVersion": null,
+      "evidence": {
+        "downgradeAttempted": false,
+        "sent": false
+      }
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0
+  },
+  "fixtureDigests": {
+    "alpha5V0": "545a43dedd6c0553d0beb83c551be8eadef0f1d9ea307a68795e3df9f5fc2a42",
+    "beta1V1": "4b2b183fd8784b7dfe1402059cceef5dc60565700ff89d7dd02e51c983064aa9"
+  }
+}

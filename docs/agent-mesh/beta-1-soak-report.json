@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "candidateCommit": "b38c25098599499813fe2caea605b5d61f939222",
+  "status": "passed",
+  "seed": "agentplat-beta1-soak",
+  "repetitions": 2,
+  "messagesPerRepetition": 14,
+  "mixedWireVersions": [0, 1],
+  "faultMatrix": [
+    "durable_receiver_restart",
+    "rolling_peer_restart",
+    "network_duplicate",
+    "network_reorder",
+    "timeout_after_remote_commit",
+    "overload_retry"
+  ],
+  "deterministicFinalState": true,
+  "finalStateDigest": "2fc58561c9c05e23e4295aa16195996f80bbaadf7d0ddff524d47e533d5952a1",
+  "diagnosticCount": 2,
+  "correctnessViolations": 0,
+  "integrityMismatches": 0,
+  "staleFenceMutations": 0,
+  "cleanup": "completed",
+  "runs": [
+    {
+      "repetition": 1,
+      "acceptedMessages": 14,
+      "duplicateAttempts": 14,
+      "processesStarted": 5,
+      "reorderedDelivery": true,
+      "finalStateDigest": "2fc58561c9c05e23e4295aa16195996f80bbaadf7d0ddff524d47e533d5952a1",
+      "cleanup": "completed"
+    },
+    {
+      "repetition": 2,
+      "acceptedMessages": 14,
+      "duplicateAttempts": 14,
+      "processesStarted": 5,
+      "reorderedDelivery": true,
+      "finalStateDigest": "2fc58561c9c05e23e4295aa16195996f80bbaadf7d0ddff524d47e533d5952a1",
+      "cleanup": "completed"
+    }
+  ]
+}
