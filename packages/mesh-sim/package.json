@@ -23,9 +23,13 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@agentplat/collective-control": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-crypto": "workspace:^",
-    "@agentplat/mesh-protocol": "workspace:^"
+    "@agentplat/mesh-protocol": "workspace:^",
+    "@agentplat/runtime": "workspace:^",
+    "@agentplat/runtime-mock": "workspace:^",
+    "@agentplat/sessions": "workspace:^"
   },
   "engines": {
     "node": ">=20.19.3"

@@ -26,6 +26,11 @@ their direct behavior outside this opt-in boundary.
 The initial package has no import-time I/O, process-global registry, hosted
 service or vendor model dependency. Remote data never installs a mandate.
 
+Evaluation contracts freeze missions, registrations, per-seed samples,
+interaction ledgers, Wilson intervals, paired bootstrap comparisons and
+1,000-step role-coherence reports. Validators reject omitted seeds, changed
+digests, inconsistent totals and samples outside their registration.
+
 ## Security boundary
 
 A Delegation Mandate is locally accepted authority. A digest reference is only

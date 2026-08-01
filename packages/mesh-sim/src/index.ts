@@ -26,6 +26,8 @@ import {
   type MeshWireVersion,
 } from '@agentplat/mesh-protocol';
 
+export * from './collective-evaluation.js';
+
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
 export type MeshSimulationRecordingMode = 'full' | 'digest' | 'metrics';
 export type MeshSimulationFaultKind =

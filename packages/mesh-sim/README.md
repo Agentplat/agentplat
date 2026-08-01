@@ -92,3 +92,18 @@ Cryptographic handles, private keys and callbacks are runtime dependencies and
 are excluded from configuration digests, snapshots and traces. Replays within
 one test or process may reuse the same generated key handles; private material
 is never serialized.
+
+## Registered collective evaluation
+
+The Beta 2 evaluation driver builds the versioned resource-allocation and
+recovery mission at 4–500 agents. The governed runner executes the portable
+authority, Work Contract, budget and permit reducers with local observations;
+the fair centralized runner executes the existing `MultiAgentSession`
+round-robin scheduler over the same recorded decision policy. Both emit the
+same interaction-accounting contract and per-seed digest-bound samples.
+
+`runRegisteredCollectiveEvaluationV1` runs every pre-registered seed twice and
+records exact replay. Its fault and adversary schedules are interpreted at
+driver boundaries; production reducers contain no experiment bypass. The
+500-agent mission remains below 5,000 interactions and records its observed
+directed topology instead of inferring an asymptotic claim.
