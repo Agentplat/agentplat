@@ -1,6 +1,8 @@
 # Mesh adapters threat model
 
-Status: Alpha 5 design candidate.
+Status: Alpha 5 design frozen by commit
+`0de423c85cc6096a674ce2bc54915de7ea72aa1c`; implementation findings are
+tracked in the Alpha 5 implementation audit.
 
 This document extends the Agent Mesh threat model for the public HTTP,
 PostgreSQL and Room bridge adapters. It covers the boundary where deterministic
@@ -69,28 +71,28 @@ Crossing one boundary never implicitly satisfies the next.
 
 ## Required mitigations
 
-| Threat | Mitigation | Verification |
-| ------ | ---------- | ------------ |
-| Parser or memory exhaustion | Bound request bytes before parsing; strict protocol limits; bounded response body | oversized, nested, slow and malicious body tests |
-| Verification oracle | Coarse remote status classes; detailed reason only in redacted local diagnostics | response-equivalence tests across local rejection causes |
-| Unauthorized channel | Optional construction-bound authenticator before durable callback | forged header, callback substitution and disabled-auth tests |
-| SSRF or redirect leakage | Endpoint resolver is construction-bound; absolute scheme policy; redirects disabled | private/invalid URL, redirect and credential-header tests |
-| False accepted receipt | Acknowledge only a committed inbox insert | forced database failure before and during insert |
-| Message-ID collision | Store canonical envelope digest; exact duplicate is idempotent; conflict fails closed | same ID/same bytes and same ID/different bytes |
-| Cross-scope collision | Full tenant, Mesh, peer and instance key on all records and leases | parallel identical IDs in every scope dimension |
-| Lost accepted work | Durable inbox plus reclaimable expired claim | kill after acknowledgement and recover in a new worker |
-| Stale worker commit | Random token, generation and exclusive lease expiry checked in commit transaction | reclaim then settle with old token/generation |
-| Concurrent snapshot corruption | Per-scope revision CAS inside transaction | two claims attempting the same expected revision |
-| Partial transition | Snapshot, journal, outbox and inbox settlement in one transaction | injected failure after every statement boundary |
-| Duplicate external delivery | Stable signed outbox bytes and effect ID; receiver inbox/replay idempotency | crash after remote commit before local settle |
-| Journal rewrite | Append-only permissions, sequence constraints and digest chain | row mutation, deletion, reorder and anchor mismatch tests |
-| Secret or content disclosure | No credentials/keys in rows or diagnostics; redacted journal; caller-owned encryption for sensitive snapshots | packed-file, log and fixture scans |
-| Migration race | Shared advisory lock and exact migration checksums | concurrent migration and altered-history tests |
-| Destructive rollback | Exact version confirmation plus explicit data-loss flag | missing, stale and wrong confirmation tests |
-| Room authority escalation | Complete typed Mesh policy supplied separately; pure projection cannot sign or dispatch | hostile role/metadata/actor projection tests |
-| Unverified Mesh-to-Room mutation | Driver requires accepted branded/domain input and only produces a proposal | parsed-only, rejected and stale-result tests |
-| Room policy bypass | Proposal applies through explicit Room sink and ordinary Room policy; no implicit completion/approval | approval-required and sink-rejection tests |
-| Ambiguous bridge retry | Atomic idempotency claim/complete contract, stable projection key and explicitly idempotent sink | sink success/failure/time-out retry scenarios |
+| Threat                           | Mitigation                                                                                                    | Verification                                                 |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Parser or memory exhaustion      | Bound request bytes before parsing; strict protocol limits; bounded response body                             | oversized, nested, slow and malicious body tests             |
+| Verification oracle              | Coarse remote status classes; detailed reason only in redacted local diagnostics                              | response-equivalence tests across local rejection causes     |
+| Unauthorized channel             | Optional construction-bound authenticator before durable callback                                             | forged header, callback substitution and disabled-auth tests |
+| SSRF or redirect leakage         | Endpoint resolver is construction-bound; absolute scheme policy; redirects disabled                           | private/invalid URL, redirect and credential-header tests    |
+| False accepted receipt           | Acknowledge only a committed inbox insert                                                                     | forced database failure before and during insert             |
+| Message-ID collision             | Store canonical envelope digest; exact duplicate is idempotent; conflict fails closed                         | same ID/same bytes and same ID/different bytes               |
+| Cross-scope collision            | Full tenant, Mesh, peer and instance key on all records and leases                                            | parallel identical IDs in every scope dimension              |
+| Lost accepted work               | Durable inbox plus reclaimable expired claim                                                                  | kill after acknowledgement and recover in a new worker       |
+| Stale worker commit              | Random token, generation and exclusive lease expiry checked in commit transaction                             | reclaim then settle with old token/generation                |
+| Concurrent snapshot corruption   | Per-scope revision CAS inside transaction                                                                     | two claims attempting the same expected revision             |
+| Partial transition               | Snapshot, journal, outbox and inbox settlement in one transaction                                             | injected failure after every statement boundary              |
+| Duplicate external delivery      | Stable signed outbox bytes and effect ID; receiver inbox/replay idempotency                                   | crash after remote commit before local settle                |
+| Journal rewrite                  | Append-only permissions, sequence constraints and digest chain                                                | row mutation, deletion, reorder and anchor mismatch tests    |
+| Secret or content disclosure     | No credentials/keys in rows or diagnostics; redacted journal; caller-owned encryption for sensitive snapshots | packed-file, log and fixture scans                           |
+| Migration race                   | Shared advisory lock and exact migration checksums                                                            | concurrent migration and altered-history tests               |
+| Destructive rollback             | Exact version confirmation plus explicit data-loss flag                                                       | missing, stale and wrong confirmation tests                  |
+| Room authority escalation        | Complete typed Mesh policy supplied separately; pure projection cannot sign or dispatch                       | hostile role/metadata/actor projection tests                 |
+| Unverified Mesh-to-Room mutation | Driver requires accepted branded/domain input and only produces a proposal                                    | parsed-only, rejected and stale-result tests                 |
+| Room policy bypass               | Proposal applies through explicit Room sink and ordinary Room policy; no implicit completion/approval         | approval-required and sink-rejection tests                   |
+| Ambiguous bridge retry           | Atomic idempotency claim/complete contract, stable projection key and explicitly idempotent sink              | sink success/failure/time-out retry scenarios                |
 
 ## Crash consistency model
 

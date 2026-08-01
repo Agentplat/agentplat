@@ -93,7 +93,11 @@ commit. A passing test on another commit is not evidence.
 
 ## Evidence
 
-Normative design commit: pending.
+Normative design commit: `0de423c85cc6096a674ce2bc54915de7ea72aa1c`
+([PR #43](https://github.com/Agentplat/agentplat/pull/43)).
+
+Candidate implementation audit:
+[Alpha 5 implementation audit](./alpha-5-implementation-audit.md).
 
 Release commit: pending.
 

@@ -21,13 +21,18 @@ export const RELEASE_LINES = Object.freeze([
     releaseVersion: '0.3.0-alpha.4',
     trustPackageCount: 1,
   }),
+  Object.freeze({
+    catalogPackageCount: 33,
+    id: 'alpha5',
+    releaseVersion: '0.3.0-alpha.5',
+    trustPackageCount: 1,
+  }),
 ]);
 
 /**
  * Verify the only publishable coordinated release cohorts.
  *
- * Alpha 3 remains valid while Trust has not yet entered the public catalog.
- * Adding Trust is an atomic Alpha 4 transition: the catalog, root and every
+ * Each additive release cohort is atomic: the catalog, root and every
  * workspace manifest must move together before pack or registry operations.
  */
 export async function assertReleaseLine({
@@ -37,17 +42,17 @@ export async function assertReleaseLine({
 } = {}) {
   const resolvedCatalog = catalog ?? (await loadPublicPackageCatalog(root));
   const trustPackageCount = resolvedCatalog.packages.filter(
-    (entry) => entry.name === TRUST_PACKAGE_NAME
+    (entry) => entry.name === TRUST_PACKAGE_NAME,
   ).length;
   const line = RELEASE_LINES.find(
     (candidate) =>
       candidate.catalogPackageCount === resolvedCatalog.packages.length &&
-      candidate.trustPackageCount === trustPackageCount
+      candidate.trustPackageCount === trustPackageCount,
   );
 
   assert.ok(
     line,
-    `Release line requires exactly either 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME} or 30 Alpha 4 packages with ${TRUST_PACKAGE_NAME} exactly once`
+    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages with it exactly once, or 33 Alpha 5 packages with it exactly once`,
   );
 
   const resolvedRootManifest =
@@ -56,25 +61,25 @@ export async function assertReleaseLine({
   assert.equal(
     resolvedRootManifest.version,
     line.releaseVersion,
-    `Release line ${line.id} requires root version ${line.releaseVersion}`
+    `Release line ${line.id} requires root version ${line.releaseVersion}`,
   );
 
   const manifests = await discoverWorkspacePackageManifests(root);
   assert.equal(
     manifests.length,
     line.catalogPackageCount,
-    `Release line ${line.id} requires exactly ${line.catalogPackageCount} workspace manifests`
+    `Release line ${line.id} requires exactly ${line.catalogPackageCount} workspace manifests`,
   );
   assert.deepEqual(
     manifests.map((record) => record.directory),
     resolvedCatalog.packages.map((entry) => entry.directory),
-    `Release line ${line.id} requires workspace manifests to match the catalog in ASCII order`
+    `Release line ${line.id} requires workspace manifests to match the catalog in ASCII order`,
   );
   for (const { manifest } of manifests) {
     assert.equal(
       manifest.version,
       line.releaseVersion,
-      `${manifest.name} must use ${line.releaseVersion} on release line ${line.id}`
+      `${manifest.name} must use ${line.releaseVersion} on release line ${line.id}`,
     );
   }
 

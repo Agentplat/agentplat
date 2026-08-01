@@ -40,6 +40,12 @@ importers:
       "@agentplat/mesh-crypto":
         specifier: workspace:*
         version: link:packages/mesh-crypto
+      "@agentplat/mesh-http":
+        specifier: workspace:*
+        version: link:packages/mesh-http
+      "@agentplat/mesh-postgres":
+        specifier: workspace:*
+        version: link:packages/mesh-postgres
       "@agentplat/mesh-protocol":
         specifier: workspace:*
         version: link:packages/mesh-protocol
@@ -64,6 +70,9 @@ importers:
       "@agentplat/rooms-api":
         specifier: workspace:*
         version: link:packages/rooms-api
+      "@agentplat/rooms-mesh":
+        specifier: workspace:*
+        version: link:packages/rooms-mesh
       "@agentplat/rooms-postgres":
         specifier: workspace:*
         version: link:packages/rooms-postgres
@@ -224,6 +233,33 @@ importers:
         specifier: workspace:^
         version: link:../mesh-protocol
 
+  packages/mesh-http:
+    dependencies:
+      "@agentplat/mesh-protocol":
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/mesh-postgres:
+    dependencies:
+      "@agentplat/mesh":
+        specifier: workspace:^
+        version: link:../mesh
+      "@agentplat/mesh-protocol":
+        specifier: workspace:^
+        version: link:../mesh-protocol
+      "@agentplat/postgres":
+        specifier: workspace:^
+        version: link:../postgres
+      "@types/node":
+        specifier: ^20.10.0
+        version: 20.19.43
+      "@types/pg":
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+
   packages/mesh-protocol:
     dependencies:
       "@agentplat/trust":
@@ -277,16 +313,15 @@ importers:
 
   packages/postgres:
     dependencies:
-      pg:
-        specifier: ^8.13.1
-        version: 8.22.0
-    devDependencies:
       "@types/node":
         specifier: ^20.10.0
         version: 20.19.43
       "@types/pg":
         specifier: ^8.11.10
         version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
 
   packages/provider-openai:
     dependencies:
@@ -333,6 +368,18 @@ importers:
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
+
+  packages/rooms-mesh:
+    dependencies:
+      "@agentplat/mesh":
+        specifier: workspace:^
+        version: link:../mesh
+      "@agentplat/mesh-protocol":
+        specifier: workspace:^
+        version: link:../mesh-protocol
+      "@agentplat/rooms":
+        specifier: workspace:^
+        version: link:../rooms
 
   packages/rooms-postgres:
     dependencies:
@@ -594,7 +641,6 @@ packages:
       "@types/node": 20.19.43
       pg-protocol: 1.15.0
       pg-types: 2.2.0
-    dev: true
 
   /@types/ws@8.18.1:
     resolution:

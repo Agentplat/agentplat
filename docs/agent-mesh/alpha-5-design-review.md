@@ -1,6 +1,6 @@
 # Agent Mesh `0.3.0-alpha.5` design review
 
-Status: pre-freeze review complete; normative commit pending.
+Status: accepted design freeze.
 
 This record reviews the Alpha 5 implementation plan, acceptance checklist and
 adapter threat model against the public Alpha 4 contracts. It records findings
@@ -123,4 +123,6 @@ checklist. This review does not assert that code or registry artifacts exist.
 
 ## Normative commit
 
-Pending the design-freeze commit and public review.
+The normative design commit is
+`0de423c85cc6096a674ce2bc54915de7ea72aa1c`, merged through public PR
+[#43](https://github.com/Agentplat/agentplat/pull/43).

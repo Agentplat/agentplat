@@ -121,6 +121,10 @@ try {
     'inference-control',
   );
   const trustConsumerRoot = path.join(consumerRoot, 'trust');
+  const meshAdaptersConsumerRoot = path.join(
+    consumerRoot,
+    'mesh-adapters-alpha5',
+  );
   await Promise.all([
     mkdir(packageConsumerRoot, { recursive: true }),
     mkdir(functionalConsumerRoot, { recursive: true }),
@@ -129,6 +133,7 @@ try {
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
     mkdir(trustConsumerRoot, { recursive: true }),
+    mkdir(meshAdaptersConsumerRoot, { recursive: true }),
   ]);
   const workspaceWrites = [
     writeFile(
@@ -164,6 +169,7 @@ try {
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
+        "  - 'mesh-adapters-alpha5'",
         '',
       ].join('\n'),
     ),
@@ -215,6 +221,24 @@ try {
     meshPackageNames.map((packageName) => {
       const artifact = artifactsByName.get(packageName);
       assert.ok(artifact, `Missing packed Mesh dependency: ${packageName}`);
+      return [packageName, artifact.tarballReference];
+    }),
+  );
+  const meshAdapterPackageNames = Object.freeze([
+    '@agentplat/mesh',
+    '@agentplat/mesh-crypto',
+    '@agentplat/mesh-http',
+    '@agentplat/mesh-postgres',
+    '@agentplat/mesh-protocol',
+    '@agentplat/rooms-mesh',
+  ]);
+  const meshAdapterDependencies = Object.fromEntries(
+    meshAdapterPackageNames.map((packageName) => {
+      const artifact = artifactsByName.get(packageName);
+      assert.ok(
+        artifact,
+        `Missing packed Mesh adapter dependency: ${packageName}`,
+      );
       return [packageName, artifact.tarballReference];
     }),
   );
@@ -328,6 +352,22 @@ try {
       path.join(trustConsumerRoot, 'verify-trust.mjs'),
     ),
     writeFile(
+      path.join(meshAdaptersConsumerRoot, 'package.json'),
+      `${JSON.stringify({ name: 'agentplat-pack-smoke-mesh-adapters-alpha5', version: '1.0.0', private: true, type: 'module', dependencies: meshAdapterDependencies, devDependencies: { '@types/node': '^20.10.0' } }, null, 2)}\n`,
+    ),
+    writeFile(
+      path.join(meshAdaptersConsumerRoot, 'tsconfig.json'),
+      `${JSON.stringify({ compilerOptions: { target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, noEmit: true, skipLibCheck: false, types: ['node'], lib: ['ES2022', 'DOM'] }, include: ['verify-types.ts'] }, null, 2)}\n`,
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/mesh-adapters-alpha5-types.ts'),
+      path.join(meshAdaptersConsumerRoot, 'verify-types.ts'),
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/mesh-adapters-alpha5.mjs'),
+      path.join(meshAdaptersConsumerRoot, 'verify-mesh-adapters.mjs'),
+    ),
+    writeFile(
       path.join(meshScenarioConsumerRoot, 'package.json'),
       `${JSON.stringify(
         {
@@ -435,6 +475,22 @@ try {
     cwd: trustConsumerRoot,
     stdio: 'inherit',
   });
+  execFileSync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules/typescript/bin/tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    {
+      cwd: meshAdaptersConsumerRoot,
+      stdio: 'inherit',
+    },
+  );
+  execFileSync(process.execPath, ['verify-mesh-adapters.mjs'], {
+    cwd: meshAdaptersConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-functional.mjs'], {
     cwd: functionalConsumerRoot,
     stdio: 'inherit',
@@ -445,7 +501,7 @@ try {
     0,
   );
   console.log(
-    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations, replayed the signed three-peer scenario, verified allocation plus recovery fencing, and exercised Trust policy/profile/eligibility before the unchanged functional smoke test.`,
+    `Audited ${tarballs.length} tarballs, imported ${importedExportCount} exports, compiled the packed TypeScript declarations, replayed the signed three-peer scenario, verified allocation plus recovery fencing, exercised Trust policy/profile/eligibility, and verified the HTTP, durability, PostgreSQL and Rooms bridge surfaces before the unchanged functional smoke test.`,
   );
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
