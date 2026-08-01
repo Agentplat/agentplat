@@ -43,6 +43,8 @@
     "verify:collective-evaluation": "pnpm --filter @agentplat/collective-control --filter @agentplat/mesh-sim build && node scripts/collective-beta2-evaluation.mjs --mode check",
     "evidence:collective-postgres": "pnpm --filter @agentplat/collective-control-postgres --filter @agentplat/mesh-conformance build && node scripts/collective-beta2-postgres-conformance.mjs",
     "verify:collective-postgres": "pnpm --filter @agentplat/collective-control-postgres --filter @agentplat/mesh-conformance build && node scripts/collective-beta2-postgres-conformance.mjs --mode check",
+    "evidence:collective-compatibility": "node scripts/collective-beta2-compatibility.mjs",
+    "verify:collective-compatibility": "node scripts/collective-beta2-compatibility.mjs --mode check",
     "verify:alpha5-compatibility": "node scripts/verify-alpha5-compatibility.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
