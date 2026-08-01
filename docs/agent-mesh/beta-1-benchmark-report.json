@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "candidateCommit": "b38c25098599499813fe2caea605b5d61f939222",
+  "status": "passed",
+  "diagnosticOnly": true,
+  "environment": {
+    "node": "v20.19.5",
+    "postgres": "16.11 (Homebrew)",
+    "os": "darwin 25.2.0",
+    "architecture": "arm64",
+    "cpuCount": 12,
+    "memoryBytes": 25769803776
+  },
+  "migrationMs": 43.62,
+  "workloads": [
+    {
+      "id": "protocol.parse.v0.typical",
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1,
+      "inputBytes": 690,
+      "medianMs": 1.03,
+      "p95Ms": 3.56,
+      "p99Ms": 3.87,
+      "throughputOperationsPerSecond": 11449.02,
+      "errorCount": 0
+    },
+    {
+      "id": "protocol.parse.v1.typical",
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1,
+      "inputBytes": 699,
+      "medianMs": 0.82,
+      "p95Ms": 1.46,
+      "p99Ms": 1.64,
+      "throughputOperationsPerSecond": 16218.96,
+      "errorCount": 0
+    },
+    {
+      "id": "protocol.canonicalize.v1.boundary",
+      "samples": 8,
+      "operationsPerSample": 4,
+      "concurrency": 1,
+      "inputBytes": 66155,
+      "medianMs": 2.18,
+      "p95Ms": 3.81,
+      "p99Ms": 3.81,
+      "throughputOperationsPerSecond": 1688.65,
+      "errorCount": 0
+    },
+    {
+      "id": "crypto.hash_sign_verify.typical",
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1,
+      "inputBytes": 699,
+      "medianMs": 6.1,
+      "p95Ms": 8.63,
+      "p99Ms": 10.55,
+      "throughputOperationsPerSecond": 2479.85,
+      "errorCount": 0
+    },
+    {
+      "id": "negotiation.mixed_cohort.typical",
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1,
+      "inputBytes": 727,
+      "medianMs": 0.02,
+      "p95Ms": 0.03,
+      "p99Ms": 0.38,
+      "throughputOperationsPerSecond": 415584.42,
+      "errorCount": 0
+    },
+    {
+      "id": "http.ingress_exact_retry.typical",
+      "samples": 20,
+      "operationsPerSample": 16,
+      "concurrency": 1,
+      "inputBytes": 699,
+      "medianMs": 1.51,
+      "p95Ms": 2.51,
+      "p99Ms": 5.89,
+      "throughputOperationsPerSecond": 9192.76,
+      "errorCount": 0
+    },
+    {
+      "id": "postgres.receipt.typical",
+      "samples": 16,
+      "operationsPerSample": 1,
+      "concurrency": 1,
+      "inputBytes": 594,
+      "medianMs": 0.99,
+      "p95Ms": 2.75,
+      "p99Ms": 2.75,
+      "throughputOperationsPerSecond": 813.42,
+      "errorCount": 0
+    },
+    {
+      "id": "postgres.claim_transition_journal_outbox.typical",
+      "samples": 16,
+      "operationsPerSample": 1,
+      "concurrency": 1,
+      "inputBytes": 594,
+      "medianMs": 4.27,
+      "p95Ms": 6.55,
+      "p99Ms": 6.55,
+      "throughputOperationsPerSecond": 217.63,
+      "errorCount": 0
+    },
+    {
+      "id": "snapshot.migrate_restore.boundary",
+      "samples": 8,
+      "operationsPerSample": 4,
+      "concurrency": 1,
+      "inputBytes": 363,
+      "medianMs": 0.22,
+      "p95Ms": 0.54,
+      "p99Ms": 0.54,
+      "throughputOperationsPerSecond": 14285.71,
+      "errorCount": 0
+    },
+    {
+      "id": "conformance.protocol_runner.typical",
+      "samples": 5,
+      "operationsPerSample": 1,
+      "concurrency": 1,
+      "inputBytes": 1389,
+      "medianMs": 2.03,
+      "p95Ms": 3.31,
+      "p99Ms": 3.31,
+      "throughputOperationsPerSecond": 434.78,
+      "errorCount": 0
+    }
+  ],
+  "summary": {
+    "workloadCount": 10,
+    "errorCount": 0,
+    "correctnessViolations": 0
+  },
+  "interpretation": "Diagnostic measurements for this environment; not a universal service-level objective."
+}

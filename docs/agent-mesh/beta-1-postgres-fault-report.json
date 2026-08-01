@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.3.0-beta.1",
+  "candidateCommit": "b38c25098599499813fe2caea605b5d61f939222",
+  "status": "passed",
+  "database": {
+    "engine": "postgresql",
+    "version": "16.11 (Homebrew)"
+  },
+  "cells": [
+    {
+      "id": "migration_contention",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_01",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_02",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_03",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_04",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_05",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_06",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_07",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_08",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_09",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_10",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_11",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_12",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_13",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_14",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_15",
+      "outcome": "passed"
+    },
+    {
+      "id": "migration_statement_crash_16",
+      "outcome": "passed"
+    },
+    {
+      "id": "transaction_crash_snapshot",
+      "outcome": "passed"
+    },
+    {
+      "id": "transaction_crash_journal",
+      "outcome": "passed"
+    },
+    {
+      "id": "transaction_crash_outbox",
+      "outcome": "passed"
+    },
+    {
+      "id": "transaction_crash_inbox_settlement",
+      "outcome": "passed"
+    },
+    {
+      "id": "alpha5_schema_adoption_and_typed_backfill",
+      "outcome": "passed"
+    },
+    {
+      "id": "database_connection_restart_after_receipt",
+      "outcome": "passed"
+    },
+    {
+      "id": "stale_inbox_claim_fenced",
+      "outcome": "passed"
+    },
+    {
+      "id": "atomic_snapshot_journal_outbox",
+      "outcome": "passed"
+    },
+    {
+      "id": "outbox_remote_commit_exact_retry",
+      "outcome": "passed"
+    },
+    {
+      "id": "stale_outbox_claim_fenced",
+      "outcome": "passed"
+    },
+    {
+      "id": "journal_chain_after_recovery",
+      "outcome": "passed"
+    },
+    {
+      "id": "rollback_refuses_beta_only_rows",
+      "outcome": "passed"
+    }
+  ],
+  "summary": {
+    "total": 29,
+    "passed": 29,
+    "failed": 0,
+    "migrationCrashWindows": 16,
+    "transitionCrashWindows": 4,
+    "staleFenceMutations": 0,
+    "lostAcceptedWork": 0,
+    "duplicateProtectedEffects": 0
+  },
+  "cleanup": "verified-by-finally"
+}

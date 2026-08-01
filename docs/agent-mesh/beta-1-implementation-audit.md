@@ -1,8 +1,8 @@
 # Agent Mesh `0.3.0-beta.1` implementation audit
 
-Status: candidate audit complete. All implementation findings are resolved;
-exact-commit CI, dry publication, coordinated npm publication, registry
-verification and the annotated release tag remain release gates.
+Status: accepted. All implementation findings are resolved. Exact-commit CI,
+dry publication, coordinated npm publication, two registry consumers and the
+annotated release tag passed.
 
 This audit compares the implementation candidate with the normative Beta 1
 design commit `9d726581f5689a4d72c4f31d8a2a4049d0112ccf`. It covers architecture and
@@ -172,9 +172,9 @@ commit.
   pack gate remains fail-closed when the tag is missing or resolves to any
   commit other than the frozen Alpha 5 baseline.
 
-## Candidate verification
+## Exact release verification
 
-The candidate has passed:
+Release commit `b38c25098599499813fe2caea605b5d61f939222` passed:
 
 - build, strict public type checking and 546 unit subtests (540 passed, six
   intentional `todo` cases, zero failures);
@@ -187,8 +187,10 @@ The candidate has passed:
 - deterministic multi-process reorder/restart soak and bounded adapter
   benchmark.
 
-These results must run again against the exact merged release commit before
-publication.
+The exact commit then passed dry publication, coordinated publication of 34
+packages, Node 20/pnpm and Node 22/npm registry consumers, registry SHA512 and
+distribution-tag verification, and staging-tag cleanup. Annotated tag
+`v0.3.0-beta.1` resolves to that commit.
 
 ## Verdicts
 
@@ -197,9 +199,9 @@ publication.
 - Persistence and migration: pass; P0 open: 0, P1 open: 0, P2 open: 0.
 - Conformance false-positive resistance: pass; P0 open: 0, P1 open: 0, P2
   open: 0.
-- Release compatibility: candidate pass; final exact-commit and registry gates
-  pending.
+- Release compatibility: pass; all 34 packages are published under npm `next`,
+  all recorded SHA512 integrities match and zero staging tag remains.
 
-Final acceptance belongs in the
-[Beta 1 acceptance checklist](./beta-1-acceptance-checklist.md) and the
-machine-readable release evidence created after coordinated publication.
+Final acceptance is recorded in the
+[Beta 1 acceptance checklist](./beta-1-acceptance-checklist.md) and
+[machine-readable release evidence](./beta-1-release-evidence.json).
