@@ -1,7 +1,7 @@
 # AgentPlat `0.3.0-beta.2` design review
 
-Status: reviewed design candidate. The review has zero open P0, P1 or P2
-findings. The design freeze becomes normative only after public merge.
+Status: accepted. The review has zero open P0, P1 or P2 findings. The design
+freeze is normative at the public commit recorded below.
 
 This record reviews ADR 0008, the Beta 2 implementation plan, acceptance
 checklist, evaluation contract and threat model against the exact Beta 1 public
@@ -249,11 +249,16 @@ P1: 0.
 
 P2: 0.
 
-Implementation and release findings remain open until every acceptance item is
-verified against exact public commits.
+Implementation and release review is closed by the accepted checklist and
+machine-readable evidence for release commit
+`43037e3fa05133377672ef769140912eaf87bcef`.
 
 ## Normative commit
 
-Pending public design-freeze merge. Implementation must not begin from a design
-commit different from the eventual merge without updating this record and
-re-running the review.
+The normative design-freeze commit is
+`36d5571748fb8818ecf5a1bf925c8af392ad13f0`, merged by
+[PR #50](https://github.com/Agentplat/agentplat/pull/50). The cumulative
+implementation and release tree is
+`43037e3fa05133377672ef769140912eaf87bcef`, merged by
+[PR #58](https://github.com/Agentplat/agentplat/pull/58) and named by annotated
+tag `v0.3.0-beta.2`.
