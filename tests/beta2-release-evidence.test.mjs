@@ -3,11 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import {
-  compareAscii,
-  loadPublicPackageCatalog,
-} from "../scripts/public-package-catalog.mjs";
-import { REGISTRY_PACKAGES } from "../scripts/verify-registry-consumer.mjs";
+import { compareAscii } from "../scripts/public-package-catalog.mjs";
 
 const RELEASE_VERSION = "0.3.0-beta.2";
 const DESIGN_COMMIT = "36d5571748fb8818ecf5a1bf925c8af392ad13f0";
@@ -56,8 +52,12 @@ test("Beta 2 release evidence closes the exact public registry release", async (
   const evidence = await readJson(
     "docs/governed-collectives/beta-2-release-evidence.json",
   );
-  const catalog = await loadPublicPackageCatalog();
-  const catalogNames = catalog.packages.map((entry) => entry.name);
+  const releaseCatalog = JSON.parse(
+    git("show", `${RELEASE_TAG}:config/public-packages.json`),
+  );
+  const releaseCatalogNames = releaseCatalog.packages.map(
+    (entry) => entry.name,
+  );
 
   assert.equal(evidence.schemaVersion, 1);
   assert.equal(evidence.releaseVersion, RELEASE_VERSION);
@@ -99,8 +99,8 @@ test("Beta 2 release evidence closes the exact public registry release", async (
   );
 
   const evidenceNames = evidence.packages.map((entry) => entry.name);
-  assert.deepEqual(evidenceNames, REGISTRY_PACKAGES);
-  assert.deepEqual(evidenceNames, catalogNames);
+  assert.equal(releaseCatalogNames.length, 36);
+  assert.deepEqual(evidenceNames, releaseCatalogNames);
   assert.deepEqual(evidenceNames, [...evidenceNames].sort(compareAscii));
   assert.equal(new Set(evidenceNames).size, evidenceNames.length);
   assert.equal(evidence.packages.length, evidence.verifiedPackageCount);

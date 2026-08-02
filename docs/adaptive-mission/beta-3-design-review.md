@@ -1,8 +1,7 @@
 # AgentPlat `0.3.0-beta.3` design review
 
-Status: reviewed design candidate, ready for public freeze. The exact normative
-design commit remains pending until this document set is merged into public
-`main`.
+Status: frozen on public `main`. The normative design merge is
+`2c3d1a659ed4f3f1948354cbad7f9053dde11797`.
 
 This record reviews the Adaptive Mission Runtime implementation plan, ADR 0009,
 evaluation contract V2, acceptance checklist and threat model against the
@@ -202,8 +201,8 @@ P2: 0.
 
 ## Freeze decision
 
-The design is ready to freeze by public merge. Package implementation must
-follow the ordered increments and cannot weaken a closed contract without a
-new documented review. The public merge commit becomes the exact normative
-design baseline; package code, acceptance evidence, publication and release
-tag remain outside this design-only change.
+The design was frozen by public merge
+`2c3d1a659ed4f3f1948354cbad7f9053dde11797`. Package implementation must follow
+the ordered increments and cannot weaken a closed contract without a new
+documented review. Acceptance evidence, publication and the release tag remain
+open until their corresponding increments and release gates complete.

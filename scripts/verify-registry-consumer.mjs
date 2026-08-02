@@ -27,6 +27,8 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
 ]);
 export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
+export const REGISTRY_COLLECTIVE_PLANNING_PACKAGE =
+  '@agentplat/collective-planning';
 export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   '@agentplat/mesh-http',
@@ -39,6 +41,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/auth',
   '@agentplat/collective-control',
   '@agentplat/collective-control-postgres',
+  '@agentplat/collective-planning',
   '@agentplat/core',
   '@agentplat/events',
   '@agentplat/framework',
@@ -104,6 +107,10 @@ export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([
   Object.freeze({
     source: 'scripts/pack-consumers/collective-control-beta2.mjs',
     destination: 'verify-collective-control.mjs',
+  }),
+  Object.freeze({
+    source: 'scripts/pack-consumers/collective-planning.mjs',
+    destination: 'verify-collective-planning.mjs',
   }),
 ]);
 export const REGISTRY_POSTGRES_CONSUMER_SCRIPT = Object.freeze({
@@ -261,6 +268,7 @@ export async function verifyRegistryConsumer({
               'verify-inference-control-types.ts',
               'verify-mesh-adapters-types.ts',
               'verify-collective-control-types.ts',
+              'verify-collective-planning-types.ts',
             ],
           },
           null,
@@ -285,6 +293,10 @@ export async function verifyRegistryConsumer({
           'scripts/pack-consumers/collective-control-beta2-types.ts'
         ),
         path.join(temporaryRoot, 'verify-collective-control-types.ts')
+      ),
+      copyFile(
+        path.join(root, 'scripts/pack-consumers/collective-planning-types.ts'),
+        path.join(temporaryRoot, 'verify-collective-planning-types.ts')
       ),
       ...REGISTRY_CONSUMER_SCRIPTS.map(({ source, destination }) =>
         copyFile(path.join(root, source), path.join(temporaryRoot, destination))
@@ -361,6 +373,7 @@ export async function verifyRegistryConsumer({
         'verify-mixed-version.mjs',
         'verify-conformance.mjs',
         'verify-collective-control.mjs',
+        'verify-collective-planning.mjs',
       ]) {
         execFileSync(process.execPath, [script], {
           cwd: temporaryRoot,

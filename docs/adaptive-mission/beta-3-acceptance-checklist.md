@@ -1,41 +1,42 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: design candidate. Every unchecked item is release-blocking unless it is
-explicitly labeled diagnostic or deferred.
+Status: Increment 0 design freeze and Increment 1 portable contracts complete.
+Every unchecked item remains release-blocking unless it is explicitly labeled
+diagnostic or deferred.
 
 ## Design freeze
 
-- [ ] ADR 0009, implementation plan, threat model and evaluation V2 contract
+- [x] ADR 0009, implementation plan, threat model and evaluation V2 contract
       are reviewed against exact public Beta 2 baselines.
-- [ ] Design review records zero open P0, P1 and P2 findings.
-- [ ] Public terminology uses only approved industry vocabulary.
-- [ ] Package dependency graph is acyclic and browser-safe roots remain clean.
-- [ ] `wireVersion: 1`, protocol fixtures and existing signed payload unions are
+- [x] Design review records zero open P0, P1 and P2 findings.
+- [x] Public terminology uses only approved industry vocabulary.
+- [x] Package dependency graph is acyclic and browser-safe roots remain clean.
+- [x] `wireVersion: 1`, protocol fixtures and existing signed payload unions are
       unchanged.
-- [ ] Existing Runtime, Sessions, Rooms, Mesh, Trust, Inference Control and
+- [x] Existing Runtime, Sessions, Rooms, Mesh, Trust, Inference Control and
       Collective Control defaults remain unchanged.
-- [ ] Byzantine plan consensus and the 5,000-agent scale step are explicitly
+- [x] Byzantine plan consensus and the 5,000-agent scale step are explicitly
       deferred without weakening Beta 3 safety claims.
 
 ## Public package and contracts
 
-- [ ] `@agentplat/collective-planning` is cataloged, provider-neutral,
+- [x] `@agentplat/collective-planning` is cataloged, provider-neutral,
       side-effect free and version-aligned.
 - [ ] Root, `./mesh` and `./evaluation` exports have the frozen dependency
       boundaries from the plan.
-- [ ] Mission intent contains no task graph, assignment, hidden predicate,
+- [x] Mission intent contains no task graph, assignment, hidden predicate,
       global membership or future fault schedule.
-- [ ] Observation contracts are peer-scoped, cursor-bound, bounded and
+- [x] Observation contracts are peer-scoped, cursor-bound, bounded and
       content-addressed.
-- [ ] Proposal contracts cannot name assignment authority, grants, permits,
+- [x] Proposal contracts cannot name assignment authority, grants, permits,
       handlers or fencing tokens.
 - [ ] Intent, proposal, fragment, decision, view, role, snapshot and trace
       digests are domain-separated and fixture-backed.
-- [ ] All validators reject unknown fields, invalid UTF-8/size boundaries,
+- [x] All validators reject unknown fields, invalid UTF-8/size boundaries,
       unsafe integers and malformed graph references.
 - [ ] Same logical ID/same digest is idempotent; same ID/different digest is a
       conflict.
-- [ ] Public type tests cover every new export and negative authority case.
+- [x] Public type tests cover every new export and negative authority case.
 
 ## Planning reducer
 
@@ -188,28 +189,28 @@ explicitly labeled diagnostic or deferred.
 - [ ] Retention cannot prune current heads, unresolved dependencies,
       indeterminate effects or required anchors.
 - [ ] Runtime dependency audit has no unaccepted critical/high finding.
-- [ ] Public-release terminology and secret audit passes.
+- [x] Public-release terminology and secret audit passes.
 
 ## Compatibility
 
-- [ ] All Beta 2 protocol v0/v1 fixtures remain byte-identical.
-- [ ] All Beta 2 persistence fixtures, rows and snapshots remain readable.
-- [ ] V1 evaluation contracts/reports retain historical validation behavior.
-- [ ] Existing public API diff is additive and reviewed.
-- [ ] No existing required field, default behavior or closed union changes.
-- [ ] Alpha 5, Beta 1 and Beta 2 source/type/packed consumers pass unchanged.
-- [ ] Browser-safe dependency traversal remains clean.
-- [ ] Package dependency graph remains acyclic.
+- [x] All Beta 2 protocol v0/v1 fixtures remain byte-identical.
+- [x] All Beta 2 persistence fixtures, rows and snapshots remain readable.
+- [x] V1 evaluation contracts/reports retain historical validation behavior.
+- [x] Existing public API diff is additive and reviewed.
+- [x] No existing required field, default behavior or closed union changes.
+- [x] Alpha 5, Beta 1 and Beta 2 source/type/packed consumers pass unchanged.
+- [x] Browser-safe dependency traversal remains clean.
+- [x] Package dependency graph remains acyclic.
 
 ## Packaging and release
 
-- [ ] Root and all 37 public packages use exactly `0.3.0-beta.3`.
-- [ ] Clean build, type, unit, adapter, conformance and campaign gates pass.
-- [ ] All 37 isolated tarballs and public export subpaths install under pnpm and
+- [x] Root and all 37 public packages use exactly `0.3.0-beta.3`.
+- [x] Clean build, type, unit, adapter, conformance and campaign gates pass.
+- [x] All 37 isolated tarballs and public export subpaths install under pnpm and
       npm without workspace links.
 - [ ] Portable Node 20, portable Node 22 and PostgreSQL durable registry
       consumers pass.
-- [ ] Release manifest and public package catalog agree exactly.
+- [x] Release manifest and public package catalog agree exactly.
 - [ ] Annotated `v0.3.0-beta.3` points to the immutable release commit.
 - [ ] All packages publish once under a staging tag, then atomically promote
       `next`; no version is overwritten.

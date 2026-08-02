@@ -73,6 +73,14 @@ declared observation and effect contract. It may fail, time out or return an
 ambiguous effect result. The independent monitor verifies behavior from the
 registered event stream and hidden state.
 
+Portable observation validation proves closed record shape, peer/cursor
+binding, size bounds, content integrity and the absence of structurally named
+execution-authority fields. It cannot infer the meaning or truth of arbitrary
+application JSON. Each environment adapter therefore owns an allowlisted
+schema for every `observationKind`; the evaluation monitor independently checks
+hidden-state canaries. Until those Increment 4 boundaries exist, the portable
+contracts alone make no hidden-state non-interference claim.
+
 ### Evaluator and invariant monitor
 
 The monitor may read registered hidden world state but cannot influence peer

@@ -223,8 +223,11 @@ domain and Objective identity, and cannot widen the locally accepted mandate.
 
 `MissionObservationV1` names the exact peer, intent revision, environment cursor,
 logical time, visibility class, observation kind, bounded public value or
-content reference and digest. It never contains simulator-global membership,
-unobserved resources, hidden terminal state or future events.
+content reference and digest. Structural validation denies named authority and
+hidden-state fields; because generic JSON semantics are not machine-inferable,
+the registered environment adapter allowlists each observation-kind schema and
+the independent monitor detects simulator-global membership, unobserved
+resources, hidden terminal state or future events.
 
 Same cursor and peer with the same digest is idempotent. Reusing the cursor with
 different content is an environment conflict and invalidates the sample.
@@ -573,6 +576,9 @@ No package code changes in this increment.
 - public type tests, package catalog and browser dependency gates.
 
 Gate: pure contract tests plus Beta 2 compatibility.
+
+Implementation review:
+[Beta 3 Increment 1 review](beta-3-increment-1-review.md).
 
 ### Increment 2: pure planning reducer
 
