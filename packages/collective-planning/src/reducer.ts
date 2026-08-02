@@ -9,10 +9,17 @@ import {
 } from "./canonical.js";
 import type {
   AdvancePlanningLogicalTimeCommandV1,
+  AdaptiveRoleBindingV1,
   EvaluatePlanningSlotCommandV1,
+  FragmentWorkMappingV1,
   Increment2FragmentTransitionStatusV1,
   MissionObservationV1,
   MissionIntentV1,
+  ObservePlanningFragmentAssignmentCommandV1,
+  ObservePlanningFragmentExecutionCommandV1,
+  ObservePlanningFragmentTerminalCommandV1,
+  ObservePlanningWorkRevisionCommandV1,
+  ObservedTerminalFragmentStatusV1,
   PlanFragmentDecisionV1,
   PlanFragmentProposalV1,
   PlanFragmentStatusV1,
@@ -35,6 +42,8 @@ import type {
   PlanSelectionPolicyV1,
   PlanSemanticSlotHeadV1,
   PlanViewV1,
+  PlanningWorkTargetV1,
+  ProjectPlanningFragmentToWorkCommandV1,
   RecordPlanningObservationCommandV1,
   RecordPlanningProposalCommandV1,
   TransitionPlanningFragmentCommandV1,
@@ -45,11 +54,13 @@ import {
   assertPlanningIdentifier,
   assertPlanningSafeInteger,
   assertPlanningToken,
+  createAdaptiveRoleBindingV1,
   createPlanFragmentDecisionV1,
   createPlanFragmentV1,
   createPlanViewV1,
   validateMissionIntentV1,
   validateMissionObservationV1,
+  validateAdaptiveRoleBindingV1,
   validatePlanFragmentProposalV1,
   validatePlanSelectionPolicyV1,
   validatePlanViewV1,
@@ -66,6 +77,12 @@ const EMPTY_EVENTS = Object.freeze([]) as readonly [];
 const SAFE_TRANSITIONS = new Set<Increment2FragmentTransitionStatusV1>([
   "superseded",
   "cancelled",
+  "failed",
+]);
+const OBSERVED_TERMINAL_STATUSES = new Set<ObservedTerminalFragmentStatusV1>([
+  "superseded",
+  "cancelled",
+  "completed",
   "failed",
 ]);
 
@@ -86,6 +103,36 @@ type CommandFactoryInput =
       readonly commandId?: string;
     })
   | (Omit<
+      ProjectPlanningFragmentToWorkCommandV1,
+      "commandId" | "commandDigest"
+    > & {
+      readonly commandId?: string;
+    })
+  | (Omit<
+      ObservePlanningFragmentAssignmentCommandV1,
+      "commandId" | "commandDigest"
+    > & {
+      readonly commandId?: string;
+    })
+  | (Omit<
+      ObservePlanningFragmentExecutionCommandV1,
+      "commandId" | "commandDigest"
+    > & {
+      readonly commandId?: string;
+    })
+  | (Omit<
+      ObservePlanningFragmentTerminalCommandV1,
+      "commandId" | "commandDigest"
+    > & {
+      readonly commandId?: string;
+    })
+  | (Omit<
+      ObservePlanningWorkRevisionCommandV1,
+      "commandId" | "commandDigest"
+    > & {
+      readonly commandId?: string;
+    })
+  | (Omit<
       AdvancePlanningLogicalTimeCommandV1,
       "commandId" | "commandDigest"
     > & {
@@ -97,6 +144,11 @@ type CommandWithoutDigest =
   | Omit<RecordPlanningProposalCommandV1, "commandDigest">
   | Omit<EvaluatePlanningSlotCommandV1, "commandDigest">
   | Omit<TransitionPlanningFragmentCommandV1, "commandDigest">
+  | Omit<ProjectPlanningFragmentToWorkCommandV1, "commandDigest">
+  | Omit<ObservePlanningFragmentAssignmentCommandV1, "commandDigest">
+  | Omit<ObservePlanningFragmentExecutionCommandV1, "commandDigest">
+  | Omit<ObservePlanningFragmentTerminalCommandV1, "commandDigest">
+  | Omit<ObservePlanningWorkRevisionCommandV1, "commandDigest">
   | Omit<AdvancePlanningLogicalTimeCommandV1, "commandDigest">;
 
 export interface CreatePlanningReducerStateInputV1 {
@@ -177,6 +229,69 @@ function recordKey(item: PlanningDomainHighWaterV1): string {
   return `${item.domain}\u0000${item.recordId}`;
 }
 
+function validateWorkTarget(
+  value: unknown,
+  label: string,
+): PlanningWorkTargetV1 {
+  assertPlanningExactKeys(
+    value,
+    [
+      "schemaVersion",
+      "meshId",
+      "objectiveId",
+      "workItemId",
+      "workItemRevision",
+    ],
+    label,
+  );
+  if (value.schemaVersion !== 1)
+    throw new CollectivePlanningValidationError(
+      `${label} schemaVersion is invalid`,
+    );
+  assertPlanningIdentifier(value.meshId, "meshId");
+  assertPlanningIdentifier(value.objectiveId, "objectiveId");
+  assertPlanningIdentifier(value.workItemId, "workItemId");
+  assertPlanningSafeInteger(value.workItemRevision, "workItemRevision", 1);
+  return deepFreezePlanning({ ...value }) as unknown as PlanningWorkTargetV1;
+}
+
+function validateWorkMapping(
+  value: unknown,
+  label: string,
+): FragmentWorkMappingV1 {
+  assertPlanningExactKeys(
+    value,
+    [
+      "schemaVersion",
+      "fragmentDigest",
+      "meshId",
+      "objectiveId",
+      "workItemId",
+      "workItemRevision",
+    ],
+    label,
+  );
+  if (value.schemaVersion !== 1)
+    throw new CollectivePlanningValidationError(
+      `${label} schemaVersion is invalid`,
+    );
+  assertPlanningDigest(value.fragmentDigest, "fragmentDigest");
+  const target = validateWorkTarget(
+    {
+      schemaVersion: value.schemaVersion,
+      meshId: value.meshId,
+      objectiveId: value.objectiveId,
+      workItemId: value.workItemId,
+      workItemRevision: value.workItemRevision,
+    },
+    label,
+  );
+  return deepFreezePlanning({
+    ...target,
+    fragmentDigest: value.fragmentDigest as PlanningDigestV1,
+  });
+}
+
 function fragmentSortKey(fragment: PlanFragmentV1): string {
   return `${fragment.fragmentId}\u0000${String(fragment.fragmentRevision).padStart(16, "0")}`;
 }
@@ -217,6 +332,46 @@ function commandIdentity(command: CommandWithoutDigest): JsonValue {
         previousFragmentDigest: command.previousFragmentDigest,
         status: command.status,
       };
+    case "fragment.project-to-work":
+      return {
+        kind: command.kind,
+        fragmentId: command.fragmentId,
+        previousFragmentDigest: command.previousFragmentDigest,
+        workTarget: command.workTarget,
+      } as unknown as JsonValue;
+    case "fragment.assignment.observe":
+      return {
+        kind: command.kind,
+        fragmentId: command.fragmentId,
+        previousFragmentDigest: command.previousFragmentDigest,
+        expectedWorkMapping: command.expectedWorkMapping,
+        roleBindingDigest: command.roleBinding.roleBindingDigest,
+      } as unknown as JsonValue;
+    case "fragment.execution.observe":
+      return {
+        kind: command.kind,
+        fragmentId: command.fragmentId,
+        previousFragmentDigest: command.previousFragmentDigest,
+        previousRoleBindingDigest: command.previousRoleBindingDigest,
+        roleBindingDigest: command.roleBinding.roleBindingDigest,
+      } as unknown as JsonValue;
+    case "fragment.terminal.observe":
+      return {
+        kind: command.kind,
+        fragmentId: command.fragmentId,
+        previousFragmentDigest: command.previousFragmentDigest,
+        status: command.status,
+        expectedWorkMapping: command.expectedWorkMapping,
+        expectedRoleBindingDigest: command.expectedRoleBindingDigest,
+      } as unknown as JsonValue;
+    case "work.revision.observe":
+      return {
+        kind: command.kind,
+        fragmentId: command.fragmentId,
+        previousFragmentDigest: command.previousFragmentDigest,
+        workTarget: command.workTarget,
+        roleBindingDigest: null,
+      } as unknown as JsonValue;
     case "logical-time.advance":
       return { kind: command.kind, logicalTimeMs: command.logicalTimeMs };
   }
@@ -238,7 +393,9 @@ export function planningReducerCommandDigestV1(
     "expectedStateDigest",
   );
   const content =
-    command.kind === "fragment.transition"
+    command.kind === "fragment.transition" ||
+    command.kind === "fragment.project-to-work" ||
+    command.kind === "fragment.terminal.observe"
       ? without(withoutConcurrencyPrecondition, "transitionedAtLogicalMs")
       : withoutConcurrencyPrecondition;
   return digestPlanningJsonV1(
@@ -278,6 +435,49 @@ function commandKeys(
         "status",
         "transitionedAtLogicalMs",
       ];
+    case "fragment.project-to-work":
+      return [
+        ...common,
+        "fragmentId",
+        "previousFragmentDigest",
+        "workTarget",
+        "transitionedAtLogicalMs",
+      ];
+    case "fragment.assignment.observe":
+      return [
+        ...common,
+        "fragmentId",
+        "previousFragmentDigest",
+        "expectedWorkMapping",
+        "roleBinding",
+      ];
+    case "fragment.execution.observe":
+      return [
+        ...common,
+        "fragmentId",
+        "previousFragmentDigest",
+        "previousRoleBindingDigest",
+        "roleBinding",
+      ];
+    case "fragment.terminal.observe":
+      return [
+        ...common,
+        "fragmentId",
+        "previousFragmentDigest",
+        "status",
+        "expectedWorkMapping",
+        "expectedRoleBindingDigest",
+        "transitionedAtLogicalMs",
+      ];
+    case "work.revision.observe":
+      return [
+        ...common,
+        "fragmentId",
+        "previousFragmentDigest",
+        "expectedWorkMapping",
+        "workTarget",
+        "roleBinding",
+      ];
     case "logical-time.advance":
       return [...common, "logicalTimeMs"];
   }
@@ -298,6 +498,11 @@ function validateCommandFactoryInputShape(
       "proposal.record",
       "slot.evaluate",
       "fragment.transition",
+      "fragment.project-to-work",
+      "fragment.assignment.observe",
+      "fragment.execution.observe",
+      "fragment.terminal.observe",
+      "work.revision.observe",
       "logical-time.advance",
     ]).has(kind)
   )
@@ -325,6 +530,11 @@ export function validatePlanningReducerCommandV1(
         "proposal.record",
         "slot.evaluate",
         "fragment.transition",
+        "fragment.project-to-work",
+        "fragment.assignment.observe",
+        "fragment.execution.observe",
+        "fragment.terminal.observe",
+        "work.revision.observe",
         "logical-time.advance",
       ]).has(descriptorValue(value as object, "kind") as string)
       ? commandKeys(
@@ -385,6 +595,77 @@ export function validatePlanningReducerCommandV1(
         "transitionedAtLogicalMs",
       );
       break;
+    case "fragment.project-to-work":
+      assertPlanningIdentifier(value.fragmentId, "fragmentId");
+      assertPlanningDigest(
+        value.previousFragmentDigest,
+        "previousFragmentDigest",
+      );
+      validateWorkTarget(value.workTarget, "workTarget");
+      assertPlanningSafeInteger(
+        value.transitionedAtLogicalMs,
+        "transitionedAtLogicalMs",
+      );
+      break;
+    case "fragment.assignment.observe":
+      assertPlanningIdentifier(value.fragmentId, "fragmentId");
+      assertPlanningDigest(
+        value.previousFragmentDigest,
+        "previousFragmentDigest",
+      );
+      validateWorkMapping(value.expectedWorkMapping, "expectedWorkMapping");
+      validateAdaptiveRoleBindingV1(value.roleBinding);
+      break;
+    case "fragment.execution.observe":
+      assertPlanningIdentifier(value.fragmentId, "fragmentId");
+      assertPlanningDigest(
+        value.previousFragmentDigest,
+        "previousFragmentDigest",
+      );
+      assertPlanningDigest(
+        value.previousRoleBindingDigest,
+        "previousRoleBindingDigest",
+      );
+      validateAdaptiveRoleBindingV1(value.roleBinding);
+      break;
+    case "fragment.terminal.observe":
+      assertPlanningIdentifier(value.fragmentId, "fragmentId");
+      assertPlanningDigest(
+        value.previousFragmentDigest,
+        "previousFragmentDigest",
+      );
+      if (
+        !OBSERVED_TERMINAL_STATUSES.has(
+          value.status as ObservedTerminalFragmentStatusV1,
+        )
+      )
+        throw new CollectivePlanningValidationError(
+          "observed terminal status is invalid",
+        );
+      validateWorkMapping(value.expectedWorkMapping, "expectedWorkMapping");
+      if (value.expectedRoleBindingDigest !== null)
+        assertPlanningDigest(
+          value.expectedRoleBindingDigest,
+          "expectedRoleBindingDigest",
+        );
+      assertPlanningSafeInteger(
+        value.transitionedAtLogicalMs,
+        "transitionedAtLogicalMs",
+      );
+      break;
+    case "work.revision.observe":
+      assertPlanningIdentifier(value.fragmentId, "fragmentId");
+      assertPlanningDigest(
+        value.previousFragmentDigest,
+        "previousFragmentDigest",
+      );
+      validateWorkMapping(value.expectedWorkMapping, "expectedWorkMapping");
+      validateWorkTarget(value.workTarget, "workTarget");
+      if (value.roleBinding !== null)
+        throw new CollectivePlanningValidationError(
+          "Work revision cannot retain assignment authority",
+        );
+      break;
     case "logical-time.advance":
       assertPlanningSafeInteger(value.logicalTimeMs, "logicalTimeMs");
       break;
@@ -427,7 +708,49 @@ export function createPlanningReducerCommandV1(
                 "candidateProposalDigests",
               ),
             }
-          : input;
+          : input.kind === "fragment.project-to-work"
+            ? {
+                ...input,
+                workTarget: validateWorkTarget(input.workTarget, "workTarget"),
+              }
+            : input.kind === "fragment.assignment.observe"
+              ? {
+                  ...input,
+                  expectedWorkMapping: validateWorkMapping(
+                    input.expectedWorkMapping,
+                    "expectedWorkMapping",
+                  ),
+                  roleBinding: validateAdaptiveRoleBindingV1(input.roleBinding),
+                }
+              : input.kind === "fragment.execution.observe"
+                ? {
+                    ...input,
+                    roleBinding: validateAdaptiveRoleBindingV1(
+                      input.roleBinding,
+                    ),
+                  }
+                : input.kind === "fragment.terminal.observe"
+                  ? {
+                      ...input,
+                      expectedWorkMapping: validateWorkMapping(
+                        input.expectedWorkMapping,
+                        "expectedWorkMapping",
+                      ),
+                    }
+                  : input.kind === "work.revision.observe"
+                    ? {
+                        ...input,
+                        expectedWorkMapping: validateWorkMapping(
+                          input.expectedWorkMapping,
+                          "expectedWorkMapping",
+                        ),
+                        workTarget: validateWorkTarget(
+                          input.workTarget,
+                          "workTarget",
+                        ),
+                        roleBinding: null,
+                      }
+                    : input;
   const withPlaceholder = {
     ...detachedInput,
     commandId: detachedInput.commandId ?? "planning-command:placeholder",
@@ -534,7 +857,15 @@ function validateCommandHighWater(
 ): PlanningReducerCommandHighWaterV1 {
   assertPlanningExactKeys(
     value,
-    ["schemaVersion", "commandId", "commandDigest", "command"],
+    [
+      "schemaVersion",
+      "commandId",
+      "commandDigest",
+      "command",
+      ...(Object.prototype.hasOwnProperty.call(value, "appliedAtLogicalMs")
+        ? ["appliedAtLogicalMs"]
+        : []),
+    ],
     "command high-water",
   );
   if (value.schemaVersion !== 1)
@@ -544,12 +875,22 @@ function validateCommandHighWater(
   assertPlanningIdentifier(value.commandId, "commandId");
   assertPlanningDigest(value.commandDigest, "commandDigest");
   const command = validatePlanningReducerCommandV1(value.command);
+  const increment3Lifecycle = new Set([
+    "fragment.project-to-work",
+    "fragment.assignment.observe",
+    "fragment.execution.observe",
+    "fragment.terminal.observe",
+    "work.revision.observe",
+  ]).has(command.kind);
+  if (value.appliedAtLogicalMs !== undefined)
+    assertPlanningSafeInteger(value.appliedAtLogicalMs, "appliedAtLogicalMs");
   if (
     command.commandId !== value.commandId ||
     command.commandDigest !== value.commandDigest ||
     command.expectedStateDigest !== null ||
     (command.kind === "fragment.transition" &&
-      command.transitionedAtLogicalMs !== 0)
+      command.transitionedAtLogicalMs !== 0) ||
+    (increment3Lifecycle && value.appliedAtLogicalMs === undefined)
   )
     throw new CollectivePlanningValidationError(
       "command high-water differs from its canonical retained command",
@@ -844,10 +1185,6 @@ export function validatePlanningReducerStateV1(
     throw new CollectivePlanningValidationError(
       "state identity, intent, policy and view bindings differ",
     );
-  if (view.workMappings.length !== 0 || view.activeRoleBindings.length !== 0)
-    throw new CollectivePlanningValidationError(
-      "Increment 2 cannot contain Work mappings or role bindings",
-    );
   validateReducerStateLimits(intent, observations, view);
   const expectedShards = equalBudgetShards(intent, subjects);
   if (!sameJson(view.budgetShards, expectedShards))
@@ -1054,10 +1391,9 @@ export function validatePlanningReducerStateV1(
     throw new CollectivePlanningValidationError(
       "retained command kinds do not match reducer history",
     );
-  const explicitTransitions: Array<{
-    fragmentId: string;
-    previousFragmentDigest: PlanningDigestV1;
-    status: Increment2FragmentTransitionStatusV1;
+  const lifecycleTransitions: Array<{
+    previous: PlanFragmentV1;
+    current: PlanFragmentV1;
   }> = [];
   const histories = new Map<string, PlanFragmentV1[]>();
   for (const fragment of view.fragments) {
@@ -1069,39 +1405,269 @@ export function validatePlanningReducerStateV1(
     for (let index = 1; index < history.length; index += 1) {
       const previous = history[index - 1];
       const current = history[index];
-      if (
-        current.status === "cancelled" ||
-        current.status === "failed" ||
-        (current.status === "superseded" &&
-          !view.fragments.some(
-            (item) =>
-              item.predecessorFragmentDigest === previous.fragmentDigest,
-          ))
-      )
-        explicitTransitions.push({
-          fragmentId: current.fragmentId,
-          previousFragmentDigest: previous.fragmentDigest,
-          status: current.status,
-        });
+      const implicitActivation =
+        previous.status === "candidate" && current.status === "active";
+      const implicitReplan =
+        previous.status === "active" &&
+        current.status === "superseded" &&
+        view.fragments.some(
+          (item) => item.predecessorFragmentDigest === previous.fragmentDigest,
+        );
+      if (!implicitActivation && !implicitReplan)
+        lifecycleTransitions.push({ previous, current });
     }
-  const transitionCommands = retainedCommands.filter(
-    (item): item is TransitionPlanningFragmentCommandV1 =>
-      item.kind === "fragment.transition",
+  const lifecycleCommands = retainedCommands.filter((item) =>
+    new Set([
+      "fragment.transition",
+      "fragment.project-to-work",
+      "fragment.assignment.observe",
+      "fragment.execution.observe",
+      "fragment.terminal.observe",
+      "work.revision.observe",
+    ]).has(item.kind),
   );
+  const lifecycleWaterByCommandId = new Map(
+    commands.map((item) => [item.commandId, item]),
+  );
+  const appliedAtFor = (item: PlanningReducerCommandV1): number | null =>
+    lifecycleWaterByCommandId.get(item.commandId)?.appliedAtLogicalMs ?? null;
+  const retainedTimeIsValid = (
+    item:
+      | ProjectPlanningFragmentToWorkCommandV1
+      | ObservePlanningFragmentTerminalCommandV1,
+    previous: PlanFragmentV1,
+  ): boolean => {
+    const appliedAt = appliedAtFor(item);
+    return (
+      appliedAt !== null &&
+      appliedAt <= view.logicalTimeHighWaterMs &&
+      item.transitionedAtLogicalMs >= previous.acceptedAtLogicalMs &&
+      item.transitionedAtLogicalMs <= appliedAt &&
+      appliedAt - item.transitionedAtLogicalMs <=
+        intent.planningLimits.replanningLogicalWindowMs
+    );
+  };
+  const retainedRoleIsValid = (
+    item: PlanningReducerCommandV1,
+    role: AdaptiveRoleBindingV1,
+    previous: PlanFragmentV1,
+    current: PlanFragmentV1,
+  ): boolean => {
+    const appliedAt = appliedAtFor(item);
+    return (
+      appliedAt !== null &&
+      appliedAt <= view.logicalTimeHighWaterMs &&
+      role.status === "current" &&
+      role.missionIntentId === intent.missionIntentId &&
+      role.intentRevision === intent.revision &&
+      role.intentDigest === intent.intentDigest &&
+      role.fragmentDigest === current.fragmentDigest &&
+      role.roleKey === previous.roleKey &&
+      role.leaseExpiresAtLogicalMs > appliedAt &&
+      subjects.some(
+        (subject) =>
+          subject.peerId === role.assignedPeerId &&
+          subject.peerInstanceId === role.assignedInstanceId,
+      )
+    );
+  };
+  const transitionHasCommand = ({
+    previous,
+    current,
+  }: {
+    previous: PlanFragmentV1;
+    current: PlanFragmentV1;
+  }): boolean =>
+    lifecycleCommands.some((item) => {
+      if (!("fragmentId" in item) || !("previousFragmentDigest" in item))
+        return false;
+      if (
+        item.fragmentId !== previous.fragmentId ||
+        item.previousFragmentDigest !== previous.fragmentDigest
+      )
+        return false;
+      if (item.kind === "fragment.transition")
+        return previous.status === "active" && item.status === current.status;
+      if (item.kind === "fragment.project-to-work")
+        return (
+          previous.status === "active" &&
+          current.status === "offered" &&
+          item.workTarget.meshId === intent.objective.meshId &&
+          item.workTarget.objectiveId === intent.objective.objectiveId &&
+          retainedTimeIsValid(item, previous)
+        );
+      if (item.kind === "fragment.assignment.observe")
+        return (
+          previous.status === "offered" &&
+          current.status === "assigned" &&
+          retainedRoleIsValid(item, item.roleBinding, previous, current)
+        );
+      if (item.kind === "fragment.execution.observe")
+        return (
+          previous.status === "assigned" &&
+          current.status === "executing" &&
+          retainedRoleIsValid(item, item.roleBinding, previous, current)
+        );
+      if (item.kind === "fragment.terminal.observe")
+        return (
+          (previous.status === "offered" ||
+            previous.status === "assigned" ||
+            previous.status === "executing") &&
+          item.status === current.status &&
+          !(item.status === "completed" && previous.status !== "executing") &&
+          !(item.status === "failed" && previous.status === "offered") &&
+          retainedTimeIsValid(item, previous)
+        );
+      return (
+        item.kind === "work.revision.observe" &&
+        previous.status === "offered" &&
+        current.status === "offered" &&
+        item.workTarget.workItemRevision ===
+          item.expectedWorkMapping.workItemRevision + 1
+      );
+    });
   if (
-    transitionCommands.length !== explicitTransitions.length ||
-    explicitTransitions.some((expected) =>
-      transitionCommands.every(
-        (command) =>
-          command.fragmentId !== expected.fragmentId ||
-          command.previousFragmentDigest !== expected.previousFragmentDigest ||
-          command.status !== expected.status,
-      ),
-    )
+    lifecycleCommands.length !== lifecycleTransitions.length ||
+    lifecycleTransitions.some((item) => !transitionHasCommand(item))
   )
     throw new CollectivePlanningValidationError(
-      "retained fragment-transition commands do not match history",
+      "retained lifecycle commands do not match fragment history",
     );
+  const usedWorkRevisions = new Set<string>();
+  for (const retained of retainedCommands) {
+    const target =
+      retained.kind === "fragment.project-to-work" ||
+      retained.kind === "work.revision.observe"
+        ? retained.workTarget
+        : undefined;
+    if (!target) continue;
+    const key = `${target.meshId}\u0000${target.objectiveId}\u0000${target.workItemId}\u0000${target.workItemRevision}`;
+    if (usedWorkRevisions.has(key))
+      throw new CollectivePlanningValidationError(
+        "Work revision is reused by reducer history",
+      );
+    usedWorkRevisions.add(key);
+  }
+  for (const history of histories.values()) {
+    let expectedMapping: FragmentWorkMappingV1 | null = null;
+    let expectedRole: AdaptiveRoleBindingV1 | null = null;
+    for (let index = 1; index < history.length; index += 1) {
+      const previous = history[index - 1];
+      const current = history[index];
+      const retained = lifecycleCommands.find(
+        (item) =>
+          "fragmentId" in item &&
+          "previousFragmentDigest" in item &&
+          item.fragmentId === previous.fragmentId &&
+          item.previousFragmentDigest === previous.fragmentDigest,
+      );
+      if (!retained) continue;
+      if (retained.kind === "fragment.project-to-work") {
+        expectedMapping = mappingFor(
+          current.fragmentDigest,
+          retained.workTarget,
+        );
+        expectedRole = null;
+      } else if (retained.kind === "fragment.assignment.observe") {
+        if (
+          !expectedMapping ||
+          expectedRole !== null ||
+          !sameMapping(expectedMapping, retained.expectedWorkMapping) ||
+          !retainedRoleIsValid(
+            retained,
+            retained.roleBinding,
+            previous,
+            current,
+          )
+        )
+          throw new CollectivePlanningValidationError(
+            "retained assignment Work CAS differs from history",
+          );
+        expectedMapping = mappingFor(current.fragmentDigest, expectedMapping);
+        expectedRole = retained.roleBinding;
+      } else if (retained.kind === "fragment.execution.observe") {
+        if (
+          !expectedMapping ||
+          !expectedRole ||
+          expectedRole.roleBindingDigest !==
+            retained.previousRoleBindingDigest ||
+          !retainedRoleIsValid(
+            retained,
+            retained.roleBinding,
+            previous,
+            current,
+          ) ||
+          !sameRoleAuthority(expectedRole, retained.roleBinding)
+        )
+          throw new CollectivePlanningValidationError(
+            "retained execution CAS differs from history",
+          );
+        expectedMapping = mappingFor(current.fragmentDigest, expectedMapping);
+        expectedRole = retained.roleBinding;
+      } else if (retained.kind === "work.revision.observe") {
+        if (
+          !expectedMapping ||
+          !sameMapping(expectedMapping, retained.expectedWorkMapping) ||
+          expectedRole !== null
+        )
+          throw new CollectivePlanningValidationError(
+            "retained Work revision CAS differs from history",
+          );
+        expectedMapping = mappingFor(
+          current.fragmentDigest,
+          retained.workTarget,
+        );
+        expectedRole = retained.roleBinding;
+      } else if (retained.kind === "fragment.terminal.observe") {
+        if (
+          !expectedMapping ||
+          !sameMapping(expectedMapping, retained.expectedWorkMapping) ||
+          (expectedRole?.roleBindingDigest ?? null) !==
+            retained.expectedRoleBindingDigest
+        )
+          throw new CollectivePlanningValidationError(
+            "retained terminal CAS differs from history",
+          );
+        expectedMapping = null;
+        expectedRole = null;
+      }
+    }
+    const latest = history[history.length - 1];
+    const actualMapping =
+      view.workMappings.find(
+        (item) => item.fragmentDigest === latest.fragmentDigest,
+      ) ?? null;
+    const actualRole =
+      view.activeRoleBindings.find(
+        (item) => item.fragmentDigest === latest.fragmentDigest,
+      ) ?? null;
+    if (
+      !sameJson(expectedMapping, actualMapping) ||
+      !sameJson(expectedRole, actualRole)
+    )
+      throw new CollectivePlanningValidationError(
+        "current Work or role evidence differs from retained lifecycle history",
+      );
+  }
+  for (const mapping of view.workMappings)
+    if (
+      mapping.meshId !== intent.objective.meshId ||
+      mapping.objectiveId !== intent.objective.objectiveId
+    )
+      throw new CollectivePlanningValidationError(
+        "Work mapping differs from the mission Objective",
+      );
+  for (const role of view.activeRoleBindings)
+    if (
+      !subjects.some(
+        (item) =>
+          item.peerId === role.assignedPeerId &&
+          item.peerInstanceId === role.assignedInstanceId,
+      )
+    )
+      throw new CollectivePlanningValidationError(
+        "active role subject is not admitted",
+      );
   const timeCommands = retainedCommands
     .filter(
       (item): item is AdvancePlanningLogicalTimeCommandV1 =>
@@ -1327,6 +1893,15 @@ function appendCommandWater(
       commandId: command.commandId,
       commandDigest: command.commandDigest,
       command: retainedCommand,
+      ...(new Set([
+        "fragment.project-to-work",
+        "fragment.assignment.observe",
+        "fragment.execution.observe",
+        "fragment.terminal.observe",
+        "work.revision.observe",
+      ]).has(command.kind)
+        ? { appliedAtLogicalMs: state.planView.logicalTimeHighWaterMs }
+        : {}),
     },
   ].sort((a, b) => compareCodeUnits(a.commandId, b.commandId));
 }
@@ -1399,6 +1974,11 @@ export function validatePlanningReducerEventV1(
       "slot.evaluated",
       "fragment.created",
       "fragment.transitioned",
+      "fragment.projected-to-work",
+      "fragment.assignment-observed",
+      "fragment.execution-observed",
+      "fragment.terminal-observed",
+      "work.revision-observed",
       "logical-time.advanced",
     ]).has(value.kind as string)
   )
@@ -2427,6 +3007,524 @@ function transitionFragment(
   ]);
 }
 
+function mappingFor(
+  fragmentDigest: PlanningDigestV1,
+  target: PlanningWorkTargetV1,
+): FragmentWorkMappingV1 {
+  return deepFreezePlanning({ ...target, fragmentDigest });
+}
+
+function sameMapping(
+  left: FragmentWorkMappingV1,
+  right: FragmentWorkMappingV1,
+): boolean {
+  return sameJson(left, right);
+}
+
+function currentMapping(
+  state: PlanningReducerStateV1,
+  digest: PlanningDigestV1,
+): FragmentWorkMappingV1 | undefined {
+  return state.planView.workMappings.find(
+    (item) => item.fragmentDigest === digest,
+  );
+}
+
+function currentRole(
+  state: PlanningReducerStateV1,
+  digest: PlanningDigestV1,
+): AdaptiveRoleBindingV1 | undefined {
+  return state.planView.activeRoleBindings.find(
+    (item) => item.fragmentDigest === digest,
+  );
+}
+
+function makeLifecycleFragment(
+  latest: PlanFragmentV1,
+  status: PlanFragmentStatusV1,
+): PlanFragmentV1 {
+  return createPlanFragmentV1({
+    ...(without(
+      latest as unknown as Record<string, unknown>,
+      "fragmentDigest",
+    ) as unknown as Omit<PlanFragmentV1, "fragmentDigest" | "fragmentId">),
+    fragmentId: latest.fragmentId,
+    fragmentRevision: latest.fragmentRevision + 1,
+    previousStateDigest: latest.fragmentDigest,
+    status,
+  });
+}
+
+function applyObservedLifecycle(
+  state: PlanningReducerStateV1,
+  command: PlanningReducerCommandV1,
+  latest: PlanFragmentV1,
+  nextFragment: PlanFragmentV1,
+  mapping: FragmentWorkMappingV1 | null,
+  role: AdaptiveRoleBindingV1 | null,
+  reservationStatus: PlanningBudgetReservationV1["status"],
+  eventKind: PlanningReducerEventKindV1,
+): PlanningReducerResultV1 {
+  const fragments = [...state.planView.fragments, nextFragment].sort((a, b) =>
+    compareCodeUnits(fragmentSortKey(a), fragmentSortKey(b)),
+  );
+  const budgetReservations = state.planView.budgetReservations.map((item) =>
+    item.proposalDigest === latest.proposalDigest
+      ? {
+          ...item,
+          fragmentDigest: nextFragment.fragmentDigest,
+          status: reservationStatus,
+        }
+      : item,
+  );
+  const graph = graphProjection(fragments);
+  const selectedHeads = state.planView.selectedHeads
+    .map((item) =>
+      item.fragmentDigest === latest.fragmentDigest
+        ? { ...item, fragmentDigest: nextFragment.fragmentDigest }
+        : item,
+    )
+    .filter(
+      (item) =>
+        !new Set(["superseded", "cancelled", "completed", "failed"]).has(
+          nextFragment.status,
+        ) || item.fragmentDigest !== nextFragment.fragmentDigest,
+    );
+  const view = updateView(state.planView, {
+    revision: state.planView.revision + 1,
+    fragments,
+    selectedHeads,
+    causalFrontierDigests: graph.frontier,
+    unresolvedDependencyDigests: graph.unresolved,
+    budgetReservations,
+    workMappings: [
+      ...state.planView.workMappings.filter(
+        (item) => item.fragmentDigest !== latest.fragmentDigest,
+      ),
+      ...(mapping === null ? [] : [mapping]),
+    ].sort((a, b) => compareCodeUnits(a.fragmentDigest, b.fragmentDigest)),
+    activeRoleBindings: [
+      ...state.planView.activeRoleBindings.filter(
+        (item) => item.fragmentDigest !== latest.fragmentDigest,
+      ),
+      ...(role === null ? [] : [role]),
+    ].sort((a, b) => compareCodeUnits(a.roleBindingId, b.roleBindingId)),
+  });
+  const water: PlanningDomainHighWaterV1 = {
+    schemaVersion: 1,
+    domain: "fragment",
+    recordId: nextFragment.fragmentId,
+    revision: nextFragment.fragmentRevision,
+    digest: nextFragment.fragmentDigest,
+  };
+  const recordHighWaters = [
+    ...state.recordHighWaters.filter(
+      (item) =>
+        !(
+          item.domain === "fragment" &&
+          item.recordId === nextFragment.fragmentId
+        ),
+    ),
+    water,
+  ].sort((a, b) => compareCodeUnits(recordKey(a), recordKey(b)));
+  const next = finalizeState(state, command, {
+    planView: view,
+    recordHighWaters,
+  });
+  return applied(state, next, command, [
+    [eventKind, nextFragment.fragmentId, nextFragment.fragmentDigest],
+  ]);
+}
+
+function observedTimeValid(
+  state: PlanningReducerStateV1,
+  latest: PlanFragmentV1,
+  logicalTimeMs: number,
+): PlanningReducerResultV1 | null {
+  if (logicalTimeMs > state.planView.logicalTimeHighWaterMs)
+    return nonApplied(
+      state,
+      "rejected",
+      "logical_time_regression",
+      "fragment observation is ahead of logical time",
+    );
+  if (logicalTimeMs < latest.acceptedAtLogicalMs)
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment observation predates acceptance",
+    );
+  if (
+    state.planView.logicalTimeHighWaterMs - logicalTimeMs >
+    state.missionIntent.planningLimits.replanningLogicalWindowMs
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "logical_window_exceeded",
+      "fragment observation is outside its replanning window",
+    );
+  return null;
+}
+
+function projectFragmentToWork(
+  state: PlanningReducerStateV1,
+  command: ProjectPlanningFragmentToWorkCommandV1,
+): PlanningReducerResultV1 {
+  const latest = latestFragments(state.planView).get(command.fragmentId);
+  if (
+    !latest ||
+    latest.fragmentDigest !== command.previousFragmentDigest ||
+    latest.status !== "active"
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment is not the named active head",
+    );
+  const timeError = observedTimeValid(
+    state,
+    latest,
+    command.transitionedAtLogicalMs,
+  );
+  if (timeError) return timeError;
+  if (
+    command.workTarget.meshId !== state.missionIntent.objective.meshId ||
+    command.workTarget.objectiveId !== state.missionIntent.objective.objectiveId
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "scope_mismatch",
+      "Work target differs from the mission Objective",
+    );
+  if (
+    latest.dependencyFragmentDigests.some((digest) => {
+      const dependency = state.planView.fragments.find(
+        (item) => item.fragmentDigest === digest,
+      );
+      return (
+        !dependency ||
+        latestFragments(state.planView).get(dependency.fragmentId)?.status !==
+          "completed"
+      );
+    })
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "graph_invalid",
+      "fragment dependencies are not completed",
+    );
+  const reused = state.commandHighWaters.some(({ command: retained }) => {
+    const target =
+      retained.kind === "fragment.project-to-work" ||
+      retained.kind === "work.revision.observe"
+        ? retained.workTarget
+        : undefined;
+    return (
+      target &&
+      target.meshId === command.workTarget.meshId &&
+      target.objectiveId === command.workTarget.objectiveId &&
+      target.workItemId === command.workTarget.workItemId &&
+      target.workItemRevision === command.workTarget.workItemRevision
+    );
+  });
+  if (reused)
+    return nonApplied(
+      state,
+      "conflict",
+      "work_mapping_conflict",
+      "Work revision was already mapped",
+    );
+  const nextFragment = makeLifecycleFragment(latest, "offered");
+  return applyObservedLifecycle(
+    state,
+    command,
+    latest,
+    nextFragment,
+    mappingFor(nextFragment.fragmentDigest, command.workTarget),
+    null,
+    "committed",
+    "fragment.projected-to-work",
+  );
+}
+
+function roleMatchesTransition(
+  state: PlanningReducerStateV1,
+  latest: PlanFragmentV1,
+  next: PlanFragmentV1,
+  role: AdaptiveRoleBindingV1,
+): boolean {
+  return (
+    role.status === "current" &&
+    role.fragmentDigest === next.fragmentDigest &&
+    role.planViewDigest === state.planView.stateDigest &&
+    role.roleKey === latest.roleKey &&
+    checkScope(state, role) &&
+    role.leaseExpiresAtLogicalMs > state.planView.logicalTimeHighWaterMs &&
+    state.admittedSubjects.some(
+      (item) =>
+        item.peerId === role.assignedPeerId &&
+        item.peerInstanceId === role.assignedInstanceId,
+    )
+  );
+}
+
+function observeFragmentAssignment(
+  state: PlanningReducerStateV1,
+  command: ObservePlanningFragmentAssignmentCommandV1,
+): PlanningReducerResultV1 {
+  const latest = latestFragments(state.planView).get(command.fragmentId);
+  const mapping = latest
+    ? currentMapping(state, latest.fragmentDigest)
+    : undefined;
+  if (
+    !latest ||
+    latest.fragmentDigest !== command.previousFragmentDigest ||
+    latest.status !== "offered"
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment is not the named offered head",
+    );
+  if (!mapping || !sameMapping(mapping, command.expectedWorkMapping))
+    return nonApplied(
+      state,
+      "conflict",
+      "work_mapping_conflict",
+      "Work mapping CAS failed",
+    );
+  const nextFragment = makeLifecycleFragment(latest, "assigned");
+  if (!roleMatchesTransition(state, latest, nextFragment, command.roleBinding))
+    return nonApplied(
+      state,
+      "rejected",
+      "role_binding_invalid",
+      "assignment binding differs from the fragment, intent, prior view, lease or admitted subject",
+    );
+  return applyObservedLifecycle(
+    state,
+    command,
+    latest,
+    nextFragment,
+    mappingFor(nextFragment.fragmentDigest, mapping),
+    command.roleBinding,
+    "committed",
+    "fragment.assignment-observed",
+  );
+}
+
+function sameRoleAuthority(
+  left: AdaptiveRoleBindingV1,
+  right: AdaptiveRoleBindingV1,
+): boolean {
+  return (
+    left.roleBindingId === right.roleBindingId &&
+    left.workContractId === right.workContractId &&
+    left.workContractDigest === right.workContractDigest &&
+    left.assignedPeerId === right.assignedPeerId &&
+    left.assignedInstanceId === right.assignedInstanceId &&
+    left.assignmentAuthorityId === right.assignmentAuthorityId &&
+    left.assignmentEpoch === right.assignmentEpoch &&
+    left.authorityGeneration === right.authorityGeneration &&
+    left.fencingToken === right.fencingToken &&
+    left.leaseExpiresAtLogicalMs === right.leaseExpiresAtLogicalMs
+  );
+}
+
+function observeFragmentExecution(
+  state: PlanningReducerStateV1,
+  command: ObservePlanningFragmentExecutionCommandV1,
+): PlanningReducerResultV1 {
+  const latest = latestFragments(state.planView).get(command.fragmentId);
+  const mapping = latest
+    ? currentMapping(state, latest.fragmentDigest)
+    : undefined;
+  const previousRole = latest
+    ? currentRole(state, latest.fragmentDigest)
+    : undefined;
+  if (
+    !latest ||
+    latest.fragmentDigest !== command.previousFragmentDigest ||
+    latest.status !== "assigned"
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment is not the named assigned head",
+    );
+  if (
+    !previousRole ||
+    previousRole.roleBindingDigest !== command.previousRoleBindingDigest
+  )
+    return nonApplied(
+      state,
+      "conflict",
+      "role_binding_conflict",
+      "role binding CAS failed",
+    );
+  const nextFragment = makeLifecycleFragment(latest, "executing");
+  if (
+    !mapping ||
+    !roleMatchesTransition(state, latest, nextFragment, command.roleBinding) ||
+    !sameRoleAuthority(previousRole, command.roleBinding)
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "role_binding_invalid",
+      "execution binding changes assignment authority or is not current",
+    );
+  return applyObservedLifecycle(
+    state,
+    command,
+    latest,
+    nextFragment,
+    mappingFor(nextFragment.fragmentDigest, mapping),
+    command.roleBinding,
+    "committed",
+    "fragment.execution-observed",
+  );
+}
+
+function observeFragmentTerminal(
+  state: PlanningReducerStateV1,
+  command: ObservePlanningFragmentTerminalCommandV1,
+): PlanningReducerResultV1 {
+  const latest = latestFragments(state.planView).get(command.fragmentId);
+  if (
+    !latest ||
+    latest.fragmentDigest !== command.previousFragmentDigest ||
+    !new Set(["offered", "assigned", "executing"]).has(latest.status)
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment is not a projected non-terminal head",
+    );
+  if (
+    (command.status === "completed" && latest.status !== "executing") ||
+    (command.status === "failed" && latest.status === "offered")
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "terminal status is invalid for the lifecycle state",
+    );
+  const timeError = observedTimeValid(
+    state,
+    latest,
+    command.transitionedAtLogicalMs,
+  );
+  if (timeError) return timeError;
+  const mapping = currentMapping(state, latest.fragmentDigest);
+  if (!mapping || !sameMapping(mapping, command.expectedWorkMapping))
+    return nonApplied(
+      state,
+      "conflict",
+      "work_mapping_conflict",
+      "Work mapping CAS failed",
+    );
+  const role = currentRole(state, latest.fragmentDigest);
+  if ((role?.roleBindingDigest ?? null) !== command.expectedRoleBindingDigest)
+    return nonApplied(
+      state,
+      "conflict",
+      "role_binding_conflict",
+      "role binding CAS failed",
+    );
+  if (
+    (latest.status === "assigned" || latest.status === "executing") !==
+    (role !== undefined)
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "role_binding_invalid",
+      "terminal observation does not name the required active role",
+    );
+  const nextFragment = makeLifecycleFragment(latest, command.status);
+  const reservationStatus =
+    latest.status === "offered" &&
+    (command.status === "cancelled" || command.status === "superseded")
+      ? "released"
+      : "committed";
+  return applyObservedLifecycle(
+    state,
+    command,
+    latest,
+    nextFragment,
+    null,
+    null,
+    reservationStatus,
+    "fragment.terminal-observed",
+  );
+}
+
+function observeWorkRevision(
+  state: PlanningReducerStateV1,
+  command: ObservePlanningWorkRevisionCommandV1,
+): PlanningReducerResultV1 {
+  const latest = latestFragments(state.planView).get(command.fragmentId);
+  if (
+    !latest ||
+    latest.fragmentDigest !== command.previousFragmentDigest ||
+    latest.status !== "offered"
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "fragment_transition_invalid",
+      "fragment is not an unassigned offered head",
+    );
+  const mapping = currentMapping(state, latest.fragmentDigest);
+  if (!mapping || !sameMapping(mapping, command.expectedWorkMapping))
+    return nonApplied(
+      state,
+      "conflict",
+      "work_mapping_conflict",
+      "Work mapping CAS failed",
+    );
+  if (
+    command.workTarget.meshId !== mapping.meshId ||
+    command.workTarget.objectiveId !== mapping.objectiveId ||
+    command.workTarget.workItemId !== mapping.workItemId ||
+    command.workTarget.workItemRevision !== mapping.workItemRevision + 1
+  )
+    return nonApplied(
+      state,
+      "rejected",
+      "work_revision_invalid",
+      "Work revision must advance the same identity by exactly one",
+    );
+  const nextFragment = makeLifecycleFragment(latest, "offered");
+  if (command.roleBinding !== null)
+    return nonApplied(
+      state,
+      "rejected",
+      "role_binding_invalid",
+      "Work revision cannot retain or introduce assignment authority",
+    );
+  return applyObservedLifecycle(
+    state,
+    command,
+    latest,
+    nextFragment,
+    mappingFor(nextFragment.fragmentDigest, command.workTarget),
+    command.roleBinding,
+    "committed",
+    "work.revision-observed",
+  );
+}
+
 function advanceTime(
   state: PlanningReducerStateV1,
   command: AdvancePlanningLogicalTimeCommandV1,
@@ -2517,6 +3615,16 @@ export function reducePlanningCommandV1(
         return evaluateSlot(stateInput, command);
       case "fragment.transition":
         return transitionFragment(stateInput, command);
+      case "fragment.project-to-work":
+        return projectFragmentToWork(stateInput, command);
+      case "fragment.assignment.observe":
+        return observeFragmentAssignment(stateInput, command);
+      case "fragment.execution.observe":
+        return observeFragmentExecution(stateInput, command);
+      case "fragment.terminal.observe":
+        return observeFragmentTerminal(stateInput, command);
+      case "work.revision.observe":
+        return observeWorkRevision(stateInput, command);
       case "logical-time.advance":
         return advanceTime(stateInput, command);
     }
@@ -2709,9 +3817,15 @@ export function restorePlanningReducerSnapshotV1(
   const nextCommands = new Map(
     next.commandHighWaters.map((item) => [item.commandId, item]),
   );
-  for (const item of current.commandHighWaters)
-    if (nextCommands.get(item.commandId)?.commandDigest !== item.commandDigest)
+  for (const item of current.commandHighWaters) {
+    const candidate = nextCommands.get(item.commandId);
+    if (
+      candidate?.commandDigest !== item.commandDigest ||
+      !sameJson(candidate.command, item.command) ||
+      candidate.appliedAtLogicalMs !== item.appliedAtLogicalMs
+    )
       throw new CollectivePlanningValidationError("snapshot_rollback");
+  }
   const nextCursors = new Map(
     next.observationCursorHighWaters.map((item) => [
       `${item.observerPeerId}\u0000${item.observerInstanceId}\u0000${item.environmentCursor}`,

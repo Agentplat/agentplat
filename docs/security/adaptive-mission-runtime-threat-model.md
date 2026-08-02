@@ -50,11 +50,14 @@ replace these bindings.
 
 ### Portable planning reducer
 
-The Increment 2 reducer is a local deterministic boundary, not a transport or
+The planning reducer is a local deterministic boundary, not a transport or
 authority boundary. It accepts only the closed command kinds
 `observation.record`, `proposal.record`, `slot.evaluate`,
-`fragment.transition` and `logical-time.advance`, each with trusted logical
-time, a logical command identifier and required
+`fragment.transition`, `fragment.project-to-work`,
+`fragment.assignment.observe`, `fragment.execution.observe`,
+`fragment.terminal.observe`, `work.revision.observe` and
+`logical-time.advance`, each with trusted logical time, a logical command
+identifier and required
 `expectedStateDigest: PlanningDigestV1 | null`. A null expected digest permits
 causality-only reorder; a non-null digest is an optimistic-concurrency
 precondition. Snapshot restore is a separate strict API, not a command. The
@@ -74,10 +77,22 @@ subjects, transfer shards or create execution authority.
 The digest treats `expectedStateDigest` and `transitionedAtLogicalMs` as
 first-application preconditions rather than domain content. They are validated
 before initial acceptance; once the exact domain command is retained, changing
-only either precondition cannot turn a retry into a new mutation. The retained
-high-water normalizes both preconditions before contributing to state digest.
-Logical time uses max-register semantics, so stale advances are idempotent and
-cannot lower the high-water.
+only either precondition cannot turn a retry into a new mutation. Retained
+Increment 3 lifecycle evidence records the first accepted transition time and
+the reducer logical-time witness, allowing snapshot validation to re-check the
+same temporal window without changing idempotency identity. Logical time uses
+max-register semantics, so stale advances are idempotent and cannot lower the
+high-water.
+
+The observed Work lifecycle commands never interpret discovery claims as
+authority. `fragment.project-to-work` binds an accepted head to a Mesh Work
+identity; assignment, execution, revision and terminal commands require exact
+fragment, Work mapping and role-binding compare-and-set evidence. The adapter
+must obtain the assignment epoch, assignee, lease and fence from current Mesh
+state and Collective Control. A planning reducer cannot manufacture them.
+Work revision is accepted only from an unassigned offered state. It cannot
+carry a role binding forward across a Work revision; later execution requires a
+fresh accepted assignment and derived Work Contract.
 
 ### Peer and model decision policy
 

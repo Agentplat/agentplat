@@ -275,6 +275,130 @@ async function allocationRuntime(objectivePolicyPatch = {}) {
   };
 }
 
+test('local offers require explicit support for every critical extension', async () => {
+  const { state, keys, resolver } = await allocationRuntime();
+  const extensionKey = 'test.extension.v1';
+  const recipients = await Promise.all(
+    [
+      ['peer-a', 'UAAAAAAAAAAAAAAAAAAAAA', 24],
+      ['peer-c', 'VAAAAAAAAAAAAAAAAAAAAA', 25],
+    ].map(async ([peerId, messageId, sequence]) => {
+      const envelope = structuredClone(offerFixture);
+      envelope.messageId = messageId;
+      envelope.sequence = sequence;
+      envelope.sender = { peerId: 'peer-b', instanceId: 'instance-b' };
+      envelope.audience = { kind: 'peer', peerId };
+      envelope.proof.keyId = 'key-b';
+      envelope.payload.ownerPeerId = 'peer-b';
+      envelope.extensions = { [extensionKey]: { schemaVersion: 1 } };
+      envelope.criticalExtensions = [extensionKey];
+      return {
+        recipientPeerId: peerId,
+        preparedAt: 7,
+        envelope: (await signed(envelope, 'peer-b', keys, resolver)).signed,
+      };
+    })
+  );
+  const command = {
+    kind: 'allocation.offer',
+    objectiveId: 'objective-a',
+    workItemId: 'work-item-a',
+    expectedWorkItemRevision: 1,
+    recipients,
+  };
+
+  const unsupported = evaluateMeshAllocationCommand(state, command, at, 7);
+  assert.equal(unsupported.accepted, false);
+  assert.equal(unsupported.code, 'offer_invalid');
+  assert.equal(unsupported.state, state);
+
+  const mixedRecipients = structuredClone(recipients);
+  delete mixedRecipients[1].envelope.extensions;
+  delete mixedRecipients[1].envelope.criticalExtensions;
+  mixedRecipients[1].envelope.proof.value = '';
+  mixedRecipients[1].envelope = (
+    await signed(mixedRecipients[1].envelope, 'peer-b', keys, resolver)
+  ).signed;
+  const mixed = evaluateMeshAllocationCommand(
+    state,
+    { ...command, recipients: mixedRecipients },
+    at,
+    7,
+    [extensionKey]
+  );
+  assert.equal(mixed.accepted, false);
+  assert.equal(mixed.code, 'offer_invalid');
+
+  const constrained = evaluateMeshAllocationCommand(
+    state,
+    { ...command, recipients: [recipients[0]] },
+    at,
+    7,
+    [extensionKey],
+    ['peer-a']
+  );
+  assert.equal(constrained.accepted, true, constrained.code);
+
+  const supported = evaluateMeshAllocationCommand(
+    state,
+    command,
+    at,
+    7,
+    [extensionKey],
+    ['peer-a', 'peer-c']
+  );
+  assert.equal(supported.accepted, true, supported.code);
+  const restored = restoreMeshAllocationState(
+    structuredClone(supported.state.allocation)
+  );
+  assert.deepEqual(
+    Object.values(restored.localOffers)[0]?.supportedCriticalExtensions,
+    [extensionKey]
+  );
+  const strippedSupport = structuredClone(supported.state.allocation);
+  delete Object.values(strippedSupport.localOffers)[0]
+    .supportedCriticalExtensions;
+  assert.throws(
+    () => restoreMeshAllocationState(strippedSupport),
+    /prepared offer sender scope/u
+  );
+  assert.deepEqual(
+    supported.effects.map((effect) => effect.kind),
+    ['allocation.offer.dispatch', 'allocation.offer.dispatch']
+  );
+  assert.throws(
+    () =>
+      evaluateMeshAllocationCommand(state, command, at, 7, [
+        extensionKey,
+        extensionKey,
+      ]),
+    /critical extensions/u
+  );
+  assert.throws(
+    () =>
+      evaluateMeshAllocationCommand(
+        state,
+        command,
+        at,
+        7,
+        [],
+        ['peer-a', 'peer-c']
+      ),
+    /eligible recipient/u
+  );
+  assert.throws(
+    () =>
+      evaluateMeshAllocationCommand(
+        state,
+        command,
+        at,
+        7,
+        Array.from({ length: 9 }, (_, index) => `extension.${index}`)
+      ),
+    /critical extensions/u
+  );
+});
+
 async function awardableAllocation(objectivePolicyPatch) {
   const {
     state: initial,

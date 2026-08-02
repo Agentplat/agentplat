@@ -3,9 +3,11 @@ import test from "node:test";
 
 import {
   CollectivePlanningValidationError,
+  createAdaptiveRoleBindingV1,
   createMissionIntentV1,
   createMissionObservationV1,
   createPlanFragmentProposalV1,
+  createPlanFragmentV1,
   createPlanSelectionPolicyV1,
   createPlanningReducerCommandV1,
   createPlanningReducerSnapshotV1,
@@ -228,6 +230,17 @@ function nonApplied(state, commandInput, status, code) {
   assert.equal(result.state, state);
   assert.equal(result.events.length, 0);
   return result;
+}
+
+function nextLifecycleFragment(fragment, status) {
+  const copy = structuredClone(fragment);
+  delete copy.fragmentDigest;
+  return createPlanFragmentV1({
+    ...copy,
+    fragmentRevision: fragment.fragmentRevision + 1,
+    previousStateDigest: fragment.fragmentDigest,
+    status,
+  });
 }
 
 test("reducer freezes the admitted peer-instance shard layout and preserves it on rejection", () => {
@@ -1772,5 +1785,251 @@ test("deadline tie-break compares instants before textual encodings", () => {
     state.planView.fragments.find((item) => item.status === "active")
       ?.proposalDigest,
     earlier.proposalDigest,
+  );
+});
+
+test("Increment 3 portable Work lifecycle is CAS-safe and replay-exact", () => {
+  const initial = configuredState({
+    intentOverrides: {
+      planningLimits: { ...defaultLimits, maximumRevisionsPerSemanticSlot: 10 },
+    },
+  });
+  const observed = observation(initial);
+  const proposed = proposal(initial, observed);
+  const stream = [
+    command({ kind: "observation.record", observation: observed }),
+    command({ kind: "proposal.record", proposal: proposed }),
+    command({
+      kind: "slot.evaluate",
+      semanticSlotKey: proposed.semanticSlotKey,
+      candidateProposalDigests: [proposed.proposalDigest],
+      decidedAtLogicalMs: 10,
+    }),
+  ];
+  let state = replayPlanningCommandsV1(initial, stream);
+  const advanceBeforeProject = command({
+    kind: "logical-time.advance",
+    logicalTimeMs: 12,
+  });
+  stream.push(advanceBeforeProject);
+  state = applied(state, advanceBeforeProject);
+  let fragment = state.planView.fragments.find(
+    (item) => item.status === "active",
+  );
+  const workTarget = {
+    schemaVersion: 1,
+    meshId: state.missionIntent.objective.meshId,
+    objectiveId: state.missionIntent.objective.objectiveId,
+    workItemId: "work-item:portable:1",
+    workItemRevision: 1,
+  };
+  const project = command({
+    kind: "fragment.project-to-work",
+    fragmentId: fragment.fragmentId,
+    previousFragmentDigest: fragment.fragmentDigest,
+    workTarget,
+    transitionedAtLogicalMs: 10,
+  });
+  stream.push(project);
+  state = applied(state, project);
+  fragment = state.planView.fragments.at(-1);
+  assert.equal(fragment.status, "offered");
+  assert.equal(
+    state.planView.workMappings[0].fragmentDigest,
+    fragment.fragmentDigest,
+  );
+  nonApplied(state, project, "idempotent");
+
+  const impossibleTimeHistory = structuredClone(state.commandHighWaters);
+  const retainedProject = impossibleTimeHistory.find(
+    (item) => item.command.kind === "fragment.project-to-work",
+  );
+  retainedProject.command.transitionedAtLogicalMs = 0;
+  assert.throws(
+    () => redigestState(state, { commandHighWaters: impossibleTimeHistory }),
+    /retained lifecycle commands do not match fragment history/u,
+  );
+  const missingAppliedTime = structuredClone(state.commandHighWaters);
+  delete missingAppliedTime.find(
+    (item) => item.command.kind === "fragment.project-to-work",
+  ).appliedAtLogicalMs;
+  assert.throws(
+    () => redigestState(state, { commandHighWaters: missingAppliedTime }),
+    /canonical retained command/u,
+  );
+  const advancedAfterProject = applied(
+    state,
+    command({ kind: "logical-time.advance", logicalTimeMs: 14 }),
+  );
+  const rewrittenWitnesses = structuredClone(
+    advancedAfterProject.commandHighWaters,
+  );
+  rewrittenWitnesses.find(
+    (item) => item.command.kind === "fragment.project-to-work",
+  ).appliedAtLogicalMs = 11;
+  const rewrittenWitnessState = redigestState(advancedAfterProject, {
+    commandHighWaters: rewrittenWitnesses,
+  });
+  assert.throws(
+    () =>
+      restorePlanningReducerSnapshotV1(
+        state,
+        createPlanningReducerSnapshotV1(rewrittenWitnessState),
+      ),
+    /snapshot_rollback/u,
+  );
+  const rewrittenRetainedCommands = structuredClone(
+    advancedAfterProject.commandHighWaters,
+  );
+  rewrittenRetainedCommands.find(
+    (item) => item.command.kind === "fragment.project-to-work",
+  ).command.transitionedAtLogicalMs = 11;
+  const rewrittenRetainedCommandState = redigestState(advancedAfterProject, {
+    commandHighWaters: rewrittenRetainedCommands,
+  });
+  assert.throws(
+    () =>
+      restorePlanningReducerSnapshotV1(
+        state,
+        createPlanningReducerSnapshotV1(rewrittenRetainedCommandState),
+      ),
+    /snapshot_rollback/u,
+  );
+
+  const reviseWork = command({
+    kind: "work.revision.observe",
+    fragmentId: fragment.fragmentId,
+    previousFragmentDigest: fragment.fragmentDigest,
+    expectedWorkMapping: state.planView.workMappings[0],
+    workTarget: { ...workTarget, workItemRevision: 2 },
+    roleBinding: null,
+  });
+  stream.push(reviseWork);
+  const staleMapping = state.planView.workMappings[0];
+  state = applied(state, reviseWork);
+  fragment = state.planView.fragments.at(-1);
+  assert.equal(fragment.status, "offered");
+  assert.equal(state.planView.workMappings[0].workItemRevision, 2);
+  nonApplied(
+    state,
+    command({
+      kind: "work.revision.observe",
+      fragmentId: fragment.fragmentId,
+      previousFragmentDigest: fragment.fragmentDigest,
+      expectedWorkMapping: staleMapping,
+      workTarget: { ...workTarget, workItemRevision: 2 },
+      roleBinding: null,
+    }),
+    "conflict",
+    "work_mapping_conflict",
+  );
+
+  const assigned = nextLifecycleFragment(fragment, "assigned");
+  const assignmentRole = createAdaptiveRoleBindingV1({
+    schemaVersion: 1,
+    roleBindingId: "adaptive-role:portable:1",
+    missionIntentId: state.missionIntent.missionIntentId,
+    intentRevision: state.missionIntent.revision,
+    intentDigest: state.missionIntent.intentDigest,
+    planViewDigest: state.planView.stateDigest,
+    fragmentDigest: assigned.fragmentDigest,
+    roleKey: fragment.roleKey,
+    workContractId: "work-contract:portable:1",
+    workContractDigest: digest("adaptive-role-binding", "portable-contract"),
+    assignedPeerId: "peer:beta",
+    assignedInstanceId: "instance:beta:1",
+    assignmentAuthorityId: "assignment-authority:portable:1",
+    assignmentEpoch: 1,
+    authorityGeneration: 1,
+    fencingToken: "fence:portable:1",
+    leaseExpiresAtLogicalMs: 100,
+    status: "current",
+    terminalReasonCode: null,
+  });
+  const assignment = command({
+    kind: "fragment.assignment.observe",
+    fragmentId: fragment.fragmentId,
+    previousFragmentDigest: fragment.fragmentDigest,
+    expectedWorkMapping: state.planView.workMappings[0],
+    roleBinding: assignmentRole,
+  });
+  stream.push(assignment);
+  state = applied(state, assignment);
+  fragment = state.planView.fragments.at(-1);
+  assert.equal(fragment.status, "assigned");
+  const reassigned = nextLifecycleFragment(fragment, "assigned");
+  const lowerAssignmentRoleInput = structuredClone(assignmentRole);
+  delete lowerAssignmentRoleInput.roleBindingDigest;
+  const lowerAssignmentRole = createAdaptiveRoleBindingV1({
+    ...lowerAssignmentRoleInput,
+    roleBindingId: "adaptive-role:portable:lower",
+    planViewDigest: state.planView.stateDigest,
+    fragmentDigest: reassigned.fragmentDigest,
+    fencingToken: "fence:portable:lower",
+    leaseExpiresAtLogicalMs: 90,
+  });
+  nonApplied(
+    state,
+    command({
+      kind: "fragment.assignment.observe",
+      fragmentId: fragment.fragmentId,
+      previousFragmentDigest: fragment.fragmentDigest,
+      expectedWorkMapping: state.planView.workMappings[0],
+      roleBinding: lowerAssignmentRole,
+    }),
+    "rejected",
+    "fragment_transition_invalid",
+  );
+  nonApplied(
+    state,
+    command({
+      kind: "work.revision.observe",
+      fragmentId: fragment.fragmentId,
+      previousFragmentDigest: fragment.fragmentDigest,
+      expectedWorkMapping: state.planView.workMappings[0],
+      workTarget: { ...workTarget, workItemRevision: 3 },
+      roleBinding: null,
+    }),
+    "rejected",
+    "fragment_transition_invalid",
+  );
+
+  const executing = nextLifecycleFragment(fragment, "executing");
+  const executionRoleInput = structuredClone(assignmentRole);
+  delete executionRoleInput.roleBindingDigest;
+  const executionRole = createAdaptiveRoleBindingV1({
+    ...executionRoleInput,
+    planViewDigest: state.planView.stateDigest,
+    fragmentDigest: executing.fragmentDigest,
+  });
+  const execution = command({
+    kind: "fragment.execution.observe",
+    fragmentId: fragment.fragmentId,
+    previousFragmentDigest: fragment.fragmentDigest,
+    previousRoleBindingDigest: assignmentRole.roleBindingDigest,
+    roleBinding: executionRole,
+  });
+  stream.push(execution);
+  state = applied(state, execution);
+  fragment = state.planView.fragments.at(-1);
+  assert.equal(fragment.status, "executing");
+
+  const terminal = command({
+    kind: "fragment.terminal.observe",
+    fragmentId: fragment.fragmentId,
+    previousFragmentDigest: fragment.fragmentDigest,
+    status: "completed",
+    expectedWorkMapping: state.planView.workMappings[0],
+    expectedRoleBindingDigest: executionRole.roleBindingDigest,
+    transitionedAtLogicalMs: 10,
+  });
+  stream.push(terminal);
+  state = applied(state, terminal);
+  assert.equal(state.planView.workMappings.length, 0);
+  assert.equal(state.planView.activeRoleBindings.length, 0);
+  assert.equal(state.planView.budgetReservations[0].status, "committed");
+  assert.equal(
+    replayPlanningCommandsV1(initial, stream).stateDigest,
+    state.stateDigest,
   );
 });

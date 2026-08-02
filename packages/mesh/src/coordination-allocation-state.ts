@@ -2764,12 +2764,28 @@ function validateStateRelations(
     }
     const key = workKey(offer.objectiveId, offer.work.workItemId);
     offerCounts.set(key, (offerCounts.get(key) ?? 0) + 1);
-    for (const prepared of Object.values(offer.recipientOffers)) {
+    const preparedOffers = Object.values(offer.recipientOffers);
+    const firstPrepared = preparedOffers[0];
+    if (
+      !firstPrepared ||
+      preparedOffers.some(
+        (prepared) =>
+          !sameCriticalOfferSemantics(
+            prepared.envelope,
+            firstPrepared.envelope,
+          ),
+      )
+    )
+      throw new TypeError(
+        "Mesh local offer recipient critical semantics differ",
+      );
+    for (const prepared of preparedOffers) {
       const context = validateMeshEnvelopeContext(prepared.envelope, {
         tenantId: state.identity.tenantId,
         meshId: state.identity.meshId,
         peerId: prepared.recipientPeerId,
         receivedAt: offer.validityVerifiedAt,
+        supportedCriticalExtensions: offer.supportedCriticalExtensions ?? [],
       });
       if (
         !context.ok ||
@@ -2811,6 +2827,10 @@ function validateStateRelations(
         predecessor === undefined
           ? undefined
           : state.reservations[predecessor.reservationId];
+      const currentEnvelope = Object.values(offer.recipientOffers)[0]?.envelope;
+      const predecessorEnvelope = predecessor
+        ? Object.values(predecessor.recipientOffers)[0]?.envelope
+        : undefined;
       if (
         offer.offerAttempt !== index + 1 ||
         offer.previousOfferId !== predecessor?.offerId ||
@@ -2819,7 +2839,13 @@ function validateStateRelations(
         (predecessor !== undefined &&
           (predecessorReservation?.status !== "released" ||
             predecessorReservation.releasedAt === undefined ||
-            offer.createdAt < predecessorReservation.releasedAt))
+            offer.createdAt < predecessorReservation.releasedAt)) ||
+        (predecessorEnvelope !== undefined &&
+          currentEnvelope !== undefined &&
+          !preservesCriticalOfferSemantics(
+            currentEnvelope,
+            predecessorEnvelope,
+          ))
       ) {
         throw new TypeError("Mesh local offer predecessor chain is invalid");
       }
@@ -3248,6 +3274,29 @@ function validateStateRelations(
     state,
     requireFrozen,
     allowMissingInitialLeaseHeads,
+  );
+}
+
+function sameCriticalOfferSemantics(
+  left: SignedMeshEnvelope<WorkOfferPayload>,
+  right: SignedMeshEnvelope<WorkOfferPayload>,
+): boolean {
+  if (!sameData(left.criticalExtensions ?? [], right.criticalExtensions ?? []))
+    return false;
+  return (left.criticalExtensions ?? []).every((key) =>
+    sameData(left.extensions?.[key], right.extensions?.[key]),
+  );
+}
+
+function preservesCriticalOfferSemantics(
+  current: SignedMeshEnvelope<WorkOfferPayload>,
+  previous: SignedMeshEnvelope<WorkOfferPayload>,
+): boolean {
+  const currentCritical = new Set(current.criticalExtensions ?? []);
+  return (previous.criticalExtensions ?? []).every(
+    (key) =>
+      currentCritical.has(key) &&
+      sameData(current.extensions?.[key], previous.extensions?.[key]),
   );
 }
 
@@ -4748,6 +4797,7 @@ function freezeLocalOffer(
       "previousOfferId",
       "recipientOffers",
       "reservationId",
+      "supportedCriticalExtensions",
       "validityVerifiedAt",
       "work",
     ],
@@ -4774,6 +4824,7 @@ function freezeLocalOffer(
   assertIdentifier(value.reservationId, "offer reservationId");
   assertTimestamp(value.bidDeadline, "offer bidDeadline");
   assertTimestamp(value.validityVerifiedAt, "offer validityVerifiedAt");
+  assertCriticalExtensions(value.supportedCriticalExtensions, "local offer");
   const expectedBidDeadline = logicalDeadline(
     value.bidDeadline,
     value.validityVerifiedAt,
@@ -4822,6 +4873,13 @@ function freezeLocalOffer(
     ...value,
     objectivePolicy: freezePolicy(value.objectivePolicy),
     work: freezeWork(value.work),
+    ...(value.supportedCriticalExtensions === undefined
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...value.supportedCriticalExtensions,
+          ]),
+        }),
     recipientOffers,
   });
 }

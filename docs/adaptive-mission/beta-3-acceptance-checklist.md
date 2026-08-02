@@ -1,8 +1,9 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increment 0 design freeze, Increment 1 portable contracts and Increment
-2 pure planning reducer complete. Every unchecked item remains release-blocking
-unless it is explicitly labeled diagnostic or deferred.
+Status: Increment 0 design freeze, Increment 1 portable contracts, Increment 2
+pure planning reducer and Increment 3 Mesh planning facade complete. Every
+unchecked item remains release-blocking unless it is explicitly labeled
+diagnostic or deferred.
 
 ## Design freeze
 
@@ -61,35 +62,35 @@ unless it is explicitly labeled diagnostic or deferred.
 
 ## Mesh projection
 
-- [ ] The exact critical extension key is negotiated through verified current
+- [x] The exact critical extension key is negotiated through verified current
       peer capability and local support.
-- [ ] Older/unsupported peers reject planning offers without downgrade retry.
-- [ ] Extension, fragment repository body and Work offer executable projection
+- [x] Older/unsupported peers reject planning offers without downgrade retry.
+- [x] Extension, fragment repository body and Work offer executable projection
       match exactly.
-- [ ] Fragment repository substitution, cross-tenant and cross-Objective reads
+- [x] Fragment repository substitution, cross-tenant and cross-Objective reads
       fail closed.
-- [ ] Local planning Work is created only after an accepted current fragment.
-- [ ] Inbound planning Work is gated before planning state commits.
-- [ ] Rejected inbound planning Work retains only required replay/message-ID
+- [x] Local planning Work is created only after an accepted current fragment.
+- [x] Inbound planning Work is gated before planning state commits.
+- [x] Rejected inbound planning Work retains only required replay/message-ID
       high-waters and commits no Objective, Work, allocation, planning, role,
       budget or effect state.
 - [ ] Normative allocation uses actual offer, bid, award, accept/decline, lease
       and recovery paths.
 - [ ] No direct assignee lookup or assignment-authority construction exists in
       the V2 runner.
-- [ ] Work Contract is derived only from a current accepted Mesh assignment.
+- [x] Work Contract is derived only from a current accepted Mesh assignment.
 - [ ] Adaptive role binding cannot outlive intent, fragment, Work Contract,
       assignment, lease or mandate.
-- [ ] Planning can only narrow upstream capability, budget, validity and action
+- [x] Planning can only narrow upstream capability, budget, validity and action
       scope.
-- [ ] Existing non-planning Mesh behavior remains byte/behavior compatible.
+- [x] Existing non-planning Mesh behavior remains byte/behavior compatible.
 
 ## Replanning
 
 - [ ] Replanning requires an explicit observation, result, fault, capability,
       Trust, deadline or intent input.
-- [ ] Every replacement names its exact causal predecessor and basis digests.
-- [ ] Supersession explicitly revises/cancels prior Work or leaves it terminal;
+- [x] Every replacement names its exact causal predecessor and basis digests.
+- [x] Supersession explicitly revises/cancels prior Work or leaves it terminal;
       it never rewrites history.
 - [ ] Dependency failure and contradictory observations can challenge, abstain
       or produce bounded alternate fragments.
@@ -141,8 +142,8 @@ unless it is explicitly labeled diagnostic or deferred.
 - [ ] Direct assignee lookup is detected.
 - [ ] Proposal/role-as-authority implementation is detected.
 - [ ] Widened or cyclic plan implementation is detected.
-- [ ] Critical-extension downgrade implementation is detected.
-- [ ] Fragment/Work substitution implementation is detected.
+- [x] Critical-extension downgrade implementation is detected.
+- [x] Fragment/Work substitution implementation is detected.
 - [ ] Stale-plan/stale-fence implementation is detected.
 - [ ] Declared-only fault implementation is detected.
 - [ ] Constant-success/zero-violation implementation is detected.

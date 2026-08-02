@@ -637,9 +637,11 @@ Neither participates in the idempotency digest. Once that domain identity and
 content is retained, a retry with a different precondition remains idempotent;
 a different observation, proposal, candidate batch, fragment transition or
 logical-time value remains distinct or conflicting. The command high-water
-stores the canonical domain command with both preconditions normalized, keeping
-the reducer state digest independent of admission-only input. Logical time is a
-monotonic max-register, so an advance at or below its high-water is idempotent.
+normalizes optimistic concurrency. Increment 3 lifecycle evidence also retains
+the first accepted transition time and reducer logical-time witness so a
+restored snapshot can re-check the original temporal window without changing
+the command identity. Logical time is a monotonic max-register, so an advance
+at or below its high-water is idempotent.
 
 Candidate evaluation is batch-local and deterministic. The reducer first
 applies hard constraints and then the frozen policy scoring dimensions. Only
@@ -657,13 +659,33 @@ environment, clock, repository or other external dependency.
 
 ### Increment 3: Mesh planning facade
 
-- planning capability profile and critical extension;
-- content-addressed fragment repository port;
-- local proposal-to-Work projection;
-- inbound planning gate and replay-only rejection behavior;
-- exact Work projection validation;
-- adaptive role/Work Contract wrapper;
-- supersession, revision and cancellation composition.
+- exact planning capability profile negotiated through verified current Peer
+  Cards, Peer Views and capability advertisements plus explicit local support;
+- one signed critical extension with no legacy or non-critical downgrade path;
+- identical critical semantics for every recipient, monotonic critical evidence
+  across reoffers and an explicit eligible-recipient constraint for negotiated
+  subsets in mixed-capability topologies;
+- bounded content-addressed fragment repository port whose immutable record
+  contains proposal, source decision, offered fragment and complete source
+  PlanView evidence;
+- stable proposal-derived Work identity and exact local proposal-to-Work
+  projection;
+- inbound planning gate composed after ordinary Mesh verification/evaluation,
+  with local reducer admission by proposal digest and replay-only rejection;
+- peer-local fragment digests may differ, while proposal digest and every
+  executable Work field must match;
+- adaptive role/Work Contract wrapper derived only from a current accepted
+  Mesh assignment;
+- observed assignment, execution, revision and terminal transitions protected
+  by fragment, mapping and, where applicable, role compare-and-set evidence;
+- Work revision is allowed only while unassigned; assigned or executing Work
+  must first terminate or drain and obtain a fresh assignment and Work Contract;
+- supersession, revision and cancellation composed only through existing Mesh
+  Work commands.
+
+The facade is additive at `@agentplat/collective-planning/mesh`. The portable
+root remains browser-safe and imports no Mesh package. No Mesh payload union or
+wire version changes in this increment.
 
 Gate: real three-peer intent-to-assignment scenario from packed tarballs.
 

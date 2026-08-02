@@ -178,6 +178,10 @@ try {
     consumerRoot,
     'mesh-allocation-recovery'
   );
+  const collectivePlanningMeshConsumerRoot = path.join(
+    consumerRoot,
+    'collective-planning-mesh-three-peer'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   const inferenceControlConsumerRoot = path.join(
     consumerRoot,
@@ -203,6 +207,7 @@ try {
     mkdir(meshScenarioConsumerRoot, { recursive: true }),
     mkdir(meshConformanceConsumerRoot, { recursive: true }),
     mkdir(meshAllocationRecoveryConsumerRoot, { recursive: true }),
+    mkdir(collectivePlanningMeshConsumerRoot, { recursive: true }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
     mkdir(trustConsumerRoot, { recursive: true }),
@@ -242,6 +247,7 @@ try {
         "  - 'mesh-three-peer'",
         "  - 'mesh-conformance'",
         "  - 'mesh-allocation-recovery'",
+        "  - 'collective-planning-mesh-three-peer'",
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
@@ -324,6 +330,23 @@ try {
     meshPackageNames.map((packageName) => {
       const artifact = artifactsByName.get(packageName);
       assert.ok(artifact, `Missing packed Mesh dependency: ${packageName}`);
+      return [packageName, artifact.tarballReference];
+    })
+  );
+  const collectivePlanningMeshPackageNames = Object.freeze([
+    '@agentplat/collective-control',
+    '@agentplat/collective-planning',
+    '@agentplat/mesh',
+    '@agentplat/mesh-crypto',
+    '@agentplat/mesh-protocol',
+  ]);
+  const collectivePlanningMeshDependencies = Object.fromEntries(
+    collectivePlanningMeshPackageNames.map((packageName) => {
+      const artifact = artifactsByName.get(packageName);
+      assert.ok(
+        artifact,
+        `Missing packed collective planning Mesh dependency: ${packageName}`
+      );
       return [packageName, artifact.tarballReference];
     })
   );
@@ -547,6 +570,51 @@ try {
       )
     ),
     writeFile(
+      path.join(collectivePlanningMeshConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-collective-planning-mesh-three-peer',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: collectivePlanningMeshDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-mesh-three-peer.mjs'
+      ),
+      path.join(collectivePlanningMeshConsumerRoot, 'verify-planning-mesh.mjs')
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/collective-planning-types.ts'),
+      path.join(collectivePlanningMeshConsumerRoot, 'verify-types.ts')
+    ),
+    writeFile(
+      path.join(collectivePlanningMeshConsumerRoot, 'tsconfig.json'),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            strict: true,
+            noEmit: true,
+            skipLibCheck: false,
+            types: [],
+            lib: ['ES2022', 'DOM'],
+          },
+          include: ['verify-types.ts'],
+        },
+        null,
+        2
+      )}\n`
+    ),
+    writeFile(
       path.join(npmConsumerRoot, 'package.json'),
       `${JSON.stringify(
         {
@@ -639,6 +707,22 @@ try {
     cwd: meshAllocationRecoveryConsumerRoot,
     stdio: 'inherit',
   });
+  execFileSync(process.execPath, ['verify-planning-mesh.mjs'], {
+    cwd: collectivePlanningMeshConsumerRoot,
+    stdio: 'inherit',
+  });
+  execFileSync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules/typescript/bin/tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    {
+      cwd: collectivePlanningMeshConsumerRoot,
+      stdio: 'inherit',
+    }
+  );
   execFileSync(
     process.execPath,
     [

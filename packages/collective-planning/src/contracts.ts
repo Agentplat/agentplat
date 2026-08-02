@@ -264,6 +264,12 @@ export interface PlanningReducerCommandHighWaterV1 {
   readonly commandId: string;
   readonly commandDigest: PlanningDigestV1;
   readonly command: PlanningReducerCommandV1;
+  /**
+   * Reducer logical time at the first successful application. Increment 3
+   * lifecycle records require this witness so restored state can re-check the
+   * same bounded-time preconditions that guarded the live transition.
+   */
+  readonly appliedAtLogicalMs?: number;
 }
 
 export interface PlanningReducerStateV1 {
@@ -318,6 +324,62 @@ export interface TransitionPlanningFragmentCommandV1 extends PlanningReducerComm
   readonly transitionedAtLogicalMs: number;
 }
 
+/** Portable Work identity supplied by an adapter before the resulting fragment digest exists. */
+export interface PlanningWorkTargetV1 {
+  readonly schemaVersion: 1;
+  readonly meshId: string;
+  readonly objectiveId: string;
+  readonly workItemId: string;
+  readonly workItemRevision: number;
+}
+
+export interface ProjectPlanningFragmentToWorkCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "fragment.project-to-work";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly workTarget: PlanningWorkTargetV1;
+  readonly transitionedAtLogicalMs: number;
+}
+
+export interface ObservePlanningFragmentAssignmentCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "fragment.assignment.observe";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly expectedWorkMapping: FragmentWorkMappingV1;
+  readonly roleBinding: AdaptiveRoleBindingV1;
+}
+
+export interface ObservePlanningFragmentExecutionCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "fragment.execution.observe";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly previousRoleBindingDigest: PlanningDigestV1;
+  readonly roleBinding: AdaptiveRoleBindingV1;
+}
+
+export type ObservedTerminalFragmentStatusV1 =
+  "superseded" | "cancelled" | "completed" | "failed";
+
+export interface ObservePlanningFragmentTerminalCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "fragment.terminal.observe";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly status: ObservedTerminalFragmentStatusV1;
+  readonly expectedWorkMapping: FragmentWorkMappingV1;
+  readonly expectedRoleBindingDigest: PlanningDigestV1 | null;
+  readonly transitionedAtLogicalMs: number;
+}
+
+export interface ObservePlanningWorkRevisionCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "work.revision.observe";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly expectedWorkMapping: FragmentWorkMappingV1;
+  readonly workTarget: PlanningWorkTargetV1;
+  /** Work is revised only while unassigned; a new assignment must derive fresh authority. */
+  readonly roleBinding: null;
+}
+
 export interface AdvancePlanningLogicalTimeCommandV1 extends PlanningReducerCommandBaseV1 {
   readonly kind: "logical-time.advance";
   readonly logicalTimeMs: number;
@@ -328,6 +390,11 @@ export type PlanningReducerCommandV1 =
   | RecordPlanningProposalCommandV1
   | EvaluatePlanningSlotCommandV1
   | TransitionPlanningFragmentCommandV1
+  | ProjectPlanningFragmentToWorkCommandV1
+  | ObservePlanningFragmentAssignmentCommandV1
+  | ObservePlanningFragmentExecutionCommandV1
+  | ObservePlanningFragmentTerminalCommandV1
+  | ObservePlanningWorkRevisionCommandV1
   | AdvancePlanningLogicalTimeCommandV1;
 
 export type PlanningReducerEventKindV1 =
@@ -336,6 +403,11 @@ export type PlanningReducerEventKindV1 =
   | "slot.evaluated"
   | "fragment.created"
   | "fragment.transitioned"
+  | "fragment.projected-to-work"
+  | "fragment.assignment-observed"
+  | "fragment.execution-observed"
+  | "fragment.terminal-observed"
+  | "work.revision-observed"
   | "logical-time.advanced";
 
 export interface PlanningReducerEventV1 {
@@ -367,6 +439,10 @@ export type PlanningReducerErrorCodeV1 =
   | "graph_invalid"
   | "candidate_set_incomplete"
   | "fragment_transition_invalid"
+  | "work_mapping_conflict"
+  | "work_revision_invalid"
+  | "role_binding_conflict"
+  | "role_binding_invalid"
   | "increment_not_supported";
 
 export interface PlanningReducerErrorV1 {
