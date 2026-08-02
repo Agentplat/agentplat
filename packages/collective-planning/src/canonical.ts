@@ -15,6 +15,12 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "plan-view",
   "adaptive-role-binding",
   "collective-planning-snapshot",
+  "planning-reducer-command-identity",
+  "planning-reducer-command",
+  "planning-reducer-transition",
+  "planning-reducer-state",
+  "planning-reducer-event",
+  "planning-reducer-snapshot",
 ]);
 
 export class CollectivePlanningValidationError extends Error {

@@ -1,8 +1,8 @@
 # `@agentplat/collective-planning`
 
-Portable, provider-neutral contracts for forming and inspecting bounded local
-mission plans. The root entry point is browser safe, has no import-time side
-effects and depends only on `@agentplat/core` types.
+Portable, provider-neutral contracts and a deterministic reducer for forming
+bounded local mission plans. The root entry point is browser safe, has no
+import-time side effects and depends only on `@agentplat/core` types.
 
 ## What this increment contains
 
@@ -12,18 +12,75 @@ effects and depends only on `@agentplat/core` types.
 - domain-separated digests and deterministic proposal/fragment identifiers;
 - strict validators that reject unknown fields, malformed Unicode, unsafe
   integers, invalid time intervals, digest mismatches and inconsistent graphs;
-- constructors that validate and deeply freeze their result.
+- constructors that validate and deeply freeze their result;
+- a pure, immutable planning reducer with trusted logical-time commands,
+  atomic acceptance or rejection, deterministic candidate-batch selection and
+  self-contained snapshot/replay state.
 
-It does not contain a planning reducer, Mesh adapter, environment, evaluator or
-model integration. A proposal, fragment, plan view or adaptive role binding is
-evidence and coordination data; none of these records grants execution
-authority.
+It does not contain a Mesh facade, Work projection, assignment, execution
+authority, environment adapter, evaluator, monitor or model integration. A
+proposal, fragment, plan view or adaptive role binding is evidence and
+coordination data; none of these records grants execution authority.
+
+## Reducer boundary
+
+The reducer is a synchronous, deterministic state transition. It reads no host
+clock, randomness, transport, storage, model, environment or Mesh state. The
+caller supplies a closed command and a non-decreasing logical time. The result
+is a deeply frozen next state or a rejection that retains the exact prior state.
+
+Construction binds planning budget shards to the exact admitted subject set:
+each subject is an ordered peer and instance pair. Discovery, remote proposals,
+capability changes and Trust changes cannot add a subject, resize a shard or
+transfer unused budget. The reducer retains accepted observations and
+cursor-tombstone records, so a repeated cursor is idempotent and conflicting
+reuse fails before any plan, budget or lifecycle mutation.
+
+Commands are closed and deterministic: `observation.record`,
+`proposal.record`, `slot.evaluate`, `fragment.transition` and
+`logical-time.advance`. Every command has a logical identifier, required
+`expectedStateDigest`, and logical time. `expectedStateDigest: null` permits a
+causality-only reordered command; a digest binds optimistic concurrency to that
+exact state. Reuse of an identifier with the same canonical digest is
+idempotent; reuse with different content is a conflict. Invalid shape, scope,
+state digest, time, graph, budget or lifecycle input is rejected atomically.
+
+`expectedStateDigest` is an optimistic-concurrency precondition for the first
+application, not domain content. `transitionedAtLogicalMs` is likewise an
+admission-time precondition for a fragment transition whose identity already
+binds the fragment, predecessor and terminal status. Both are excluded from the
+idempotency digest. After the domain command is accepted, retries with different
+values for either precondition remain idempotent; changing domain payload is
+still a conflict. The command high-water stores the canonical domain command
+with those preconditions normalized, so they cannot perturb the reducer state
+digest. Logical-time advancement is a max-register: a value at or below the
+retained high-water is idempotent and never lowers time.
+
+Snapshot restore is a separate strict API, not a reducer command. It verifies
+the complete self-contained snapshot before it returns a restored state.
+
+Candidate batches are ordered by the frozen selection policy: constraints first,
+then policy score, then the policy's declared digest tie-break. A batch produces
+at most one current head for a semantic slot. Predecessor/dependency graphs,
+depth, fanout, revisions, proposal bytes and concurrency are checked before
+state change. Reservations are conserved across every accepted prefix; release
+is available only through the safe lifecycle subset and cannot recreate a
+terminal fragment, intent or role.
+
+Reducer snapshots are self-contained: they retain identity, intent, policy,
+admitted subjects and shards, observations and cursor tombstones, domain
+high-waters, idempotency records, plan records, budget ledger and logical-time
+high-water. Restoring or replaying the same accepted command sequence produces
+the same state digest without consulting an external observation store.
 
 ## Minimal use
 
 ```ts
 import {
   createPlanSelectionPolicyV1,
+  createPlanningReducerCommandV1,
+  createPlanningReducerStateV1,
+  reducePlanningCommandV1,
   validateMissionIntentV1,
 } from "@agentplat/collective-planning";
 
@@ -52,6 +109,32 @@ const policy = createPlanSelectionPolicyV1({
 });
 
 const intent = validateMissionIntentV1(inputFromATrustedBoundary);
+
+const initialState = createPlanningReducerStateV1({
+  tenantId: intent.tenantId,
+  policyDomainId: intent.policyDomainId,
+  peerId: "planner-a",
+  peerInstanceId: "planner-a-instance-1",
+  missionIntent: intent,
+  selectionPolicy: policy,
+  admittedSubjects: [
+    {
+      schemaVersion: 1,
+      peerId: "planner-a",
+      peerInstanceId: "planner-a-instance-1",
+    },
+  ],
+});
+
+const result = reducePlanningCommandV1(
+  initialState,
+  createPlanningReducerCommandV1({
+    schemaVersion: 1,
+    kind: "logical-time.advance",
+    expectedStateDigest: initialState.stateDigest,
+    logicalTimeMs: 1,
+  }),
+);
 ```
 
 All set-like arrays are encoded in ascending lexical order and contain no

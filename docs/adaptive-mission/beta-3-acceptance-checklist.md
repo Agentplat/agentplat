@@ -1,8 +1,8 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increment 0 design freeze and Increment 1 portable contracts complete.
-Every unchecked item remains release-blocking unless it is explicitly labeled
-diagnostic or deferred.
+Status: Increment 0 design freeze, Increment 1 portable contracts and Increment
+2 pure planning reducer complete. Every unchecked item remains release-blocking
+unless it is explicitly labeled diagnostic or deferred.
 
 ## Design freeze
 
@@ -34,29 +34,30 @@ diagnostic or deferred.
       digests are domain-separated and fixture-backed.
 - [x] All validators reject unknown fields, invalid UTF-8/size boundaries,
       unsafe integers and malformed graph references.
-- [ ] Same logical ID/same digest is idempotent; same ID/different digest is a
+- [x] Same logical ID/same digest is idempotent; same ID/different digest is a
       conflict.
 - [x] Public type tests cover every new export and negative authority case.
 
 ## Planning reducer
 
-- [ ] Proposal evaluation uses only exact intent, policy, observations and
-      local bounded state.
-- [ ] Accepted proposals remain non-authoritative planning records.
-- [ ] Selection is deterministic for identical candidate set and policy.
-- [ ] Digest tie-break occurs only after frozen policy scoring and proposals
+- [x] Proposal evaluation uses only exact intent, policy, retained observations
+      and local bounded state.
+- [x] Accepted proposals remain non-authoritative planning records.
+- [x] Selection is deterministic for identical candidate set and policy.
+- [x] Digest tie-break occurs only after frozen policy scoring and proposals
       contain no grinding nonce.
-- [ ] One semantic slot has at most one active local head.
-- [ ] Predecessor chains and dependency graphs are valid and acyclic.
-- [ ] Depth, fanout, cardinality, revision, byte and concurrency limits fail
+- [x] One semantic slot has at most one active local head.
+- [x] Predecessor chains and dependency graphs are valid and acyclic.
+- [x] Depth, fanout, cardinality, revision, byte and concurrency limits fail
       before mutation.
-- [ ] Planning budget shards are deterministic, peer/instance bound and cannot
-      increase from remote input.
-- [ ] Every state prefix conserves planning reservations and terminal usage.
-- [ ] Rejected input changes no state, timer, budget or effect.
-- [ ] Terminal intent, fragment and role states never reactivate.
-- [ ] Snapshot/restore verifies all relationships and preserves high-waters.
-- [ ] Reorder, duplicate and snapshot replay converge to the expected digest.
+- [x] Planning budget shards are deterministic, admitted peer/instance bound
+      and cannot increase from remote input.
+- [x] Every state prefix conserves planning reservations and terminal usage.
+- [x] Rejected input changes no state, timer, budget or effect.
+- [x] Terminal intent, fragment and role states never reactivate.
+- [x] Self-contained snapshot/restore verifies all relationships, retained
+      observation cursors and high-waters.
+- [x] Reorder, duplicate and snapshot replay converge to the expected digest.
 
 ## Mesh projection
 

@@ -591,6 +591,70 @@ Implementation review:
 
 Gate: portable planning conformance and negative implementations.
 
+#### Frozen Increment 2 reducer boundary
+
+Increment 2 is confined to the browser-safe root of
+`@agentplat/collective-planning`. It adds no Mesh payload, Mesh facade,
+repository, environment, evaluator, execution path or authority surface. It
+does not import Mesh, Collective Control, Inference Control, a Node built-in or
+an external runtime dependency.
+
+The construction input freezes an ordered set of admitted planning subjects.
+Each subject is the exact `(peerId, peerInstanceId)` pair admitted for the
+intent. Equal mandate-subject shards derive only from that fixed set. Remote
+input, discovery, capability, eligibility and Trust changes cannot add a
+subject, transfer a shard, or increase total planning budget.
+
+The reducer owns its complete local evidence: accepted observations, exact
+cursor tombstones, proposal/decision/fragment history, budget reservations,
+domain high-waters, command idempotency records and logical-time high-water.
+An observation cursor reused with the same digest is idempotent; reuse with
+different content is a conflict. The state never consults an external
+observation repository during reduction, restore or replay.
+
+Its public input is a closed, versioned command union. The only command kinds
+are `observation.record`, `proposal.record`, `slot.evaluate`,
+`fragment.transition` and `logical-time.advance`. Every command carries a
+logical command identifier, required `expectedStateDigest: PlanningDigestV1 |
+null` and trusted logical time. A null expected digest permits causality-only
+reorder; a non-null digest is the optimistic-concurrency precondition. Snapshot
+restore is a separate strict API, not a reducer command. There is no generic
+patch command, initialization command, implicit timer, host clock, random
+value, execution command or authority command.
+
+Reduction is atomic. It validates the complete command, scope, high-waters,
+candidate graph, policy limits and budget ledger before publishing a next state.
+A rejected command returns the existing frozen state unchanged: it cannot add a
+timer, change a head, retain a cursor, consume/release budget, or emit an
+effect. Same logical identifier and canonical digest is idempotent; the same
+identifier with different content is a conflict.
+
+The command digest separates domain content from first-application
+preconditions. `expectedStateDigest` is checked as optimistic concurrency only
+before the command is first accepted. `transitionedAtLogicalMs` is checked as a
+temporal admission precondition for the fragment/predecessor/status identity.
+Neither participates in the idempotency digest. Once that domain identity and
+content is retained, a retry with a different precondition remains idempotent;
+a different observation, proposal, candidate batch, fragment transition or
+logical-time value remains distinct or conflicting. The command high-water
+stores the canonical domain command with both preconditions normalized, keeping
+the reducer state digest independent of admission-only input. Logical time is a
+monotonic max-register, so an advance at or below its high-water is idempotent.
+
+Candidate evaluation is batch-local and deterministic. The reducer first
+applies hard constraints and then the frozen policy scoring dimensions. Only
+after equal scores does it use the declared digest tie-break. It creates at
+most one current semantic-slot head, preserves an acyclic bounded dependency
+graph, and conserves the fixed planning budget across reservations, committed
+terminal use and explicitly permitted releases. Lifecycle transitions are a
+safe subset only: terminal intent, fragment and role records never reactivate.
+
+Snapshots contain all reducer-owned records, including admitted peer/instance
+subjects and shards, observations/cursor tombstones, idempotency and domain
+high-waters, the complete budget ledger and logical time. Strict restore and
+exact command replay must produce the same state digest without a Mesh,
+environment, clock, repository or other external dependency.
+
 ### Increment 3: Mesh planning facade
 
 - planning capability profile and critical extension;
