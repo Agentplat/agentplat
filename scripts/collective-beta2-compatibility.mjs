@@ -15,6 +15,7 @@ import {
 
 const root = process.cwd();
 const baselineTag = "v0.3.0-beta.1";
+const compatibilityCommit = "68be97142aad1d31e2c65c08ec431c25d2fedba9";
 const baselineEvidenceCommit = "6ac78cba0a56d7c5d2c5f372ab0b549c1565b17a";
 const releaseVersion = "0.3.0-beta.2";
 const argumentsByName = parseArguments(process.argv.slice(2));
@@ -68,7 +69,7 @@ const currentRecords = catalog.packages.flatMap((entry) => {
 });
 assertPublicApiCompatibility(baselineSurface.records, currentRecords);
 
-const compiledBaselineSources = await compileBaselineSources();
+const compiledBaselineSources = await compileBaselineSources(baselineTag);
 const baselinePackages = new Set(
   baselineCatalog.packages.map((entry) => entry.name),
 );
@@ -109,6 +110,14 @@ const body = {
 const report = { ...body, reportSha256: sha256(JSON.stringify(body)) };
 
 if (mode === "run") {
+  const rootManifest = JSON.parse(
+    await readFile(path.join(root, "package.json"), "utf8"),
+  );
+  assert.equal(
+    rootManifest.version,
+    releaseVersion,
+    "Historical Beta 2 evidence can only be regenerated from the Beta 2 release line",
+  );
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, {
     encoding: "utf8",
     mode: 0o644,
@@ -121,7 +130,26 @@ if (mode === "run") {
   assert.equal(evidence.baseline.tag, baselineTag);
   assert.equal(evidence.baseline.commit, baselineCommit);
   assert.equal(evidence.baseline.evidenceCommit, baselineEvidenceCommit);
-  assert.equal(evidence.candidate.surfaceSha256, body.candidate.surfaceSha256);
+  assert.ok(
+    evidence.candidate.packageCount <= body.candidate.packageCount,
+    "Current package count must preserve the Beta 2 candidate",
+  );
+  assert.ok(
+    evidence.candidate.entrypointCount <= body.candidate.entrypointCount,
+    "Current entrypoint count must preserve the Beta 2 candidate",
+  );
+  const currentPackages = new Set(catalog.packages.map((entry) => entry.name));
+  const currentEntrypoints = new Set(currentRecords.map(surfaceKey));
+  for (const packageName of evidence.candidate.newPackages)
+    assert.ok(
+      currentPackages.has(packageName),
+      `Current catalog removed Beta 2 package ${packageName}`,
+    );
+  for (const entrypoint of evidence.candidate.newEntrypoints)
+    assert.ok(
+      currentEntrypoints.has(entrypoint),
+      `Current surface removed Beta 2 entrypoint ${entrypoint}`,
+    );
   assert.equal(evidence.removedPackages, 0);
   assert.equal(evidence.removedEntrypoints, 0);
   assert.equal(evidence.removedTypeExports, 0);
@@ -134,18 +162,19 @@ if (mode === "run") {
     ["merge-base", "--is-ancestor", evidence.candidateCommit, "HEAD"],
     { cwd: root, stdio: "ignore" },
   );
+  await compileBaselineSources(compatibilityCommit);
 }
 
 process.stdout.write(
   `Beta 2 compatibility passed: ${baselineSurface.records.length} prior entrypoints, ${currentRecords.length} current entrypoints, ${compiledBaselineSources} compiled contracts\n`,
 );
 
-async function compileBaselineSources() {
+async function compileBaselineSources(sourceTag) {
   const sources = git([
     "ls-tree",
     "-r",
     "--name-only",
-    baselineTag,
+    sourceTag,
     "tests",
     "scripts/pack-consumers",
   ])
@@ -171,7 +200,7 @@ async function compileBaselineSources() {
             sourceRoot,
             `${String(index).padStart(3, "0")}-${path.basename(file)}`,
           ),
-          git(["show", `${baselineTag}:${file}`]),
+          git(["show", `${sourceTag}:${file}`]),
           "utf8",
         ),
       ),

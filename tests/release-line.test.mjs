@@ -9,7 +9,7 @@ import {
   TRUST_PACKAGE_NAME,
 } from '../scripts/release-line.mjs';
 
-const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2] = RELEASE_LINES;
+const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_3] = RELEASE_LINES;
 
 test('release-line guard accepts the historical 29-package Alpha 3 cohort before Trust is cataloged', async (t) => {
   const root = await createReleaseLineFixture({ line: ALPHA_3 });
@@ -44,6 +44,39 @@ test('release-line guard accepts the coordinated 36-package Beta 2 cohort', asyn
   t.after(() => rm(root, { force: true, recursive: true }));
 
   assert.equal(await assertReleaseLine({ root }), true);
+});
+
+test('release-line guard accepts the coordinated 37-package Beta 3 cohort', async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_3 });
+  t.after(() => rm(root, { force: true, recursive: true }));
+
+  assert.equal(await assertReleaseLine({ root }), true);
+});
+
+test('release-line guard rejects Beta 2 versions in a 37-package cohort', async (t) => {
+  const root = await createReleaseLineFixture({
+    line: BETA_3,
+    version: BETA_2.releaseVersion,
+  });
+  t.after(() => rm(root, { force: true, recursive: true }));
+
+  await assert.rejects(
+    () => assertReleaseLine({ root }),
+    /release line beta3 requires root version 0\.3\.0-beta\.3/i
+  );
+});
+
+test('release-line guard rejects a 37-package Beta 2 cohort', async (t) => {
+  const root = await createReleaseLineFixture({
+    line: BETA_2,
+    packageCount: 37,
+  });
+  t.after(() => rm(root, { force: true, recursive: true }));
+
+  await assert.rejects(
+    () => assertReleaseLine({ root }),
+    /release line beta3 requires root version 0\.3\.0-beta\.3/i
+  );
 });
 
 test('release-line guard rejects Alpha 4 versions in a 29-package cohort', async (t) => {

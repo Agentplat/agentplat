@@ -23,6 +23,9 @@ importers:
       '@agentplat/collective-control-postgres':
         specifier: workspace:*
         version: link:packages/collective-control-postgres
+      '@agentplat/collective-planning':
+        specifier: workspace:*
+        version: link:packages/collective-planning
       '@agentplat/core':
         specifier: workspace:*
         version: link:packages/core
@@ -201,6 +204,12 @@ importers:
       pg:
         specifier: ^8.13.1
         version: 8.22.0
+
+  packages/collective-planning:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
 
   packages/core: {}
 
