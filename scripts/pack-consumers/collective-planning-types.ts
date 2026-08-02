@@ -95,6 +95,35 @@ import {
   type PlanningWorkProjectionValidationInputV1,
 } from "@agentplat/collective-planning/mesh";
 
+import {
+  COLLECTIVE_ENVIRONMENT_PORT_VERSION_V1,
+  COLLECTIVE_INTERACTION_ACCOUNTING_VERSION_V2,
+  COLLECTIVE_INVARIANT_MONITOR_PORT_VERSION_V1,
+  COLLECTIVE_TRACE_SCHEMA_VERSION_V2,
+  DEFAULT_COLLECTIVE_EVALUATION_LIMITS_V1,
+  assertCollectiveEnvironmentPortV1,
+  auditCollectiveEnvironmentPortV1,
+  collectiveHiddenCanaryDigestV1,
+  createCollectiveEvaluationRegistrationBindingV1,
+  createCollectiveTraceEventV2,
+  createCollectiveTraceV2,
+  replayCollectiveInteractionLedgerV2,
+  replayCollectiveInvariantMonitorV1,
+  type CollectiveEnvironmentEffectPortV1,
+  type CollectiveEnvironmentLifecyclePortV1,
+  type CollectiveEnvironmentLogicalTimePortV1,
+  type CollectiveEnvironmentObservationPortV1,
+  type CollectiveEnvironmentPortV1,
+  type CollectiveEnvironmentSnapshotPortV1,
+  type CollectiveEvaluationBoundaryEvidenceV1,
+  type CollectiveEvaluationRegistrationBindingV1,
+  type CollectiveInteractionLedgerV2,
+  type CollectiveInvariantMonitorV1,
+  type CollectiveInvariantMonitorVerdictV1,
+  type CollectiveTraceEventV2,
+  type CollectiveTraceV2,
+} from "@agentplat/collective-planning/evaluation";
+
 declare const intent: MissionIntentV1;
 declare const observation: MissionObservationV1;
 declare const policy: PlanSelectionPolicyV1;
@@ -206,6 +235,32 @@ void validatePlanningFragmentRepositoryRecordV1;
 void validatePlanningLocalWorkProjectionV1;
 void validatePlanningWorkExtensionV1;
 void validatePlanningWorkProjectionV1;
+void COLLECTIVE_ENVIRONMENT_PORT_VERSION_V1;
+void COLLECTIVE_INTERACTION_ACCOUNTING_VERSION_V2;
+void COLLECTIVE_INVARIANT_MONITOR_PORT_VERSION_V1;
+void COLLECTIVE_TRACE_SCHEMA_VERSION_V2;
+void DEFAULT_COLLECTIVE_EVALUATION_LIMITS_V1;
+void assertCollectiveEnvironmentPortV1;
+void auditCollectiveEnvironmentPortV1;
+void collectiveHiddenCanaryDigestV1;
+void createCollectiveEvaluationRegistrationBindingV1;
+void createCollectiveTraceEventV2;
+void createCollectiveTraceV2;
+void replayCollectiveInteractionLedgerV2;
+void replayCollectiveInvariantMonitorV1;
+void (null as CollectiveEnvironmentEffectPortV1 | null);
+void (null as CollectiveEnvironmentLifecyclePortV1 | null);
+void (null as CollectiveEnvironmentLogicalTimePortV1 | null);
+void (null as CollectiveEnvironmentObservationPortV1 | null);
+void (null as CollectiveEnvironmentPortV1 | null);
+void (null as CollectiveEnvironmentSnapshotPortV1 | null);
+void (null as CollectiveEvaluationBoundaryEvidenceV1 | null);
+void (null as CollectiveEvaluationRegistrationBindingV1 | null);
+void (null as CollectiveInteractionLedgerV2 | null);
+void (null as CollectiveInvariantMonitorV1 | null);
+void (null as CollectiveInvariantMonitorVerdictV1 | null);
+void (null as CollectiveTraceEventV2 | null);
+void (null as CollectiveTraceV2 | null);
 
 // @ts-expect-error planning proposals cannot mint execution authority.
 proposal.assignmentAuthorityId;

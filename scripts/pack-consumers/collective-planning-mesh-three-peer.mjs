@@ -26,6 +26,11 @@ import {
   planningWorkItemIdV1,
   selectPlanningOfferRecipientsV1,
 } from '@agentplat/collective-planning/mesh';
+import {
+  COLLECTIVE_INTERACTION_ACCOUNTING_VERSION_V2,
+  auditCollectiveEnvironmentPortV1,
+  collectiveTraceAccountingV2,
+} from '@agentplat/collective-planning/evaluation';
 import { DELEGATION_MANDATE_REFERENCE_PREFIX_V1 } from '@agentplat/collective-control/mesh';
 import {
   DEFAULT_MESH_CRYPTO_POLICY,
@@ -1372,6 +1377,28 @@ assert.equal(
 assert.equal(
   adaptiveRole.roleBinding.fencingToken,
   adaptiveRole.workContract.assignment.fencingToken
+);
+assert.equal(
+  COLLECTIVE_INTERACTION_ACCOUNTING_VERSION_V2,
+  'interaction-accounting-v2'
+);
+assert.deepEqual(
+  collectiveTraceAccountingV2('environment.observation.delivered'),
+  { accountingKind: 'observation', accountingUnits: 1 }
+);
+assert.equal(
+  auditCollectiveEnvironmentPortV1(
+    Object.freeze({
+      version: 1,
+      initialize() {},
+      observe() {},
+      applyEffect() {},
+      advance() {},
+      snapshot() {},
+      restore() {},
+    })
+  ).passed,
+  true
 );
 
 console.log(

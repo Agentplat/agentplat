@@ -105,7 +105,7 @@ const alphaFiveCatalogEntries = Object.freeze([
 
 const betaThreeCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
+    browserEntrypoints: Object.freeze(['.', './evaluation']),
     directory: 'packages/collective-planning',
     layer: 'collaboration',
     name: '@agentplat/collective-planning',

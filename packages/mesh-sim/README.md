@@ -107,3 +107,26 @@ records exact replay. Its fault and adversary schedules are interpreted at
 driver boundaries; production reducers contain no experiment bypass. The
 500-agent mission remains below 5,000 interactions and records its observed
 directed topology instead of inferring an asymptotic claim.
+
+## Deterministic evaluation environment
+
+`createCollectiveDeterministicEnvironmentHarnessV1()` is the reference
+implementation of the separate
+`@agentplat/collective-planning/evaluation` boundary. The harness returns a
+runner-visible `environment`, an evaluator-only `monitor`, and an evaluator-only
+`finalize()` operation. Only the environment port should be passed to a runner.
+
+The reference world keeps peer observation queues, authoritative effect state,
+idempotency records, terminal predicates and the hidden canary in closures.
+Observation cursors are exact-idempotent and conflicting reuse is rejected.
+Effects validate the current Work Contract, epoch, authority generation and
+fence atomically. Timeouts before commit never enter the effect ledger;
+timeouts after commit return an indeterminate first receipt and a committed
+receipt on exact retry. Public snapshot handles are backed by evaluator-owned
+opaque state, so another harness with the same registration can restore and
+replay without serializing hidden values.
+
+Finalization constructs trace V2, replays its interaction ledger, snapshots the
+independent monitor and creates boundary evidence. An exceeded interaction
+ceiling becomes a terminal mission failure. The historical V1 evaluation
+driver and reports remain unchanged.

@@ -4,7 +4,9 @@ Portable, provider-neutral contracts and a deterministic reducer for forming
 bounded local mission plans. The root entry point is browser safe, has no
 import-time side effects and depends only on `@agentplat/core` types. The
 opt-in `@agentplat/collective-planning/mesh` entry point composes those records
-with the existing Mesh coordination and Collective Control contracts.
+with the existing Mesh coordination and Collective Control contracts. The
+browser-safe `@agentplat/collective-planning/evaluation` entry point defines a
+separate runner/environment boundary and replay-derived evidence contracts.
 
 ## What this increment contains
 
@@ -22,9 +24,13 @@ with the existing Mesh coordination and Collective Control contracts.
   extension, a bounded content-addressed fragment repository, local
   proposal-to-Work admission, replay-only inbound rejection, and
   assignment-derived Work Contract and adaptive-role composition.
+- an opt-in evaluation surface with strict environment ports, peer-local
+  observation requests, fenced protected-effect receipts, logical-time and
+  opaque snapshot handles, append-only trace V2, a replay-only interaction
+  ledger and an independent invariant monitor.
 
 It does not contain a transport, signer, assignment implementation, execution
-authority, environment adapter, evaluator, monitor or model integration. A
+authority, environment implementation, runner, campaign or model integration. A
 proposal, fragment, plan view, capability advertisement or adaptive role
 binding is evidence and coordination data; none of these records grants
 execution authority.
@@ -225,3 +231,33 @@ Work revision is composed only while the Work is unassigned. Planning cannot
 carry an existing role, Work Contract, epoch or fence across a revision; an
 assigned or executing Work must first terminate or drain and later obtain a
 fresh accepted Mesh assignment.
+
+## Opt-in evaluation boundary
+
+Import evaluation contracts explicitly; neither the package root nor the Mesh
+facade imports an environment implementation:
+
+```ts
+import {
+  createCollectiveTraceV2,
+  replayCollectiveInteractionLedgerV2,
+  type CollectiveEnvironmentPortV1,
+} from "@agentplat/collective-planning/evaluation";
+```
+
+The runner-visible port has exactly seven frozen data members: `version`,
+`initialize`, `observe`, `applyEffect`, `advance`, `snapshot` and `restore`.
+It cannot enumerate monitor state, global membership, hidden predicates,
+future inputs or an authoritative effect ledger. Observation requests bind one
+peer, instance and exact cursor. Protected-effect attempts bind the registered
+intent, Work Contract, assignment epoch, authority generation, fence, action
+class and input digest.
+
+`CollectiveTraceEventV2` has closed event kinds and canonical accounting.
+`replayCollectiveInteractionLedgerV2()` is the only ledger constructor: callers
+cannot supply metric totals. The invariant-monitor verdict is likewise derived
+from its independent append-only event chain. Boundary evidence replays both
+streams, rejects unknown causal parents and chain rewrites, and scans public
+artifacts for raw, JSON-escaped, hexadecimal, Base64 or Base64URL forms of the
+registered hidden canary. Snapshot handles contain only public digests and
+counters; hidden snapshot state belongs to the environment implementation.
