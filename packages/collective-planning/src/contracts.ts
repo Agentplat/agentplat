@@ -21,7 +21,29 @@ export type PlanningDigestDomainV1 =
   | "planning-reducer-transition"
   | "planning-reducer-state"
   | "planning-reducer-event"
-  | "planning-reducer-snapshot";
+  | "planning-reducer-snapshot"
+  | "evaluation-registration-binding"
+  | "collective-trace-event-v2"
+  | "collective-trace-chain-v2"
+  | "collective-trace-v2"
+  | "interaction-ledger-v2"
+  | "environment-initialization-v1"
+  | "environment-initialization-receipt-v1"
+  | "environment-observation-request-v1"
+  | "environment-observation-receipt-v1"
+  | "protected-effect-attempt-v1"
+  | "protected-effect-receipt-v1"
+  | "environment-advance-v1"
+  | "environment-advance-receipt-v1"
+  | "environment-state-v1"
+  | "environment-snapshot-handle-v1"
+  | "environment-restore-receipt-v1"
+  | "invariant-monitor-policy-v1"
+  | "invariant-monitor-event-v1"
+  | "invariant-monitor-verdict-v1"
+  | "invariant-monitor-snapshot-v1"
+  | "evaluation-public-artifact-v1"
+  | "evaluation-boundary-evidence-v1";
 
 export interface PlanningLimitsV1 {
   readonly schemaVersion: 1;

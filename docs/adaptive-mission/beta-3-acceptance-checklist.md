@@ -1,7 +1,8 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
 Status: Increment 0 design freeze, Increment 1 portable contracts, Increment 2
-pure planning reducer and Increment 3 Mesh planning facade complete. Every
+pure planning reducer, Increment 3 Mesh planning facade and Increment 4
+environment/evaluation boundary complete locally. Every
 unchecked item remains release-blocking unless it is explicitly labeled
 diagnostic or deferred.
 
@@ -23,7 +24,7 @@ diagnostic or deferred.
 
 - [x] `@agentplat/collective-planning` is cataloged, provider-neutral,
       side-effect free and version-aligned.
-- [ ] Root, `./mesh` and `./evaluation` exports have the frozen dependency
+- [x] Root, `./mesh` and `./evaluation` exports have the frozen dependency
       boundaries from the plan.
 - [x] Mission intent contains no task graph, assignment, hidden predicate,
       global membership or future fault schedule.
@@ -31,7 +32,7 @@ diagnostic or deferred.
       content-addressed.
 - [x] Proposal contracts cannot name assignment authority, grants, permits,
       handlers or fencing tokens.
-- [ ] Intent, proposal, fragment, decision, view, role, snapshot and trace
+- [x] Intent, proposal, fragment, decision, view, role, snapshot and trace
       digests are domain-separated and fixture-backed.
 - [x] All validators reject unknown fields, invalid UTF-8/size boundaries,
       unsafe integers and malformed graph references.
@@ -106,25 +107,25 @@ diagnostic or deferred.
 
 ## Environment boundary
 
-- [ ] Runner-visible port exposes only peer observations, protected effect
+- [x] Runner-visible port exposes only peer observations, protected effect
       attempts/receipts, logical advancement and strict snapshot/restore.
-- [ ] Runner cannot enumerate hidden world state, global membership, expected
+- [x] Runner cannot enumerate hidden world state, global membership, expected
       tasks, terminal predicate or future faults.
-- [ ] Independent monitor is the only component deriving success and safety.
-- [ ] Hidden-state canaries detect accidental or malicious boundary leakage.
-- [ ] Environment cursors are exact-idempotent and conflicting reuse fails.
-- [ ] Effect sink atomically validates idempotency and current fencing where
+- [x] Independent monitor is the only component deriving success and safety.
+- [x] Hidden-state canaries detect accidental or malicious boundary leakage.
+- [x] Environment cursors are exact-idempotent and conflicting reuse fails.
+- [x] Effect sink atomically validates idempotency and current fencing where
       required.
-- [ ] Failure before and after effect commit produces distinct, tested
+- [x] Failure before and after effect commit produces distinct, tested
       outcomes.
-- [ ] Environment snapshot/restore reproduces observations, effects and hidden
+- [x] Environment snapshot/restore reproduces observations, effects and hidden
       monitor state exactly.
 
 ## Truthful evaluation
 
-- [ ] Every accounted interaction maps to one immutable trace event.
-- [ ] Replaying the trace reproduces the report ledger exactly.
-- [ ] V2 contains no interaction padding, constant success or constant safety
+- [x] Every accounted interaction maps to one immutable trace event.
+- [x] Replaying the trace reproduces the report ledger exactly.
+- [x] V2 contains no interaction padding, constant success or constant safety
       counters.
 - [ ] Every claimed fault has scheduled, injected and observed events.
 - [ ] Missing/extra events, seeds or fault records invalidate the report.
@@ -132,24 +133,24 @@ diagnostic or deferred.
 - [ ] Collective and centralized runners receive the same public intent,
       observations, policy outputs, protected effects and applicable faults.
 - [ ] Centralized baseline receives no hidden state or free communication.
-- [ ] Runner, environment, monitor, policy and fixtures have independent
+- [x] Runner, environment, monitor, policy and fixtures have independent
       registered digests.
-- [ ] Exact replay and snapshot/restore match uninterrupted execution.
+- [x] Exact replay and snapshot/restore match uninterrupted execution.
 
 ## Negative implementations
 
-- [ ] Hidden-task/global-state oracle is detected.
+- [x] Hidden-task/global-state oracle is detected.
 - [ ] Direct assignee lookup is detected.
 - [ ] Proposal/role-as-authority implementation is detected.
 - [ ] Widened or cyclic plan implementation is detected.
 - [x] Critical-extension downgrade implementation is detected.
 - [x] Fragment/Work substitution implementation is detected.
-- [ ] Stale-plan/stale-fence implementation is detected.
+- [x] Stale-plan/stale-fence implementation is detected.
 - [ ] Declared-only fault implementation is detected.
-- [ ] Constant-success/zero-violation implementation is detected.
-- [ ] Synthetic-ledger padding/omission implementation is detected.
+- [x] Constant-success/zero-violation implementation is detected.
+- [x] Synthetic-ledger padding/omission implementation is detected.
 - [ ] Failed-seed omission implementation is detected.
-- [ ] Hidden-state/secret-canary leak is detected.
+- [x] Hidden-state/secret-canary leak is detected.
 
 ## Scale and statistical campaign
 
