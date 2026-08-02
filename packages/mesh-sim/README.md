@@ -130,3 +130,62 @@ Finalization constructs trace V2, replays its interaction ledger, snapshots the
 independent monitor and creates boundary evidence. An exceeded interaction
 ceiling becomes a terminal mission failure. The historical V1 evaluation
 driver and reports remain unchanged.
+
+## Nominal closed-loop execution
+
+The Increment 5 closed-loop surface is an opt-in, nominal-only reference path
+for deterministic experiments with 3 through 50 logical peers. It is not a
+durable runtime or a production orchestration service. Its hard interaction
+limit is 5,000 and its public result contains trace-bound state roots and
+artifacts, not caller-supplied success or safety counters.
+
+`runAdaptiveCollectiveClosedLoopV1()` and
+`runCentralizedPlannerClosedLoopV1()` share the same Mesh, governed-action and
+environment boundaries. Both are bound to the registered nominal definition,
+intent, policy, mandate, peer topology and evaluator boundary. The centralized
+mode records every delivered observation as an accounted directive, retains a
+deterministic bounded public subset and calls `decideCentralized()` exactly
+once; it does not execute the peer-local decision loop or receive the
+evaluator's hidden state, monitor, terminal predicate or a free communication
+channel.
+
+Before a planning policy runs, the runner requests observations separately for
+each peer. A policy receives only that peer's identity, intent, local
+observations, local planning view and logical time. Proposal decisions must be
+made by that peer and cite only its delivered observation digests. The runner
+does not expose an assignee lookup or allow a proposal or adaptive role to
+authorize an effect.
+
+The shared runtime performs real Mesh discovery, capability handling, offer,
+bid selection, award, acceptance and checkpoint transitions. The winning bid
+is selected by the Mesh allocation reducer. A Work Contract is created while
+the accepted assignment is still active, before completion changes the
+execution head.
+
+The 50-peer reference topology connects the owner to all other peers. All 50
+receive observations; adaptive mode records one local decision per peer, while
+centralized mode records one directive per peer. Mesh discovers the 49 remote
+peers and respects its existing bounded fanout by offering to and receiving
+bids from at most 32 candidates for one Work item. The result publishes those
+participant sets instead of treating registration alone as participation.
+
+The one protected action then traverses Trust eligibility, inference assessment
+and grant issuance, grant-ledger reservation, governed permit issuance and a
+`downstream_atomic` fenced environment effect. Currentness is checked at the
+governed boundary, including the Work Contract's exact Trust and inference
+policy IDs. Authorization time is runner-derived after the signed checkpoint
+and within the mission validity window, and is exposed with the action evidence.
+A signed `work.result` is
+emitted only after the same evaluator returns the exact committed receipt and
+its output digest matches the result digest.
+
+`replayAdaptiveCollectiveClosedLoopV1()` and
+`replayCentralizedPlannerClosedLoopV1()` execute fresh inputs twice and require
+the run, trace and boundary-evidence digests to match exactly. Cryptographic
+handles are runtime dependencies: callers may reuse them for a replay, but
+private key material is never included in the serialized definition, trace or
+result.
+
+Fault injection, causal replanning, capability withdrawal, decline, crash,
+partition/heal, reassignment and stale-result recovery are deliberately outside
+this nominal Increment 5 path; they belong to Increment 6.

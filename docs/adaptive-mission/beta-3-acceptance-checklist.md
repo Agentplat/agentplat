@@ -2,9 +2,10 @@
 
 Status: Increment 0 design freeze, Increment 1 portable contracts, Increment 2
 pure planning reducer, Increment 3 Mesh planning facade and Increment 4
-environment/evaluation boundary complete locally. Every
-unchecked item remains release-blocking unless it is explicitly labeled
-diagnostic or deferred.
+environment/evaluation boundary are complete locally. Increment 5 nominal
+closed-loop execution is also complete locally; Increment 6 replanning and
+fault campaigns remain open. Every unchecked item remains release-blocking
+unless it is explicitly labeled diagnostic or deferred.
 
 ## Design freeze
 
@@ -75,13 +76,14 @@ diagnostic or deferred.
 - [x] Rejected inbound planning Work retains only required replay/message-ID
       high-waters and commits no Objective, Work, allocation, planning, role,
       budget or effect state.
-- [ ] Normative allocation uses actual offer, bid, award, accept/decline, lease
-      and recovery paths.
-- [ ] No direct assignee lookup or assignment-authority construction exists in
-      the V2 runner.
+- [x] Nominal allocation uses actual offer, bid, award, acceptance and
+      checkpoint paths. Decline, recovery and fault paths remain Increment 6.
+- [x] No direct assignee lookup or assignment-authority construction exists in
+      the nominal V2 runner.
 - [x] Work Contract is derived only from a current accepted Mesh assignment.
-- [ ] Adaptive role binding cannot outlive intent, fragment, Work Contract,
-      assignment, lease or mandate.
+- [x] Nominal adaptive-role/action composition binds the current intent,
+      fragment, active Work Contract, assignment/fence and accepted mandate at
+      the protected-action boundary.
 - [x] Planning can only narrow upstream capability, budget, validity and action
       scope.
 - [x] Existing non-planning Mesh behavior remains byte/behavior compatible.
@@ -130,9 +132,12 @@ diagnostic or deferred.
 - [ ] Every claimed fault has scheduled, injected and observed events.
 - [ ] Missing/extra events, seeds or fault records invalidate the report.
 - [ ] Mission/safety failure cannot be reclassified as infrastructure invalid.
-- [ ] Collective and centralized runners receive the same public intent,
-      observations, policy outputs, protected effects and applicable faults.
-- [ ] Centralized baseline receives no hidden state or free communication.
+- [x] Nominal collective and centralized runners bind the same public intent,
+      per-peer observations, policy, protected-effect boundary and no faults.
+- [x] Centralized nominal mode receives no evaluator hidden state and accounts
+      delivered observations as directives, then executes one bounded central
+      decision instead of the peer-local decision loop; fault parity is
+      deferred.
 - [x] Runner, environment, monitor, policy and fixtures have independent
       registered digests.
 - [x] Exact replay and snapshot/restore match uninterrupted execution.
@@ -140,8 +145,10 @@ diagnostic or deferred.
 ## Negative implementations
 
 - [x] Hidden-task/global-state oracle is detected.
-- [ ] Direct assignee lookup is detected.
-- [ ] Proposal/role-as-authority implementation is detected.
+- [x] Nominal closed-loop contract/runtime rejects direct-assignment authority
+      construction.
+- [x] Proposal/role-as-authority negative: the nominal closed-loop action path
+      does not accept either planning record as action authority.
 - [ ] Widened or cyclic plan implementation is detected.
 - [x] Critical-extension downgrade implementation is detected.
 - [x] Fragment/Work substitution implementation is detected.

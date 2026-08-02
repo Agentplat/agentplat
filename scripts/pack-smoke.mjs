@@ -182,6 +182,10 @@ try {
     consumerRoot,
     'collective-planning-mesh-three-peer'
   );
+  const collectivePlanningClosedLoopConsumerRoot = path.join(
+    consumerRoot,
+    'collective-planning-closed-loop'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   const inferenceControlConsumerRoot = path.join(
     consumerRoot,
@@ -208,6 +212,7 @@ try {
     mkdir(meshConformanceConsumerRoot, { recursive: true }),
     mkdir(meshAllocationRecoveryConsumerRoot, { recursive: true }),
     mkdir(collectivePlanningMeshConsumerRoot, { recursive: true }),
+    mkdir(collectivePlanningClosedLoopConsumerRoot, { recursive: true }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
     mkdir(trustConsumerRoot, { recursive: true }),
@@ -248,6 +253,7 @@ try {
         "  - 'mesh-conformance'",
         "  - 'mesh-allocation-recovery'",
         "  - 'collective-planning-mesh-three-peer'",
+        "  - 'collective-planning-closed-loop'",
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
@@ -346,6 +352,26 @@ try {
       assert.ok(
         artifact,
         `Missing packed collective planning Mesh dependency: ${packageName}`
+      );
+      return [packageName, artifact.tarballReference];
+    })
+  );
+  const collectivePlanningClosedLoopPackageNames = Object.freeze([
+    '@agentplat/collective-control',
+    '@agentplat/collective-planning',
+    '@agentplat/inference-control',
+    '@agentplat/mesh',
+    '@agentplat/mesh-crypto',
+    '@agentplat/mesh-protocol',
+    '@agentplat/mesh-sim',
+    '@agentplat/trust',
+  ]);
+  const collectivePlanningClosedLoopDependencies = Object.fromEntries(
+    collectivePlanningClosedLoopPackageNames.map((packageName) => {
+      const artifact = artifactsByName.get(packageName);
+      assert.ok(
+        artifact,
+        `Missing packed closed-loop dependency: ${packageName}`
       );
       return [packageName, artifact.tarballReference];
     })
@@ -583,6 +609,60 @@ try {
         2
       )}\n`
     ),
+    writeFile(
+      path.join(collectivePlanningClosedLoopConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-collective-planning-closed-loop',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: collectivePlanningClosedLoopDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-closed-loop.mjs'
+      ),
+      path.join(
+        collectivePlanningClosedLoopConsumerRoot,
+        'verify-closed-loop.mjs'
+      )
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-closed-loop-types.ts'
+      ),
+      path.join(
+        collectivePlanningClosedLoopConsumerRoot,
+        'verify-types.ts'
+      )
+    ),
+    writeFile(
+      path.join(collectivePlanningClosedLoopConsumerRoot, 'tsconfig.json'),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            strict: true,
+            noEmit: true,
+            skipLibCheck: false,
+            types: [],
+            lib: ['ES2022', 'DOM'],
+          },
+          include: ['verify-types.ts'],
+        },
+        null,
+        2
+      )}\n`
+    ),
     copyFile(
       path.join(
         root,
@@ -711,6 +791,22 @@ try {
     cwd: collectivePlanningMeshConsumerRoot,
     stdio: 'inherit',
   });
+  execFileSync(process.execPath, ['verify-closed-loop.mjs'], {
+    cwd: collectivePlanningClosedLoopConsumerRoot,
+    stdio: 'inherit',
+  });
+  execFileSync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules/typescript/bin/tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    {
+      cwd: collectivePlanningClosedLoopConsumerRoot,
+      stdio: 'inherit',
+    }
+  );
   execFileSync(
     process.execPath,
     [

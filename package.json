@@ -48,11 +48,12 @@
     "verify:collective-compatibility": "node scripts/collective-beta2-compatibility.mjs --mode check",
     "verify:alpha5-compatibility": "node scripts/verify-alpha5-compatibility.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
+    "verify:collective-planning-closed-loop": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:pack"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

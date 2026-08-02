@@ -28,6 +28,11 @@ import {
 
 export * from './collective-evaluation.js';
 export * from './collective-environment.js';
+export * from './collective-closed-loop-contracts.js';
+export * from './collective-closed-loop-action.js';
+export * from './collective-closed-loop-runtime.js';
+export * from './collective-closed-loop-runner.js';
+export * from './collective-closed-loop-reference.js';
 
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
 export type MeshSimulationRecordingMode = 'full' | 'digest' | 'metrics';

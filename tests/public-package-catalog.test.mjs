@@ -12,7 +12,12 @@ import {
 
 const alphaOneCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.', './durability', './loopback']),
+    browserEntrypoints: Object.freeze([
+      '.',
+      './coordination',
+      './durability',
+      './loopback',
+    ]),
     directory: 'packages/mesh',
     layer: 'collaboration',
     name: '@agentplat/mesh',
@@ -51,7 +56,7 @@ const alphaOneCatalogEntries = Object.freeze([
 
 const alphaThreeCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
+    browserEntrypoints: Object.freeze(['.', './tools']),
     directory: 'packages/inference-control',
     layer: 'runtime',
     name: '@agentplat/inference-control',
@@ -105,7 +110,22 @@ const alphaFiveCatalogEntries = Object.freeze([
 
 const betaThreeCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.', './evaluation']),
+    browserEntrypoints: Object.freeze([
+      '.',
+      './actions',
+      './evaluation',
+      './memory',
+      './mesh',
+    ]),
+    directory: 'packages/collective-control',
+    layer: 'collaboration',
+    name: '@agentplat/collective-control',
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze(['.', './evaluation', './mesh']),
     directory: 'packages/collective-planning',
     layer: 'collaboration',
     name: '@agentplat/collective-planning',

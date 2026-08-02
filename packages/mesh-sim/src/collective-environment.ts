@@ -40,8 +40,6 @@ import {
   createCollectiveInvariantMonitorEventV1,
   createCollectiveInvariantMonitorV1,
   createCollectiveProtectedEffectReceiptV1,
-  createCollectiveTraceEventV2,
-  createCollectiveTraceV2,
   validateCollectiveEnvironmentAdvanceRequestV1,
   validateCollectiveEnvironmentInitializationV1,
   validateCollectiveEnvironmentObservationRequestV1,
@@ -52,6 +50,11 @@ import {
   validateCollectiveInvariantMonitorSnapshotV1,
   validateCollectiveProtectedEffectAttemptV1,
 } from '@agentplat/collective-planning/evaluation';
+import {
+  collectiveTraceJournalForOwnerV2,
+  createCollectiveTraceJournalV2,
+  type CollectiveTraceJournalAppendInputV2,
+} from './collective-trace-journal.js';
 
 export type CollectiveDeterministicEffectBehaviorV1 =
   'commit' | 'reject' | 'timeout_before_commit' | 'timeout_after_commit';
@@ -443,7 +446,11 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
 
   let initializationDigest: PlanningDigestV1 | null = null;
   let logicalTimeMs = 0;
-  let traceEvents: CollectiveTraceEventV2[] = [];
+  const traceJournal =
+    collectiveTraceJournalForOwnerV2(configInput) ??
+    createCollectiveTraceJournalV2(registration);
+  if (traceJournal.registrationBindingDigest !== registration.bindingDigest)
+    throw new TypeError('trace journal does not match the registration');
   let monitorEvents: CollectiveInvariantMonitorEventV1[] = [];
   let snapshotCount = 0;
   let observationRequests = new Map<
@@ -548,38 +555,14 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
 
   const appendTrace = (
     input: Omit<
-      Parameters<typeof createCollectiveTraceEventV2>[0],
-      | 'schemaVersion'
-      | 'eventId'
-      | 'causalParentIds'
-      | 'registrationDigest'
-      | 'seed'
-      | 'runner'
-      | 'logicalTimeMs'
-      | 'tenantId'
-      | 'missionIntentId'
-      | 'previousTraceChainDigest'
+      CollectiveTraceJournalAppendInputV2,
+      'logicalTimeMs'
     >
-  ): CollectiveTraceEventV2 => {
-    if (traceEvents.length >= registration.limits.maximumTraceEvents)
-      throw new TypeError('trace event limit exceeded');
-    const previous = traceEvents.at(-1);
-    const event = createCollectiveTraceEventV2({
-      schemaVersion: 2,
-      eventId: `evaluation-event:${String(traceEvents.length + 1).padStart(8, '0')}`,
-      causalParentIds: previous === undefined ? [] : [previous.eventId],
-      registrationDigest: registration.bindingDigest,
-      seed: registration.seed,
-      runner: registration.runner,
+  ): CollectiveTraceEventV2 =>
+    traceJournal.append({
       logicalTimeMs,
-      tenantId: registration.tenantId,
-      missionIntentId: registration.missionIntentId,
-      previousTraceChainDigest: previous?.traceChainDigest ?? null,
       ...input,
     });
-    traceEvents = [...traceEvents, event];
-    return event;
-  };
 
   const recordMonitor = (
     kind: CollectiveInvariantMonitorEventV1['kind'],
@@ -994,7 +977,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
     if (committedEffectIds.has(candidate.effectId)) {
       recordMonitor(
         'effect.duplicate',
-        traceEvents.at(-1)?.eventId ?? null,
+        traceJournal.events.at(-1)?.eventId ?? null,
         candidate.effectId,
         null,
         { attemptDigest: attempt.attemptDigest, effectId: candidate.effectId }
@@ -1143,7 +1126,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
     if (snapshotCount >= registration.limits.maximumEnvironmentSnapshots)
       throw new TypeError('environment snapshot limit exceeded');
     snapshotCount += 1;
-    const trace = createCollectiveTraceV2(registration, traceEvents);
+    const trace = traceJournal.trace();
     const monitorSnapshot = monitor.snapshot(trace.traceRoot);
     const handle = createCollectiveEnvironmentSnapshotHandleV1({
       format: 'agentplat.collective-environment.snapshot-handle',
@@ -1152,7 +1135,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
       registrationDigest: registration.bindingDigest,
       seed: registration.seed,
       logicalTimeMs,
-      eventCount: traceEvents.length,
+      eventCount: traceJournal.events.length,
       traceRoot: trace.traceRoot,
       environmentStateDigest: stateDigest(),
     });
@@ -1161,7 +1144,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
       seed: registration.seed,
       initializationDigest,
       logicalTimeMs,
-      traceEvents,
+      traceEvents: traceJournal.snapshot(),
       monitorSnapshot,
       monitorEvents,
       observationRequests: [...observationRequests].map(([key, item]) => [
@@ -1200,13 +1183,13 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
       status = 'rejected';
       reasonCode = 'snapshot_binding_invalid';
     } else if (
-      traceEvents.length > hidden.traceEvents.length ||
+      traceJournal.events.length > hidden.traceEvents.length ||
       monitorEvents.length > hidden.monitorEvents.length
     ) {
       status = 'rejected';
       reasonCode = 'snapshot_rollback_rejected';
     } else if (
-      traceEvents.some(
+      traceJournal.events.some(
         (event, index) =>
           event.traceChainDigest !== hidden.traceEvents[index]?.traceChainDigest
       ) ||
@@ -1219,7 +1202,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
       status = 'rejected';
       reasonCode = 'snapshot_history_conflict';
     } else if (
-      traceEvents.length === hidden.traceEvents.length &&
+      traceJournal.events.length === hidden.traceEvents.length &&
       monitorEvents.length === hidden.monitorEvents.length
     )
       status = 'idempotent';
@@ -1227,7 +1210,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
       monitor.restore(hidden.monitorSnapshot);
       initializationDigest = hidden.initializationDigest;
       logicalTimeMs = hidden.logicalTimeMs;
-      traceEvents = [...hidden.traceEvents];
+      traceJournal.restore(hidden.traceEvents);
       observationRequests = new Map(
         hidden.observationRequests.map(([key, requestDigest, result]) => [
           key,
@@ -1275,7 +1258,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
     publicArtifacts: readonly PlanningJson[] = []
   ): CollectiveDeterministicEnvironmentResultV1 => {
     denseArray(publicArtifacts, 'publicArtifacts');
-    let trace = createCollectiveTraceV2(registration, traceEvents);
+    let trace = traceJournal.trace();
     if (
       trace.ledger.limitExceeded &&
       !monitorEvents.some((event) => event.kind === 'terminal.failure')
@@ -1295,7 +1278,7 @@ export function createCollectiveDeterministicEnvironmentHarnessV1(
         reasonCode: 'interaction_limit_exceeded',
         firstExceededEventId: trace.ledger.firstExceededEventId,
       });
-      trace = createCollectiveTraceV2(registration, traceEvents);
+      trace = traceJournal.trace();
     }
     const monitorSnapshot = monitor.snapshot(trace.traceRoot);
     const evidence = createCollectiveEvaluationBoundaryEvidenceV1({
