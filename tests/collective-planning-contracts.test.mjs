@@ -1,6 +1,6 @@
-import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import test from 'node:test';
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import test from "node:test";
 
 import {
   CollectivePlanningValidationError,
@@ -30,7 +30,7 @@ import {
   validatePlanFragmentV1,
   validatePlanSelectionPolicyV1,
   validatePlanViewV1,
-} from '@agentplat/collective-planning';
+} from "@agentplat/collective-planning";
 
 const digest = (domain, label) =>
   digestPlanningJsonV1(domain, { label, schemaVersion: 1 });
@@ -38,7 +38,7 @@ const digest = (domain, label) =>
 const oneOver = (value) => value + 1;
 
 function assertDeepFrozen(value, seen = new Set()) {
-  if (value === null || typeof value !== 'object' || seen.has(value)) return;
+  if (value === null || typeof value !== "object" || seen.has(value)) return;
   seen.add(value);
   assert.equal(Object.isFrozen(value), true);
   for (const child of Object.values(value)) assertDeepFrozen(child, seen);
@@ -65,7 +65,7 @@ function planningLimits(overrides = {}) {
     maximumTraceBytes: 262_144,
     maximumTotalPlanningBudgetUnits: 1_000,
     maximumFragmentBudgetUnits: 250,
-    budgetShardPolicy: 'equal_mandate_subjects',
+    budgetShardPolicy: "equal_mandate_subjects",
     maximumConcurrentProposals: 4,
     maximumActiveRoles: 4,
     proposalLogicalWindowMs: 60_000,
@@ -78,55 +78,55 @@ function planningLimits(overrides = {}) {
 function selectionPolicy(overrides = {}) {
   return createPlanSelectionPolicyV1({
     schemaVersion: 1,
-    selectionPolicyId: 'selection-policy:alpha',
+    selectionPolicyId: "selection-policy:alpha",
     revision: 1,
     scoringDimensions: [
       {
         schemaVersion: 1,
-        dimension: 'bounded_risk',
+        dimension: "bounded_risk",
         weight: 1,
-        direction: 'minimize',
+        direction: "minimize",
       },
       {
         schemaVersion: 1,
-        dimension: 'budget_efficiency',
+        dimension: "budget_efficiency",
         weight: 2,
-        direction: 'maximize',
+        direction: "maximize",
       },
       {
         schemaVersion: 1,
-        dimension: 'capability_confidence',
+        dimension: "capability_confidence",
         weight: 3,
-        direction: 'maximize',
+        direction: "maximize",
       },
       {
         schemaVersion: 1,
-        dimension: 'deadline_margin',
+        dimension: "deadline_margin",
         weight: 2,
-        direction: 'maximize',
+        direction: "maximize",
       },
       {
         schemaVersion: 1,
-        dimension: 'dependency_readiness',
+        dimension: "dependency_readiness",
         weight: 3,
-        direction: 'maximize',
+        direction: "maximize",
       },
       {
         schemaVersion: 1,
-        dimension: 'outcome_coverage',
+        dimension: "outcome_coverage",
         weight: 4,
-        direction: 'maximize',
+        direction: "maximize",
       },
     ],
-    hardConstraintKeys: ['budget', 'capability', 'deadline'],
+    hardConstraintKeys: ["budget", "capability", "deadline"],
     acceptanceScoreThreshold: 700,
     challengeScoreThreshold: 400,
     tieBreakOrder: [
-      'score',
-      'requested_budget_units',
-      'work_deadline',
-      'proposed_at_logical_ms',
-      'proposal_digest',
+      "score",
+      "requested_budget_units",
+      "work_deadline",
+      "proposed_at_logical_ms",
+      "proposal_digest",
     ],
     ...overrides,
   });
@@ -135,27 +135,27 @@ function selectionPolicy(overrides = {}) {
 function missionIntent(policy = selectionPolicy(), overrides = {}) {
   return createMissionIntentV1({
     schemaVersion: 1,
-    missionIntentId: 'mission-intent:alpha',
+    missionIntentId: "mission-intent:alpha",
     revision: 1,
     predecessorDigest: null,
-    tenantId: 'tenant:alpha',
-    policyDomainId: 'policy-domain:alpha',
+    tenantId: "tenant:alpha",
+    policyDomainId: "policy-domain:alpha",
     objective: {
       schemaVersion: 1,
-      meshId: 'mesh:alpha',
-      objectiveId: 'objective:alpha',
-      objectiveDocumentId: 'objective-document:alpha',
+      meshId: "mesh:alpha",
+      objectiveId: "objective:alpha",
+      objectiveDocumentId: "objective-document:alpha",
       objectiveRevision: 1,
-      acceptedPolicyDigest: digest('mission-intent', 'objective-policy'),
+      acceptedPolicyDigest: digest("mission-intent", "objective-policy"),
     },
-    mandateDigest: digest('mission-intent', 'mandate'),
-    outcomeStatements: ['Map the bounded area', 'Report verified findings'],
-    permittedResourceClasses: ['compute', 'sensor'],
-    permittedCapabilityKeys: ['capability.map', 'capability.observe'],
+    mandateDigest: digest("mission-intent", "mandate"),
+    outcomeStatements: ["Map the bounded area", "Report verified findings"],
+    permittedResourceClasses: ["compute", "sensor"],
+    permittedCapabilityKeys: ["capability.map", "capability.observe"],
     planningLimits: planningLimits(),
     selectionPolicyDigest: policy.policyDigest,
-    validFrom: '2026-08-01T00:00:00.000Z',
-    validUntil: '2026-08-02T00:00:00.000Z',
+    validFrom: "2026-08-01T00:00:00.000Z",
+    validUntil: "2026-08-02T00:00:00.000Z",
     ...overrides,
   });
 }
@@ -163,17 +163,17 @@ function missionIntent(policy = selectionPolicy(), overrides = {}) {
 function missionObservation(intent, overrides = {}) {
   return createMissionObservationV1({
     schemaVersion: 1,
-    observationId: 'observation:alpha:1',
+    observationId: "observation:alpha:1",
     missionIntentId: intent.missionIntentId,
     intentRevision: intent.revision,
     intentDigest: intent.intentDigest,
-    observerPeerId: 'peer:alpha',
-    observerInstanceId: 'instance:alpha:1',
-    environmentCursor: 'environment-cursor:1',
+    observerPeerId: "peer:alpha",
+    observerInstanceId: "instance:alpha:1",
+    environmentCursor: "environment-cursor:1",
     logicalTimeMs: 100,
-    visibility: 'resource',
-    observationKind: 'resource.available',
-    publicValue: { resourceClass: 'sensor', zone: 'north' },
+    visibility: "resource",
+    observationKind: "resource.available",
+    publicValue: { resourceClass: "sensor", zone: "north" },
     contentReferenceDigest: null,
     ...overrides,
   });
@@ -188,17 +188,17 @@ function fragmentProposal(intent, observation, overrides = {}) {
     intentDigest: intent.intentDigest,
     proposerPeerId: observation.observerPeerId,
     proposerInstanceId: observation.observerInstanceId,
-    semanticSlotKey: 'slot.map.north',
+    semanticSlotKey: "slot.map.north",
     predecessorFragmentDigest: null,
     parentFragmentDigests: [],
     dependencyFragmentDigests: [],
-    outcomeStatements: ['Map the bounded area'],
-    roleKey: 'mapper',
-    requiredCapabilityKeys: ['capability.map'],
-    inputReferenceDigest: digest('plan-fragment-proposal', 'input:north'),
+    outcomeStatements: ["Map the bounded area"],
+    roleKey: "mapper",
+    requiredCapabilityKeys: ["capability.map"],
+    inputReferenceDigest: digest("plan-fragment-proposal", "input:north"),
     basisObservationDigests: [observation.observationDigest],
     requestedBudgetUnits: 100,
-    workDeadline: '2026-08-01T12:00:00.000Z',
+    workDeadline: "2026-08-01T12:00:00.000Z",
     proposedAtLogicalMs: 110,
     ...overrides,
   });
@@ -207,20 +207,20 @@ function fragmentProposal(intent, observation, overrides = {}) {
 function fragmentDecision(intent, policy, proposal, overrides = {}) {
   return createPlanFragmentDecisionV1({
     schemaVersion: 1,
-    decisionId: 'plan-decision:alpha:1',
+    decisionId: "plan-decision:alpha:1",
     missionIntentId: intent.missionIntentId,
     intentRevision: intent.revision,
     intentDigest: intent.intentDigest,
     proposalId: proposal.proposalId,
     proposalDigest: proposal.proposalDigest,
     selectionPolicyDigest: policy.policyDigest,
-    status: 'accepted',
-    reasonCodes: ['constraints.satisfied', 'score.accepted'],
+    status: "accepted",
+    reasonCodes: ["constraints.satisfied", "score.accepted"],
     inputCandidateDigests: [proposal.proposalDigest],
     selectedSemanticSlotHeadDigest: proposal.proposalDigest,
     localPlanViewRevision: 1,
     decidedAtLogicalMs: 115,
-    resultingStateDigest: digest('plan-view', 'resulting-state'),
+    resultingStateDigest: digest("plan-view", "resulting-state"),
     ...overrides,
   });
 }
@@ -254,7 +254,7 @@ function planFragment(intent, policy, proposal, decision, overrides = {}) {
     acceptancePolicyDigest: policy.policyDigest,
     acceptedAtLogicalMs: 116,
     localPlanViewRevision: 1,
-    status: 'active',
+    status: "active",
     ...overrides,
   });
 }
@@ -286,7 +286,7 @@ function planView(
 ) {
   return createPlanViewV1({
     schemaVersion: 1,
-    planViewId: 'plan-view:peer-alpha',
+    planViewId: "plan-view:peer-alpha",
     tenantId: intent.tenantId,
     policyDomainId: intent.policyDomainId,
     peerId: proposal.proposerPeerId,
@@ -312,18 +312,20 @@ function planView(
       {
         schemaVersion: 1,
         peerId: proposal.proposerPeerId,
+        peerInstanceId: proposal.proposerInstanceId,
         budgetUnits: 500,
       },
     ],
     budgetReservations: [
       {
         schemaVersion: 1,
-        reservationId: 'planning-reservation:alpha:1',
+        reservationId: "planning-reservation:alpha:1",
         peerId: proposal.proposerPeerId,
+        peerInstanceId: proposal.proposerInstanceId,
         proposalDigest: proposal.proposalDigest,
         fragmentDigest: fragment.fragmentDigest,
         units: proposal.requestedBudgetUnits,
-        status: 'committed',
+        status: "committed",
       },
     ],
     workMappings: [],
@@ -336,23 +338,23 @@ function planView(
 function adaptiveRole(intent, view, fragment, overrides = {}) {
   return createAdaptiveRoleBindingV1({
     schemaVersion: 1,
-    roleBindingId: 'adaptive-role:alpha:1',
+    roleBindingId: "adaptive-role:alpha:1",
     missionIntentId: intent.missionIntentId,
     intentRevision: intent.revision,
     intentDigest: intent.intentDigest,
     planViewDigest: view.stateDigest,
     fragmentDigest: fragment.fragmentDigest,
     roleKey: fragment.roleKey,
-    workContractId: 'work-contract:alpha:1',
-    workContractDigest: digest('adaptive-role-binding', 'work-contract'),
-    assignedPeerId: 'peer:beta',
-    assignedInstanceId: 'instance:beta:1',
-    assignmentAuthorityId: 'assignment-authority:alpha:1',
+    workContractId: "work-contract:alpha:1",
+    workContractDigest: digest("adaptive-role-binding", "work-contract"),
+    assignedPeerId: "peer:beta",
+    assignedInstanceId: "instance:beta:1",
+    assignmentAuthorityId: "assignment-authority:alpha:1",
     assignmentEpoch: 1,
     authorityGeneration: 1,
-    fencingToken: 'fence:alpha:1',
+    fencingToken: "fence:alpha:1",
     leaseExpiresAtLogicalMs: 10_000,
-    status: 'current',
+    status: "current",
     terminalReasonCode: null,
     ...overrides,
   });
@@ -369,10 +371,10 @@ function planningSnapshot(
   overrides = {},
 ) {
   return createCollectivePlanningSnapshotV1({
-    format: 'agentplat.collective-planning.snapshot',
+    format: "agentplat.collective-planning.snapshot",
     formatVersion: 1,
     schemaVersion: 1,
-    snapshotId: 'collective-planning-snapshot:alpha:1',
+    snapshotId: "collective-planning-snapshot:alpha:1",
     tenantId: intent.tenantId,
     policyDomainId: intent.policyDomainId,
     peerId: view.peerId,
@@ -383,28 +385,28 @@ function planningSnapshot(
     domainHighWaters: [
       {
         schemaVersion: 1,
-        domain: 'decision',
+        domain: "decision",
         recordId: decision.decisionId,
         revision: decision.localPlanViewRevision,
         digest: decision.decisionDigest,
       },
       {
         schemaVersion: 1,
-        domain: 'fragment',
+        domain: "fragment",
         recordId: fragment.fragmentId,
         revision: fragment.fragmentRevision,
         digest: fragment.fragmentDigest,
       },
       {
         schemaVersion: 1,
-        domain: 'observation',
+        domain: "observation",
         recordId: observation.observationId,
         revision: 1,
         digest: observation.observationDigest,
       },
       {
         schemaVersion: 1,
-        domain: 'proposal',
+        domain: "proposal",
         recordId: proposal.proposalId,
         revision: proposal.proposalRevision,
         digest: proposal.proposalDigest,
@@ -414,19 +416,19 @@ function planningSnapshot(
   });
 }
 
-test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe', () => {
+test("planning JSON is deterministic, domain-separated, bounded and I-JSON safe", () => {
   assert.equal(
     canonicalizePlanningJsonV1({ z: 2, a: [true, null, -0] }),
     '{"a":[true,null,0],"z":2}',
   );
-  assert.equal(planningUtf8ByteLengthV1('a😀'), 5);
+  assert.equal(planningUtf8ByteLengthV1("a😀"), 5);
   assert.equal(
-    sha256HexPlanningV1(new TextEncoder().encode('abc')),
-    'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+    sha256HexPlanningV1(new TextEncoder().encode("abc")),
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
   assert.notEqual(
-    digestPlanningJsonV1('mission-intent', { value: 1 }),
-    digestPlanningJsonV1('mission-observation', { value: 1 }),
+    digestPlanningJsonV1("mission-intent", { value: 1 }),
+    digestPlanningJsonV1("mission-observation", { value: 1 }),
   );
 
   for (const invalid of [
@@ -436,8 +438,8 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
     undefined,
     1n,
     new Date(0),
-    '\ud800',
-    '\udc00',
+    "\ud800",
+    "\udc00",
   ]) {
     assert.throws(
       () => canonicalizePlanningJsonV1(invalid),
@@ -445,7 +447,7 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
     );
   }
   assert.throws(
-    () => planningUtf8ByteLengthV1('before\ud800after'),
+    () => planningUtf8ByteLengthV1("before\ud800after"),
     /unpaired surrogate/u,
   );
 
@@ -455,7 +457,7 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
   const extraArray = [1];
   extraArray.extra = true;
   assert.throws(() => canonicalizePlanningJsonV1(extraArray), /extra/u);
-  const symbolic = { [Symbol('hidden')]: true };
+  const symbolic = { [Symbol("hidden")]: true };
   assert.throws(() => canonicalizePlanningJsonV1(symbolic), /symbol/u);
   const cyclic = {};
   cyclic.self = cyclic;
@@ -463,11 +465,11 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
 
   let accessorInvoked = false;
   const accessor = {};
-  Object.defineProperty(accessor, 'danger', {
+  Object.defineProperty(accessor, "danger", {
     enumerable: true,
     get() {
       accessorInvoked = true;
-      throw new Error('must not execute');
+      throw new Error("must not execute");
     },
   });
   assert.throws(() => canonicalizePlanningJsonV1(accessor), /data properties/u);
@@ -475,7 +477,7 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
 
   assert.equal(
     canonicalizePlanningJsonV1(
-      { a: '😀' },
+      { a: "😀" },
       {
         maximumBytes: 12,
         maximumDepth: 2,
@@ -489,7 +491,7 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
   assert.throws(
     () =>
       canonicalizePlanningJsonV1(
-        { a: '😀' },
+        { a: "😀" },
         {
           maximumBytes: 11,
           maximumDepth: 2,
@@ -530,7 +532,7 @@ test('planning JSON is deterministic, domain-separated, bounded and I-JSON safe'
   assertDeepFrozen(frozen);
 });
 
-test('SHA-256 padding boundaries and every planning domain have fixed vectors', () => {
+test("SHA-256 padding boundaries and every planning domain have fixed vectors", () => {
   for (const length of [0, 1, 55, 56, 63, 64, 65, 127, 128]) {
     const bytes = Uint8Array.from(
       { length },
@@ -538,53 +540,53 @@ test('SHA-256 padding boundaries and every planning domain have fixed vectors', 
     );
     assert.equal(
       sha256HexPlanningV1(bytes),
-      createHash('sha256').update(bytes).digest('hex'),
+      createHash("sha256").update(bytes).digest("hex"),
       `SHA-256 differs at the ${length}-byte padding boundary`,
     );
   }
 
   const domainVector = { a: [true, null], z: 2 };
   const expected = {
-    'mission-intent':
-      'sha256:979af1e4e93beaba0fb7f04bef63ef783e7acdd2677c8e2c37ef59a8f54698d1',
-    'mission-observation':
-      'sha256:afb1b02a24f6d11fe4b5e9ec4bc259e2d5be1679d0190564c9bd51b019e08bbc',
-    'proposal-identity':
-      'sha256:50690d95a09d3932a0e2de0136cbcd44efdd0d188ec46d09f2b28b1102712cbd',
-    'plan-fragment-proposal':
-      'sha256:f45ba2361d0d07d5e9d2038978acfd5ca45491176ad0891b3067cf919ef20ec0',
-    'plan-selection-policy':
-      'sha256:633db8f77b77ce22d028601d2c888a33e9752afc25dff52c4e43c26e41652e69',
-    'plan-fragment-decision':
-      'sha256:8c8ba7967aba05f0af249cc85fea13d79d29508de5606f684eb4ed11fab6f5c1',
-    'plan-fragment':
-      'sha256:5e19f6983dec9e237a4ce8a00672a36ea4e2238708d01f004a3661b3c6adb02e',
-    'plan-view':
-      'sha256:3c3a15ba0a310efcd0a13a492760bc8545f131dc2da5d2fa855051101cf540d9',
-    'adaptive-role-binding':
-      'sha256:0748bc8ba8d675c465dd21f35c3cbe16ec48253c5d2284af7a576c029ce35a30',
-    'collective-planning-snapshot':
-      'sha256:bdbbef63aa19fbea90e2ffad144e484944b6d15bc58923f5c2b826b72cc6d207',
+    "mission-intent":
+      "sha256:979af1e4e93beaba0fb7f04bef63ef783e7acdd2677c8e2c37ef59a8f54698d1",
+    "mission-observation":
+      "sha256:afb1b02a24f6d11fe4b5e9ec4bc259e2d5be1679d0190564c9bd51b019e08bbc",
+    "proposal-identity":
+      "sha256:50690d95a09d3932a0e2de0136cbcd44efdd0d188ec46d09f2b28b1102712cbd",
+    "plan-fragment-proposal":
+      "sha256:f45ba2361d0d07d5e9d2038978acfd5ca45491176ad0891b3067cf919ef20ec0",
+    "plan-selection-policy":
+      "sha256:633db8f77b77ce22d028601d2c888a33e9752afc25dff52c4e43c26e41652e69",
+    "plan-fragment-decision":
+      "sha256:8c8ba7967aba05f0af249cc85fea13d79d29508de5606f684eb4ed11fab6f5c1",
+    "plan-fragment":
+      "sha256:5e19f6983dec9e237a4ce8a00672a36ea4e2238708d01f004a3661b3c6adb02e",
+    "plan-view":
+      "sha256:3c3a15ba0a310efcd0a13a492760bc8545f131dc2da5d2fa855051101cf540d9",
+    "adaptive-role-binding":
+      "sha256:0748bc8ba8d675c465dd21f35c3cbe16ec48253c5d2284af7a576c029ce35a30",
+    "collective-planning-snapshot":
+      "sha256:bdbbef63aa19fbea90e2ffad144e484944b6d15bc58923f5c2b826b72cc6d207",
   };
   for (const [domain, expectedDigest] of Object.entries(expected))
     assert.equal(digestPlanningJsonV1(domain, domainVector), expectedDigest);
 
   const fixtureProposalId = derivePlanFragmentProposalIdV1({
-    missionIntentId: 'mission-intent:fixture',
+    missionIntentId: "mission-intent:fixture",
     intentRevision: 1,
-    proposerPeerId: 'peer:fixture',
-    proposerInstanceId: 'instance:fixture:1',
-    semanticSlotKey: 'slot.fixture',
+    proposerPeerId: "peer:fixture",
+    proposerInstanceId: "instance:fixture:1",
+    semanticSlotKey: "slot.fixture",
     predecessorFragmentDigest: null,
     proposalRevision: 1,
   });
   assert.equal(
     fixtureProposalId,
-    'plan-proposal:ab30081436ea1ba95d8a773ab0f148a49ad7b4b9e9b8ac07d9e1c41fe3794736',
+    "plan-proposal:ab30081436ea1ba95d8a773ab0f148a49ad7b4b9e9b8ac07d9e1c41fe3794736",
   );
 });
 
-test('canonical helpers and factories never invoke hostile getters or array methods', () => {
+test("canonical helpers and factories never invoke hostile getters or array methods", () => {
   let limitsInvocations = 0;
   const hostileLimits = {
     maximumDepth: 2,
@@ -592,11 +594,11 @@ test('canonical helpers and factories never invoke hostile getters or array meth
     maximumKeysPerObject: 2,
     maximumItemsPerArray: 2,
   };
-  Object.defineProperty(hostileLimits, 'maximumBytes', {
+  Object.defineProperty(hostileLimits, "maximumBytes", {
     enumerable: true,
     get() {
       limitsInvocations += 1;
-      throw new Error('limits getter must not execute');
+      throw new Error("limits getter must not execute");
     },
   });
   assertRejectsWithoutInvoking(
@@ -606,11 +608,11 @@ test('canonical helpers and factories never invoke hostile getters or array meth
 
   let freezeInvocations = 0;
   const hostileFreeze = {};
-  Object.defineProperty(hostileFreeze, 'secret', {
+  Object.defineProperty(hostileFreeze, "secret", {
     enumerable: true,
     get() {
       freezeInvocations += 1;
-      throw new Error('freeze getter must not execute');
+      throw new Error("freeze getter must not execute");
     },
   });
   assertRejectsWithoutInvoking(
@@ -623,11 +625,11 @@ test('canonical helpers and factories never invoke hostile getters or array meth
   Object.setPrototypeOf(inheritedMap, {
     map() {
       inheritedMapInvocations += 1;
-      throw new Error('inherited map must not execute');
+      throw new Error("inherited map must not execute");
     },
   });
   try {
-    assert.equal(canonicalizePlanningJsonV1(inheritedMap), '[1]');
+    assert.equal(canonicalizePlanningJsonV1(inheritedMap), "[1]");
   } catch (error) {
     assert.ok(error instanceof CollectivePlanningValidationError);
   }
@@ -635,11 +637,11 @@ test('canonical helpers and factories never invoke hostile getters or array meth
 
   let ownMapInvocations = 0;
   const ownMap = [1];
-  Object.defineProperty(ownMap, 'map', {
+  Object.defineProperty(ownMap, "map", {
     enumerable: true,
     value() {
       ownMapInvocations += 1;
-      throw new Error('own map must not execute');
+      throw new Error("own map must not execute");
     },
   });
   assertRejectsWithoutInvoking(
@@ -668,43 +670,43 @@ test('canonical helpers and factories never invoke hostile getters or array meth
   let inheritedToJsonInvocations = 0;
   const previousToJson = Object.getOwnPropertyDescriptor(
     Object.prototype,
-    'toJSON',
+    "toJSON",
   );
   try {
-    Object.defineProperty(Object.prototype, 'toJSON', {
+    Object.defineProperty(Object.prototype, "toJSON", {
       configurable: true,
       value() {
         inheritedToJsonInvocations += 1;
-        throw new Error('inherited toJSON must not execute');
+        throw new Error("inherited toJSON must not execute");
       },
     });
     assert.deepEqual(validateMissionIntentV1(intent), intent);
   } finally {
     if (previousToJson)
-      Object.defineProperty(Object.prototype, 'toJSON', previousToJson);
+      Object.defineProperty(Object.prototype, "toJSON", previousToJson);
     else delete Object.prototype.toJSON;
   }
   assert.equal(inheritedToJsonInvocations, 0);
 
   for (const [factory, source, omittedKey, accessorKey] of [
-    [createMissionIntentV1, intent, 'intentDigest', 'missionIntentId'],
+    [createMissionIntentV1, intent, "intentDigest", "missionIntentId"],
     [
       createMissionObservationV1,
       observation,
-      'observationDigest',
-      'observationId',
+      "observationDigest",
+      "observationId",
     ],
-    [createPlanSelectionPolicyV1, policy, 'policyDigest', 'selectionPolicyId'],
-    [createPlanFragmentProposalV1, proposal, 'proposalDigest', 'proposalId'],
-    [createPlanFragmentDecisionV1, decision, 'decisionDigest', 'decisionId'],
-    [createPlanFragmentV1, fragment, 'fragmentDigest', 'fragmentId'],
-    [createPlanViewV1, view, 'stateDigest', 'planViewId'],
-    [createAdaptiveRoleBindingV1, role, 'roleBindingDigest', 'roleBindingId'],
+    [createPlanSelectionPolicyV1, policy, "policyDigest", "selectionPolicyId"],
+    [createPlanFragmentProposalV1, proposal, "proposalDigest", "proposalId"],
+    [createPlanFragmentDecisionV1, decision, "decisionDigest", "decisionId"],
+    [createPlanFragmentV1, fragment, "fragmentDigest", "fragmentId"],
+    [createPlanViewV1, view, "stateDigest", "planViewId"],
+    [createAdaptiveRoleBindingV1, role, "roleBindingDigest", "roleBindingId"],
     [
       createCollectivePlanningSnapshotV1,
       snapshot,
-      'snapshotDigest',
-      'missionIntent',
+      "snapshotDigest",
+      "missionIntent",
     ],
   ]) {
     const hostile = structuredClone(source);
@@ -725,7 +727,7 @@ test('canonical helpers and factories never invoke hostile getters or array meth
   }
 });
 
-test('portable intent, observation, policy and proposal records are strict and immutable', () => {
+test("portable intent, observation, policy and proposal records are strict and immutable", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -773,7 +775,7 @@ test('portable intent, observation, policy and proposal records are strict and i
   );
 });
 
-test('every nested planning record rejects unknown fields and accessors without invocation', () => {
+test("every nested planning record rejects unknown fields and accessors without invocation", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -793,7 +795,7 @@ test('every nested planning record rejects unknown fields and accessors without 
     proposal,
     decision,
     activeFragment,
-    'offered',
+    "offered",
   );
   const assignedFragment = advanceFragmentState(
     intent,
@@ -801,7 +803,7 @@ test('every nested planning record rejects unknown fields and accessors without 
     proposal,
     decision,
     offeredFragment,
-    'assigned',
+    "assigned",
   );
   const role = adaptiveRole(intent, activeView, assignedFragment);
   const roleView = planView(
@@ -819,7 +821,7 @@ test('every nested planning record rejects unknown fields and accessors without 
           fragmentDigest: assignedFragment.fragmentDigest,
           meshId: intent.objective.meshId,
           objectiveId: intent.objective.objectiveId,
-          workItemId: 'work-item:nested-boundary',
+          workItemId: "work-item:nested-boundary",
           workItemRevision: 1,
         },
       ],
@@ -838,29 +840,29 @@ test('every nested planning record rejects unknown fields and accessors without 
   );
 
   const boundaries = [
-    [validateMissionIntentV1, intent, ['objective'], 'meshId'],
+    [validateMissionIntentV1, intent, ["objective"], "meshId"],
     [
       validateMissionIntentV1,
       intent,
-      ['planningLimits'],
-      'maximumCandidateFragments',
+      ["planningLimits"],
+      "maximumCandidateFragments",
     ],
-    [validatePlanSelectionPolicyV1, policy, ['scoringDimensions', 0], 'weight'],
-    [validatePlanViewV1, activeView, ['selectedHeads', 0], 'semanticSlotKey'],
-    [validatePlanViewV1, activeView, ['budgetShards', 0], 'budgetUnits'],
-    [validatePlanViewV1, activeView, ['budgetReservations', 0], 'units'],
-    [validatePlanViewV1, roleView, ['workMappings', 0], 'workItemId'],
+    [validatePlanSelectionPolicyV1, policy, ["scoringDimensions", 0], "weight"],
+    [validatePlanViewV1, activeView, ["selectedHeads", 0], "semanticSlotKey"],
+    [validatePlanViewV1, activeView, ["budgetShards", 0], "budgetUnits"],
+    [validatePlanViewV1, activeView, ["budgetReservations", 0], "units"],
+    [validatePlanViewV1, roleView, ["workMappings", 0], "workItemId"],
     [
       validatePlanViewV1,
       roleView,
-      ['activeRoleBindings', 0],
-      'assignmentEpoch',
+      ["activeRoleBindings", 0],
+      "assignmentEpoch",
     ],
     [
       validateCollectivePlanningSnapshotV1,
       snapshot,
-      ['domainHighWaters', 0],
-      'revision',
+      ["domainHighWaters", 0],
+      "revision",
     ],
   ];
 
@@ -889,46 +891,46 @@ test('every nested planning record rejects unknown fields and accessors without 
   }
 });
 
-test('observations and proposals cannot smuggle assignments or effect authority', () => {
+test("observations and proposals cannot smuggle assignments or effect authority", () => {
   const intent = missionIntent();
   const observation = missionObservation(intent);
   const forbidden = [
-    'assigneeId',
-    'assignedPeerId',
-    'assignmentEpoch',
-    'assignmentAuthorityId',
-    'authorityGeneration',
-    'fencingToken',
-    'actionGrantId',
-    'permitId',
-    'handler',
-    'handlerId',
-    'globalMembership',
-    'hiddenState',
-    'terminalPredicate',
-    'futureEvents',
-    'futureFaultSchedule',
-    'assigned_peer_id',
-    'assignment-authority-id',
-    'GLOBAL MEMBERSHIP',
-    'hidden_world_state',
-    'future-fault-schedule',
-    'permit-id',
-    'ａｓｓｉｇｎｅｄＰｅｅｒＩｄ',
+    "assigneeId",
+    "assignedPeerId",
+    "assignmentEpoch",
+    "assignmentAuthorityId",
+    "authorityGeneration",
+    "fencingToken",
+    "actionGrantId",
+    "permitId",
+    "handler",
+    "handlerId",
+    "globalMembership",
+    "hiddenState",
+    "terminalPredicate",
+    "futureEvents",
+    "futureFaultSchedule",
+    "assigned_peer_id",
+    "assignment-authority-id",
+    "GLOBAL MEMBERSHIP",
+    "hidden_world_state",
+    "future-fault-schedule",
+    "permit-id",
+    "ａｓｓｉｇｎｅｄＰｅｅｒＩｄ",
   ];
   for (const [index, field] of forbidden.entries()) {
     assert.throws(
       () =>
         missionObservation(intent, {
           observationId: `observation:forbidden:${index}`,
-          publicValue: { nested: { [field]: 'smuggled' } },
+          publicValue: { nested: { [field]: "smuggled" } },
         }),
       /forbidden field/u,
     );
   }
   for (const [index, publicValue] of [
-    { assi: { gned_peer_id: 'smuggled' } },
-    { glo: { bal: { membership: ['peer:all'] } } },
+    { assi: { gned_peer_id: "smuggled" } },
+    { glo: { bal: { membership: ["peer:all"] } } },
     { hid: { den: { world: { state: true } } } },
   ].entries()) {
     assert.throws(
@@ -943,29 +945,29 @@ test('observations and proposals cannot smuggle assignments or effect authority'
 
   const proposal = fragmentProposal(intent, observation);
   for (const field of [
-    'assigneeId',
-    'assignedPeerId',
-    'assignmentEpoch',
-    'assignmentAuthorityId',
-    'authorityGeneration',
-    'fencingToken',
-    'actionGrantId',
-    'permitId',
-    'handler',
-    'handlerId',
+    "assigneeId",
+    "assignedPeerId",
+    "assignmentEpoch",
+    "assignmentAuthorityId",
+    "authorityGeneration",
+    "fencingToken",
+    "actionGrantId",
+    "permitId",
+    "handler",
+    "handlerId",
   ]) {
     assert.throws(
       () =>
         validatePlanFragmentProposalV1({
           ...structuredClone(proposal),
-          [field]: 'smuggled',
+          [field]: "smuggled",
         }),
       /invalid shape/u,
     );
   }
 });
 
-test('proposal identity is deterministic, nonce-free and digest-bound', () => {
+test("proposal identity is deterministic, nonce-free and digest-bound", () => {
   const intent = missionIntent();
   const observation = missionObservation(intent);
   const proposal = fragmentProposal(intent, observation);
@@ -989,22 +991,22 @@ test('proposal identity is deterministic, nonce-free and digest-bound', () => {
     () =>
       fragmentProposal(intent, observation, {
         proposalId: `${proposal.proposalId.slice(0, -1)}${
-          proposal.proposalId.endsWith('0') ? '1' : '0'
+          proposal.proposalId.endsWith("0") ? "1" : "0"
         }`,
       }),
     /proposalId mismatch/u,
   );
   assert.throws(
-    () => derivePlanFragmentProposalIdV1({ ...identity, nonce: 'grind' }),
+    () => derivePlanFragmentProposalIdV1({ ...identity, nonce: "grind" }),
     /invalid shape/u,
   );
   assert.throws(
-    () => fragmentProposal(intent, observation, { nonce: 'grind' }),
+    () => fragmentProposal(intent, observation, { nonce: "grind" }),
     /invalid shape/u,
   );
 });
 
-test('portable record validators enforce sorted sets, safe integers and hard boundaries', () => {
+test("portable record validators enforce sorted sets, safe integers and hard boundaries", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -1012,21 +1014,21 @@ test('portable record validators enforce sorted sets, safe integers and hard bou
   assert.throws(
     () =>
       missionIntent(policy, {
-        outcomeStatements: ['Report verified findings', 'Map the bounded area'],
+        outcomeStatements: ["Report verified findings", "Map the bounded area"],
       }),
     /sorted and unique/u,
   );
   assert.throws(
     () =>
       missionIntent(policy, {
-        permittedCapabilityKeys: ['capability.map', 'capability.map'],
+        permittedCapabilityKeys: ["capability.map", "capability.map"],
       }),
     /sorted and unique/u,
   );
   assert.throws(
     () =>
       fragmentProposal(intent, observation, {
-        requiredCapabilityKeys: ['capability.observe', 'capability.map'],
+        requiredCapabilityKeys: ["capability.observe", "capability.map"],
       }),
     /sorted and unique/u,
   );
@@ -1060,16 +1062,16 @@ test('portable record validators enforce sorted sets, safe integers and hard bou
     /safe integer/u,
   );
   assert.throws(
-    () => missionIntent(policy, { validUntil: '2026-02-30T00:00:00.000Z' }),
+    () => missionIntent(policy, { validUntil: "2026-02-30T00:00:00.000Z" }),
     /RFC 3339/u,
   );
   assert.throws(
-    () => missionObservation(intent, { observationId: 'bad\ud800id' }),
+    () => missionObservation(intent, { observationId: "bad\ud800id" }),
     /unpaired surrogate/u,
   );
   const tooManyOutcomes = Array.from(
     { length: 1_025 },
-    (_, index) => `outcome-${String(index).padStart(4, '0')}`,
+    (_, index) => `outcome-${String(index).padStart(4, "0")}`,
   );
   assert.throws(
     () =>
@@ -1081,7 +1083,7 @@ test('portable record validators enforce sorted sets, safe integers and hard bou
   const oversizedOutcomes = Array.from(
     { length: 1_024 },
     (_, index) =>
-      `outcome-${String(index).padStart(4, '0')}-${'x'.repeat(300)}`,
+      `outcome-${String(index).padStart(4, "0")}-${"x".repeat(300)}`,
   );
   assert.throws(
     () =>
@@ -1092,7 +1094,7 @@ test('portable record validators enforce sorted sets, safe integers and hard bou
   );
 });
 
-test('decision, fragment, view, role and snapshot form a complete immutable contract chain', () => {
+test("decision, fragment, view, role and snapshot form a complete immutable contract chain", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -1106,7 +1108,7 @@ test('decision, fragment, view, role and snapshot form a complete immutable cont
     proposal,
     decision,
     activeFragment,
-    'offered',
+    "offered",
   );
   const fragment = advanceFragmentState(
     intent,
@@ -1114,7 +1116,7 @@ test('decision, fragment, view, role and snapshot form a complete immutable cont
     proposal,
     decision,
     offeredFragment,
-    'assigned',
+    "assigned",
   );
   const workMappings = [
     {
@@ -1122,7 +1124,7 @@ test('decision, fragment, view, role and snapshot form a complete immutable cont
       fragmentDigest: fragment.fragmentDigest,
       meshId: intent.objective.meshId,
       objectiveId: intent.objective.objectiveId,
-      workItemId: 'work-item:alpha:1',
+      workItemId: "work-item:alpha:1",
       workItemRevision: 1,
     },
   ];
@@ -1194,7 +1196,7 @@ test('decision, fragment, view, role and snapshot form a complete immutable cont
       validateCollectivePlanningSnapshotV1,
       snapshot,
       (copy) => {
-        copy.snapshotId = 'collective-planning-snapshot:tampered';
+        copy.snapshotId = "collective-planning-snapshot:tampered";
       },
     ],
   ]) {
@@ -1204,7 +1206,7 @@ test('decision, fragment, view, role and snapshot form a complete immutable cont
   }
 });
 
-test('fragment lifecycle history is append-only, contiguous and transition-safe', () => {
+test("fragment lifecycle history is append-only, contiguous and transition-safe", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -1217,7 +1219,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     active,
-    'offered',
+    "offered",
   );
   const assigned = advanceFragmentState(
     intent,
@@ -1225,7 +1227,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     offered,
-    'assigned',
+    "assigned",
   );
   const executing = advanceFragmentState(
     intent,
@@ -1233,7 +1235,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     assigned,
-    'executing',
+    "executing",
   );
   const completed = advanceFragmentState(
     intent,
@@ -1241,7 +1243,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     executing,
-    'completed',
+    "completed",
   );
   const history = [active, offered, assigned, executing, completed];
   const completedView = planView(
@@ -1258,12 +1260,13 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
       budgetReservations: [
         {
           schemaVersion: 1,
-          reservationId: 'planning-reservation:alpha:1',
+          reservationId: "planning-reservation:alpha:1",
           peerId: proposal.proposerPeerId,
+          peerInstanceId: proposal.proposerInstanceId,
           proposalDigest: proposal.proposalDigest,
           fragmentDigest: completed.fragmentDigest,
           units: proposal.requestedBudgetUnits,
-          status: 'committed',
+          status: "committed",
         },
       ],
       logicalTimeHighWaterMs: 125,
@@ -1273,15 +1276,16 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
 
   const reservationFor = (target, status) => ({
     schemaVersion: 1,
-    reservationId: 'planning-reservation:alpha:1',
+    reservationId: "planning-reservation:alpha:1",
     peerId: proposal.proposerPeerId,
+    peerInstanceId: proposal.proposerInstanceId,
     proposalDigest: proposal.proposalDigest,
     fragmentDigest: target.fragmentDigest,
     units: proposal.requestedBudgetUnits,
     status,
   });
   const candidate = planFragment(intent, policy, proposal, decision, {
-    status: 'candidate',
+    status: "candidate",
   });
   const candidateView = planView(
     intent,
@@ -1291,15 +1295,15 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     candidate,
     {
       selectedHeads: [],
-      budgetReservations: [reservationFor(candidate, 'reserved')],
+      budgetReservations: [reservationFor(candidate, "reserved")],
     },
   );
-  assert.equal(candidateView.budgetReservations[0].status, 'reserved');
+  assert.equal(candidateView.budgetReservations[0].status, "reserved");
   assert.throws(
     () =>
       planView(intent, policy, proposal, decision, candidate, {
         selectedHeads: [],
-        budgetReservations: [reservationFor(candidate, 'committed')],
+        budgetReservations: [reservationFor(candidate, "committed")],
       }),
     /candidate fragment requires a reserved/u,
   );
@@ -1310,7 +1314,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
         fragments: history,
         selectedHeads: [],
         causalFrontierDigests: [completed.fragmentDigest],
-        budgetReservations: [reservationFor(executing, 'committed')],
+        budgetReservations: [reservationFor(executing, "committed")],
         logicalTimeHighWaterMs: 125,
       }),
     /latest fragment lacks its exact planning reservation/u,
@@ -1318,7 +1322,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
 
   const terminalHistories = [
     [completed, history],
-    ...['cancelled', 'superseded', 'failed'].map((status) => {
+    ...["cancelled", "superseded", "failed"].map((status) => {
       const terminal = advanceFragmentState(
         intent,
         policy,
@@ -1338,7 +1342,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
         fragments: cancelledHistory,
         selectedHeads: [],
         causalFrontierDigests: [cancelled.fragmentDigest],
-        budgetReservations: [reservationFor(cancelled, 'reserved')],
+        budgetReservations: [reservationFor(cancelled, "reserved")],
         logicalTimeHighWaterMs: 125,
       }),
     /cannot retain a reserved budget/u,
@@ -1350,7 +1354,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
       proposal,
       decision,
       terminal,
-      'active',
+      "active",
     );
     assert.throws(
       () =>
@@ -1367,8 +1371,8 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     active,
-    'offered',
-    { previousStateDigest: digest('plan-fragment', 'unrelated-state') },
+    "offered",
+    { previousStateDigest: digest("plan-fragment", "unrelated-state") },
   );
   assert.throws(
     () =>
@@ -1384,7 +1388,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     active,
-    'offered',
+    "offered",
     { fragmentRevision: 3 },
   );
   assert.throws(
@@ -1401,7 +1405,7 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
     proposal,
     decision,
     active,
-    'executing',
+    "executing",
   );
   assert.throws(
     () =>
@@ -1412,12 +1416,12 @@ test('fragment lifecycle history is append-only, contiguous and transition-safe'
   );
 });
 
-test('decisions and fragments reject malformed selection and proposal bindings', () => {
+test("decisions and fragments reject malformed selection and proposal bindings", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
   const proposal = fragmentProposal(intent, observation);
-  const otherCandidate = digest('plan-fragment-proposal', 'other-candidate');
+  const otherCandidate = digest("plan-fragment-proposal", "other-candidate");
 
   assert.throws(
     () =>
@@ -1429,14 +1433,14 @@ test('decisions and fragments reject malformed selection and proposal bindings',
   assert.throws(
     () =>
       fragmentDecision(intent, policy, proposal, {
-        reasonCodes: ['score.accepted', 'constraints.satisfied'],
+        reasonCodes: ["score.accepted", "constraints.satisfied"],
       }),
     /sorted and unique/u,
   );
   assert.throws(
     () =>
       fragmentDecision(intent, policy, proposal, {
-        status: 'accepted',
+        status: "accepted",
         selectedSemanticSlotHeadDigest: null,
       }),
     /must select/u,
@@ -1452,7 +1456,7 @@ test('decisions and fragments reject malformed selection and proposal bindings',
   const decision = fragmentDecision(intent, policy, proposal);
   assert.throws(
     () =>
-      planFragment(intent, policy, proposal, decision, { roleKey: 'reviewer' }),
+      planFragment(intent, policy, proposal, decision, { roleKey: "reviewer" }),
     /proposalDigest mismatch|do not match proposalDigest/u,
   );
   assert.throws(
@@ -1472,7 +1476,7 @@ test('decisions and fragments reject malformed selection and proposal bindings',
   );
 });
 
-test('plan views fail closed on malformed graph, reservation and role references', () => {
+test("plan views fail closed on malformed graph, reservation and role references", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -1480,7 +1484,7 @@ test('plan views fail closed on malformed graph, reservation and role references
   const decision = fragmentDecision(intent, policy, proposal);
   const fragment = planFragment(intent, policy, proposal, decision);
   const view = planView(intent, policy, proposal, decision, fragment);
-  const unknown = digest('plan-fragment', 'unknown');
+  const unknown = digest("plan-fragment", "unknown");
 
   const selfCycle = structuredClone(fragment);
   selfCycle.dependencyFragmentDigests = [fragment.fragmentDigest];
@@ -1509,7 +1513,7 @@ test('plan views fail closed on malformed graph, reservation and role references
         selectedHeads: [
           {
             schemaVersion: 1,
-            semanticSlotKey: 'slot.other',
+            semanticSlotKey: "slot.other",
             fragmentDigest: fragment.fragmentDigest,
           },
         ],
@@ -1522,12 +1526,13 @@ test('plan views fail closed on malformed graph, reservation and role references
         budgetReservations: [
           {
             schemaVersion: 1,
-            reservationId: 'planning-reservation:alpha:1',
-            peerId: 'peer:unknown',
+            reservationId: "planning-reservation:alpha:1",
+            peerId: "peer:unknown",
+            peerInstanceId: proposal.proposerInstanceId,
             proposalDigest: proposal.proposalDigest,
             fragmentDigest: fragment.fragmentDigest,
             units: 100,
-            status: 'committed',
+            status: "committed",
           },
         ],
       }),
@@ -1540,13 +1545,14 @@ test('plan views fail closed on malformed graph, reservation and role references
           {
             schemaVersion: 1,
             peerId: proposal.proposerPeerId,
+            peerInstanceId: proposal.proposerInstanceId,
             budgetUnits: 50,
           },
         ],
       }),
     /exceeds its peer budget shard/u,
   );
-  const role = adaptiveRole(intent, view, fragment, { roleKey: 'reviewer' });
+  const role = adaptiveRole(intent, view, fragment, { roleKey: "reviewer" });
   assert.throws(
     () =>
       planView(intent, policy, proposal, decision, fragment, {
@@ -1556,15 +1562,15 @@ test('plan views fail closed on malformed graph, reservation and role references
   );
 });
 
-test('snapshot validation applies intent graph limits and exact high-water coverage', () => {
+test("snapshot validation applies intent graph limits and exact high-water coverage", () => {
   const policy = selectionPolicy();
   const constrainedIntent = missionIntent(policy, {
     planningLimits: planningLimits({ maximumDependencyFanout: 1 }),
   });
   const observation = missionObservation(constrainedIntent);
   const dependencies = [
-    digest('plan-fragment', 'dependency:a'),
-    digest('plan-fragment', 'dependency:b'),
+    digest("plan-fragment", "dependency:a"),
+    digest("plan-fragment", "dependency:b"),
   ].sort();
   const proposal = fragmentProposal(constrainedIntent, observation, {
     dependencyFragmentDigests: dependencies,
@@ -1703,22 +1709,22 @@ test('snapshot validation applies intent graph limits and exact high-water cover
   );
 });
 
-test('intent revision and snapshot high-water assertions reject rollback and widening', () => {
+test("intent revision and snapshot high-water assertions reject rollback and widening", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const revisedIntent = missionIntent(policy, {
     revision: 2,
     predecessorDigest: intent.intentDigest,
-    permittedResourceClasses: ['compute'],
-    permittedCapabilityKeys: ['capability.map'],
+    permittedResourceClasses: ["compute"],
+    permittedCapabilityKeys: ["capability.map"],
     planningLimits: planningLimits({
       maximumCandidateFragments: 15,
       maximumActiveFragments: 7,
       maximumFragmentsPerPeer: 7,
       maximumActiveRoles: 3,
     }),
-    validFrom: '2026-08-01T00:01:00.000Z',
-    validUntil: '2026-08-01T23:59:00.000Z',
+    validFrom: "2026-08-01T00:01:00.000Z",
+    validUntil: "2026-08-01T23:59:00.000Z",
   });
   assert.deepEqual(
     assertMissionIntentRevisionV1(intent, revisedIntent),
@@ -1728,7 +1734,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
     revision: 2,
     predecessorDigest: intent.intentDigest,
     permittedCapabilityKeys: [
-      'capability.execute.unreviewed',
+      "capability.execute.unreviewed",
       ...intent.permittedCapabilityKeys,
     ].sort(),
   });
@@ -1767,7 +1773,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
     proposal,
     decision,
     fragment,
-    { snapshotId: 'collective-planning-snapshot:conflicting-view' },
+    { snapshotId: "collective-planning-snapshot:conflicting-view" },
   );
   assert.throws(
     () =>
@@ -1856,7 +1862,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   const revisedSnapshot = snapshotForRevision(
     revisedIntent,
     policy,
-    'revision-2',
+    "revision-2",
     firstSnapshot.domainHighWaters,
   );
   assert.deepEqual(
@@ -1865,7 +1871,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   );
   const narrowedPolicy = selectionPolicy({
     revision: 2,
-    hardConstraintKeys: ['budget', 'capability', 'deadline', 'risk'],
+    hardConstraintKeys: ["budget", "capability", "deadline", "risk"],
     acceptanceScoreThreshold: 701,
     challengeScoreThreshold: 401,
   });
@@ -1876,7 +1882,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   const narrowedPolicySnapshot = snapshotForRevision(
     narrowedPolicyIntent,
     narrowedPolicy,
-    'narrowed-policy',
+    "narrowed-policy",
     firstSnapshot.domainHighWaters,
   );
   assert.deepEqual(
@@ -1894,7 +1900,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   const widenedPolicySnapshot = snapshotForRevision(
     widenedPolicyIntent,
     widenedPolicy,
-    'widened-policy',
+    "widened-policy",
     firstSnapshot.domainHighWaters,
   );
   assert.throws(
@@ -1912,7 +1918,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   const downgradedPolicySnapshot = snapshotForRevision(
     downgradedPolicyIntent,
     policy,
-    'downgraded-policy',
+    "downgraded-policy",
     narrowedPolicySnapshot.domainHighWaters,
   );
   assert.throws(
@@ -1930,7 +1936,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   const widenedSnapshot = snapshotForRevision(
     widened,
     policy,
-    'widened',
+    "widened",
     firstSnapshot.domainHighWaters,
   );
   assert.throws(
@@ -1948,9 +1954,9 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
         decision,
         fragment,
         {
-          snapshotId: 'collective-planning-snapshot:missing-observation',
+          snapshotId: "collective-planning-snapshot:missing-observation",
           domainHighWaters: firstSnapshot.domainHighWaters.filter(
-            (item) => item.domain !== 'observation',
+            (item) => item.domain !== "observation",
           ),
         },
       ),
@@ -1965,9 +1971,9 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
     decision,
     fragment,
     {
-      snapshotId: 'collective-planning-snapshot:alpha:2',
+      snapshotId: "collective-planning-snapshot:alpha:2",
       domainHighWaters: firstSnapshot.domainHighWaters.map((item) =>
-        item.domain === 'observation' ? { ...item, revision: 2 } : item,
+        item.domain === "observation" ? { ...item, revision: 2 } : item,
       ),
     },
   );
@@ -1981,7 +1987,7 @@ test('intent revision and snapshot high-water assertions reject rollback and wid
   );
 });
 
-test('snapshot succession rejects adaptive-role authority rollback and equivocation', () => {
+test("snapshot succession rejects adaptive-role authority rollback and equivocation", () => {
   const policy = selectionPolicy();
   const intent = missionIntent(policy);
   const observation = missionObservation(intent);
@@ -1994,7 +2000,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     proposal,
     decision,
     active,
-    'offered',
+    "offered",
   );
   const assigned = advanceFragmentState(
     intent,
@@ -2002,7 +2008,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     proposal,
     decision,
     offered,
-    'assigned',
+    "assigned",
   );
   const initialView = planView(intent, policy, proposal, decision, active);
   const mappingFor = (fragment) => ({
@@ -2010,7 +2016,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     fragmentDigest: fragment.fragmentDigest,
     meshId: intent.objective.meshId,
     objectiveId: intent.objective.objectiveId,
-    workItemId: 'work-item:authority',
+    workItemId: "work-item:authority",
     workItemRevision: 1,
   });
   const assignedRole = adaptiveRole(intent, initialView, assigned, {
@@ -2039,7 +2045,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     proposal,
     decision,
     assigned,
-    'executing',
+    "executing",
   );
   const successorSnapshot = (role, suffix) => {
     const executingView = planView(
@@ -2076,7 +2082,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     () =>
       assertSnapshotHighWatersNotLoweredV1(
         assignedSnapshot,
-        successorSnapshot(loweredRole, 'lowered'),
+        successorSnapshot(loweredRole, "lowered"),
       ),
     /lowers adaptive-role assignment authority/u,
   );
@@ -2089,7 +2095,7 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
     () =>
       assertSnapshotHighWatersNotLoweredV1(
         assignedSnapshot,
-        successorSnapshot(loweredGenerationRole, 'lowered-generation'),
+        successorSnapshot(loweredGenerationRole, "lowered-generation"),
       ),
     /lowers adaptive-role assignment authority/u,
   );
@@ -2097,14 +2103,14 @@ test('snapshot succession rejects adaptive-role authority rollback and equivocat
   const equivocatedRole = adaptiveRole(intent, assignedView, executing, {
     assignmentEpoch: 2,
     authorityGeneration: 2,
-    assignedPeerId: 'peer:gamma',
-    assignedInstanceId: 'instance:gamma:1',
+    assignedPeerId: "peer:gamma",
+    assignedInstanceId: "instance:gamma:1",
   });
   assert.throws(
     () =>
       assertSnapshotHighWatersNotLoweredV1(
         assignedSnapshot,
-        successorSnapshot(equivocatedRole, 'equivocated'),
+        successorSnapshot(equivocatedRole, "equivocated"),
       ),
     /conflicting bindings/u,
   );

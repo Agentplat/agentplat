@@ -1637,11 +1637,12 @@ function validateSemanticSlotHead(value: unknown): PlanSemanticSlotHeadV1 {
 function validateBudgetShard(value: unknown): PlanningBudgetShardV1 {
   assertPlanningExactKeys(
     value,
-    ["schemaVersion", "peerId", "budgetUnits"],
+    ["schemaVersion", "peerId", "peerInstanceId", "budgetUnits"],
     "planning budget shard",
   );
   assertSchema(value, "planning budget shard");
   assertPlanningIdentifier(value.peerId, "peerId");
+  assertPlanningIdentifier(value.peerInstanceId, "peerInstanceId");
   assertPlanningSafeInteger(value.budgetUnits, "budgetUnits");
   return cloneFrozen(value) as unknown as PlanningBudgetShardV1;
 }
@@ -1655,6 +1656,7 @@ function validateBudgetReservation(
       "schemaVersion",
       "reservationId",
       "peerId",
+      "peerInstanceId",
       "proposalDigest",
       "fragmentDigest",
       "units",
@@ -1665,6 +1667,7 @@ function validateBudgetReservation(
   assertSchema(value, "planning budget reservation");
   assertPlanningIdentifier(value.reservationId, "reservationId");
   assertPlanningIdentifier(value.peerId, "peerId");
+  assertPlanningIdentifier(value.peerInstanceId, "peerInstanceId");
   assertPlanningDigest(value.proposalDigest, "proposalDigest");
   if (value.fragmentDigest !== null)
     assertPlanningDigest(value.fragmentDigest, "fragmentDigest");
@@ -2005,9 +2008,14 @@ function validatePlanViewRelationships(
     "budgetShards",
     65_536,
     validateBudgetShard,
-    (item) => item.peerId,
+    (item) => `${item.peerId}\u0000${item.peerInstanceId}`,
   );
-  const shardByPeer = new Map(shards.map((shard) => [shard.peerId, shard]));
+  const shardBySubject = new Map(
+    shards.map((shard) => [
+      `${shard.peerId}\u0000${shard.peerInstanceId}`,
+      shard,
+    ]),
+  );
   const reservations = assertSortedRecords(
     value.budgetReservations,
     "budgetReservations",
@@ -2018,17 +2026,25 @@ function validatePlanViewRelationships(
   const usedByPeer = new Map<string, number>();
   const reservationByProposal = new Map<string, PlanningBudgetReservationV1>();
   for (const reservation of reservations) {
-    if (!shardByPeer.has(reservation.peerId))
+    const subjectKey = `${reservation.peerId}\u0000${reservation.peerInstanceId}`;
+    if (!shardBySubject.has(subjectKey))
       throw new CollectivePlanningValidationError(
         "planning reservation references an unknown budget shard",
       );
-    if (
-      !(value.proposals as PlanFragmentProposalV1[]).some(
-        (proposal) => proposal.proposalDigest === reservation.proposalDigest,
-      )
-    )
+    const reservedProposal = (value.proposals as PlanFragmentProposalV1[]).find(
+      (proposal) => proposal.proposalDigest === reservation.proposalDigest,
+    );
+    if (!reservedProposal)
       throw new CollectivePlanningValidationError(
         "planning reservation references an unknown proposal",
+      );
+    if (
+      reservedProposal.proposerPeerId !== reservation.peerId ||
+      reservedProposal.proposerInstanceId !== reservation.peerInstanceId ||
+      reservedProposal.requestedBudgetUnits !== reservation.units
+    )
+      throw new CollectivePlanningValidationError(
+        "planning reservation differs from its exact proposal subject or units",
       );
     if (
       reservation.fragmentDigest !== null &&
@@ -2054,17 +2070,16 @@ function validatePlanViewRelationships(
       );
     reservationByProposal.set(reservation.proposalDigest, reservation);
     if (reservation.status !== "released") {
-      const used =
-        (usedByPeer.get(reservation.peerId) ?? 0) + reservation.units;
+      const used = (usedByPeer.get(subjectKey) ?? 0) + reservation.units;
       if (!Number.isSafeInteger(used))
         throw new CollectivePlanningValidationError(
           "planning reservation total is unsafe",
         );
-      usedByPeer.set(reservation.peerId, used);
+      usedByPeer.set(subjectKey, used);
     }
   }
-  for (const [peerId, used] of usedByPeer)
-    if (used > (shardByPeer.get(peerId)?.budgetUnits ?? 0))
+  for (const [subjectKey, used] of usedByPeer)
+    if (used > (shardBySubject.get(subjectKey)?.budgetUnits ?? 0))
       throw new CollectivePlanningValidationError(
         "planning reservation exceeds its peer budget shard",
       );

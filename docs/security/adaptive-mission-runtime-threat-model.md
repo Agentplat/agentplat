@@ -48,6 +48,37 @@ Configuration is construction-bound and frozen for one run. Runtime metadata,
 model text, Room roles, remote extensions and environment observations cannot
 replace these bindings.
 
+### Portable planning reducer
+
+The Increment 2 reducer is a local deterministic boundary, not a transport or
+authority boundary. It accepts only the closed command kinds
+`observation.record`, `proposal.record`, `slot.evaluate`,
+`fragment.transition` and `logical-time.advance`, each with trusted logical
+time, a logical command identifier and required
+`expectedStateDigest: PlanningDigestV1 | null`. A null expected digest permits
+causality-only reorder; a non-null digest is an optimistic-concurrency
+precondition. Snapshot restore is a separate strict API, not a command. The
+reducer retains the exact admitted `(peerId, peerInstanceId)` subject set,
+equal planning-budget shards, observations, cursor tombstones, plan records
+and high-waters required for replay. It reads no host clock, random source,
+repository, Mesh state, environment state, model output or execution state.
+
+A cursor or command identifier may be repeated only with the same canonical
+digest. A conflicting reuse is rejected before state change. All candidate
+graph, budget, time and lifecycle checks precede publication of a next state;
+rejection cannot retain an observation, reserve/release budget, change a head,
+create an effect or mutate a timer. Candidate selection applies the frozen
+policy score before its declared digest tie-break. The reducer cannot add
+subjects, transfer shards or create execution authority.
+
+The digest treats `expectedStateDigest` and `transitionedAtLogicalMs` as
+first-application preconditions rather than domain content. They are validated
+before initial acceptance; once the exact domain command is retained, changing
+only either precondition cannot turn a retry into a new mutation. The retained
+high-water normalizes both preconditions before contributing to state digest.
+Logical time uses max-register semantics, so stale advances are idempotent and
+cannot lower the high-water.
+
 ### Peer and model decision policy
 
 A peer or model may propose work, challenge information, bid, abstain or emit an
@@ -123,6 +154,8 @@ healthy-peer assumptions.
 | Semantic-slot race                            | Append-only candidates; deterministic selection; explicit supersession and Work cancellation                    | Reorder, duplicate and concurrent proposal schedules           |
 | Digest-grinding tie-break abuse               | Closed proposal fields, no free nonce, policy score before digest tie-break, per-peer proposal limits           | Equivalent proposal flood and tie cases                        |
 | Planning budget oversubscription              | Deterministic immutable peer shards and prefix conservation checks; no remote widening                          | Concurrent proposal/replan budget property tests               |
+| Cursor or command replay conflict             | Retained cursor tombstones and command idempotency records bind each logical identifier to one canonical digest | Duplicate, conflicting reuse and restore replay tests          |
+| Reducer rejection partially changes state     | Validate the complete closed command before publication; preserve the prior frozen state on rejection           | Invalid graph, budget, time and lifecycle transition tests     |
 | Unused shard impersonation                    | Shard identity bound to admitted peer and instance; no Beta 3 shard transfer                                    | Cross-peer/cross-instance reservation attempts                 |
 | Stale intent or policy revision               | Exact predecessor, revision and digest high-waters; stale records terminal/rejected                             | Reorder, rollback and fork tests                               |
 | Replanning resurrects stale Work              | Supersession calls explicit Mesh revise/cancel; final currentness checks include fragment head                  | Plan change racing award, accept, result and effect            |

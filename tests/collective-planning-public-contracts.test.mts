@@ -34,6 +34,21 @@ import {
   planFragmentProposalDigestV1,
   planSelectionPolicyDigestV1,
   planViewDigestV1,
+  createPlanningReducerStateV1,
+  validatePlanningReducerStateV1,
+  planningReducerStateDigestV1,
+  createPlanningReducerCommandV1,
+  validatePlanningReducerCommandV1,
+  planningReducerCommandDigestV1,
+  createPlanningReducerEventV1,
+  validatePlanningReducerEventV1,
+  planningReducerEventDigestV1,
+  createPlanningReducerSnapshotV1,
+  validatePlanningReducerSnapshotV1,
+  planningReducerSnapshotDigestV1,
+  reducePlanningCommandV1,
+  restorePlanningReducerSnapshotV1,
+  replayPlanningCommandsV1,
   planningUtf8ByteLengthV1,
   sha256HexPlanningV1,
   validateAdaptiveRoleBindingV1,
@@ -74,7 +89,25 @@ import {
   type PlanTieBreakKeyV1,
   type PlanViewV1,
   type PlanFragmentProposalIdentityV1,
-} from '@agentplat/collective-planning';
+  type PlanningAdmittedSubjectV1,
+  type PlanningObservationCursorHighWaterV1,
+  type PlanningReducerCommandHighWaterV1,
+  type PlanningReducerStateV1,
+  type CreatePlanningReducerStateInputV1,
+  type PlanningReducerCommandV1,
+  type RecordPlanningObservationCommandV1,
+  type RecordPlanningProposalCommandV1,
+  type EvaluatePlanningSlotCommandV1,
+  type TransitionPlanningFragmentCommandV1,
+  type AdvancePlanningLogicalTimeCommandV1,
+  type Increment2FragmentTransitionStatusV1,
+  type PlanningReducerEventKindV1,
+  type PlanningReducerEventV1,
+  type PlanningReducerErrorCodeV1,
+  type PlanningReducerErrorV1,
+  type PlanningReducerResultV1,
+  type PlanningReducerSnapshotV1,
+} from "@agentplat/collective-planning";
 
 declare const intent: MissionIntentV1;
 declare const observation: MissionObservationV1;
@@ -85,17 +118,25 @@ declare const fragment: PlanFragmentV1;
 declare const view: PlanViewV1;
 declare const role: AdaptiveRoleBindingV1;
 declare const snapshot: CollectivePlanningSnapshotV1;
+declare const reducerState: PlanningReducerStateV1;
+declare const reducerCommand: PlanningReducerCommandV1;
+declare const reducerEvent: PlanningReducerEventV1;
+declare const reducerResult: PlanningReducerResultV1;
+declare const reducerSnapshot: PlanningReducerSnapshotV1;
 
 const schemaVersion: typeof COLLECTIVE_PLANNING_SCHEMA_VERSION = 1;
-const json: PlanningJson = { bounded: [true, null, 1, 'portable'] };
-const digest: PlanningDigestV1 = digestPlanningJsonV1('mission-intent', json);
-const domain: PlanningDigestDomainV1 = 'plan-fragment';
-const visibility: MissionObservationVisibilityV1 = 'resource';
-const dimensionKey: PlanScoringDimensionKeyV1 = 'bounded_risk';
-const tieBreakKey: PlanTieBreakKeyV1 = 'proposal_digest';
-const decisionStatus: PlanFragmentDecisionStatusV1 = 'challenged';
-const fragmentStatus: PlanFragmentStatusV1 = 'superseded';
-const roleStatus: AdaptiveRoleStatusV1 = 'terminal';
+const json: PlanningJson = { bounded: [true, null, 1, "portable"] };
+const digest: PlanningDigestV1 = digestPlanningJsonV1("mission-intent", json);
+const domain: PlanningDigestDomainV1 = "plan-fragment";
+const visibility: MissionObservationVisibilityV1 = "resource";
+const dimensionKey: PlanScoringDimensionKeyV1 = "bounded_risk";
+const tieBreakKey: PlanTieBreakKeyV1 = "proposal_digest";
+const decisionStatus: PlanFragmentDecisionStatusV1 = "challenged";
+const fragmentStatus: PlanFragmentStatusV1 = "superseded";
+const roleStatus: AdaptiveRoleStatusV1 = "terminal";
+const transitionStatus: Increment2FragmentTransitionStatusV1 = "superseded";
+const reducerEventKind: PlanningReducerEventKindV1 = "slot.evaluated";
+const reducerErrorCode: PlanningReducerErrorCodeV1 = "budget_exceeded";
 
 void (null as MissionObjectiveBindingV1 | null);
 void (null as PlanningLimitsV1 | null);
@@ -107,6 +148,16 @@ void (null as FragmentWorkMappingV1 | null);
 void (null as PlanningDomainHighWaterV1 | null);
 void (null as PlanningJsonLimitsV1 | null);
 void (null as PlanFragmentProposalIdentityV1 | null);
+void (null as PlanningAdmittedSubjectV1 | null);
+void (null as PlanningObservationCursorHighWaterV1 | null);
+void (null as PlanningReducerCommandHighWaterV1 | null);
+void (null as CreatePlanningReducerStateInputV1 | null);
+void (null as RecordPlanningObservationCommandV1 | null);
+void (null as RecordPlanningProposalCommandV1 | null);
+void (null as EvaluatePlanningSlotCommandV1 | null);
+void (null as TransitionPlanningFragmentCommandV1 | null);
+void (null as AdvancePlanningLogicalTimeCommandV1 | null);
+void (null as PlanningReducerErrorV1 | null);
 
 void COLLECTIVE_PLANNING_SCHEMA_VERSION;
 void CollectivePlanningValidationError;
@@ -155,6 +206,21 @@ void createAdaptiveRoleBindingV1;
 void validateAdaptiveRoleBindingV1;
 void createCollectivePlanningSnapshotV1;
 void validateCollectivePlanningSnapshotV1;
+void createPlanningReducerStateV1;
+void validatePlanningReducerStateV1;
+void planningReducerStateDigestV1;
+void createPlanningReducerCommandV1;
+void validatePlanningReducerCommandV1;
+void planningReducerCommandDigestV1;
+void createPlanningReducerEventV1;
+void validatePlanningReducerEventV1;
+void planningReducerEventDigestV1;
+void createPlanningReducerSnapshotV1;
+void validatePlanningReducerSnapshotV1;
+void planningReducerSnapshotDigestV1;
+void reducePlanningCommandV1;
+void restorePlanningReducerSnapshotV1;
+void replayPlanningCommandsV1;
 void schemaVersion;
 void json;
 void digest;
@@ -174,11 +240,19 @@ void fragment;
 void view;
 void role;
 void snapshot;
+void reducerState;
+void reducerCommand;
+void reducerEvent;
+void reducerResult;
+void reducerSnapshot;
+void transitionStatus;
+void reducerEventKind;
+void reducerErrorCode;
 
 // @ts-expect-error schema versions are closed and cannot be widened.
 const invalidSchemaVersion: typeof COLLECTIVE_PLANNING_SCHEMA_VERSION = 2;
 // @ts-expect-error proposal arrays are immutable through the public type.
-proposal.requiredCapabilityKeys.push('capability:unreviewed');
+proposal.requiredCapabilityKeys.push("capability:unreviewed");
 // @ts-expect-error planning proposals cannot select an assignee.
 proposal.assignedPeerId;
 // @ts-expect-error planning proposals cannot mint an assignment epoch.
@@ -223,5 +297,13 @@ view.fragments.push(fragment);
 view.permitId;
 // @ts-expect-error a snapshot cannot mint execution authority.
 snapshot.actionGrantId;
+// @ts-expect-error reducer state is immutable through its public type.
+reducerState.observations.push(observation);
+// @ts-expect-error reducer commands do not grant assignment authority.
+reducerCommand.assignmentAuthorityId;
+// @ts-expect-error reducer state cannot carry a governed permit.
+reducerState.permitId;
+// @ts-expect-error reducer events never mint an action grant.
+reducerEvent.actionGrantId;
 
 void invalidSchemaVersion;

@@ -15,7 +15,13 @@ export type PlanningDigestDomainV1 =
   | "plan-fragment"
   | "plan-view"
   | "adaptive-role-binding"
-  | "collective-planning-snapshot";
+  | "collective-planning-snapshot"
+  | "planning-reducer-command-identity"
+  | "planning-reducer-command"
+  | "planning-reducer-transition"
+  | "planning-reducer-state"
+  | "planning-reducer-event"
+  | "planning-reducer-snapshot";
 
 export interface PlanningLimitsV1 {
   readonly schemaVersion: 1;
@@ -222,6 +228,7 @@ export interface PlanSemanticSlotHeadV1 {
 export interface PlanningBudgetShardV1 {
   readonly schemaVersion: 1;
   readonly peerId: string;
+  readonly peerInstanceId: string;
   readonly budgetUnits: number;
 }
 
@@ -229,10 +236,172 @@ export interface PlanningBudgetReservationV1 {
   readonly schemaVersion: 1;
   readonly reservationId: string;
   readonly peerId: string;
+  readonly peerInstanceId: string;
   readonly proposalDigest: PlanningDigestV1;
   readonly fragmentDigest: PlanningDigestV1 | null;
   readonly units: number;
   readonly status: "reserved" | "committed" | "released";
+}
+
+export interface PlanningAdmittedSubjectV1 {
+  readonly schemaVersion: 1;
+  readonly peerId: string;
+  readonly peerInstanceId: string;
+}
+
+export interface PlanningObservationCursorHighWaterV1 {
+  readonly schemaVersion: 1;
+  readonly observerPeerId: string;
+  readonly observerInstanceId: string;
+  readonly environmentCursor: string;
+  readonly observationId: string;
+  readonly observationDigest: PlanningDigestV1;
+  readonly logicalTimeMs: number;
+}
+
+export interface PlanningReducerCommandHighWaterV1 {
+  readonly schemaVersion: 1;
+  readonly commandId: string;
+  readonly commandDigest: PlanningDigestV1;
+  readonly command: PlanningReducerCommandV1;
+}
+
+export interface PlanningReducerStateV1 {
+  readonly schemaVersion: 1;
+  readonly tenantId: string;
+  readonly policyDomainId: string;
+  readonly peerId: string;
+  readonly peerInstanceId: string;
+  readonly missionIntent: MissionIntentV1;
+  readonly selectionPolicy: PlanSelectionPolicyV1;
+  readonly admittedSubjects: readonly PlanningAdmittedSubjectV1[];
+  readonly observations: readonly MissionObservationV1[];
+  readonly planView: PlanViewV1;
+  readonly recordHighWaters: readonly PlanningDomainHighWaterV1[];
+  readonly observationCursorHighWaters: readonly PlanningObservationCursorHighWaterV1[];
+  readonly commandHighWaters: readonly PlanningReducerCommandHighWaterV1[];
+  readonly stateDigest: PlanningDigestV1;
+}
+
+interface PlanningReducerCommandBaseV1 {
+  readonly schemaVersion: 1;
+  readonly commandId: string;
+  readonly expectedStateDigest: PlanningDigestV1 | null;
+  readonly commandDigest: PlanningDigestV1;
+}
+
+export interface RecordPlanningObservationCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "observation.record";
+  readonly observation: MissionObservationV1;
+}
+
+export interface RecordPlanningProposalCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "proposal.record";
+  readonly proposal: PlanFragmentProposalV1;
+}
+
+export interface EvaluatePlanningSlotCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "slot.evaluate";
+  readonly semanticSlotKey: string;
+  readonly candidateProposalDigests: readonly PlanningDigestV1[];
+  readonly decidedAtLogicalMs: number;
+}
+
+export type Increment2FragmentTransitionStatusV1 =
+  "superseded" | "cancelled" | "failed";
+
+export interface TransitionPlanningFragmentCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "fragment.transition";
+  readonly fragmentId: string;
+  readonly previousFragmentDigest: PlanningDigestV1;
+  readonly status: Increment2FragmentTransitionStatusV1;
+  readonly transitionedAtLogicalMs: number;
+}
+
+export interface AdvancePlanningLogicalTimeCommandV1 extends PlanningReducerCommandBaseV1 {
+  readonly kind: "logical-time.advance";
+  readonly logicalTimeMs: number;
+}
+
+export type PlanningReducerCommandV1 =
+  | RecordPlanningObservationCommandV1
+  | RecordPlanningProposalCommandV1
+  | EvaluatePlanningSlotCommandV1
+  | TransitionPlanningFragmentCommandV1
+  | AdvancePlanningLogicalTimeCommandV1;
+
+export type PlanningReducerEventKindV1 =
+  | "observation.recorded"
+  | "proposal.recorded"
+  | "slot.evaluated"
+  | "fragment.created"
+  | "fragment.transitioned"
+  | "logical-time.advanced";
+
+export interface PlanningReducerEventV1 {
+  readonly schemaVersion: 1;
+  readonly eventId: string;
+  readonly kind: PlanningReducerEventKindV1;
+  readonly commandId: string;
+  readonly commandDigest: PlanningDigestV1;
+  readonly previousStateDigest: PlanningDigestV1;
+  readonly resultingStateDigest: PlanningDigestV1;
+  readonly subjectId: string;
+  readonly subjectDigest: PlanningDigestV1;
+  readonly eventDigest: PlanningDigestV1;
+}
+
+export type PlanningReducerErrorCodeV1 =
+  | "invalid_command"
+  | "stale_state_digest"
+  | "logical_identity_conflict"
+  | "scope_mismatch"
+  | "subject_not_admitted"
+  | "logical_time_regression"
+  | "logical_window_exceeded"
+  | "record_high_water_conflict"
+  | "cursor_high_water_conflict"
+  | "basis_observation_missing"
+  | "planning_limit_exceeded"
+  | "budget_exceeded"
+  | "graph_invalid"
+  | "candidate_set_incomplete"
+  | "fragment_transition_invalid"
+  | "increment_not_supported";
+
+export interface PlanningReducerErrorV1 {
+  readonly schemaVersion: 1;
+  readonly code: PlanningReducerErrorCodeV1;
+  readonly message: string;
+}
+
+export type PlanningReducerResultV1 =
+  | {
+      readonly status: "applied";
+      readonly state: PlanningReducerStateV1;
+      readonly events: readonly PlanningReducerEventV1[];
+      readonly error: null;
+    }
+  | {
+      readonly status: "idempotent";
+      readonly state: PlanningReducerStateV1;
+      readonly events: readonly [];
+      readonly error: null;
+    }
+  | {
+      readonly status: "rejected" | "conflict";
+      readonly state: PlanningReducerStateV1;
+      readonly events: readonly [];
+      readonly error: PlanningReducerErrorV1;
+    };
+
+export interface PlanningReducerSnapshotV1 {
+  readonly format: "agentplat.collective-planning.reducer-snapshot";
+  readonly formatVersion: 1;
+  readonly schemaVersion: 1;
+  readonly snapshotId: string;
+  readonly state: PlanningReducerStateV1;
+  readonly snapshotDigest: PlanningDigestV1;
 }
 
 export interface FragmentWorkMappingV1 {
