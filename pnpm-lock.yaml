@@ -207,9 +207,18 @@ importers:
 
   packages/collective-planning:
     dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
 
   packages/core: {}
 

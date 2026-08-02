@@ -2,7 +2,9 @@
 
 Portable, provider-neutral contracts and a deterministic reducer for forming
 bounded local mission plans. The root entry point is browser safe, has no
-import-time side effects and depends only on `@agentplat/core` types.
+import-time side effects and depends only on `@agentplat/core` types. The
+opt-in `@agentplat/collective-planning/mesh` entry point composes those records
+with the existing Mesh coordination and Collective Control contracts.
 
 ## What this increment contains
 
@@ -15,12 +17,17 @@ import-time side effects and depends only on `@agentplat/core` types.
 - constructors that validate and deeply freeze their result;
 - a pure, immutable planning reducer with trusted logical-time commands,
   atomic acceptance or rejection, deterministic candidate-batch selection and
-  self-contained snapshot/replay state.
+  self-contained snapshot/replay state;
+- an opt-in Mesh facade with an exact capability profile and critical
+  extension, a bounded content-addressed fragment repository, local
+  proposal-to-Work admission, replay-only inbound rejection, and
+  assignment-derived Work Contract and adaptive-role composition.
 
-It does not contain a Mesh facade, Work projection, assignment, execution
+It does not contain a transport, signer, assignment implementation, execution
 authority, environment adapter, evaluator, monitor or model integration. A
-proposal, fragment, plan view or adaptive role binding is evidence and
-coordination data; none of these records grants execution authority.
+proposal, fragment, plan view, capability advertisement or adaptive role
+binding is evidence and coordination data; none of these records grants
+execution authority.
 
 ## Reducer boundary
 
@@ -37,8 +44,13 @@ cursor-tombstone records, so a repeated cursor is idempotent and conflicting
 reuse fails before any plan, budget or lifecycle mutation.
 
 Commands are closed and deterministic: `observation.record`,
-`proposal.record`, `slot.evaluate`, `fragment.transition` and
-`logical-time.advance`. Every command has a logical identifier, required
+`proposal.record`, `slot.evaluate`, `fragment.transition`,
+`fragment.project-to-work`, `fragment.assignment.observe`,
+`fragment.execution.observe`, `fragment.terminal.observe`,
+`work.revision.observe` and `logical-time.advance`. The five observed Work
+lifecycle commands can only mirror an already accepted adapter decision; they
+cannot select an assignee or create assignment authority. Every command has a
+logical identifier, required
 `expectedStateDigest`, and logical time. `expectedStateDigest: null` permits a
 causality-only reordered command; a digest binds optimistic concurrency to that
 exact state. Reuse of an identifier with the same canonical digest is
@@ -51,9 +63,11 @@ admission-time precondition for a fragment transition whose identity already
 binds the fragment, predecessor and terminal status. Both are excluded from the
 idempotency digest. After the domain command is accepted, retries with different
 values for either precondition remain idempotent; changing domain payload is
-still a conflict. The command high-water stores the canonical domain command
-with those preconditions normalized, so they cannot perturb the reducer state
-digest. Logical-time advancement is a max-register: a value at or below the
+still a conflict. `expectedStateDigest` is normalized in retained evidence.
+Increment 3 lifecycle records additionally retain the first accepted
+transition time and reducer logical-time witness so snapshot validation can
+re-check the original bounded-time admission without changing command
+identity. Logical-time advancement is a max-register: a value at or below the
 retained high-water is idempotent and never lowers time.
 
 Snapshot restore is a separate strict API, not a reducer command. It verifies
@@ -163,3 +177,51 @@ factories reject top-level accessor properties before reading their inputs.
 `AdaptiveRoleBindingV1.planViewDigest` identifies the already-admitted plan
 view from which the binding was derived. It is intentionally not the digest of
 the later view that contains the binding, avoiding a circular content address.
+
+## Opt-in Mesh facade
+
+Import the facade explicitly; the browser-safe root never imports Mesh:
+
+```ts
+import {
+  InMemoryPlanningFragmentRepositoryV1,
+  PLANNING_MESH_CAPABILITY_PROFILE_V1,
+  PLANNING_WORK_EXTENSION_KEY_V1,
+  createPlanningLocalWorkProjectionV1,
+  createPlanningMeshInboundProcessorV1,
+  selectPlanningOfferRecipientsV1,
+} from "@agentplat/collective-planning/mesh";
+```
+
+The sender advertises the exact planning profile through ordinary verified
+Mesh discovery and also enables the same critical extension locally. A current
+accepted fragment is first projected to an existing Mesh Work identity. The
+offered fragment, its proposal and decision, and its complete source PlanView
+are then stored as one immutable repository record. The signed Work offer
+names that content reference and carries the exact critical extension. No
+legacy or non-critical retry is generated when a peer lacks support.
+Every envelope in one offer must carry identical critical semantics, and a
+reoffer cannot remove or change previously critical evidence. The selected
+peer IDs may be supplied to the Mesh allocation evaluator as its opt-in
+eligible-recipient constraint, allowing the exact planning-capable subset in a
+mixed-capability Peer View without changing the default allocation behavior.
+
+On receipt, the ordinary Mesh inbound processor verifies and tentatively
+evaluates the offer first. The planning gate then validates the extension,
+repository evidence, sender identity, Objective and executable Work fields;
+admits the proposal through the local reducer; and requires the locally
+selected head to bind the same proposal and Work projection. Local and remote
+fragment digests are intentionally allowed to differ because each PlanView is
+peer-local. A rejection returns the original Mesh and planning projections
+with only the inbound replay/message-ID high-water retained.
+
+Capability advertisements remain self-claims used only for interoperability
+and recipient filtering. A Work Contract and adaptive role can be derived only
+from a current accepted Mesh assignment through Collective Control. The facade
+does not construct an assignee, assignment epoch, fencing token, lease or
+action grant.
+
+Work revision is composed only while the Work is unassigned. Planning cannot
+carry an existing role, Work Contract, epoch or fence across a revision; an
+assigned or executing Work must first terminate or drain and later obtain a
+fresh accepted Mesh assignment.

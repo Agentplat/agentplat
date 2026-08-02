@@ -46,7 +46,54 @@ import {
   type PlanningReducerSnapshotV1,
   type PlanningReducerStateV1,
   type CreatePlanningReducerStateInputV1,
+  type PlanningWorkTargetV1,
+  type ProjectPlanningFragmentToWorkCommandV1,
+  type ObservePlanningFragmentAssignmentCommandV1,
+  type ObservePlanningFragmentExecutionCommandV1,
+  type ObservedTerminalFragmentStatusV1,
+  type ObservePlanningFragmentTerminalCommandV1,
+  type ObservePlanningWorkRevisionCommandV1,
 } from "@agentplat/collective-planning";
+
+import {
+  PLANNING_FRAGMENT_REFERENCE_PREFIX_V1,
+  PLANNING_MESH_CAPABILITY_PROFILE_V1,
+  PLANNING_WORK_EXTENSION_KEY_V1,
+  InMemoryPlanningFragmentRepositoryV1,
+  createPlanningAdaptiveRoleV1,
+  createPlanningLocalWorkProjectionV1,
+  createPlanningMeshInboundProcessorV1,
+  createPlanningSupersessionCommandV1,
+  createPlanningWorkCancelCommandV1,
+  createPlanningWorkReviseCommandV1,
+  createReducerPlanningMeshAdmissionPortV1,
+  planningFragmentContentReferenceV1,
+  planningWorkItemIdV1,
+  selectPlanningOfferRecipientsV1,
+  validatePlanningFragmentRepositoryRecordV1,
+  validatePlanningLocalWorkProjectionV1,
+  validatePlanningWorkExtensionV1,
+  validatePlanningWorkProjectionV1,
+  type InMemoryPlanningFragmentRepositoryOptionsV1,
+  type PlanningAdaptiveRoleInputV1,
+  type PlanningAdaptiveRoleResultV1,
+  type PlanningFragmentRepositoryV1,
+  type PlanningFragmentRepositoryRecordV1,
+  type PlanningLocalWorkProjectionV1,
+  type PlanningMeshAdmissionDecisionV1,
+  type PlanningMeshAdmissionInputV1,
+  type PlanningMeshAdmissionPortV1,
+  type PlanningMeshInboundDecisionV1,
+  type PlanningMeshInboundProcessorOptionsV1,
+  type PlanningMeshInboundProcessorV1,
+  type PlanningMeshInboundRejectionCodeV1,
+  type PlanningMeshInboundRuntimeStateV1,
+  type PlanningMeshWorkLifecycleCommandV1,
+  type PlanningRecipientSelectionInputV1,
+  type PlanningRecipientV1,
+  type PlanningWorkExtensionV1,
+  type PlanningWorkProjectionValidationInputV1,
+} from "@agentplat/collective-planning/mesh";
 
 declare const intent: MissionIntentV1;
 declare const observation: MissionObservationV1;
@@ -115,6 +162,50 @@ void (null as CreatePlanningReducerStateInputV1 | null);
 void (null as PlanningReducerEventKindV1 | null);
 void (null as PlanningReducerErrorCodeV1 | null);
 void (null as PlanningReducerErrorV1 | null);
+void (null as PlanningWorkTargetV1 | null);
+void (null as ProjectPlanningFragmentToWorkCommandV1 | null);
+void (null as ObservePlanningFragmentAssignmentCommandV1 | null);
+void (null as ObservePlanningFragmentExecutionCommandV1 | null);
+void (null as ObservedTerminalFragmentStatusV1 | null);
+void (null as ObservePlanningFragmentTerminalCommandV1 | null);
+void (null as ObservePlanningWorkRevisionCommandV1 | null);
+void (null as PlanningFragmentRepositoryRecordV1 | null);
+void (null as PlanningFragmentRepositoryV1 | null);
+void (null as InMemoryPlanningFragmentRepositoryOptionsV1 | null);
+void (null as PlanningLocalWorkProjectionV1 | null);
+void (null as PlanningRecipientSelectionInputV1 | null);
+void (null as PlanningRecipientV1 | null);
+void (null as PlanningMeshAdmissionInputV1 | null);
+void (null as PlanningMeshAdmissionDecisionV1 | null);
+void (null as PlanningMeshAdmissionPortV1 | null);
+void (null as PlanningMeshInboundRuntimeStateV1 | null);
+void (null as PlanningMeshInboundRejectionCodeV1 | null);
+void (null as PlanningMeshInboundDecisionV1 | null);
+void (null as PlanningMeshInboundProcessorV1 | null);
+void (null as PlanningMeshInboundProcessorOptionsV1 | null);
+void (null as PlanningAdaptiveRoleInputV1 | null);
+void (null as PlanningAdaptiveRoleResultV1 | null);
+void (null as PlanningMeshWorkLifecycleCommandV1 | null);
+void (null as PlanningWorkExtensionV1 | null);
+void (null as PlanningWorkProjectionValidationInputV1 | null);
+void PLANNING_FRAGMENT_REFERENCE_PREFIX_V1;
+void PLANNING_MESH_CAPABILITY_PROFILE_V1;
+void PLANNING_WORK_EXTENSION_KEY_V1;
+void InMemoryPlanningFragmentRepositoryV1;
+void createPlanningAdaptiveRoleV1;
+void createPlanningLocalWorkProjectionV1;
+void createPlanningMeshInboundProcessorV1;
+void createPlanningSupersessionCommandV1;
+void createPlanningWorkCancelCommandV1;
+void createPlanningWorkReviseCommandV1;
+void createReducerPlanningMeshAdmissionPortV1;
+void planningFragmentContentReferenceV1;
+void planningWorkItemIdV1;
+void selectPlanningOfferRecipientsV1;
+void validatePlanningFragmentRepositoryRecordV1;
+void validatePlanningLocalWorkProjectionV1;
+void validatePlanningWorkExtensionV1;
+void validatePlanningWorkProjectionV1;
 
 // @ts-expect-error planning proposals cannot mint execution authority.
 proposal.assignmentAuthorityId;

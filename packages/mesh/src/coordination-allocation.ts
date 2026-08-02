@@ -1,4 +1,5 @@
 import {
+  DEFAULT_MESH_PROTOCOL_LIMITS,
   canonicalizeMeshPayload,
   compareMeshTimestamps,
   validateMeshEnvelopeContext,
@@ -79,8 +80,16 @@ export function evaluateMeshAllocationCommand(
   command: MeshAllocationCommand,
   verifiedAt: string,
   receivedAt: number,
+  supportedCriticalExtensions: readonly string[] = [],
+  eligibleRecipientPeerIds?: readonly string[],
 ): MeshAllocationDecision {
   assertRuntime(state, receivedAt);
+  assertSupportedCriticalExtensions(supportedCriticalExtensions);
+  assertEligibleRecipientPeerIds(
+    eligibleRecipientPeerIds,
+    state.allocation.limits.maximumRecipientsPerOffer,
+    supportedCriticalExtensions.length > 0,
+  );
   if (
     !command ||
     ![
@@ -190,6 +199,8 @@ export function evaluateMeshAllocationCommand(
     verifiedAt,
     receivedAt,
     priorOffers.at(-1),
+    supportedCriticalExtensions,
+    eligibleRecipientPeerIds,
   );
   if ("code" in prepared) return reject(state, prepared.code);
   const { payload, entries, bidDeadlineAt } = prepared;
@@ -281,6 +292,13 @@ export function evaluateMeshAllocationCommand(
     bidDeadlineTimerGeneration: generation,
     createdAt: receivedAt,
     validityVerifiedAt: verifiedAt,
+    ...(supportedCriticalExtensions.length === 0
+      ? {}
+      : {
+          supportedCriticalExtensions: Object.freeze([
+            ...supportedCriticalExtensions,
+          ]),
+        }),
     reservationId,
     recipientOffers: createFrozenRecord(
       entries.map(
@@ -3104,6 +3122,8 @@ function validatePrepared(
   verifiedAt: string,
   receivedAt: number,
   previousOffer?: MeshLocalOfferProjection,
+  supportedCriticalExtensions: readonly string[] = [],
+  eligibleRecipientPeerIds?: readonly string[],
 ):
   | {
       readonly payload: WorkOfferPayload;
@@ -3126,6 +3146,15 @@ function validatePrepared(
   if (!parsed?.ok || parsed.value.payload.type !== "work.offer")
     return { code: "offer_invalid" };
   const payload = parsed.value.payload as WorkOfferPayload;
+  const firstEnvelope = parsed.value as SignedMeshEnvelope<WorkOfferPayload>;
+  const priorEnvelope = previousOffer
+    ? Object.values(previousOffer.recipientOffers)[0]?.envelope
+    : undefined;
+  if (
+    priorEnvelope !== undefined &&
+    !preservesCriticalSemantics(firstEnvelope, priorEnvelope)
+  )
+    return { code: "offer_invalid" };
   const bidDeadlineAt = logicalDeadline(
     payload.bidDeadline,
     verifiedAt,
@@ -3144,11 +3173,17 @@ function validatePrepared(
     },
     receivedAt,
   ).matches.map((match) => match.peerId);
+  const constrainedMatches =
+    eligibleRecipientPeerIds === undefined
+      ? matches
+      : matches.filter((peerId) => eligibleRecipientPeerIds.includes(peerId));
   const ids = recipients.map((item) => item.recipientPeerId);
   if (
+    (eligibleRecipientPeerIds !== undefined &&
+      eligibleRecipientPeerIds.some((peerId) => !matches.includes(peerId))) ||
     new Set(ids).size !== ids.length ||
-    ids.length !== matches.length ||
-    ids.some((id, index) => id !== matches[index])
+    ids.length !== constrainedMatches.length ||
+    ids.some((id, index) => id !== constrainedMatches[index])
   )
     return { code: "offer_invalid" };
   const entries: {
@@ -3176,6 +3211,7 @@ function validatePrepared(
       meshId: state.allocation.identity.meshId,
       peerId: item.recipientPeerId,
       receivedAt: verifiedAt,
+      supportedCriticalExtensions,
     });
     if (
       !result.ok ||
@@ -3191,6 +3227,10 @@ function validatePrepared(
         : result.value.causationId !==
           previousOffer?.recipientOffers[item.recipientPeerId]?.messageId) ||
       !samePayload(result.value.payload, payload) ||
+      !sameCriticalSemantics(
+        result.value as SignedMeshEnvelope<WorkOfferPayload>,
+        firstEnvelope,
+      ) ||
       !canonicalDigest(result.value as SignedMeshEnvelope<WorkOfferPayload>)
     )
       return { code: "offer_invalid" };
@@ -3207,6 +3247,74 @@ function validatePrepared(
     });
   }
   return { payload, entries: Object.freeze(entries), bidDeadlineAt };
+}
+
+function assertSupportedCriticalExtensions(value: readonly string[]): void {
+  const descriptors = Array.isArray(value)
+    ? Object.getOwnPropertyDescriptors(value)
+    : undefined;
+  if (
+    !Array.isArray(value) ||
+    value.length > DEFAULT_MESH_PROTOCOL_LIMITS.maximumCriticalExtensions ||
+    Reflect.ownKeys(value).length !== value.length + 1 ||
+    Object.values(descriptors ?? {}).some(
+      (descriptor) => "get" in descriptor || "set" in descriptor,
+    )
+  )
+    throw new TypeError("Invalid Mesh supported critical extensions");
+  const seen = new Set<string>();
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index))
+      throw new TypeError("Invalid Mesh supported critical extensions");
+    const extension = value[index];
+    if (
+      typeof extension !== "string" ||
+      extension.length < 1 ||
+      seen.has(extension)
+    )
+      throw new TypeError("Invalid Mesh supported critical extensions");
+    seen.add(extension);
+  }
+}
+
+function assertEligibleRecipientPeerIds(
+  value: readonly string[] | undefined,
+  maximumRecipients: number,
+  criticalExtensionEnabled: boolean,
+): void {
+  if (value === undefined) return;
+  if (
+    !criticalExtensionEnabled ||
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > maximumRecipients ||
+    new Set(value).size !== value.length ||
+    value.some((peerId) => typeof peerId !== "string" || peerId.length < 1)
+  )
+    throw new TypeError("Invalid Mesh eligible recipient peer IDs");
+}
+
+function sameCriticalSemantics(
+  left: SignedMeshEnvelope<WorkOfferPayload>,
+  right: SignedMeshEnvelope<WorkOfferPayload>,
+): boolean {
+  if (!sameData(left.criticalExtensions ?? [], right.criticalExtensions ?? []))
+    return false;
+  return (left.criticalExtensions ?? []).every((key) =>
+    sameData(left.extensions?.[key], right.extensions?.[key]),
+  );
+}
+
+function preservesCriticalSemantics(
+  current: SignedMeshEnvelope<WorkOfferPayload>,
+  previous: SignedMeshEnvelope<WorkOfferPayload>,
+): boolean {
+  const currentCritical = new Set(current.criticalExtensions ?? []);
+  return (previous.criticalExtensions ?? []).every(
+    (key) =>
+      currentCritical.has(key) &&
+      sameData(current.extensions?.[key], previous.extensions?.[key]),
+  );
 }
 
 function validateContext(

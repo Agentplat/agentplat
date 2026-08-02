@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./mesh": {
+      "types": "./dist/mesh.d.ts",
+      "import": "./dist/mesh.js"
     }
   },
   "files": [
@@ -23,7 +27,10 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@agentplat/core": "workspace:^"
+    "@agentplat/collective-control": "workspace:^",
+    "@agentplat/core": "workspace:^",
+    "@agentplat/mesh": "workspace:^",
+    "@agentplat/mesh-protocol": "workspace:^"
   },
   "engines": {
     "node": ">=20.19.3"

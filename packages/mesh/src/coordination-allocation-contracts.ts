@@ -82,6 +82,8 @@ export interface MeshLocalOfferProjection extends MeshAllocationWorkBinding {
   readonly bidDeadlineTimerGeneration: number;
   readonly createdAt: MeshLogicalTime;
   readonly validityVerifiedAt: string;
+  /** Critical extensions explicitly enabled when the local offer was committed. */
+  readonly supportedCriticalExtensions?: readonly string[];
   readonly reservationId: string;
   readonly recipientOffers: Readonly<Record<string, MeshPreparedOfferEnvelope>>;
 }
