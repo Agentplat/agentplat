@@ -12,12 +12,20 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import type {
+  CollectiveStatisticalCampaignArtifactIndexEntryV1,
+  CollectiveStatisticalCampaignArtifactReaderV1,
+  CollectiveStatisticalCampaignArtifactWriterV1,
   CollectiveStatisticalCampaignExecutionArtifactsV1,
   CollectiveStatisticalCampaignExecutionStoreV1,
+} from "@agentplat/mesh-sim";
+import {
+  COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1,
+  digestCollectiveStatisticalCampaignArtifactV1,
 } from "@agentplat/mesh-sim";
 
 export const COLLECTIVE_STATISTICAL_CAMPAIGN_LOCAL_STORE_SCHEMA_VERSION_V1 =
   1 as const;
+const MAXIMUM_ARTIFACT_STREAM_CHUNKS_V1 = 65_536;
 export const DEFAULT_COLLECTIVE_STATISTICAL_CAMPAIGN_LOCAL_STORE_LIMITS_V1 =
   Object.freeze({
     maximumArtifactBytes: 16 * 1024 * 1024,
@@ -149,6 +157,202 @@ export interface CollectiveStatisticalCampaignLocalStoreV1 {
 
 export class CollectiveStatisticalCampaignLocalStoreError extends Error {
   readonly name = "CollectiveStatisticalCampaignLocalStoreError";
+}
+
+/**
+ * Creates an immutable logical-artifact writer over the local CAS. The
+ * artifact ID is committed through the existing no-replace slot boundary, so
+ * same ID/different bytes fails even when both contents already exist in CAS.
+ */
+export function createLocalCollectiveStatisticalCampaignArtifactWriterV1(
+  store: CollectiveStatisticalCampaignLocalStoreV1,
+): CollectiveStatisticalCampaignArtifactWriterV1 {
+  if (!store || typeof store !== "object")
+    fail("local artifact store is invalid");
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    async putArtifactV1(
+      input: Parameters<
+        CollectiveStatisticalCampaignArtifactWriterV1["putArtifactV1"]
+      >[0],
+    ) {
+      exactObject(
+        input,
+        ["artifactId", "bytes", "kind", "maximumBytes"],
+        "artifact stream write",
+      );
+      assertToken(input.artifactId, "artifactId");
+      if (input.artifactId.length > 256)
+        fail("artifact stream artifactId is invalid");
+      if (
+        !Number.isSafeInteger(input.maximumBytes) ||
+        input.maximumBytes < 1 ||
+        input.maximumBytes >
+          COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1
+      )
+        fail("artifact stream maximumBytes is invalid");
+      const bytes = await collectArtifactStreamV1(
+        input.bytes,
+        input.maximumBytes,
+      );
+      let value: unknown;
+      try {
+        value = JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+        );
+      } catch {
+        fail("artifact stream is not valid UTF-8 JSON");
+      }
+      const canonicalDigest = digestCollectiveStatisticalCampaignArtifactV1(
+        input.kind,
+        value as never,
+      );
+      const stored = await store.putArtifactV1(bytes);
+      const entry = Object.freeze({
+        schemaVersion: 1 as const,
+        artifactId: input.artifactId,
+        kind: input.kind,
+        path: `artifacts/sha256/${stored.sha256}.json`,
+        byteLength: stored.byteLength,
+        sha256: stored.sha256,
+        canonicalDigest,
+      });
+      // Commit the full semantic binding, not just the content hash. This
+      // prevents the same logical ID and bytes from being reclassified under
+      // a different artifact kind or digest domain.
+      const binding = await store.putArtifactV1(
+        JSON.stringify({
+          schemaVersion: 1,
+          artifactId: entry.artifactId,
+          kind: entry.kind,
+          path: entry.path,
+          byteLength: entry.byteLength,
+          sha256: entry.sha256,
+          canonicalDigest: entry.canonicalDigest,
+        }),
+      );
+      await store.commitSlotV1({
+        runKey: artifactRunKeyV1(input.artifactId),
+        artifactSha256: [binding.sha256],
+      });
+      return entry;
+    },
+  });
+}
+
+/**
+ * Opens only the immutable logical IDs represented by one verified index.
+ * Each read rechecks the no-replace slot binding before yielding CAS bytes.
+ */
+export function createLocalCollectiveStatisticalCampaignArtifactReaderV1(
+  store: CollectiveStatisticalCampaignLocalStoreV1,
+  artifacts: readonly CollectiveStatisticalCampaignArtifactIndexEntryV1[],
+): CollectiveStatisticalCampaignArtifactReaderV1 {
+  if (!store || typeof store !== "object")
+    fail("local artifact store is invalid");
+  if (!Array.isArray(artifacts)) fail("local artifact index is invalid");
+  const indexed = new Map<
+    string,
+    CollectiveStatisticalCampaignArtifactIndexEntryV1
+  >();
+  for (const entry of artifacts) {
+    if (!entry || typeof entry !== "object")
+      fail("local artifact index is invalid");
+    assertToken(entry.artifactId, "artifactId");
+    if (entry.artifactId.length > 256)
+      fail("local artifact index artifactId is invalid");
+    assertSha256(entry.sha256, "artifact sha256");
+    if (indexed.has(entry.artifactId))
+      fail("local artifact index is duplicated");
+    indexed.set(entry.artifactId, Object.freeze({ ...entry }));
+  }
+  const artifactIds = Object.freeze([...indexed.keys()].sort());
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    async listArtifactIdsV1() {
+      return artifactIds;
+    },
+    async *openArtifactV1(artifactId: string) {
+      assertToken(artifactId, "artifactId");
+      const entry = indexed.get(artifactId);
+      if (!entry) fail("local artifact is not indexed");
+      const [binding] = await store.readSlotCommitsV1([
+        artifactRunKeyV1(artifactId),
+      ]);
+      if (
+        binding?.commit === null ||
+        binding?.commit === undefined ||
+        binding.commit.artifactSha256.length !== 1
+      )
+        fail("local artifact logical binding is missing or changed");
+      let semanticBinding: unknown;
+      try {
+        semanticBinding = JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(
+            await store.readArtifactV1(binding.commit.artifactSha256[0]!),
+          ),
+        );
+      } catch {
+        fail("local artifact logical binding is invalid");
+      }
+      exactObject(
+        semanticBinding,
+        [
+          "artifactId",
+          "byteLength",
+          "canonicalDigest",
+          "kind",
+          "path",
+          "schemaVersion",
+          "sha256",
+        ],
+        "local artifact logical binding",
+      );
+      const expectedBinding = {
+        schemaVersion: 1,
+        artifactId: entry.artifactId,
+        kind: entry.kind,
+        path: entry.path,
+        byteLength: entry.byteLength,
+        sha256: entry.sha256,
+        canonicalDigest: entry.canonicalDigest,
+      };
+      if (JSON.stringify(semanticBinding) !== JSON.stringify(expectedBinding))
+        fail("local artifact logical binding is missing or changed");
+      yield await store.readArtifactV1(entry.sha256);
+    },
+  });
+}
+
+async function collectArtifactStreamV1(
+  stream: AsyncIterable<Uint8Array>,
+  maximumBytes: number,
+): Promise<Uint8Array> {
+  if (!stream || typeof stream[Symbol.asyncIterator] !== "function")
+    fail("artifact byte stream is invalid");
+  const bytes = new Uint8Array(maximumBytes);
+  let byteLength = 0;
+  let chunkCount = 0;
+  for await (const chunk of stream) {
+    chunkCount += 1;
+    if (
+      chunkCount > MAXIMUM_ARTIFACT_STREAM_CHUNKS_V1 ||
+      !(chunk instanceof Uint8Array) ||
+      chunk.byteLength === 0
+    )
+      fail("artifact stream chunk is invalid");
+    const nextByteLength = byteLength + chunk.byteLength;
+    if (nextByteLength > maximumBytes)
+      fail("artifact stream exceeds byte limit");
+    bytes.set(chunk, byteLength);
+    byteLength = nextByteLength;
+  }
+  if (byteLength < 1) fail("artifact stream is empty");
+  return bytes.subarray(0, byteLength);
+}
+
+function artifactRunKeyV1(artifactId: string): string {
+  return `artifact-v1:${createHash("sha256").update(artifactId).digest("hex")}`;
 }
 
 /**

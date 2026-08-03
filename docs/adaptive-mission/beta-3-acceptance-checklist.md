@@ -1,12 +1,12 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increments 0 through 8 are complete locally. Increment 8 adds frozen
-campaign registration/manifest contracts, a closed evidence-bundle verifier,
-the deterministic 50/100/250/500 configuration ladder, isolated package
-consumer coverage and a bounded contract smoke. Its implementation evidence is
-recorded in the [Increment 8 review](beta-3-increment-8-review.md). Execution of
-the normative statistical campaign and release publication remain open;
-merged-main CI for this implementation is recorded at delivery. Every
+Status: Increments 0 through 10 are complete at the open-core implementation
+boundary. Increment 9 added the bounded diagnostic executor and local durable
+adapter; Increment 10 adds the protected, fail-closed normative control plane,
+independent analysis and evidence custody. Their implementation evidence is
+recorded in the [Increment 9 review](beta-3-increment-9-review.md) and
+[Increment 10 review](beta-3-increment-10-review.md). Execution of the real
+normative statistical campaign and release publication remain open. Every
 unchecked item remains release-blocking unless it is explicitly labeled
 diagnostic or deferred.
 
@@ -165,6 +165,27 @@ diagnostic or deferred.
 - [x] Hidden-state/secret-canary leak is detected.
 
 ## Scale and statistical campaign
+
+Increment 10 provides the public, fail-closed control-plane capability for this
+campaign. It fixes a 240-cell / 960 first-and-replay-slot closure in 48 shards
+of five cells, with a registered total interaction ceiling of 3,296,000. It is
+not execution evidence: no real campaign has been run, no cloud work is
+started, and no package is published or released by this capability.
+
+- [x] Public control-plane plan fixes the 240-cell / 960-slot / 48-shard
+      campaign shape before execution.
+- [x] Public evaluator-owned projections, streaming custody verification and
+      deterministic analysis fail closed for incomplete evidence.
+- [x] Manual operation surface is confirmation-gated and cannot select a
+      diagnostic or synthetic adapter for eligibility.
+- [x] Detached authorization plus a trusted adapter registry bind the exact
+      plan, source, runner implementation and evaluator commitments before
+      durable mutation; direct runner/projector injection is unavailable.
+- [x] Durable namespaces isolate plan, authorization, credential and workflow
+      attempt; exact shard authorization cannot reuse `maximumCells` as a
+      cross-call budget bypass.
+- [x] Streaming custody applies non-overridable artifact, byte and chunk caps
+      and commits each logical path as part of its immutable semantic binding.
 
 - [ ] Registrations are frozen before normative execution.
 - [ ] Ladder completes at 50, 100, 250 and exactly 500 agents.

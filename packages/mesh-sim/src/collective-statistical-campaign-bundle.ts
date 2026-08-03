@@ -33,6 +33,7 @@ export type CollectiveStatisticalCampaignArtifactKindV1 =
   | "sample"
   | "trace"
   | "ledger"
+  | "metric-projection"
   | "evidence"
   | "comparison"
   | "summary";
@@ -215,6 +216,7 @@ const artifactKinds = new Set<CollectiveStatisticalCampaignArtifactKindV1>([
   "sample",
   "trace",
   "ledger",
+  "metric-projection",
   "evidence",
   "comparison",
   "summary",

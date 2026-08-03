@@ -116,13 +116,40 @@ configurations, then exact replay for both. The full ladder therefore contains
 - `500 agents × 4 strata × 30 paired seeds = 120 pairs`; and
 - every pair has four executions: adaptive, centralized and both replays.
 
-That future workflow must write each shard registration before execution and
+When its real adapter is registered, the workflow must write each shard
+registration before execution and
 emit an expected-cell
 manifest. The final evidence merge refuses a missing cell, a changed digest, a
 failed replay or a sample relabeled as infrastructure-invalid. Evidence includes
 the public trace, interaction ledger, monitor verdict, topology and fault
 matrix digests; it excludes raw prompts, private reasoning, secrets and hidden
 world values.
+
+Increment 10 adds a separate protected control-plane workflow,
+`collective-statistical-normative.yml`. It is manual only and requires the
+exact `RUN_NORMATIVE_240X4` confirmation for execution plus immutable source
+commitments; its safe plan mode accepts `DO_NOT_RUN`. The plan mode writes the
+public-contract-valid 240-cell/960-slot registration, operation plan, expected manifest and the
+3,296,000-interaction ceiling before any adapter lookup, retaining that record
+for 90 days. Its execute, collection, analysis and attestation modes are
+deliberately fail-closed until a real normative adapter is registered. A
+single protected gate records that condition before the 48-shard matrix, so a
+blocked request does not allocate 48 runners. The
+diagnostic and synthetic runners are explicitly unacceptable. The protected
+environment gates those future stages, but does not grant deploy, publish, tag,
+cloud or secret authority.
+
+Execution authorization is detached Ed25519 evidence bound to the exact plan,
+source, adapter, audience, expiry, shard set and five-cells-per-shard budget.
+The adapter commits separate runner-implementation and evaluator digests; a
+trusted registry resolves both ports by those exact commitments and every
+projection must match the evaluator. The authorization statement commits its
+credential identity but excludes the detached signature from execution
+identity. Durable execution identity is derived from the plan and stable
+authenticated authorization digest, while workflow reruns
+also include `run_attempt`, preventing evidence from another plan, credential
+or attempt from filling current closure. Artifact custody has hard public caps
+of 16 MiB per artifact, 256 MiB total and 16,384 artifacts.
 
 ## Acceptance analysis
 
@@ -131,13 +158,31 @@ duplicate-effect, evaluation-integrity or exact-replay violations. Every sample
 must stay within its registered interaction ceiling and the 500-agent row must
 not exceed 5,000 event-derived interactions.
 
-For nominal samples, the Wilson lower bound for mission success is at least
-`0.95`; for benign samples it is at least `0.90`. The paired
-collective-minus-baseline interval lower bound is at least `-0.05` for nominal
-and benign strata. Benign p95 recovery/replanning is at most 250 interactions,
-and healthy affected participants reach at least 95% semantic-slot agreement
-within `min(1,000, 2N)` event-derived interactions after the registered heal or
-quiescence point.
+The registered analysis policy is `collective-normative-analysis-v1`. Each of
+the nominal and benign endpoints has the fixed 60-seed denominator. Acceptance
+uses the one-sided 95% Wilson lower bound (`z = 1.6448536269514722`): at least
+`0.95` for nominal and `0.90` for benign. The ordinary two-sided 95% Wilson
+interval (`z = 1.959963984540054`) is reported only as a descriptive interval;
+this distinction is necessary because its lower bound for 60/60 is below
+`0.95`.
+
+The paired collective-minus-baseline success delta uses exactly 10,000
+domain-separated xorshift32-v1 percentile-bootstrap resamples. Its 2.5th
+percentile must be at least `-0.05`. The one-sided add-one p-value tests the
+registered null `mean delta <= -0.05`; the fixed Holm family is exactly
+`nominal.pairedSuccess` and `benign.pairedSuccess`, ordered by p-value then
+ASCII endpoint ID, and both nulls must be rejected under sequential alpha
+`0.05`. Failure of either the interval gate or Holm gate is ineligible.
+
+Benign p95 recovery/replanning uses the nearest-rank observation at
+`ceil(0.95n)` and must be at most 250 interactions. Healthy affected
+participants must reach at least 95% semantic-slot agreement within
+`min(1,000, 2N)` event-derived interactions after the registered heal or
+quiescence point. Role coherence requires exactly 1,000 evaluator-derived
+decisions, no unsafe executable decision and a useful-decision rate of at
+least `0.70`. Missing first/replay projection closure returns `incomplete`
+before bootstrapping; no runner-supplied score or boolean enters this decision
+path.
 
 Adversarial and mixed strata report safety, failure and recovery outcomes. They
 do not support an unqualified performance or superiority claim.

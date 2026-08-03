@@ -14,9 +14,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  createLocalCollectiveStatisticalCampaignArtifactReaderV1,
+  createLocalCollectiveStatisticalCampaignArtifactWriterV1,
   createLocalCollectiveStatisticalCampaignExecutionStoreV1,
   openCollectiveStatisticalCampaignLocalStoreV1,
 } from "../dist/index.js";
+import { verifyCollectiveStatisticalCampaignArtifactStreamV1 } from "@agentplat/mesh-sim";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const bundleDigest = (value) => `sha256:${sha256(value)}`;
@@ -29,6 +32,189 @@ async function withStore(run) {
     await rm(root, { recursive: true, force: true });
   }
 }
+
+async function* byteStream(value) {
+  const bytes = new TextEncoder().encode(value);
+  const split = Math.max(1, Math.floor(bytes.byteLength / 2));
+  yield bytes.slice(0, split);
+  yield bytes.slice(split);
+}
+
+async function writeLogicalArtifact(writer, artifactId, value) {
+  return writer.putArtifactV1({
+    artifactId,
+    kind: "policy",
+    bytes: byteStream(JSON.stringify(value)),
+    maximumBytes: 1_024,
+  });
+}
+
+test("adapts the local CAS into an exact, streaming logical artifact store", async () => {
+  await withStore(async (root) => {
+    const local = await openCollectiveStatisticalCampaignLocalStoreV1({ root });
+    const writer =
+      createLocalCollectiveStatisticalCampaignArtifactWriterV1(local);
+    const beta = await writeLogicalArtifact(writer, "artifact:beta", {
+      schemaVersion: 1,
+      value: "beta",
+    });
+    const alpha = await writeLogicalArtifact(writer, "artifact:alpha", {
+      schemaVersion: 1,
+      value: "alpha",
+    });
+
+    const reader = createLocalCollectiveStatisticalCampaignArtifactReaderV1(
+      local,
+      [beta, alpha],
+    );
+    const visited = [];
+    const result = await verifyCollectiveStatisticalCampaignArtifactStreamV1({
+      schemaVersion: 1,
+      artifacts: [beta, alpha],
+      reader,
+      visitArtifactV1(artifact) {
+        visited.push([artifact.index.artifactId, artifact.value.value]);
+      },
+    });
+    assert.deepEqual(result.orderedArtifactIds, [
+      "artifact:alpha",
+      "artifact:beta",
+    ]);
+    assert.deepEqual(visited, [
+      ["artifact:alpha", "alpha"],
+      ["artifact:beta", "beta"],
+    ]);
+    assert.equal(result.artifactCount, 2);
+    assert.equal(result.totalBytes, alpha.byteLength + beta.byteLength);
+
+    await assert.rejects(
+      verifyCollectiveStatisticalCampaignArtifactStreamV1({
+        schemaVersion: 1,
+        artifacts: [alpha],
+        reader,
+      }),
+      /exact_index_closure/i,
+    );
+  });
+});
+
+test("logical artifact writer is idempotent but rejects same ID with different bytes", async () => {
+  await withStore(async (root) => {
+    const writer = createLocalCollectiveStatisticalCampaignArtifactWriterV1(
+      await openCollectiveStatisticalCampaignLocalStoreV1({ root }),
+    );
+    const first = await writeLogicalArtifact(writer, "artifact:immutable", {
+      schemaVersion: 1,
+      value: "same",
+    });
+    const duplicate = await writeLogicalArtifact(writer, "artifact:immutable", {
+      schemaVersion: 1,
+      value: "same",
+    });
+    assert.deepEqual(duplicate, first);
+    await assert.rejects(
+      writeLogicalArtifact(writer, "artifact:immutable", {
+        schemaVersion: 1,
+        value: "different",
+      }),
+      /conflicts/i,
+    );
+    await assert.rejects(
+      writer.putArtifactV1({
+        artifactId: "artifact:immutable",
+        kind: "evidence",
+        bytes: byteStream(JSON.stringify({ schemaVersion: 1, value: "same" })),
+        maximumBytes: 1_024,
+      }),
+      /conflicts/i,
+    );
+    await assert.rejects(
+      writer.putArtifactV1({
+        artifactId: "artifact:empty-chunk",
+        kind: "policy",
+        bytes: (async function* () {
+          yield new Uint8Array(0);
+          yield new TextEncoder().encode('{"schemaVersion":1}');
+        })(),
+        maximumBytes: 1_024,
+      }),
+      /chunk is invalid/i,
+    );
+  });
+});
+
+test("logical artifact reader rejects tampered bindings and stream limits", async () => {
+  await withStore(async (root) => {
+    const local = await openCollectiveStatisticalCampaignLocalStoreV1({ root });
+    const writer =
+      createLocalCollectiveStatisticalCampaignArtifactWriterV1(local);
+    const target = await writeLogicalArtifact(writer, "artifact:target", {
+      schemaVersion: 1,
+      value: "target",
+    });
+    const replacement = await writeLogicalArtifact(
+      writer,
+      "artifact:replacement",
+      {
+        schemaVersion: 1,
+        value: "replacement",
+      },
+    );
+    const reader = createLocalCollectiveStatisticalCampaignArtifactReaderV1(
+      local,
+      [target],
+    );
+
+    await assert.rejects(
+      verifyCollectiveStatisticalCampaignArtifactStreamV1({
+        schemaVersion: 1,
+        artifacts: [target],
+        reader,
+        limits: { maximumArtifactBytes: target.byteLength - 1 },
+      }),
+      /byteLength_is_invalid/i,
+    );
+    await assert.rejects(
+      writer.putArtifactV1({
+        artifactId: "artifact:too-large",
+        kind: "policy",
+        bytes: byteStream(JSON.stringify({ schemaVersion: 1, value: "large" })),
+        maximumBytes: 1,
+      }),
+      /byte[_ ]limit/i,
+    );
+    const pathTamperedReader =
+      createLocalCollectiveStatisticalCampaignArtifactReaderV1(local, [
+        { ...target, path: "artifacts/sha256/forged.json" },
+      ]);
+    await assert.rejects(
+      verifyCollectiveStatisticalCampaignArtifactStreamV1({
+        schemaVersion: 1,
+        artifacts: [{ ...target, path: "artifacts/sha256/forged.json" }],
+        reader: pathTamperedReader,
+      }),
+      /logical[_ ]binding/i,
+    );
+
+    const runKey = `artifact-v1:${sha256("artifact:target")}`;
+    await writeFile(
+      join(root, "slots", `${sha256(runKey)}.json`),
+      JSON.stringify({
+        artifactSha256: [replacement.sha256],
+        runKey,
+        schemaVersion: 1,
+      }),
+    );
+    await assert.rejects(
+      verifyCollectiveStatisticalCampaignArtifactStreamV1({
+        schemaVersion: 1,
+        artifacts: [target],
+        reader,
+      }),
+      /logical[_ ]binding/i,
+    );
+  });
+});
 
 test("stores immutable content and commits slots idempotently", async () => {
   await withStore(async (root) => {

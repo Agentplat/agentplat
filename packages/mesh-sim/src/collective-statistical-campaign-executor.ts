@@ -95,6 +95,11 @@ export interface CollectiveStatisticalCampaignShardExecutionInputV1 {
   }>;
   readonly leaseDurationMs: number;
   readonly maximumCells: number;
+  /**
+   * Optional closed selection supplied by a higher-level operation. When
+   * absent, the historical modulo partition is retained for compatibility.
+   */
+  readonly cellIds?: readonly string[];
   readonly store: CollectiveStatisticalCampaignExecutionStoreV1;
   readonly now: () => number;
   readonly execute: (
@@ -175,9 +180,12 @@ export async function runCollectiveStatisticalCampaignShardV1(
       "collective_statistical_campaign_state_retry_limit_exceeded",
     );
   };
-  const selected = registration.cells.filter(
-    (_cell, index) => index % input.shard.count === input.shard.index,
-  );
+  const selected =
+    input.cellIds === undefined
+      ? registration.cells.filter(
+          (_cell, index) => index % input.shard.count === input.shard.index,
+        )
+      : selectExplicitCells(registration, input.cellIds);
   if (selected.length > input.maximumCells)
     throw new RangeError(
       "collective_statistical_campaign_shard_cell_limit_exceeded",
@@ -931,6 +939,33 @@ function validateExecutorInput(
     throw new TypeError(
       "collective_statistical_campaign_executor_input_invalid",
     );
+}
+
+function selectExplicitCells(
+  registration: CollectiveEvaluationCampaignRegistrationV1,
+  cellIds: readonly string[],
+): readonly CollectiveEvaluationCampaignCellV1[] {
+  if (!Array.isArray(cellIds) || cellIds.length === 0 || cellIds.length > 240)
+    throw new TypeError(
+      "collective_statistical_campaign_executor_cell_ids_invalid",
+    );
+  const expected = new Set(registration.cells.map((cell) => cell.cellId));
+  const selected: CollectiveEvaluationCampaignCellV1[] = [];
+  const seen = new Set<string>();
+  for (const cellId of cellIds) {
+    if (typeof cellId !== "string" || !expected.has(cellId) || seen.has(cellId))
+      throw new TypeError(
+        "collective_statistical_campaign_executor_cell_ids_invalid",
+      );
+    seen.add(cellId);
+    const cell = registration.cells.find((entry) => entry.cellId === cellId);
+    if (!cell)
+      throw new TypeError(
+        "collective_statistical_campaign_executor_cell_ids_invalid",
+      );
+    selected.push(cell);
+  }
+  return Object.freeze(selected);
 }
 
 async function readOne(
