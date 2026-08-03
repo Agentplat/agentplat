@@ -3,8 +3,12 @@
 Status: Increment 0 design freeze, Increment 1 portable contracts, Increment 2
 pure planning reducer, Increment 3 Mesh planning facade and Increment 4
 environment/evaluation boundary are complete locally. Increment 5 nominal
-closed-loop execution is also complete locally; Increment 6 replanning and
-fault campaigns remain open. Every unchecked item remains release-blocking
+closed-loop execution is also complete locally. Increment 6 now has bounded
+causal-replanning, fault-matrix and certified-recovery implementation evidence;
+local release review and package verification are complete, while public CI
+and the statistical campaign remain open. The statistical and durability
+sections are later Beta 3 release milestones rather than claims of this compact
+Increment 6 reference. Every unchecked item otherwise remains release-blocking
 unless it is explicitly labeled diagnostic or deferred.
 
 ## Design freeze
@@ -90,7 +94,7 @@ unless it is explicitly labeled diagnostic or deferred.
 
 ## Replanning
 
-- [ ] Replanning requires an explicit observation, result, fault, capability,
+- [x] Replanning requires an explicit observation, result, fault, capability,
       Trust, deadline or intent input.
 - [x] Every replacement names its exact causal predecessor and basis digests.
 - [x] Supersession explicitly revises/cancels prior Work or leaves it terminal;
@@ -129,15 +133,17 @@ unless it is explicitly labeled diagnostic or deferred.
 - [x] Replaying the trace reproduces the report ledger exactly.
 - [x] V2 contains no interaction padding, constant success or constant safety
       counters.
-- [ ] Every claimed fault has scheduled, injected and observed events.
-- [ ] Missing/extra events, seeds or fault records invalidate the report.
+- [x] Every claimed fault has scheduled, injected and observed events.
+- [x] Missing/extra fault records invalidate the bounded resilience result and
+      campaign evidence; full multi-seed campaign validation remains open.
 - [ ] Mission/safety failure cannot be reclassified as infrastructure invalid.
 - [x] Nominal collective and centralized runners bind the same public intent,
       per-peer observations, policy, protected-effect boundary and no faults.
 - [x] Centralized nominal mode receives no evaluator hidden state and accounts
       delivered observations as directives, then executes one bounded central
-      decision instead of the peer-local decision loop; fault parity is
-      deferred.
+      decision instead of the peer-local decision loop. The compact resilience
+      pair separately enforces exact fault parity; the full statistical ladder
+      remains deferred.
 - [x] Runner, environment, monitor, policy and fixtures have independent
       registered digests.
 - [x] Exact replay and snapshot/restore match uninterrupted execution.
@@ -153,7 +159,7 @@ unless it is explicitly labeled diagnostic or deferred.
 - [x] Critical-extension downgrade implementation is detected.
 - [x] Fragment/Work substitution implementation is detected.
 - [x] Stale-plan/stale-fence implementation is detected.
-- [ ] Declared-only fault implementation is detected.
+- [x] Declared-only fault implementation is detected.
 - [x] Constant-success/zero-violation implementation is detected.
 - [x] Synthetic-ledger padding/omission implementation is detected.
 - [ ] Failed-seed omission implementation is detected.

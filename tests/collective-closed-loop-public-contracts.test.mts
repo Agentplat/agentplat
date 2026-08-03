@@ -1,23 +1,62 @@
 import {
   collectiveClosedLoopDefinitionDigestV1,
+  collectiveClosedLoopFaultPlanDigestV1,
+  collectiveClosedLoopResilienceCampaignEvidenceDigestV1,
+  collectiveClosedLoopResilienceDefinitionDigestV1,
+  collectiveClosedLoopResilienceResultDigestV1,
   createCollectiveClosedLoopEvaluatorV1,
   createCollectiveClosedLoopReferenceRuntimeV1,
   createCollectiveClosedLoopReferenceScenarioV1,
+  createCollectiveClosedLoopResilienceReferenceScenarioV1,
   createCollectiveClosedLoopRuntimeRunnerV1,
   createCollectiveClosedLoopDefinitionV1,
+  createCollectiveClosedLoopFaultPlanV1,
+  createCollectiveClosedLoopFaultMatrixMissionBindingV1,
+  createCollectiveClosedLoopFaultMatrixPortV1,
+  createCollectiveClosedLoopResilienceCampaignEvidenceV1,
+  createCollectiveClosedLoopResilienceDefinitionV1,
+  createCollectiveClosedLoopResilienceResultV1,
   createCollectiveClosedLoopRunResultV1,
   replayAdaptiveCollectiveClosedLoopV1,
+  replayAdaptiveCollectiveClosedLoopResilienceV1,
   replayCentralizedPlannerClosedLoopV1,
+  replayCentralizedPlannerClosedLoopResilienceV1,
   runAdaptiveCollectiveClosedLoopV1,
+  runAdaptiveCollectiveClosedLoopResilienceV1,
   runCentralizedPlannerClosedLoopV1,
+  runCentralizedPlannerClosedLoopResilienceV1,
+  runCollectiveClosedLoopCausalReplanningV1,
+  runCollectiveClosedLoopFaultMatrixV1,
+  runCollectiveClosedLoopFaultMatrixPortV1,
   runCollectiveClosedLoopActionV1,
   runCollectiveClosedLoopMeshRuntimeV1,
+  runPairedCollectiveClosedLoopResilienceCampaignV1,
   validateCollectiveClosedLoopDefinitionV1,
+  validateCollectiveClosedLoopFaultPlanV1,
+  validateCollectiveClosedLoopResilienceCampaignEvidenceV1,
+  validateCollectiveClosedLoopResilienceCampaignEvidenceForResultV1,
+  validateCollectiveClosedLoopResilienceDefinitionV1,
+  validateCollectiveClosedLoopResilienceResultV1,
+  validateCollectiveClosedLoopResilienceResultForDefinitionV1,
   validateCollectiveClosedLoopRunResultV1,
   validateCollectiveCentralizedPlanningDecisionContextV1,
   validateCollectivePlanningDecisionContextV1,
   validateCollectivePlanningDecisionV1,
   type CollectiveClosedLoopDefinitionV1,
+  type CollectiveClosedLoopCausalReplanningInputV1,
+  type CollectiveClosedLoopFaultMatrixInputV1,
+  type CollectiveClosedLoopFaultMatrixMissionBindingV1,
+  type CollectiveClosedLoopFaultMatrixPortV1,
+  type CollectiveClosedLoopFaultPlanV1,
+  type CollectiveClosedLoopResilienceCampaignEvidenceV1,
+  type CollectiveClosedLoopResilienceDefinitionV1,
+  type CollectiveClosedLoopResilienceResultV1,
+  type CollectiveClosedLoopResilienceExecutionInputV1,
+  type CollectiveClosedLoopResilienceExecutionResultV1,
+  type CollectiveClosedLoopResilienceReplayInputV1,
+  type CollectiveClosedLoopResilienceReplayResultV1,
+  type CollectiveClosedLoopPairedResilienceCampaignInputV1,
+  type CollectiveClosedLoopPairedResilienceCampaignResultV1,
   type CollectiveClosedLoopEvaluatorV1,
   type CollectiveClosedLoopExecutionInputV1,
   type CollectiveClosedLoopExecutionResultV1,
@@ -37,6 +76,10 @@ import {
 
 declare const peer: CollectiveClosedLoopPeerV1;
 declare const definition: CollectiveClosedLoopDefinitionV1;
+declare const faultPlan: CollectiveClosedLoopFaultPlanV1;
+declare const resilienceDefinition: CollectiveClosedLoopResilienceDefinitionV1;
+declare const resilienceResult: CollectiveClosedLoopResilienceResultV1;
+declare const resilienceEvidence: CollectiveClosedLoopResilienceCampaignEvidenceV1;
 declare const context: CollectivePlanningDecisionContextV1;
 declare const centralizedContext: CollectiveCentralizedPlanningDecisionContextV1;
 declare const decision: CollectivePlanningDecisionV1;
@@ -50,24 +93,90 @@ declare const replayResult: CollectiveClosedLoopReplayResultV1;
 declare const runtimeInput: CollectiveClosedLoopRuntimeInputV1;
 declare const runtimeRunner: CollectiveClosedLoopRuntimeRunnerV1;
 declare const referenceRuntime: CollectiveClosedLoopReferenceRuntimeV1;
+declare const resilienceExecutionInput: CollectiveClosedLoopResilienceExecutionInputV1;
+declare const resilienceExecutionResult: CollectiveClosedLoopResilienceExecutionResultV1;
+declare const resilienceReplayInput: CollectiveClosedLoopResilienceReplayInputV1;
+declare const resilienceReplayResult: CollectiveClosedLoopResilienceReplayResultV1;
+declare const pairedCampaignInput: CollectiveClosedLoopPairedResilienceCampaignInputV1;
+declare const pairedCampaignResult: CollectiveClosedLoopPairedResilienceCampaignResultV1;
+declare const replanningInput: CollectiveClosedLoopCausalReplanningInputV1;
+declare const faultMatrixInput: CollectiveClosedLoopFaultMatrixInputV1<
+  unknown,
+  unknown
+>;
 declare const evaluatorConfig: Parameters<
   typeof createCollectiveClosedLoopEvaluatorV1
 >[0];
 declare const runtimeRunnerInput: Parameters<
   typeof createCollectiveClosedLoopRuntimeRunnerV1
 >[0];
-declare const actionInput: Parameters<typeof runCollectiveClosedLoopActionV1>[0];
+declare const actionInput: Parameters<
+  typeof runCollectiveClosedLoopActionV1
+>[0];
 declare const definitionInput: Parameters<
   typeof createCollectiveClosedLoopDefinitionV1
+>[0];
+declare const faultPlanInput: Parameters<
+  typeof createCollectiveClosedLoopFaultPlanV1
+>[0];
+declare const resilienceDefinitionInput: Parameters<
+  typeof createCollectiveClosedLoopResilienceDefinitionV1
+>[0];
+declare const resilienceResultInput: Parameters<
+  typeof createCollectiveClosedLoopResilienceResultV1
+>[0];
+declare const resilienceEvidenceInput: Parameters<
+  typeof createCollectiveClosedLoopResilienceCampaignEvidenceV1
 >[0];
 declare const resultInput: Parameters<
   typeof createCollectiveClosedLoopRunResultV1
 >[0];
 
 const stopReason: CollectiveClosedLoopStopReasonV1 = 'plan_completed';
-const definitionDigest = collectiveClosedLoopDefinitionDigestV1(definitionInput);
-const createdDefinition = createCollectiveClosedLoopDefinitionV1(definitionInput);
-const validatedDefinition = validateCollectiveClosedLoopDefinitionV1(definition);
+const definitionDigest =
+  collectiveClosedLoopDefinitionDigestV1(definitionInput);
+const faultPlanDigest = collectiveClosedLoopFaultPlanDigestV1(faultPlanInput);
+const resilienceDefinitionDigest =
+  collectiveClosedLoopResilienceDefinitionDigestV1(resilienceDefinitionInput);
+const resilienceResultDigest = collectiveClosedLoopResilienceResultDigestV1(
+  resilienceResultInput
+);
+const resilienceEvidenceDigest =
+  collectiveClosedLoopResilienceCampaignEvidenceDigestV1(
+    resilienceEvidenceInput
+  );
+const createdDefinition =
+  createCollectiveClosedLoopDefinitionV1(definitionInput);
+const createdFaultPlan = createCollectiveClosedLoopFaultPlanV1(faultPlanInput);
+const createdResilienceDefinition =
+  createCollectiveClosedLoopResilienceDefinitionV1(resilienceDefinitionInput);
+const createdResilienceResult = createCollectiveClosedLoopResilienceResultV1(
+  resilienceResultInput
+);
+const createdResilienceEvidence =
+  createCollectiveClosedLoopResilienceCampaignEvidenceV1(
+    resilienceEvidenceInput
+  );
+const validatedDefinition =
+  validateCollectiveClosedLoopDefinitionV1(definition);
+const validatedFaultPlan = validateCollectiveClosedLoopFaultPlanV1(faultPlan);
+const validatedResilienceDefinition =
+  validateCollectiveClosedLoopResilienceDefinitionV1(resilienceDefinition);
+const validatedResilienceResult =
+  validateCollectiveClosedLoopResilienceResultV1(resilienceResult);
+const validatedResilienceEvidence =
+  validateCollectiveClosedLoopResilienceCampaignEvidenceV1(resilienceEvidence);
+const definitionBoundResilienceResult =
+  validateCollectiveClosedLoopResilienceResultForDefinitionV1(
+    resilienceResult,
+    resilienceDefinition
+  );
+const resultBoundResilienceEvidence =
+  validateCollectiveClosedLoopResilienceCampaignEvidenceForResultV1(
+    resilienceEvidence,
+    resilienceDefinition,
+    resilienceResult
+  );
 const createdResult = createCollectiveClosedLoopRunResultV1(resultInput);
 const validatedResult = validateCollectiveClosedLoopRunResultV1(result);
 const validatedContext = validateCollectivePlanningDecisionContextV1(context);
@@ -78,26 +187,73 @@ const policyDecision = decisionPolicy.decide(context);
 const centralizedPolicyDecision =
   decisionPolicy.decideCentralized(centralizedContext);
 const createdEvaluator = createCollectiveClosedLoopEvaluatorV1(evaluatorConfig);
-const createdRuntimeRunner = createCollectiveClosedLoopRuntimeRunnerV1(
-  runtimeRunnerInput,
-);
+const createdRuntimeRunner =
+  createCollectiveClosedLoopRuntimeRunnerV1(runtimeRunnerInput);
 const adaptiveExecution = runAdaptiveCollectiveClosedLoopV1(executionInput);
 const centralizedExecution = runCentralizedPlannerClosedLoopV1(executionInput);
 const adaptiveReplay = replayAdaptiveCollectiveClosedLoopV1(replayInput);
 const centralizedReplay = replayCentralizedPlannerClosedLoopV1(replayInput);
 const meshRuntime = runCollectiveClosedLoopMeshRuntimeV1(runtimeInput);
 const governedAction = runCollectiveClosedLoopActionV1(actionInput);
-const createdReferenceRuntime = createCollectiveClosedLoopReferenceRuntimeV1(50);
+const createdReferenceRuntime =
+  createCollectiveClosedLoopReferenceRuntimeV1(50);
 const createdReferenceScenario = createCollectiveClosedLoopReferenceScenarioV1({
   runner: 'adaptive_collective',
   peerCount: 50,
   runtime: referenceRuntime,
 });
+const createdResilienceReferenceScenario =
+  createCollectiveClosedLoopResilienceReferenceScenarioV1({
+    runner: 'adaptive_collective',
+    peerCount: 50,
+    runtime: referenceRuntime,
+  });
+const adaptiveResilienceExecution = runAdaptiveCollectiveClosedLoopResilienceV1(
+  resilienceExecutionInput
+);
+const centralizedResilienceExecution =
+  runCentralizedPlannerClosedLoopResilienceV1(resilienceExecutionInput);
+const adaptiveResilienceReplay = replayAdaptiveCollectiveClosedLoopResilienceV1(
+  resilienceReplayInput
+);
+const centralizedResilienceReplay =
+  replayCentralizedPlannerClosedLoopResilienceV1(resilienceReplayInput);
+const pairedResilienceCampaign =
+  runPairedCollectiveClosedLoopResilienceCampaignV1(pairedCampaignInput);
+const causalReplanning =
+  runCollectiveClosedLoopCausalReplanningV1(replanningInput);
+const faultMatrix = runCollectiveClosedLoopFaultMatrixV1(faultMatrixInput);
+const faultMatrixMissionBinding: CollectiveClosedLoopFaultMatrixMissionBindingV1 =
+  createCollectiveClosedLoopFaultMatrixMissionBindingV1({
+    preEffect: resilienceExecutionResult.preEffect,
+    replacementPeerId: resilienceExecutionInput.replacementPeerId,
+  });
+const faultMatrixPort: CollectiveClosedLoopFaultMatrixPortV1 =
+  createCollectiveClosedLoopFaultMatrixPortV1(
+    faultMatrixInput,
+    faultMatrixMissionBinding
+  );
+const executedFaultMatrixPort =
+  runCollectiveClosedLoopFaultMatrixPortV1(faultMatrixPort);
 
 void stopReason;
 void definitionDigest;
+void faultPlanDigest;
+void resilienceDefinitionDigest;
+void resilienceResultDigest;
+void resilienceEvidenceDigest;
 void createdDefinition;
+void createdFaultPlan;
+void createdResilienceDefinition;
+void createdResilienceResult;
+void createdResilienceEvidence;
 void validatedDefinition;
+void validatedFaultPlan;
+void validatedResilienceDefinition;
+void validatedResilienceResult;
+void validatedResilienceEvidence;
+void definitionBoundResilienceResult;
+void resultBoundResilienceEvidence;
 void createdResult;
 void validatedResult;
 void validatedContext;
@@ -119,10 +275,33 @@ void meshRuntime;
 void governedAction;
 void createdReferenceRuntime;
 void createdReferenceScenario;
+void createdResilienceReferenceScenario;
+void resilienceExecutionResult;
+void resilienceReplayResult;
+void pairedCampaignResult;
+void adaptiveResilienceExecution;
+void centralizedResilienceExecution;
+void adaptiveResilienceReplay;
+void centralizedResilienceReplay;
+void pairedResilienceCampaign;
+void causalReplanning;
+void faultMatrix;
+void faultMatrixMissionBinding;
+void faultMatrixPort;
+void executedFaultMatrixPort;
 
 // Public contract records and their collections are immutable.
 // @ts-expect-error definition fields are readonly
 definition.maximumLogicalTimeMs = 10;
+// @ts-expect-error resilience definitions are immutable and bind the nominal definition
+resilienceDefinition.maximumEpochs = 3;
+// @ts-expect-error fault plans expose only readonly causal schedules
+faultPlan.faults.pop();
+// @ts-expect-error evidence collections are immutable
+resilienceEvidence.observedFaultIds.push('fault:replacement');
+// @ts-expect-error stale-result evidence is immutable
+resilienceResult.staleResultRejections[0] =
+  resilienceResult.staleResultRejections[0];
 // @ts-expect-error the peer collection is readonly
 definition.peers.push(peer);
 // @ts-expect-error peer identities are readonly
@@ -153,6 +332,10 @@ runtimeRunner.privateKeys = {};
 replayResult.matched = false;
 // @ts-expect-error reference runtime handles are immutable
 referenceRuntime.peerCount = 3;
+// @ts-expect-error resilient execution evidence is immutable
+resilienceExecutionResult.resilience.epochs.pop();
+// @ts-expect-error paired campaign results are immutable
+pairedCampaignResult.matched = false;
 
 // A run result deliberately carries evidence roots, not a synthesized verdict,
 // mutable ledger, or violation list.

@@ -186,6 +186,10 @@ try {
     consumerRoot,
     'collective-planning-closed-loop'
   );
+  const collectivePlanningClosedLoopResilienceConsumerRoot = path.join(
+    consumerRoot,
+    'collective-planning-closed-loop-resilience'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   const inferenceControlConsumerRoot = path.join(
     consumerRoot,
@@ -213,6 +217,9 @@ try {
     mkdir(meshAllocationRecoveryConsumerRoot, { recursive: true }),
     mkdir(collectivePlanningMeshConsumerRoot, { recursive: true }),
     mkdir(collectivePlanningClosedLoopConsumerRoot, { recursive: true }),
+    mkdir(collectivePlanningClosedLoopResilienceConsumerRoot, {
+      recursive: true,
+    }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
     mkdir(trustConsumerRoot, { recursive: true }),
@@ -254,6 +261,7 @@ try {
         "  - 'mesh-allocation-recovery'",
         "  - 'collective-planning-mesh-three-peer'",
         "  - 'collective-planning-closed-loop'",
+        "  - 'collective-planning-closed-loop-resilience'",
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
@@ -638,13 +646,70 @@ try {
         root,
         'scripts/pack-consumers/collective-planning-closed-loop-types.ts'
       ),
+      path.join(collectivePlanningClosedLoopConsumerRoot, 'verify-types.ts')
+    ),
+    writeFile(
+      path.join(collectivePlanningClosedLoopConsumerRoot, 'tsconfig.json'),
+      `${JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'NodeNext',
+            moduleResolution: 'NodeNext',
+            strict: true,
+            noEmit: true,
+            skipLibCheck: false,
+            types: [],
+            lib: ['ES2022', 'DOM'],
+          },
+          include: ['verify-types.ts'],
+        },
+        null,
+        2
+      )}\n`
+    ),
+    writeFile(
       path.join(
-        collectivePlanningClosedLoopConsumerRoot,
+        collectivePlanningClosedLoopResilienceConsumerRoot,
+        'package.json'
+      ),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-collective-planning-closed-loop-resilience',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: collectivePlanningClosedLoopDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-closed-loop-resilience.mjs'
+      ),
+      path.join(
+        collectivePlanningClosedLoopResilienceConsumerRoot,
+        'verify-resilience.mjs'
+      )
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-closed-loop-resilience-types.ts'
+      ),
+      path.join(
+        collectivePlanningClosedLoopResilienceConsumerRoot,
         'verify-types.ts'
       )
     ),
     writeFile(
-      path.join(collectivePlanningClosedLoopConsumerRoot, 'tsconfig.json'),
+      path.join(
+        collectivePlanningClosedLoopResilienceConsumerRoot,
+        'tsconfig.json'
+      ),
       `${JSON.stringify(
         {
           compilerOptions: {
@@ -804,6 +869,22 @@ try {
     ],
     {
       cwd: collectivePlanningClosedLoopConsumerRoot,
+      stdio: 'inherit',
+    }
+  );
+  execFileSync(process.execPath, ['verify-resilience.mjs'], {
+    cwd: collectivePlanningClosedLoopResilienceConsumerRoot,
+    stdio: 'inherit',
+  });
+  execFileSync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules/typescript/bin/tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    {
+      cwd: collectivePlanningClosedLoopResilienceConsumerRoot,
       stdio: 'inherit',
     }
   );

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Added the opt-in Beta 3 resilient closed-loop reference surface: strict
+  fault-plan, resilience-result and campaign-evidence contracts bind a nominal
+  definition, bounded epochs, scheduled/injected/observed fault evidence and
+  stale-result rejections without changing the nominal runner.
+- Added bounded causal replanning that requires an explicit trigger observation
+  and exact predecessor head before recording a successor and projecting its
+  new Work identity through the planning reducer.
+- Added a deterministic six-family fault matrix for capability withdrawal,
+  assignment decline, peer crash/resume, directed partition and heal. Focused
+  conformance routes withdrawal and decline/reoffer through real Mesh reducers;
+  transport faults remain simulator-driver events. The resilient runner uses a
+  construction-bound registered port tied to the nominal mission state and
+  validates exact times, targets, links and causal trace triggers.
+- Added certificate-backed replacement assignment, epoch-two checkpoint resume,
+  stale epoch-one progress/result fencing and a construction-bound finalizer
+  that emits `work.result` only after a provenance-bound committed effect
+  receipt. Stale evidence retains the rejected signed envelope and protected
+  actions must occur within the recovered lease's absolute time window.
+- Added a construction-fair adaptive/centralized resilience reference campaign
+  with shared policy identity, environment/monitor/matrix parity and exact
+  replay checks over resilience, trace, boundary-evidence and effective fault
+  records. Durable restart, deployment and the statistical campaign remain
+  later milestones.
+
 ## 0.3.0-alpha.4 - 2026-07-31
 
 - Added the provider-neutral `@agentplat/trust` package with strict canonical
