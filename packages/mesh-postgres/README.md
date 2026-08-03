@@ -33,6 +33,26 @@ resumable batches. `getRollbackReadiness` reports whether retained Beta rows
 can be read by the preceding Alpha reader, including v1 envelopes, typed snapshots and
 schema-2 journal entries that cannot be represented by that reader.
 
+Migration 3 is also additive. It adds an opt-in planning/recovery stream whose
+scope binds the exact tenant, policy domain, mission intent revision and digest,
+selection-policy digest, peer and peer instance. The stream stores a strictly
+validated `PlanningReducerSnapshotV1`, closed recovery high-waters and one
+hash-chained event per compare-and-swap commit.
+
+`PostgresPlanningRecoveryDurableRepositoryV1` never treats a planning record as
+execution authority. Assignment epochs must advance exactly once and rotate the
+fencing token; replay, revocation, budget, logical-time, plan and fragment
+high-waters cannot decrease. A snapshot may initialize an empty stream, while a
+non-empty stream accepts only its identical snapshot through `restore()`; later
+state must arrive through verified commits so the local journal cannot acquire
+an unverifiable gap or fork.
+
+Construct recovery state with `createPlanningRecoveryStateV1`, bind it to a real
+planning snapshot with `createPlanningRecoveryDurableStateV1`, and then call
+`initialize`, `commit`, `read` or `inspectEvents`. The in-memory implementation
+uses the same validation and is intended for conformance tests, not as durable
+storage.
+
 The pool remains caller-owned. `repository.close()` intentionally does not call
 `pool.end()`.
 

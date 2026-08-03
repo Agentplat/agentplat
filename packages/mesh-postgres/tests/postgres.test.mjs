@@ -103,7 +103,7 @@ test(
         schema,
         createSchema: true,
       });
-      assert.equal(migrated.currentVersion, 2);
+      assert.equal(migrated.currentVersion, 3);
       assert.deepEqual(await getCompatibilityStatus(pool, { schema }), {
         legacyInboxRows: 0,
         legacyOutboxRows: 0,
@@ -418,8 +418,28 @@ test(
       assert.equal((await pool.query("SELECT 1 AS ok")).rows[0].ok, 1);
 
       const status = await getMigrationStatus(pool, { schema });
-      assert.equal(status.currentVersion, 2);
+      assert.equal(status.currentVersion, 3);
       const rolledBack = await rollbackMigrations(pool, {
+        schema,
+        expectedCurrentVersion: 3,
+        confirm: rollbackConfirmation(schema, 3),
+        allowDataLoss: true,
+        verifiedBackup: true,
+        allowIncompatibleRows: true,
+      });
+      assert.equal(rolledBack.currentVersion, 2);
+      await assert.rejects(
+        () =>
+          rollbackMigrations(pool, {
+            schema,
+            expectedCurrentVersion: 2,
+            confirm: rollbackConfirmation(schema),
+            allowDataLoss: true,
+            verifiedBackup: true,
+          }),
+        /drained v1 rows or an explicit loss decision/u,
+      );
+      const alphaRollback = await rollbackMigrations(pool, {
         schema,
         expectedCurrentVersion: 2,
         confirm: rollbackConfirmation(schema),
@@ -427,7 +447,7 @@ test(
         verifiedBackup: true,
         allowIncompatibleRows: true,
       });
-      assert.equal(rolledBack.currentVersion, 1);
+      assert.equal(alphaRollback.currentVersion, 1);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       await pool.end();

@@ -305,6 +305,9 @@ importers:
       '@agentplat/collective-control':
         specifier: workspace:^
         version: link:../collective-control
+      '@agentplat/collective-planning':
+        specifier: workspace:^
+        version: link:../collective-planning
       '@agentplat/inference-control':
         specifier: workspace:^
         version: link:../inference-control
@@ -332,6 +335,9 @@ importers:
 
   packages/mesh-postgres:
     dependencies:
+      '@agentplat/collective-planning':
+        specifier: workspace:^
+        version: link:../collective-planning
       '@agentplat/mesh':
         specifier: workspace:^
         version: link:../mesh
