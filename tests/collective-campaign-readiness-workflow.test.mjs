@@ -35,6 +35,11 @@ test("campaign readiness workflow is manual, secret-free and non-executing", asy
     /secrets\.|environment:\s+[^\n]|npm publish|dist-tag|deploy|execute-shard|RUN_NORMATIVE_240X4|RUN_REGISTERED_PREFLIGHT_5X4/iu,
   );
   assert.doesNotMatch(source, /continue-on-error:\s*true/u);
+  assert.doesNotMatch(
+    source,
+    /cache:\s*pnpm/u,
+    "setup-node must not request pnpm caching before corepack enables pnpm",
+  );
   assert.doesNotMatch(source, /matrix:\s*[\s\S]*?shard/iu);
   for (const match of source.matchAll(/uses: ([^\s#]+)/g))
     assert.match(match[1], /@[a-f0-9]{40}$/u);

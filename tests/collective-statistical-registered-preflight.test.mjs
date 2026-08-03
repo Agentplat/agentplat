@@ -50,6 +50,11 @@ test('registered preflight workflow is manual, least-privilege, protected and bo
     /needs\.execution-gate\.result == 'success' && needs\.execution-gate\.outputs\.adapter_registered == 'true'/,
   );
   assert.doesNotMatch(source, /continue-on-error:\s*true/);
+  assert.doesNotMatch(
+    source,
+    /cache:\s*pnpm/u,
+    'setup-node must not request pnpm caching before corepack enables pnpm',
+  );
   assert.doesNotMatch(source, /^\s*(?:push|pull_request|schedule):/m);
   assert.doesNotMatch(
     source,
