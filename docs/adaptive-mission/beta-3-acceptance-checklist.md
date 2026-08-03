@@ -1,14 +1,18 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increments 0 through 11 are complete at the open-core implementation
+Status: Increments 0 through 12 are complete at the open-core implementation
 boundary. Increment 9 added the bounded diagnostic executor and local durable
 adapter; Increment 10 adds the protected, fail-closed normative control plane,
 independent analysis and evidence custody; Increment 11 adds a registered
 provider-neutral runtime, transactional cross-host custody and a bounded
-protected preflight. Their implementation evidence is
+protected preflight. Increment 12 adds the non-executing campaign-readiness
+contract, capacity estimate, exact evidence closure and derived Go/No-Go
+recommendation. Their implementation evidence is
 recorded in the [Increment 9 review](beta-3-increment-9-review.md) and
-[Increment 10 review](beta-3-increment-10-review.md), with the final review in
-[Increment 11](beta-3-increment-11-review.md). Execution of the complete
+[Increment 10 review](beta-3-increment-10-review.md), followed by
+[Increment 11](beta-3-increment-11-review.md) and
+[Increment 12](beta-3-increment-12-review.md). The protected preflight bound to
+the final source, the resulting readiness assessment, execution of the complete
 normative statistical campaign and release publication remain open. Every
 unchecked item remains release-blocking unless it is explicitly labeled
 diagnostic or deferred.
@@ -101,16 +105,16 @@ diagnostic or deferred.
 - [x] Every replacement names its exact causal predecessor and basis digests.
 - [x] Supersession explicitly revises/cancels prior Work or leaves it terminal;
       it never rewrites history.
-- [ ] Dependency failure and contradictory observations can challenge, abstain
+- [x] Dependency failure and contradictory observations can challenge, abstain
       or produce bounded alternate fragments.
-- [ ] Capability withdrawal/expiry triggers actual eligibility and planning
+- [x] Capability withdrawal/expiry triggers actual eligibility and planning
       changes.
-- [ ] Plan revision racing offer/bid/award/accept resolves deterministically.
-- [ ] Plan revision racing result/effect cannot accept a stale fence.
-- [ ] A completed effect is observed and never undone by plan rewrite.
-- [ ] An indeterminate effect remains charged until authoritative
+- [x] Plan revision racing offer/bid/award/accept resolves deterministically.
+- [x] Plan revision racing result/effect cannot accept a stale fence.
+- [x] A completed effect is observed and never undone by plan rewrite.
+- [x] An indeterminate effect remains charged until authoritative
       reconciliation.
-- [ ] At least one valid benign/mixed sample causally revises its graph and
+- [x] At least one valid benign/mixed sample causally revises its graph and
       changes a role or assignment.
 
 ## Environment boundary
@@ -189,6 +193,18 @@ started, and no package is published or released by this capability.
       cross-call budget bypass.
 - [x] Streaming custody applies non-overridable artifact, byte and chunk caps
       and commits each logical path as part of its immutable semantic binding.
+- [x] Readiness derives its recommendation from the exact closed receipt set;
+      callers cannot select `ready_for_operator_authorization`.
+- [x] The capacity envelope fixes 3,296,000 interactions, 96,000,000 trace
+      events, 15 GiB of artifact capacity and bounded runner-minutes while
+      requiring an operator rate card for monetary cost.
+- [x] The readiness workflow is manual, read-only and has no campaign,
+      deployment, publication or paid-provider execution path.
+- [ ] One protected five-cell/twenty-slot preflight and fresh-process resume for
+      the exact release-candidate source are verified by the readiness gate.
+- [ ] The final readiness assessment is
+      `ready_for_operator_authorization`; this remains non-authoritative and
+      keeps full campaign execution disabled.
 
 - [x] Registrations are frozen before normative execution.
 - [ ] Ladder completes at 50, 100, 250 and exactly 500 agents.
@@ -217,17 +233,17 @@ started, and no package is published or released by this capability.
 
 ## Privacy, security and durability
 
-- [ ] Raw prompts, private reasoning, secrets, hidden world values and
+- [x] Raw prompts, private reasoning, secrets, hidden world values and
       unrestricted observations are absent from ordinary evidence.
-- [ ] Canary scans cover logs, traces, reports, snapshots and tarballs.
-- [ ] Required pre-dispatch evidence failure never upgrades denial or repeats an
+- [x] Canary scans cover logs, traces, reports, snapshots and tarballs.
+- [x] Required pre-dispatch evidence failure never upgrades denial or repeats an
       effect.
 - [x] Durable readers bind exact tenant/domain/intent/policy identity.
 - [x] Restore cannot lower intent, fragment, budget, replay, epoch or revocation
       high-waters.
-- [ ] Retention cannot prune current heads, unresolved dependencies,
+- [x] Retention cannot prune current heads, unresolved dependencies,
       indeterminate effects or required anchors.
-- [ ] Runtime dependency audit has no unaccepted critical/high finding.
+- [x] Runtime dependency audit has no unaccepted critical/high finding.
 - [x] Public-release terminology and secret audit passes.
 
 ## Compatibility
@@ -247,6 +263,9 @@ started, and no package is published or released by this capability.
 - [x] Clean build, type, unit, adapter, conformance and campaign gates pass.
 - [x] All 39 isolated tarballs and public export subpaths install under pnpm and
       npm without workspace links.
+- [x] Prepublication packed Node 20, packed Node 22 and PostgreSQL durable
+      consumers are readiness-gated without reading AgentPlat packages from a
+      registry.
 - [ ] Portable Node 20, portable Node 22 and PostgreSQL durable registry
       consumers pass.
 - [x] Release manifest and public package catalog agree exactly.

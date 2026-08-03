@@ -566,6 +566,45 @@ test('boundary audit rejects oracle ports and canary encodings', () => {
   );
 });
 
+test('canary scanning covers every ordinary evidence artifact class', () => {
+  const data = fixture();
+  for (const artifactClass of [
+    'log',
+    'trace',
+    'report',
+    'snapshot',
+    'tarball_manifest',
+  ]) {
+    assert.equal(
+      scanCollectivePublicArtifactForCanaryV1(
+        {
+          schemaVersion: 1,
+          artifactClass,
+          records: [{ status: 'clean', digest: hash({ artifactClass }) }],
+        },
+        data.hiddenCanary
+      ),
+      false
+    );
+    assert.equal(
+      scanCollectivePublicArtifactForCanaryV1(
+        {
+          schemaVersion: 1,
+          artifactClass,
+          records: [
+            {
+              status: 'leaked',
+              value: Buffer.from(data.hiddenCanary).toString('base64'),
+            },
+          ],
+        },
+        data.hiddenCanary
+      ),
+      true
+    );
+  }
+});
+
 test('evaluator monitor records remain independent and evidence-complete', () => {
   const data = fixture();
   const harness = harnessFor(data);

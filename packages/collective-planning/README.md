@@ -309,3 +309,19 @@ durable namespace derives from the plan plus stable authenticated authorization
 digest. This repository registers no real normative adapter, executes
 no campaign, accesses no hosted service, publishes no package and makes no
 release claim.
+
+### Campaign readiness boundary
+
+The evaluation subpath exports a separate provider-neutral readiness contract
+for reviewing the complete registered campaign before authorization. It binds
+the exact source tree, registration, operation plan and adapter descriptor to a
+fixed capacity ceiling, then derives `no_go` or
+`ready_for_operator_authorization` from a closed set of content-addressed
+evidence receipts. Callers cannot select the recommendation.
+
+Readiness never grants authority: every plan, estimate and assessment keeps
+`executionPermitted` and `fullCampaignPermitted` false. Campaign-produced
+statistical outcomes and release-produced registry outcomes are retained as
+separate pending sets, so repository checks cannot be mistaken for campaign or
+publication evidence. Monetary cost remains unresolved until an operator
+supplies a separately bound provider rate card.

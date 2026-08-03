@@ -14,7 +14,10 @@ import {
   runCollectiveClosedLoopCausalReplanningV1,
 } from '@agentplat/mesh-sim';
 
-async function causalFixture() {
+async function causalFixture({
+  observationKind = 'capability-withdrawn',
+  publicValue = { capabilityKey: 'capability.execute', status: 'withdrawn' },
+} = {}) {
   const input = await createCollectiveClosedLoopReferenceScenarioV1({
     runner: 'adaptive_collective',
     peerCount: 3,
@@ -125,8 +128,8 @@ async function causalFixture() {
     environmentCursor: 'cursor:closed-loop:1',
     logicalTimeMs,
     visibility: 'failure',
-    observationKind: 'capability-withdrawn',
-    publicValue: { capabilityKey: 'capability.execute', status: 'withdrawn' },
+    observationKind,
+    publicValue,
     contentReferenceDigest: null,
   });
   return {
@@ -139,7 +142,7 @@ async function causalFixture() {
   };
 }
 
-function successorFor(fixture, basisObservationDigests) {
+function successorFor(fixture, basisObservationDigests, overrides = {}) {
   const { input, owner, priorFragment, triggerObservation, logicalTimeMs } =
     fixture;
   return createPlanFragmentProposalV1({
@@ -153,9 +156,9 @@ function successorFor(fixture, basisObservationDigests) {
     semanticSlotKey: priorFragment.semanticSlotKey,
     predecessorFragmentDigest: priorFragment.fragmentDigest,
     parentFragmentDigests: [],
-    dependencyFragmentDigests: [],
+    dependencyFragmentDigests: overrides.dependencyFragmentDigests ?? [],
     outcomeStatements: [...priorFragment.outcomeStatements],
-    roleKey: priorFragment.roleKey,
+    roleKey: overrides.roleKey ?? priorFragment.roleKey,
     requiredCapabilityKeys: [...priorFragment.requiredCapabilityKeys],
     inputReferenceDigest: digestPlanningJsonV1('environment-state-v1', {
       domain: 'closed-loop-causal-replanning',
@@ -226,6 +229,47 @@ test('a successor that does not cite the trigger is rejected before mutation', a
   assert.equal(
     fixture.state.planView.selectedHeads[0].fragmentDigest,
     fixture.priorFragment.fragmentDigest
+  );
+});
+
+test('a benign dependency failure produces a bounded alternate graph and role', async () => {
+  const fixture = await causalFixture({
+    observationKind: 'dependency-failed',
+    publicValue: {
+      stratum: 'benign',
+      dependencyKey: 'dependency:primary',
+      status: 'failed',
+    },
+  });
+  const successorProposal = successorFor(
+    fixture,
+    [fixture.triggerObservation.observationDigest],
+    { roleKey: 'role:recovery-executor' }
+  );
+  const result = runCollectiveClosedLoopCausalReplanningV1({
+    schemaVersion: 1,
+    planningStates: { [fixture.owner.peerId]: fixture.state },
+    triggerObservation: fixture.triggerObservation,
+    successorProposal,
+    decidedAtLogicalMs: fixture.logicalTimeMs,
+  });
+  const state = result.planningStates[fixture.owner.peerId];
+  const successor = state.planView.fragments.find(
+    (fragment) => fragment.fragmentDigest === result.successorHeadDigest
+  );
+  assert.ok(successor);
+  assert.equal(successor.roleKey, 'role:recovery-executor');
+  assert.equal(
+    successor.predecessorFragmentDigest,
+    fixture.priorFragment.fragmentDigest
+  );
+  assert.notEqual(result.successorWorkItemId, undefined);
+  assert.ok(
+    state.planView.workMappings.some(
+      (mapping) =>
+        mapping.fragmentDigest === result.successorHeadDigest &&
+        mapping.workItemId === result.successorWorkItemId
+    )
   );
 });
 

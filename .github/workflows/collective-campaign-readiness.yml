@@ -1,0 +1,546 @@
+name: Collective campaign readiness (non-executing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Create the immutable plan or assess repository-owned prerequisites.
+        required: true
+        default: plan
+        type: choice
+        options: [plan, assess]
+      confirm:
+        description: Exact non-execution confirmation.
+        required: true
+        default: DO_NOT_RUN
+        type: choice
+        options: [DO_NOT_RUN, RUN_READINESS_CHECKS]
+      campaign_id:
+        description: Immutable operator campaign identifier.
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-hex commit at the dispatched main ref.
+        required: true
+        type: string
+      preflight_run_id:
+        description: Completed protected-preflight workflow run; required only for assess.
+        required: false
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: collective-campaign-readiness-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      readiness_plan_digest: ${{ steps.plan.outputs.readiness_plan_digest }}
+    steps:
+      - id: source
+        name: Validate immutable source and non-execution operation
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CONFIRM: ${{ inputs.confirm }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$SOURCE_SHA" == "$GITHUB_SHA" ]]
+          if [[ "$OPERATION" == "plan" ]]; then
+            [[ "$CONFIRM" == "DO_NOT_RUN" ]]
+          else
+            [[ "$OPERATION" == "assess" ]]
+            [[ "$CONFIRM" == "RUN_READINESS_CHECKS" ]]
+            [[ "$PREFLIGHT_RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]]
+          fi
+          printf 'source_sha=%s\n' "$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the registered provider-neutral runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/mesh-sim-postgres... build
+      - id: plan
+        name: Create immutable operation and readiness plans only
+        shell: bash
+        env:
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode plan --confirm DO_NOT_RUN \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --output-directory "$RUNNER_TEMP/registered-operation"
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode plan \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --operation-directory "$RUNNER_TEMP/registered-operation" \
+            --output-directory "$RUNNER_TEMP/readiness-plan"
+          node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/readiness-plan/readiness-plan.json`,"utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`readiness_plan_digest=${p.readinessPlanDigest}\n`);'
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+          if-no-files-found: error
+          retention-days: 30
+
+  portable-node20:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Verify the packed Node 20 consumer and record its result
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run build
+          set +e
+          pnpm run verify:pack > "$RUNNER_TEMP/node20-evidence.log" 2>&1
+          result=$?
+          set -e
+          status=passed
+          reason=verified
+          if [[ "$result" -ne 0 ]]; then status=failed; reason=check_failed; fi
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode receipt --source-sha "$SOURCE_SHA" \
+            --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+            --control-id portable_node20_consumer \
+            --status "$status" --reason-code "$reason" \
+            --evidence-file "$RUNNER_TEMP/node20-evidence.log" \
+            --output-directory "$RUNNER_TEMP/readiness-receipts"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-node20-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  portable-node22:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Verify the packed Node 22 consumer and record its result
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run build
+          set +e
+          pnpm run verify:pack > "$RUNNER_TEMP/node22-evidence.log" 2>&1
+          result=$?
+          set -e
+          status=passed
+          reason=verified
+          if [[ "$result" -ne 0 ]]; then status=failed; reason=check_failed; fi
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode receipt --source-sha "$SOURCE_SHA" \
+            --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+            --control-id portable_node22_consumer \
+            --status "$status" --reason-code "$reason" \
+            --evidence-file "$RUNNER_TEMP/node22-evidence.log" \
+            --output-directory "$RUNNER_TEMP/readiness-receipts"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-node22-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  postgres-and-retention:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16.14-alpine3.24@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_DB: agentplat_readiness
+          POSTGRES_USER: agentplat_readiness
+          POSTGRES_PASSWORD: agentplat_readiness
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentplat_readiness -d agentplat_readiness"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Verify packed PostgreSQL consumer, retention and indeterminate safety
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_readiness
+          PGUSER: agentplat_readiness
+          PGPASSWORD: agentplat_readiness
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run build
+          set +e
+          {
+            pnpm run verify:packed-postgres-consumer
+            pnpm --filter @agentplat/collective-control-postgres test
+            node --test tests/collective-control-actions.test.mjs
+          } > "$RUNNER_TEMP/postgres-evidence.log" 2>&1
+          result=$?
+          set -e
+          status=passed
+          reason=verified
+          if [[ "$result" -ne 0 ]]; then status=failed; reason=check_failed; fi
+          for control in postgres_durable_consumer retention_and_indeterminate_safety; do
+            node scripts/collective-beta3-campaign-readiness.mjs \
+              --mode receipt --source-sha "$SOURCE_SHA" \
+              --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+              --control-id "$control" \
+              --status "$status" --reason-code "$reason" \
+              --evidence-file "$RUNNER_TEMP/postgres-evidence.log" \
+              --output-directory "$RUNNER_TEMP/readiness-receipts"
+          done
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  safety-evidence:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Verify bounded preflight, privacy, evidence and replanning controls
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm run build
+          set +e
+          node --test \
+            tests/collective-statistical-registered-preflight.test.mjs \
+            tests/collective-statistical-campaign-registered-adapter.test.mjs \
+            tests/collective-evaluation-v2.test.mjs \
+            tests/collective-control-actions.test.mjs \
+            tests/collective-closed-loop-replanning.test.mjs \
+            tests/collective-closed-loop-fault-matrix.test.mjs \
+            tests/collective-planning-reducer.test.mjs \
+            tests/collective-planning-mesh.test.mjs \
+            tests/collective-closed-loop-action.test.mjs \
+            tests/collective-closed-loop-recovery.test.mjs \
+            > "$RUNNER_TEMP/safety-evidence.log" 2>&1
+          result=$?
+          set -e
+          status=passed
+          reason=verified
+          if [[ "$result" -ne 0 ]]; then status=failed; reason=check_failed; fi
+          for control in public_evidence_privacy predispatch_evidence_safety integrated_replanning_safety; do
+            node scripts/collective-beta3-campaign-readiness.mjs \
+              --mode receipt --source-sha "$SOURCE_SHA" \
+              --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+              --control-id "$control" \
+              --status "$status" --reason-code "$reason" \
+              --evidence-file "$RUNNER_TEMP/safety-evidence.log" \
+              --output-directory "$RUNNER_TEMP/readiness-receipts"
+          done
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-safety-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  protected-preflight-evidence:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Verify protected-preflight workflow provenance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$PREFLIGHT_RUN_ID" \
+            > "$RUNNER_TEMP/protected-preflight-run.json"
+          jq -e \
+            --arg source "$SOURCE_SHA" \
+            '.status == "completed" and
+             .conclusion == "success" and
+             .event == "workflow_dispatch" and
+             .head_branch == "main" and
+             .head_sha == $source and
+             .path == ".github/workflows/collective-statistical-registered-preflight.yml"' \
+            "$RUNNER_TEMP/protected-preflight-run.json" > /dev/null
+      - name: Download the exact protected preflight public receipts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: collective-registered-preflight-results-*
+          path: ${{ runner.temp }}/protected-preflight
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.preflight_run_id }}
+      - name: Verify execution, recovery and plan bindings
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          PREFLIGHT_RUN_ID: ${{ inputs.preflight_run_id }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode preflight --source-sha "$SOURCE_SHA" \
+            --workflow-run-id "$PREFLIGHT_RUN_ID" \
+            --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+            --preflight-directory "$RUNNER_TEMP/protected-preflight" \
+            --output-directory "$RUNNER_TEMP/readiness-receipts"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  dependency-security:
+    if: ${{ inputs.operation == 'assess' }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - name: Audit production dependencies and record the sanitized result
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          set +e
+          node scripts/production-dependency-audit.mjs \
+            --mode run \
+            --allowlist "$GITHUB_WORKSPACE/config/production-dependency-audit-allowlist.json" \
+            --output-directory "$RUNNER_TEMP/dependency-audit" \
+            > "$RUNNER_TEMP/dependency-evidence.log" 2>&1
+          result=$?
+          set -e
+          status=passed
+          reason=verified
+          if [[ "$result" -ne 0 ]]; then status=failed; reason=audit_failed; fi
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode receipt --source-sha "$SOURCE_SHA" \
+            --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+            --control-id production_dependency_security \
+            --status "$status" --reason-code "$reason" \
+            --evidence-file "$RUNNER_TEMP/dependency-evidence.log" \
+            --output-directory "$RUNNER_TEMP/readiness-receipts"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-dependencies-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-receipts
+          if-no-files-found: error
+          retention-days: 30
+
+  assess:
+    if: ${{ always() && inputs.operation == 'assess' && needs.plan.result == 'success' }}
+    needs:
+      [
+        plan,
+        portable-node20,
+        portable-node22,
+        postgres-and-retention,
+        safety-evidence,
+        protected-preflight-evidence,
+        dependency-security,
+      ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-plan
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: collective-readiness-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/downloaded-receipts
+          merge-multiple: true
+      - name: Derive the exact Go/No-Go recommendation
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+          mkdir -p "$RUNNER_TEMP/readiness-receipts"
+          cp "$RUNNER_TEMP/readiness-plan"/receipt-*.json "$RUNNER_TEMP/readiness-receipts/"
+          cp "$RUNNER_TEMP/downloaded-receipts"/receipt-*.json "$RUNNER_TEMP/readiness-receipts/"
+          for control in \
+            durable_preflight_closure \
+            portable_node20_consumer \
+            portable_node22_consumer \
+            postgres_durable_consumer \
+            public_evidence_privacy \
+            predispatch_evidence_safety \
+            retention_and_indeterminate_safety \
+            production_dependency_security \
+            integrated_replanning_safety; do
+            receipt="$RUNNER_TEMP/readiness-receipts/receipt-$control.json"
+            if [[ ! -f "$receipt" ]]; then
+              evidence="$RUNNER_TEMP/missing-$control.log"
+              printf '%s\n' 'required readiness evidence was not produced' > "$evidence"
+              node scripts/collective-beta3-campaign-readiness.mjs \
+                --mode receipt --source-sha "$SOURCE_SHA" \
+                --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+                --control-id "$control" \
+                --status failed --reason-code evidence_missing \
+                --evidence-file "$evidence" \
+                --output-directory "$RUNNER_TEMP/readiness-receipts"
+            fi
+          done
+          node scripts/collective-beta3-campaign-readiness.mjs \
+            --mode assess --source-sha "$SOURCE_SHA" \
+            --readiness-directory "$RUNNER_TEMP/readiness-plan" \
+            --receipt-directory "$RUNNER_TEMP/readiness-receipts" \
+            --output-directory "$RUNNER_TEMP/readiness-assessment"
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-readiness-assessment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/readiness-assessment
+          if-no-files-found: error
+          retention-days: 30

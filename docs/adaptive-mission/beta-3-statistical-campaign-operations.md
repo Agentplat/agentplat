@@ -151,6 +151,61 @@ also include `run_attempt`, preventing evidence from another plan, credential
 or attempt from filling current closure. Artifact custody has hard public caps
 of 16 MiB per artifact, 256 MiB total and 16,384 artifacts.
 
+## Campaign readiness
+
+`collective-campaign-readiness.yml` is the non-executing decision gate for the
+complete campaign. Its `plan` mode accepts only `DO_NOT_RUN`, validates an
+exact main-branch commit and writes a registered operation plan, a capacity
+estimate and three repository-owned planning receipts. It cannot invoke the
+campaign runner.
+
+The fixed capacity estimate is deliberately conservative:
+
+| Resource                   | Registered ceiling |
+| -------------------------- | -----------------: |
+| Cells / slots / shards     |     240 / 960 / 48 |
+| Concurrent shards          |                  2 |
+| Event-derived interactions |          3,296,000 |
+| Trace events               |         96,000,000 |
+| Execution artifact bytes   |             15 GiB |
+| Shard runner-minutes       |              8,640 |
+| Readiness runner-minutes   |                170 |
+| Paid model calls           |                  0 |
+
+These are capacity and timeout ceilings, not forecasts. The public estimate
+does not contain a currency or monetary value. A later operator must bind a
+rate card to the exact estimate before granting execution authority.
+
+The `assess` mode requires `RUN_READINESS_CHECKS` and the run ID of a completed
+`collective-statistical-registered-preflight.yml` operation for the same source
+and campaign ID. It downloads only that run's public receipts with the
+workflow's read-only Actions token. The verifier requires exactly one initial
+twenty-slot execution and one twenty-slot recovery/resume receipt, identical
+projection roots and exact source, registration, plan, adapter and
+authorization commitments. Unit tests cannot substitute for this protected
+closure.
+
+The remaining jobs verify locally packed Node 20 and Node 22 consumers, a
+locally packed PostgreSQL conformance consumer, privacy/canary boundaries,
+pre-dispatch evidence behavior, retention/indeterminate safety, causal
+replanning and a live production dependency audit. They upload digest-only
+receipts, not raw command logs. The final assessment accepts exactly one
+receipt for every closed control ID and derives one of:
+
+- `no_go` when any required receipt is absent or failed; or
+- `ready_for_operator_authorization` when all repository-owned prerequisites
+  and the protected preflight closure pass.
+
+Neither result contains execution authority. Both retain
+`executionPermitted: false` and `fullCampaignPermitted: false`. Statistical
+outcomes remain pending until the campaign runs, and registry/tag outcomes
+remain pending until publication.
+
+For a main commit, run the protected preflight first with the same campaign ID
+and source SHA. Then dispatch the readiness workflow in `assess` mode with that
+preflight workflow run ID. A cross-source or differently planned preflight is
+rejected even if its workflow concluded successfully.
+
 ## Acceptance analysis
 
 The release evidence must show no authorization, plan-authority, stale-fence,

@@ -212,6 +212,30 @@ test(
         gatewayId: grants.gatewayId,
       });
       assert.equal(readiness.ready, true);
+      await pool.query(
+        `UPDATE "${schema}".collective_action_grants SET status='indeterminate'
+        WHERE tenant_id=$1 AND gateway_id=$2 AND grant_id=$3`,
+        [scope.tenantId, grants.gatewayId, grant.grantId],
+      );
+      const indeterminateReadiness = await getCollectiveRollbackReadinessV1(
+        pool,
+        { ...scope, gatewayId: grants.gatewayId },
+      );
+      assert.equal(indeterminateReadiness.ready, false);
+      assert.equal(indeterminateReadiness.indeterminateRecords, 1);
+      await assert.rejects(
+        pruneCollectiveEvidenceBeforeV1(pool, {
+          ...scope,
+          gatewayId: grants.gatewayId,
+          retainFromSequence: 2,
+        }),
+        /collective_retention_not_ready/u,
+      );
+      await pool.query(
+        `UPDATE "${schema}".collective_action_grants SET status='expired'
+        WHERE tenant_id=$1 AND gateway_id=$2 AND grant_id=$3`,
+        [scope.tenantId, grants.gatewayId, grant.grantId],
+      );
       assert.equal(
         (
           await verifyCollectiveRepositoryIntegrityV1(pool, {
