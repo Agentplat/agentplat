@@ -192,6 +192,13 @@ const decoder = new TextDecoder("utf-8", { fatal: true });
 const MAXIMUM_SNAPSHOT_DEPTH = 64;
 const MAXIMUM_SNAPSHOT_NODES = 1_000_000;
 const MAXIMUM_SNAPSHOT_FIELDS = 16_384;
+const ARTIFACT_JSON_LIMITS = Object.freeze({
+  maximumBytes: COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1,
+  maximumDepth: MAXIMUM_SNAPSHOT_DEPTH,
+  maximumNodes: MAXIMUM_SNAPSHOT_NODES,
+  maximumKeysPerObject: 4_096,
+  maximumItemsPerArray: MAXIMUM_SNAPSHOT_FIELDS,
+});
 const digestPattern = /^sha256:[0-9a-f]{64}$/u;
 const hexPattern = /^[0-9a-f]{64}$/u;
 const artifactKinds = new Set<CollectiveStatisticalCampaignArtifactKindV1>([
@@ -1149,7 +1156,11 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 
 function digestArtifact(value: unknown): PlanningDigestV1 {
   const snapshot = snapshotJson(value, "artifact digest input");
-  return digestPlanningJsonV1("evaluation-campaign-artifact-v1", snapshot);
+  return digestPlanningJsonV1(
+    "evaluation-campaign-artifact-v1",
+    snapshot,
+    ARTIFACT_JSON_LIMITS,
+  );
 }
 
 function exact(value: unknown, keys: readonly string[], label: string): void {
@@ -1189,7 +1200,7 @@ function dense(
 }
 
 function safeJson(value: unknown): void {
-  canonicalizePlanningJsonV1(value as PlanningJson);
+  canonicalizePlanningJsonV1(value as PlanningJson, ARTIFACT_JSON_LIMITS);
 }
 
 function assertGlobalArtifact(
@@ -1335,8 +1346,8 @@ function sameStrings(actual: readonly string[], expected: readonly string[]): bo
 }
 function sameJson(left: unknown, right: unknown): boolean {
   return (
-    canonicalizePlanningJsonV1(left as PlanningJson) ===
-    canonicalizePlanningJsonV1(right as PlanningJson)
+    canonicalizePlanningJsonV1(left as PlanningJson, ARTIFACT_JSON_LIMITS) ===
+    canonicalizePlanningJsonV1(right as PlanningJson, ARTIFACT_JSON_LIMITS)
   );
 }
 function compareAscii(left: string, right: string): number {

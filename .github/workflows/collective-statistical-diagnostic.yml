@@ -1,0 +1,194 @@
+name: Collective statistical diagnostic
+
+on:
+  schedule:
+    # Diagnostic evidence only. GitHub may delay scheduled jobs; it is not a
+    # production scheduler or a release trigger.
+    - cron: "17 3 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: Registered diagnostic scale
+        required: true
+        default: "50"
+        type: choice
+        options: ["50", "100"]
+      stratum:
+        description: Closed diagnostic stratum, or all closed strata
+        required: true
+        default: all
+        type: choice
+        options: [all, nominal, benign, adversarial, mixed]
+      seed_count:
+        description: Paired seeds per selected scale/stratum (diagnostic cap)
+        required: true
+        default: "2"
+        type: choice
+        options: ["1", "2"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collective-statistical-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      scheduled: ${{ steps.plan.outputs.scheduled }}
+      selected_scale: ${{ steps.plan.outputs.selected_scale }}
+      selected_stratum: ${{ steps.plan.outputs.selected_stratum }}
+      seed_count: ${{ steps.plan.outputs.seed_count }}
+    steps:
+      - id: plan
+        name: Construct the closed bounded matrix
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_SCALE: ${{ inputs.scale || '' }}
+          REQUESTED_STRATUM: ${{ inputs.stratum || '' }}
+          REQUESTED_SEED_COUNT: ${{ inputs.seed_count || '' }}
+        run: |
+          set -euo pipefail
+          closed_strata=(nominal benign adversarial mixed)
+          if [ "$EVENT_NAME" = schedule ]; then
+            scales=(50 100)
+            strata=("${closed_strata[@]}")
+            seed_count=2
+            scheduled=true
+            selected_scale=all
+            selected_stratum=all
+          else
+            case "$REQUESTED_SCALE" in 50|100) scales=("$REQUESTED_SCALE") ;; *) exit 2 ;; esac
+            case "$REQUESTED_STRATUM" in
+              all) strata=("${closed_strata[@]}") ;;
+              nominal|benign|adversarial|mixed) strata=("$REQUESTED_STRATUM") ;;
+              *) exit 2 ;;
+            esac
+            case "$REQUESTED_SEED_COUNT" in 1|2) seed_count="$REQUESTED_SEED_COUNT" ;; *) exit 2 ;; esac
+            scheduled=false
+            selected_scale="$REQUESTED_SCALE"
+            selected_stratum="$REQUESTED_STRATUM"
+          fi
+          matrix="$(
+            for scale in "${scales[@]}"; do
+              for stratum in "${strata[@]}"; do
+                printf '{"scale":%s,"stratum":"%s"}\n' "$scale" "$stratum"
+              done
+            done | jq -sc '{include: .}'
+          )"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+          printf 'scheduled=%s\n' "$scheduled" >> "$GITHUB_OUTPUT"
+          printf 'selected_scale=%s\n' "$selected_scale" >> "$GITHUB_OUTPUT"
+          printf 'selected_stratum=%s\n' "$selected_stratum" >> "$GITHUB_OUTPUT"
+          printf 'seed_count=%s\n' "$seed_count" >> "$GITHUB_OUTPUT"
+
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Build public diagnostic contracts
+        run: pnpm --filter @agentplat/collective-planning --filter @agentplat/mesh-sim --filter @agentplat/mesh-sim-local build
+      - name: Verify the bounded registration contract
+        run: pnpm run verify:collective-statistical-campaign:contract-smoke
+
+  diagnostic:
+    needs: [plan, validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - run: pnpm --filter @agentplat/collective-planning --filter @agentplat/mesh-sim --filter @agentplat/mesh-sim-local build
+      - name: Run one bounded diagnostic shard
+        env:
+          DIAGNOSTIC_SEED_COUNT: ${{ needs.plan.outputs.seed_count }}
+          DIAGNOSTIC_OUTPUT: artifacts/${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scale }}-${{ matrix.stratum }}
+        run: >-
+          node scripts/collective-beta3-campaign-executor.mjs
+          --mode diagnostic
+          --execution-id "${{ github.run_id }}:${{ github.run_attempt }}"
+          --scale ${{ matrix.scale }}
+          --stratum ${{ matrix.stratum }}
+          --seed-count "$DIAGNOSTIC_SEED_COUNT"
+          --output-directory "$DIAGNOSTIC_OUTPUT"
+      - name: Upload diagnostic shard, including failures
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scale }}-${{ matrix.stratum }}
+          path: artifacts/${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.scale }}-${{ matrix.stratum }}
+          if-no-files-found: error
+          retention-days: 14
+
+  collect:
+    needs: [plan, validate, diagnostic]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - run: pnpm --filter @agentplat/collective-planning --filter @agentplat/mesh-sim --filter @agentplat/mesh-sim-local build
+      - name: Download all available diagnostic shards
+        continue-on-error: true
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: collective-statistical-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: downloaded-artifacts
+          merge-multiple: true
+      - name: Reject an incomplete diagnostic closure
+        env:
+          DIAGNOSTIC_SEED_COUNT: ${{ needs.plan.outputs.seed_count }}
+        run: >-
+          node scripts/collective-beta3-campaign-executor.mjs
+          --mode collect-diagnostic
+          --execution-id "${{ github.run_id }}:${{ github.run_attempt }}"
+          --input-directory downloaded-artifacts
+          --output-directory collected-artifacts
+          --scheduled "${{ needs.plan.outputs.scheduled }}"
+          --selected-scale "${{ needs.plan.outputs.selected_scale }}"
+          --selected-stratum "${{ needs.plan.outputs.selected_stratum }}"
+          --seed-count "$DIAGNOSTIC_SEED_COUNT"
+      - name: Upload collected diagnostic result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-diagnostic-collection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: collected-artifacts
+          if-no-files-found: warn
+          retention-days: 14

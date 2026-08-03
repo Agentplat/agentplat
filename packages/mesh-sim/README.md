@@ -134,7 +134,7 @@ driver and reports remain unchanged.
 ## Nominal closed-loop execution
 
 The Increment 5 closed-loop surface is an opt-in, nominal-only reference path
-for deterministic experiments with 3 through 50 logical peers. It is not a
+for deterministic experiments with 3 through 100 logical peers. It is not a
 durable runtime or a production orchestration service. Its hard interaction
 limit is 5,000 and its public result contains trace-bound state roots and
 artifacts, not caller-supplied success or safety counters.
@@ -162,10 +162,10 @@ is selected by the Mesh allocation reducer. A Work Contract is created while
 the accepted assignment is still active, before completion changes the
 execution head.
 
-The 50-peer reference topology connects the owner to all other peers. All 50
-receive observations; adaptive mode records one local decision per peer, while
-centralized mode records one directive per peer. Mesh discovers the 49 remote
-peers and respects its existing bounded fanout by offering to and receiving
+The 50- and 100-peer reference topologies connect the owner to all other peers.
+Every peer receives observations; adaptive mode records one local decision per
+peer, while centralized mode records one directive per peer. Mesh discovers
+the remote peers and respects its existing bounded fanout by offering to and receiving
 bids from at most 32 candidates for one Work item. The result publishes those
 participant sets instead of treating registration alone as participation.
 
@@ -261,3 +261,19 @@ logical safe-relative names, and unknown/accessor-bearing shapes fail closed.
 Each artifact is capped at 16 MiB and the supplied bundle at 256 MiB before JSON
 decoding. The daily command is deliberately a registration/configuration
 contract smoke; it is not statistical or scale-execution evidence.
+
+`runCollectiveStatisticalCampaignShardV1()` executes any deterministic subset
+of the registered cells and writes an immutable execution record before it
+settles the revision-CAS lease state. A restart reads both state and records by
+`runKey`, validates their execution identity and complete artifact content, and
+continues without rerunning committed slots. An expired running slot is
+reconciled from its durable record, or conservatively marked as an indeterminate
+external effect when no record exists. Runner exceptions become terminal failed
+samples, while the remaining slots still execute. The orchestration store is an
+interface; the simulation package does not choose a filesystem, database or
+cloud provider.
+
+`aggregateCollectiveStatisticalCampaignV1()` accepts only the exact registered
+closure, rejects duplicate or divergent replay slots, materializes the terminal
+manifest, recomputes paired comparisons and produces bytes accepted by the
+public bundle verifier. It cannot promote a partial shard set.

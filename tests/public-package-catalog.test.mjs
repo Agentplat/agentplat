@@ -133,6 +133,15 @@ const betaThreeCatalogEntries = Object.freeze([
     providerNeutral: true,
     publish: true,
   }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze([]),
+    directory: 'packages/mesh-sim-local',
+    layer: 'adapter',
+    name: '@agentplat/mesh-sim-local',
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
 ]);
 
 test('public package catalog is the ordered allowlist for release and pack smoke', async () => {
@@ -157,7 +166,7 @@ test('public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedPublicNames
   );
-  assert.equal(expectedPublicPackageCount, 37);
+  assert.equal(expectedPublicPackageCount, 38);
   assert.equal(catalog.packages.length, expectedPublicPackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),

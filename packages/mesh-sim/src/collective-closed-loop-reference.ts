@@ -81,7 +81,7 @@ import {
 } from './collective-closed-loop-runner.js';
 
 const MINIMUM_PEERS = 3;
-const MAXIMUM_PEERS = 50;
+const MAXIMUM_PEERS = 100;
 const SEED = 11;
 const MAXIMUM_LOGICAL_TIME_MS = 5_000;
 // The reference mandate remains inside its two-day validity window. Recovery

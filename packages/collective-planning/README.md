@@ -278,3 +278,15 @@ success evidence; a success must bind both runners' result, trace, ledger and
 campaign-evidence digests plus the paired comparison digest. Validation
 recomputes registration and manifest digests and rejects omissions,
 substitutions, reordering, accessors and unknown fields.
+
+The diagnostic profile is a separate closed schedule: two seeds at 50 and 100
+agents across the same four strata. It cannot be substituted for either the
+preflight or normative profile. Execution state is also explicit and portable:
+every cell contains the exact adaptive/centralized × first/replay slots, each
+with a deterministic `runKey`. Claims use revision compare-and-swap plus fenced,
+expiring leases. An expired lease can be reclaimed only before a run starts;
+an expired running slot requires reconciliation with its external commit.
+
+Settling one failed slot does not erase or cancel the other three. A terminal
+manifest can be materialized only after every registered cell is terminal, and
+late or stale workers cannot overwrite a newer lease generation.

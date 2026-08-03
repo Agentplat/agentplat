@@ -246,14 +246,14 @@ test('closed-loop definitions are nominal-only, deterministic, and idempotent', 
   );
 });
 
-test('closed-loop definitions accept the executable 3..50 peer scale', () => {
+test('closed-loop definitions accept the executable 3..100 peer scale', () => {
   assert.equal(createCollectiveClosedLoopDefinitionV1(fixture(3)).peers.length, 3);
   assert.equal(
-    createCollectiveClosedLoopDefinitionV1(fixture(50)).peers.length,
-    50,
+    createCollectiveClosedLoopDefinitionV1(fixture(100)).peers.length,
+    100,
   );
   assert.throws(
-    () => createCollectiveClosedLoopDefinitionV1(fixture(51)),
+    () => createCollectiveClosedLoopDefinitionV1(fixture(101)),
     /peer count is invalid/,
   );
   assert.throws(
