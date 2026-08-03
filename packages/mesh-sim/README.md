@@ -41,8 +41,8 @@ coordination, allocation, execution, timer, and recovery reducers.
 
 ```ts
 const trace = await runMeshReducerScenario(config, {
-  driverId: 'my-coordination-driver-v1',
-  projectionId: 'my-safety-projection-v1',
+  driverId: "my-coordination-driver-v1",
+  projectionId: "my-safety-projection-v1",
   reduce({ state, action, logicalTime }) {
     return dispatchToPublicMeshReducer(state, action, logicalTime);
   },
@@ -186,6 +186,55 @@ handles are runtime dependencies: callers may reuse them for a replay, but
 private key material is never included in the serialized definition, trace or
 result.
 
-Fault injection, causal replanning, capability withdrawal, decline, crash,
-partition/heal, reassignment and stale-result recovery are deliberately outside
-this nominal Increment 5 path; they belong to Increment 6.
+## Resilient closed-loop reference
+
+Increment 6 adds an opt-in resilience wrapper; the nominal runner remains
+nominal-only. `CollectiveClosedLoopResilienceDefinitionV1` binds the nominal
+definition to a strict, digest-bound fault plan and a bounded epoch count.
+Its closed fault vocabulary is capability withdrawal, assignment decline, peer
+crash, peer restart, directed partition and directed heal. Every reported fault
+has a scheduled, injected and observed digest; a declared-only record is
+rejected. A trace-event trigger must resolve to the exact earlier journal event.
+
+`runCollectiveClosedLoopCausalReplanningV1()` is a focused planning primitive:
+an accepted successor must cite an explicit trigger observation and the exact
+prior semantic-slot head. It records the causal successor and projects its new
+Work identity through the planning reducer; it does not promise automatic
+replanning for arbitrary runtime failures.
+
+`runCollectiveClosedLoopFaultMatrixV1()` is a deterministic test driver over
+the supplied reducer runtime. Its focused conformance coverage processes a
+signed capability withdrawal through the real Mesh discovery reducer and an
+assignment decline plus causal reoffer through the real allocation reducer.
+Crash/resume and partition/heal remain explicit simulator-driver faults, not
+special reducer paths.
+
+The resilient runner does not accept an arbitrary callback returning matrix
+evidence. `createCollectiveClosedLoopFaultMatrixPortV1()` snapshots the driver
+input into a private registration and binds it to the exact nominal planning,
+Mesh, Work Contract, checkpoint and assignment state. Execution validates every
+fault's family, logical time, target, directed link and predecessor against the
+public plan.
+
+The resilient runner starts from the real nominal Mesh state and executes
+lease expiry/grace, proposal, witness votes, certificate, recovery award,
+replacement acceptance and checkpoint resume through the Mesh reducers. The
+replacement receives a Work Contract from the active epoch-two assignment. An
+epoch-one progress or result is fenced with `execution_authority_invalid`; a
+provenance-bound committed effect receipt is required before the replacement
+can emit the epoch-two `work.result`. The evidence retains the real rejected
+envelope and the action must occur inside the recovered lease's absolute time
+window.
+
+`runPairedCollectiveClosedLoopResilienceCampaignV1()` compares construction
+fairness and public-observation digests for adaptive and centralized modes.
+Both sides share the same policy implementation and must match environment,
+monitor and mission-bound matrix inputs; executed scenario, records and driver
+faults are compared again after execution. Exact replay then covers the run,
+trace, evidence and matrix. This is a compact deterministic reference campaign,
+not the 50–500 agent statistical release campaign.
+
+`peer.restart` in this reference is the simulator's in-memory `peer.resume`:
+the configured instance resumes with retained reducer state. It is not a fresh
+instance lifecycle, durable restore, production recovery protocol or cloud
+deployment.
