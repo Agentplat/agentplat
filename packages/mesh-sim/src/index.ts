@@ -41,6 +41,9 @@ export * from './collective-statistical-campaign-scale.js';
 export * from './collective-statistical-campaign-bundle.js';
 export * from './collective-statistical-campaign-aggregation.js';
 export * from './collective-statistical-campaign-executor.js';
+export * from './collective-statistical-campaign-artifact-stream.js';
+export * from './collective-statistical-campaign-normative-analysis.js';
+export * from './collective-statistical-campaign-normative-operation.js';
 
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
 export type MeshSimulationRecordingMode = 'full' | 'digest' | 'metrics';

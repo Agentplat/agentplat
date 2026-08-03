@@ -290,3 +290,22 @@ an expired running slot requires reconciliation with its external commit.
 Settling one failed slot does not erase or cancel the other three. A terminal
 manifest can be materialized only after every registered cell is terminal, and
 late or stale workers cannot overwrite a newer lease generation.
+
+### Normative campaign control plane
+
+The evaluation subpath also exposes a provider-neutral, static control plane
+for the full 50/100/250/500-agent statistical campaign. It creates immutable
+240-cell / 960-slot plans partitioned into 48 five-cell shards, bounded
+authorization records, evaluator-owned metric projections, and fail-closed
+eligibility attestations. A descriptor marked `diagnostic` or
+`synthetic_conformance` cannot become eligible.
+
+The companion `@agentplat/mesh-sim` operation boundary can execute one exact
+authorized five-cell shard through a trusted registry-resolved runner/evaluator
+pair plus caller-supplied durable-store and artifact-writer ports. The
+descriptor commits independent runner and evaluator digests, authorization
+fixes an exact five-cells-per-shard budget and credential identity, and the
+durable namespace derives from the plan plus stable authenticated authorization
+digest. This repository registers no real normative adapter, executes
+no campaign, accesses no hosted service, publishes no package and makes no
+release claim.

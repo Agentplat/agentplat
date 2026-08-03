@@ -1,6 +1,10 @@
 import type { JsonValue } from "@agentplat/core";
 
-import { deepFreezePlanning, digestPlanningJsonV1 } from "./canonical.js";
+import {
+  deepFreezePlanning,
+  digestPlanningJsonV1,
+  type PlanningJsonLimitsV1,
+} from "./canonical.js";
 import type { PlanningDigestV1 } from "./contracts.js";
 import {
   createCollectiveEvaluationCampaignManifestV1,
@@ -17,6 +21,18 @@ import {
 } from "./validation.js";
 
 export const COLLECTIVE_EVALUATION_EXECUTION_SCHEMA_VERSION_V1 = 1 as const;
+
+// Execution state contains one resumable slot ledger per registered cell. The
+// closed normative profile has 240 cells × 4 slots and legitimately exceeds
+// the generic 256KiB planning document default. This limit is local to the
+// sealed execution-state digest; all other planning values retain defaults.
+const executionStateJsonLimits: PlanningJsonLimitsV1 = Object.freeze({
+  maximumBytes: 4 * 1024 * 1024,
+  maximumDepth: 32,
+  maximumNodes: 250_000,
+  maximumKeysPerObject: 256,
+  maximumItemsPerArray: 4_096,
+});
 
 export type CollectiveEvaluationExecutionStatusV1 =
   "active" | "completed" | "failed" | "cancelled";
@@ -705,6 +721,7 @@ function digest(value: unknown): PlanningDigestV1 {
   return digestPlanningJsonV1(
     "evaluation-campaign-artifact-v1",
     deepFreezePlanning(value) as unknown as JsonValue,
+    executionStateJsonLimits,
   );
 }
 

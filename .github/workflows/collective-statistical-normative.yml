@@ -1,0 +1,483 @@
+name: Collective statistical normative operation (protected control plane)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Protected operation; execution stays disabled until a normative adapter is registered.
+        required: true
+        default: plan
+        type: choice
+        options: [plan, execute]
+      confirm:
+        description: Exact confirmation required for execution; safe planning accepts DO_NOT_RUN.
+        required: true
+        default: DO_NOT_RUN
+        type: choice
+        options: [DO_NOT_RUN, RUN_NORMATIVE_240X4]
+      campaign_id:
+        description: Immutable operator campaign identifier.
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-hex commit at the dispatched protected main ref.
+        required: true
+        type: string
+      max_parallel:
+        description: Explicit bounded shard concurrency.
+        required: true
+        default: "2"
+        type: choice
+        options: ["1", "2"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collective-statistical-normative-${{ inputs.campaign_id }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      registration_digest: ${{ steps.plan.outputs.registration_digest }}
+      plan_digest: ${{ steps.plan.outputs.plan_digest }}
+      adapter_registered: ${{ steps.plan.outputs.adapter_registered }}
+    steps:
+      - id: source
+        name: Validate immutable source commitment
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$SOURCE_SHA" == "$GITHUB_SHA" ]]
+          printf 'source_sha=%s\n' "$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Recheck exact checked-out source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=all)" ]]
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - id: plan
+        name: Create immutable normative plan only
+        shell: bash
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-normative-operation.mjs \
+            --mode plan --confirm "$CONFIRM" \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --output-directory normative-plan
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("normative-plan/registration.json","utf8")); const p=JSON.parse(fs.readFileSync("normative-plan/operation-plan.json","utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`registration_digest=${r.registrationDigest}\nplan_digest=${p.planDigest}\nadapter_registered=false\n`);'
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-plan
+          if-no-files-found: error
+          retention-days: 90
+
+  execution-gate:
+    if: ${{ inputs.operation == 'execute' }}
+    needs: plan
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      adapter_registered: ${{ steps.adapter-gate.outcome == 'success' && needs.plan.outputs.adapter_registered == 'true' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - id: adapter-gate
+        name: Validate adapter gate or write a fail-closed receipt
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode execute-shard --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+      - name: Upload fail-closed adapter gate receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90
+
+  execute-shards:
+    if: ${{ inputs.operation == 'execute' && needs.execution-gate.result == 'success' && needs.execution-gate.outputs.adapter_registered == 'true' }}
+    needs: [plan, execution-gate]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.max_parallel) }}
+      matrix:
+        shard:
+          [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+          ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - name: Execute one registered shard through the normative adapter
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SHARD_INDEX: ${{ matrix.shard }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode execute-shard --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+          --shard "$SHARD_INDEX"
+      - name: Upload shard receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90
+
+  collect:
+    if: ${{ always() && inputs.operation == 'execute' && needs.execute-shards.result == 'success' }}
+    needs: [plan, execute-shards]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - name: Collect exact shard closure
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode collect --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+      - name: Upload collection receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-collection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90
+
+  analyze:
+    if: ${{ always() && inputs.operation == 'execute' && needs.collect.result == 'success' }}
+    needs: [plan, collect]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - name: Analyze evaluator-owned projections
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode analyze --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+      - name: Upload analysis receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-analysis-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90
+
+  verify:
+    if: ${{ always() && inputs.operation == 'execute' && needs.analyze.result == 'success' }}
+    needs: [plan, analyze]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - name: Independently verify public evidence
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode verify --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+      - name: Upload verification receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90
+
+  attest:
+    if: ${{ always() && inputs.operation == 'execute' && needs.verify.result == 'success' }}
+    needs: [plan, verify]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build the shared public planning contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
+      - name: Produce eligibility attestation from verified analysis only
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          REGISTRATION_DIGEST: ${{ needs.plan.outputs.registration_digest }}
+          PLAN_DIGEST: ${{ needs.plan.outputs.plan_digest }}
+          EXECUTION_ID: ${{ format('execution:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: >-
+          node scripts/collective-beta3-normative-operation.mjs
+          --mode attest --confirm "$CONFIRM"
+          --campaign-id "$CAMPAIGN_ID"
+          --source-sha "$SOURCE_SHA"
+          --registration-digest "$REGISTRATION_DIGEST"
+          --plan-digest "$PLAN_DIGEST"
+          --execution-id "$EXECUTION_ID"
+          --run-id "$RUN_ID"
+          --run-attempt "$RUN_ATTEMPT"
+          --registration-directory normative-receipts
+      - name: Upload attestation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-statistical-normative-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: normative-receipts
+          if-no-files-found: error
+          retention-days: 90

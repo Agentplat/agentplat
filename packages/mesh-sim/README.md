@@ -277,3 +277,29 @@ cloud provider.
 closure, rejects duplicate or divergent replay slots, materializes the terminal
 manifest, recomputes paired comparisons and produces bytes accepted by the
 public bundle verifier. It cannot promote a partial shard set.
+
+### Normative analysis and streaming custody
+
+The public surface includes a bounded artifact-stream verifier and deterministic
+normative analysis for the registered 240-cell / 960-slot campaign. The stream
+verifier reads one indexed artifact at a time, checks exact closure, byte hash
+and canonical digest, and applies artifact and total-byte limits before a
+visitor receives decoded data. Limits cannot exceed 16,384 artifacts, 16 MiB
+per artifact or 256 MiB total, and empty or unbounded chunk streams fail closed.
+The analyzer consumes evaluator-owned projections and derives its normalized
+rows internally, uses a pre-registered one-sided Wilson acceptance bound plus
+descriptive two-sided intervals, and returns an ineligible or incomplete
+decision whenever closure or evidence is insufficient.
+
+`runCollectiveStatisticalCampaignNormativeOperationV1()` executes exactly one
+authorized five-cell shard through a trusted registry resolver. The resolved
+runner implementation and evaluator digests must match the authorized
+descriptor before mutation, direct runner/projector injection is not accepted,
+every projection must retain that evaluator binding, and state/slot/evidence
+identity is derived from the exact plan and stable authenticated authorization
+digest. A caller can
+recompute the namespace with
+`collectiveStatisticalCampaignNormativeExecutionIdV1()`.
+
+This is a control-plane capability only: it does not execute the 50–500-agent
+campaign, invoke a provider, or claim that the campaign has passed.
