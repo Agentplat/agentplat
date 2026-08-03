@@ -266,7 +266,7 @@ function validatePeer(value: unknown): CollectiveClosedLoopPeerV1 {
   const neighborPeerIds = sortedStrings(
     value.neighborPeerIds,
     "neighborPeerIds",
-    49,
+    99,
   );
   if (neighborPeerIds.includes(value.peerId))
     throw new TypeError("a peer may not be its own neighbor");
@@ -303,7 +303,7 @@ function normalizedDefinitionBody(
   const selectionPolicy = validatePlanSelectionPolicyV1(value.selectionPolicy);
   const mandate = validateDelegationMandateV1(value.mandate);
   denseArray(value.peers, "peers");
-  if (value.peers.length < 3 || value.peers.length > 50)
+  if (value.peers.length < 3 || value.peers.length > 100)
     throw new TypeError("closed-loop peer count is invalid");
   const peers = value.peers.map(validatePeer);
   safeInteger(value.maximumLogicalTimeMs, "maximumLogicalTimeMs", 1);

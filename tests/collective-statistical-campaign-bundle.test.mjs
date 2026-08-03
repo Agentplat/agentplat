@@ -28,6 +28,18 @@ const digest = (label) =>
 const encode = (value) => JSON.stringify(value);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
+test("digests a bounded trace larger than the generic planning JSON default", () => {
+  const trace = {
+    schemaVersion: 1,
+    sampleArtifactId: "sample:large-reference-trace",
+    records: [{ payload: "x".repeat(300_000) }],
+  };
+  assert.match(
+    digestCollectiveStatisticalCampaignTraceV1(trace),
+    /^sha256:[0-9a-f]{64}$/u,
+  );
+});
+
 function artifact(id, kind, value) {
   const bytes = encode(value);
   return {

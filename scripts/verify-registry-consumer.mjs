@@ -24,6 +24,7 @@ export const REGISTRY_MESH_PACKAGES = Object.freeze([
   '@agentplat/mesh-crypto',
   '@agentplat/mesh-protocol',
   '@agentplat/mesh-sim',
+  '@agentplat/mesh-sim-local',
 ]);
 export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
@@ -55,6 +56,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/mesh-postgres',
   '@agentplat/mesh-protocol',
   '@agentplat/mesh-sim',
+  '@agentplat/mesh-sim-local',
   '@agentplat/model',
   '@agentplat/model-anthropic',
   '@agentplat/model-gemini',

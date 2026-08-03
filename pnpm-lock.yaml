@@ -65,6 +65,9 @@ importers:
       '@agentplat/mesh-sim':
         specifier: workspace:*
         version: link:packages/mesh-sim
+      '@agentplat/mesh-sim-local':
+        specifier: workspace:*
+        version: link:packages/mesh-sim-local
       '@agentplat/model':
         specifier: workspace:*
         version: link:packages/model
@@ -395,6 +398,16 @@ importers:
       '@agentplat/trust':
         specifier: workspace:^
         version: link:../trust
+
+  packages/mesh-sim-local:
+    dependencies:
+      '@agentplat/mesh-sim':
+        specifier: workspace:^
+        version: link:../mesh-sim
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
 
   packages/model:
     dependencies:

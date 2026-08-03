@@ -94,8 +94,8 @@ import { collectiveTraceJournalForOwnerV2 } from './collective-trace-journal.js'
 import { assertCollectiveEffectReceiptProvenanceV1 } from './collective-effect-provenance.js';
 
 const MINIMUM_PEERS = 3;
-const MAXIMUM_PEERS = 50;
-const MAXIMUM_NEIGHBORS = 49;
+const MAXIMUM_PEERS = 100;
+const MAXIMUM_NEIGHBORS = 99;
 const MAXIMUM_RECIPIENTS = 32;
 const MAXIMUM_INTERACTIONS = 5_000;
 const WIRE_VERSION = 0 as const;

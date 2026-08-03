@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1,
   COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1,
   COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1,
   campaignCellIdV1,
@@ -36,7 +37,9 @@ function registrationInput({
     maximumInteractions:
       profile === COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1
         ? 1_000
-        : 5_000,
+        : profile === COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1
+          ? 1_600
+          : 5_000,
     cells: collectiveEvaluationCampaignProfileCellsV1(profile, campaignId).map(
       (scheduled) => ({
         schemaVersion: 1,
@@ -123,6 +126,21 @@ test("campaign profiles freeze exact ordered seeds and complete manifests", () =
     campaignCellIdV1("campaign:normative", 50, "nominal", 0),
   );
   assert.ok(Object.isFrozen(normative));
+
+  const diagnostic = collectiveEvaluationCampaignProfileCellsV1(
+    COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1,
+    "campaign:diagnostic",
+  );
+  assert.equal(diagnostic.length, 16);
+  assert.deepEqual([...new Set(diagnostic.map((cell) => cell.peerCount))], [50, 100]);
+  assert.ok(diagnostic.every((cell) => cell.seed === 0 || cell.seed === 1));
+  const diagnosticRegistration = createCollectiveEvaluationCampaignRegistrationV1(
+    registrationInput({
+      campaignId: "campaign:diagnostic",
+      profile: COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1,
+    }),
+  );
+  assert.equal(diagnosticRegistration.maximumInteractions, 1_600);
 
   const registration =
     createCollectiveEvaluationCampaignRegistrationV1(registrationInput());

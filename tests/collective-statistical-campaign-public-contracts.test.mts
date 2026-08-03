@@ -3,6 +3,7 @@ import {
   COLLECTIVE_EVALUATION_CAMPAIGN_SCALES_V1,
   COLLECTIVE_EVALUATION_CAMPAIGN_SCHEMA_VERSION_V1,
   COLLECTIVE_EVALUATION_CAMPAIGN_STRATA_V1,
+  COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1,
   COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1,
   COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1,
   campaignCellIdV1,
@@ -30,6 +31,7 @@ import {
   COLLECTIVE_STATISTICAL_CAMPAIGN_SCHEMA_VERSION_V1,
   COLLECTIVE_STATISTICAL_CAMPAIGN_STRATA_V1,
   createCollectiveStatisticalCampaignFaultCoverageV1,
+  createCollectiveStatisticalCampaignExecutionArtifactsV1,
   createCollectiveStatisticalCampaignFaultMatrixV1,
   createCollectiveStatisticalCampaignScaleConfigurationV1,
   createCollectiveStatisticalCampaignTopologyV1,
@@ -42,6 +44,11 @@ import {
   digestCollectiveStatisticalCampaignSampleV1,
   digestCollectiveStatisticalCampaignSummaryV1,
   digestCollectiveStatisticalCampaignTraceV1,
+  aggregateCollectiveStatisticalCampaignV1,
+  createMemoryCollectiveStatisticalCampaignExecutionStoreV1,
+  reconstructCollectiveStatisticalCampaignExecutionV1,
+  runCollectiveStatisticalCampaignShardV1,
+  validateCollectiveStatisticalCampaignExecutionArtifactsV1,
   validateCollectiveStatisticalCampaignFaultCoverageV1,
   validateCollectiveStatisticalCampaignFaultMatrixV1,
   validateCollectiveStatisticalCampaignScaleConfigurationV1,
@@ -49,6 +56,8 @@ import {
   verifyCollectiveStatisticalCampaignBundleV1,
   type CollectiveStatisticalCampaignArtifactIndexEntryV1,
   type CollectiveStatisticalCampaignArtifactKindV1,
+  type CollectiveStatisticalCampaignAggregationInputV1,
+  type CollectiveStatisticalCampaignAggregationResultV1,
   type CollectiveStatisticalCampaignAttemptV1,
   type CollectiveStatisticalCampaignBundleBytesV1,
   type CollectiveStatisticalCampaignBundleV1,
@@ -57,6 +66,9 @@ import {
   type CollectiveStatisticalCampaignCellV1,
   type CollectiveStatisticalCampaignComparisonV1,
   type CollectiveStatisticalCampaignEvidenceV1,
+  type CollectiveStatisticalCampaignExecutionArtifactsV1,
+  type CollectiveStatisticalCampaignExecutionContextV1,
+  type CollectiveStatisticalCampaignExecutionStoreV1,
   type CollectiveStatisticalCampaignExpectedArtifactV1,
   type CollectiveStatisticalCampaignFaultCoverageV1,
   type CollectiveStatisticalCampaignFaultFamilyV1,
@@ -67,6 +79,8 @@ import {
   type CollectiveStatisticalCampaignSampleV1,
   type CollectiveStatisticalCampaignScaleConfigurationV1,
   type CollectiveStatisticalCampaignScaleV1,
+  type CollectiveStatisticalCampaignShardExecutionInputV1,
+  type CollectiveStatisticalCampaignShardExecutionResultV1,
   type CollectiveStatisticalCampaignSourceLockV1,
   type CollectiveStatisticalCampaignStratumV1,
   type CollectiveStatisticalCampaignSummaryV1,
@@ -113,6 +127,8 @@ const statisticalSchema: typeof COLLECTIVE_STATISTICAL_CAMPAIGN_SCHEMA_VERSION_V
   1;
 const profile: CollectiveEvaluationCampaignProfileV1 =
   COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1;
+const diagnosticProfile: CollectiveEvaluationCampaignProfileV1 =
+  COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1;
 const scale: CollectiveEvaluationCampaignScaleV1 = 500;
 const stratum: CollectiveEvaluationCampaignStratumV1 = "mixed";
 const runner: CollectiveEvaluationCampaignRunnerV1 = "adaptive_collective";
@@ -178,6 +194,7 @@ void COLLECTIVE_STATISTICAL_CAMPAIGN_STRATA_V1;
 void schema;
 void statisticalSchema;
 void profile;
+void diagnosticProfile;
 void scale;
 void stratum;
 void runner;
@@ -205,6 +222,19 @@ void validateCollectiveStatisticalCampaignFaultMatrixV1(faultMatrix);
 void coverage;
 void validateCollectiveStatisticalCampaignFaultCoverageV1(coverage);
 void verification;
+void aggregateCollectiveStatisticalCampaignV1;
+void createCollectiveStatisticalCampaignExecutionArtifactsV1;
+void createMemoryCollectiveStatisticalCampaignExecutionStoreV1;
+void reconstructCollectiveStatisticalCampaignExecutionV1;
+void runCollectiveStatisticalCampaignShardV1;
+void validateCollectiveStatisticalCampaignExecutionArtifactsV1;
+void (null as CollectiveStatisticalCampaignAggregationInputV1 | null);
+void (null as CollectiveStatisticalCampaignAggregationResultV1 | null);
+void (null as CollectiveStatisticalCampaignExecutionArtifactsV1 | null);
+void (null as CollectiveStatisticalCampaignExecutionContextV1 | null);
+void (null as CollectiveStatisticalCampaignExecutionStoreV1 | null);
+void (null as CollectiveStatisticalCampaignShardExecutionInputV1 | null);
+void (null as CollectiveStatisticalCampaignShardExecutionResultV1 | null);
 void digestCollectiveStatisticalCampaignArtifactV1;
 void digestCollectiveStatisticalCampaignBundleV1;
 void digestCollectiveStatisticalCampaignComparisonInputV1;

@@ -15,10 +15,13 @@ export const COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1 =
   "beta3.paired-resilience.normative.v1" as const;
 export const COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1 =
   "beta3.paired-resilience.preflight.v1" as const;
+export const COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1 =
+  "beta3.paired-resilience.diagnostic.v1" as const;
 
 export type CollectiveEvaluationCampaignProfileV1 =
   | typeof COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1
-  | typeof COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1;
+  | typeof COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1
+  | typeof COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1;
 
 export const COLLECTIVE_EVALUATION_CAMPAIGN_SCALES_V1 = Object.freeze([
   50, 100, 250, 500,
@@ -512,6 +515,14 @@ function campaignProfile(value: unknown): CampaignProfile {
       scales: [50],
       seedCount: () => 2,
       cellCount: 8,
+    };
+  }
+  if (value === COLLECTIVE_EVALUATION_DIAGNOSTIC_CAMPAIGN_PROFILE_V1) {
+    return {
+      name: value,
+      scales: [50, 100],
+      seedCount: () => 2,
+      cellCount: 16,
     };
   }
   throw new TypeError("campaign profile is invalid");

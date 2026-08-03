@@ -102,6 +102,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/mesh-crypto`             | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
 | `@agentplat/mesh-protocol`           | Strict bounded wire parsing, validation and conformance fixtures.       |
 | `@agentplat/mesh-sim`                | Versioned faults, snapshots, invariants, trace digests and replay.      |
+| `@agentplat/mesh-sim-local`          | Node-local immutable campaign artifacts, slot commits and locks.       |
 | `@agentplat/tools`                   | Tool contracts and an in-memory tool registry.                          |
 | `@agentplat/mcp`                     | MCP server, tool-binding and registry contracts.                        |
 | `@agentplat/events`                  | Event contracts and an in-memory event bus.                             |

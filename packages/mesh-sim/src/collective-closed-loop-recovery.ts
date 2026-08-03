@@ -823,7 +823,7 @@ function validateInput(
     value.faultLogicalTimeMs < 0
   )
     throw new TypeError("closed_loop_recovery_input_invalid");
-  if (value.peers.length < 3 || value.peers.length > 50)
+  if (value.peers.length < 3 || value.peers.length > 100)
     throw new TypeError("closed_loop_recovery_roster_size_invalid");
   const peersById = new Map(value.peers.map((peer) => [peer.peerId, peer]));
   if (
