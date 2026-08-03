@@ -19,6 +19,7 @@ const applicationId = "@agentplat/mesh-postgres";
 const migrationNames = [
   "001_mesh_durability",
   "002_mesh_compatibility_metadata",
+  "003_planning_recovery_durability",
 ] as const;
 
 export const migrationDirectory = fileURLToPath(
@@ -94,6 +95,19 @@ async function migrations(): Promise<readonly PostgresMigration[]> {
                     ('mesh_outbox', 'mesh_outbox_compatibility_metadata_check', 'CHECK'),
                     ('mesh_journal', 'mesh_journal_compatibility_metadata_check', 'CHECK')
                   )) AS present
+      `,
+    },
+    {
+      version: 3,
+      name: migrationNames[2],
+      up: sources[4],
+      down: sources[5],
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.mesh_planning_recovery_states') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.mesh_planning_recovery_events') IS NOT NULL
+          AS present
       `,
     },
   ];
@@ -252,20 +266,22 @@ export async function rollbackMigrations(
     readonly allowIncompatibleRows?: boolean;
   },
 ): Promise<PostgresMigrationStatus> {
-  if (options.expectedCurrentVersion === 2) {
+  if (options.expectedCurrentVersion >= 2) {
     if (options.verifiedBackup !== true) {
       throw new TypeError(
         "Mesh migration rollback requires a verified external backup",
       );
     }
-    const readiness = await getRollbackReadiness(pool, options);
-    if (
-      !readiness.readyForAlphaReader &&
-      options.allowIncompatibleRows !== true
-    ) {
-      throw new TypeError(
-        "Mesh migration rollback requires drained v1 rows or an explicit loss decision",
-      );
+    if (options.expectedCurrentVersion === 2) {
+      const readiness = await getRollbackReadiness(pool, options);
+      if (
+        !readiness.readyForAlphaReader &&
+        options.allowIncompatibleRows !== true
+      ) {
+        throw new TypeError(
+          "Mesh migration rollback requires drained v1 rows or an explicit loss decision",
+        );
+      }
     }
   }
   return rollbackPostgresMigration(pool, {

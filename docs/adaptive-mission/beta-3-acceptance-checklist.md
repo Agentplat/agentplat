@@ -1,15 +1,13 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increment 0 design freeze, Increment 1 portable contracts, Increment 2
-pure planning reducer, Increment 3 Mesh planning facade and Increment 4
-environment/evaluation boundary are complete locally. Increment 5 nominal
-closed-loop execution is also complete locally. Increment 6 now has bounded
-causal-replanning, fault-matrix and certified-recovery implementation evidence;
-local release review and package verification are complete, while public CI
-and the statistical campaign remain open. The statistical and durability
-sections are later Beta 3 release milestones rather than claims of this compact
-Increment 6 reference. Every unchecked item otherwise remains release-blocking
-unless it is explicitly labeled diagnostic or deferred.
+Status: Increments 0 through 7 are complete locally. Increment 7 adds the
+public planning-conformance surface, closed report validation, isolated
+pnpm/npm consumers, an executable operations example and the opt-in PostgreSQL
+planning/recovery profile. Its implementation evidence is recorded in the
+[Increment 7 review](beta-3-increment-7-review.md). Public merged-main CI, the
+normative statistical campaign and release publication remain open. Every
+unchecked item remains release-blocking unless it is explicitly labeled
+diagnostic or deferred.
 
 ## Design freeze
 
@@ -155,7 +153,7 @@ unless it is explicitly labeled diagnostic or deferred.
       construction.
 - [x] Proposal/role-as-authority negative: the nominal closed-loop action path
       does not accept either planning record as action authority.
-- [ ] Widened or cyclic plan implementation is detected.
+- [x] Widened or cyclic plan implementation is detected.
 - [x] Critical-extension downgrade implementation is detected.
 - [x] Fragment/Work substitution implementation is detected.
 - [x] Stale-plan/stale-fence implementation is detected.
@@ -199,8 +197,8 @@ unless it is explicitly labeled diagnostic or deferred.
 - [ ] Canary scans cover logs, traces, reports, snapshots and tarballs.
 - [ ] Required pre-dispatch evidence failure never upgrades denial or repeats an
       effect.
-- [ ] Durable readers bind exact tenant/domain/intent/policy identity.
-- [ ] Restore cannot lower intent, fragment, budget, replay, epoch or revocation
+- [x] Durable readers bind exact tenant/domain/intent/policy identity.
+- [x] Restore cannot lower intent, fragment, budget, replay, epoch or revocation
       high-waters.
 - [ ] Retention cannot prune current heads, unresolved dependencies,
       indeterminate effects or required anchors.

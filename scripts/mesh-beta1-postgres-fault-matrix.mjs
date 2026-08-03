@@ -51,7 +51,7 @@ try {
   );
   assert.deepEqual(
     concurrent.map(({ currentVersion }) => currentVersion),
-    [2, 2],
+    [3, 3],
   );
   cells.push(cell("migration_contention", "passed"));
 
@@ -151,7 +151,7 @@ try {
   assert.equal(preMigrationSnapshot.snapshotSchemaVersion, undefined);
   assert.equal(
     (await runMigrations(pools[1], { schema: legacySchema })).currentVersion,
-    2,
+    3,
   );
   assert.deepEqual(
     await getCompatibilityStatus(pools[1], { schema: legacySchema }),
@@ -354,8 +354,16 @@ try {
   });
   assert.equal(
     (await getMigrationStatus(activePool, { schema })).currentVersion,
-    2,
+    3,
   );
+  const durableRollback = await rollbackMigrations(activePool, {
+    schema,
+    expectedCurrentVersion: 3,
+    confirm: rollbackConfirmation(schema, 3),
+    allowDataLoss: true,
+    verifiedBackup: true,
+  });
+  assert.equal(durableRollback.currentVersion, 2);
   const readiness = await getRollbackReadiness(activePool, { schema });
   assert.equal(readiness.readyForAlphaReader, false);
   await assert.rejects(

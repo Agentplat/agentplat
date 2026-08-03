@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.mesh_planning_recovery_events;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.mesh_planning_recovery_states;

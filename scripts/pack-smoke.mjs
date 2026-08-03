@@ -190,6 +190,10 @@ try {
     consumerRoot,
     'collective-planning-closed-loop-resilience'
   );
+  const collectivePlanningResilienceConformanceConsumerRoot = path.join(
+    consumerRoot,
+    'collective-planning-resilience-conformance'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   const inferenceControlConsumerRoot = path.join(
     consumerRoot,
@@ -218,6 +222,9 @@ try {
     mkdir(collectivePlanningMeshConsumerRoot, { recursive: true }),
     mkdir(collectivePlanningClosedLoopConsumerRoot, { recursive: true }),
     mkdir(collectivePlanningClosedLoopResilienceConsumerRoot, {
+      recursive: true,
+    }),
+    mkdir(collectivePlanningResilienceConformanceConsumerRoot, {
       recursive: true,
     }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
@@ -262,6 +269,7 @@ try {
         "  - 'collective-planning-mesh-three-peer'",
         "  - 'collective-planning-closed-loop'",
         "  - 'collective-planning-closed-loop-resilience'",
+        "  - 'collective-planning-resilience-conformance'",
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
@@ -384,6 +392,10 @@ try {
       return [packageName, artifact.tarballReference];
     })
   );
+  const collectivePlanningResilienceConformanceDependencies = {
+    ...collectivePlanningClosedLoopDependencies,
+    '@agentplat/mesh-conformance': meshDependencies['@agentplat/mesh-conformance'],
+  };
   const meshAdapterPackageNames = Object.freeze([
     '@agentplat/mesh',
     '@agentplat/mesh-crypto',
@@ -707,6 +719,33 @@ try {
     ),
     writeFile(
       path.join(
+        collectivePlanningResilienceConformanceConsumerRoot,
+        'package.json'
+      ),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-collective-planning-resilience-conformance',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: collectivePlanningResilienceConformanceDependencies,
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-resilience-conformance.mjs'
+      ),
+      path.join(
+        collectivePlanningResilienceConformanceConsumerRoot,
+        'verify-resilience-conformance.mjs'
+      )
+    ),
+    writeFile(
+      path.join(
         collectivePlanningClosedLoopResilienceConsumerRoot,
         'tsconfig.json'
       ),
@@ -780,6 +819,13 @@ try {
     copyFile(
       path.join(root, 'scripts/pack-consumers/mesh-conformance.mjs'),
       path.join(npmConsumerRoot, 'verify-conformance.mjs')
+    ),
+    copyFile(
+      path.join(
+        root,
+        'scripts/pack-consumers/collective-planning-resilience-conformance.mjs'
+      ),
+      path.join(npmConsumerRoot, 'verify-resilience-conformance.mjs')
     )
   );
   await Promise.all(workspaceWrites);
@@ -840,6 +886,10 @@ try {
       stdio: 'inherit',
     }
   );
+  execFileSync(process.execPath, ['verify-resilience-conformance.mjs'], {
+    cwd: collectivePlanningResilienceConformanceConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-mesh.mjs'], {
     cwd: meshScenarioConsumerRoot,
     stdio: 'inherit',
@@ -977,6 +1027,11 @@ try {
     env: { ...process.env, npm_config_userconfig: '/dev/null' },
   });
   execFileSync(process.execPath, ['verify-conformance.mjs'], {
+    cwd: npmConsumerRoot,
+    stdio: 'inherit',
+    env: { ...process.env, npm_config_userconfig: '/dev/null' },
+  });
+  execFileSync(process.execPath, ['verify-resilience-conformance.mjs'], {
     cwd: npmConsumerRoot,
     stdio: 'inherit',
     env: { ...process.env, npm_config_userconfig: '/dev/null' },

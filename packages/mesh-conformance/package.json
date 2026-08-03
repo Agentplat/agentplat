@@ -31,6 +31,10 @@
     "./control": {
       "types": "./dist/control.d.ts",
       "import": "./dist/control.js"
+    },
+    "./planning": {
+      "types": "./dist/planning.d.ts",
+      "import": "./dist/planning.js"
     }
   },
   "files": [
@@ -44,6 +48,7 @@
   },
   "dependencies": {
     "@agentplat/collective-control": "workspace:^",
+    "@agentplat/collective-planning": "workspace:^",
     "@agentplat/inference-control": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-protocol": "workspace:^",
