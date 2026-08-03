@@ -43,7 +43,17 @@ export type PlanningDigestDomainV1 =
   | "invariant-monitor-verdict-v1"
   | "invariant-monitor-snapshot-v1"
   | "evaluation-public-artifact-v1"
-  | "evaluation-boundary-evidence-v1";
+  | "evaluation-boundary-evidence-v1"
+  | "evaluation-campaign-cell-v1"
+  | "evaluation-campaign-registration-v1"
+  | "evaluation-campaign-manifest-entry-v1"
+  | "evaluation-campaign-manifest-v1"
+  | "evaluation-campaign-artifact-v1"
+  | "evaluation-campaign-bundle-v1"
+  | "evaluation-campaign-topology-v1"
+  | "evaluation-campaign-scale-configuration-v1"
+  | "evaluation-campaign-fault-matrix-v1"
+  | "evaluation-campaign-fault-coverage-v1";
 
 export interface PlanningLimitsV1 {
   readonly schemaVersion: 1;

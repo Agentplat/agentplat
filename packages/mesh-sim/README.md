@@ -238,3 +238,26 @@ not the 50–500 agent statistical release campaign.
 the configured instance resumes with retained reducer state. It is not a fresh
 instance lifecycle, durable restore, production recovery protocol or cloud
 deployment.
+
+## Statistical campaign contracts
+
+The package exports deterministic configuration and evidence contracts for the
+50/100/250/500-agent ladder. `createCollectiveStatisticalCampaignTopologyV1()`
+builds the registered sparse directed topology; scale configuration binds the
+exact interaction ceiling and fault-family row. These functions allocate
+configuration data only and do not execute a scale campaign.
+
+`verifyCollectiveStatisticalCampaignBundleV1()` is a side-effect-free verifier
+for a fully supplied in-memory evidence bundle. It requires the canonical
+Collective Planning registration and terminal manifest, the exact four
+adaptive/centralized first/replay slots for every registered cell, closed
+sample/trace/ledger/evidence indexes, trusted source-lock expectations and
+independently recomputed comparison and summary statistics. Replay equality
+covers the stable outcome plus trace, ledger and observation records. A failed
+execution remains present and forces a failed summary.
+
+Inputs are snapshotted from data descriptors before validation, paths are
+logical safe-relative names, and unknown/accessor-bearing shapes fail closed.
+Each artifact is capped at 16 MiB and the supplied bundle at 256 MiB before JSON
+decoding. The daily command is deliberately a registration/configuration
+contract smoke; it is not statistical or scale-execution evidence.

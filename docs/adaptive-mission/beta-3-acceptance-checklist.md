@@ -1,11 +1,12 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increments 0 through 7 are complete locally. Increment 7 adds the
-public planning-conformance surface, closed report validation, isolated
-pnpm/npm consumers, an executable operations example and the opt-in PostgreSQL
-planning/recovery profile. Its implementation evidence is recorded in the
-[Increment 7 review](beta-3-increment-7-review.md). Public merged-main CI, the
-normative statistical campaign and release publication remain open. Every
+Status: Increments 0 through 8 are complete locally. Increment 8 adds frozen
+campaign registration/manifest contracts, a closed evidence-bundle verifier,
+the deterministic 50/100/250/500 configuration ladder, isolated package
+consumer coverage and a bounded contract smoke. Its implementation evidence is
+recorded in the [Increment 8 review](beta-3-increment-8-review.md). Execution of
+the normative statistical campaign and release publication remain open;
+merged-main CI for this implementation is recorded at delivery. Every
 unchecked item remains release-blocking unless it is explicitly labeled
 diagnostic or deferred.
 
@@ -160,7 +161,7 @@ diagnostic or deferred.
 - [x] Declared-only fault implementation is detected.
 - [x] Constant-success/zero-violation implementation is detected.
 - [x] Synthetic-ledger padding/omission implementation is detected.
-- [ ] Failed-seed omission implementation is detected.
+- [x] Failed-seed omission implementation is detected.
 - [x] Hidden-state/secret-canary leak is detected.
 
 ## Scale and statistical campaign

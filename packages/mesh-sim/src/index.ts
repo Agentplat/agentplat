@@ -37,6 +37,8 @@ export * from './collective-closed-loop-reference.js';
 export * from './collective-closed-loop-replanning.js';
 export * from './collective-closed-loop-fault-matrix.js';
 export * from './collective-closed-loop-resilience-campaign.js';
+export * from './collective-statistical-campaign-scale.js';
+export * from './collective-statistical-campaign-bundle.js';
 
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
 export type MeshSimulationRecordingMode = 'full' | 'digest' | 'metrics';

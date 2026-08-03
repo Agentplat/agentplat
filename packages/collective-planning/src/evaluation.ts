@@ -2417,3 +2417,5 @@ export function assertCollectiveEnvironmentPortV1(
       audit.findings.map((finding) => finding.detail).join("; ")
     );
 }
+
+export * from "./evaluation-campaign.js";

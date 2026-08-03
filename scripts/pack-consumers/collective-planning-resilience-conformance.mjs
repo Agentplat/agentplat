@@ -2,10 +2,19 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 import {
+  COLLECTIVE_STATISTICAL_CAMPAIGN_SCALE_LADDER_V1,
+  createCollectiveStatisticalCampaignFaultCoverageV1,
+  createCollectiveStatisticalCampaignFaultMatrixV1,
+  createCollectiveStatisticalCampaignScaleConfigurationV1,
   createCollectiveClosedLoopReferenceRuntimeV1,
   createCollectiveClosedLoopResilienceReferenceScenarioV1,
+  digestCollectiveStatisticalCampaignBundleV1,
   runPairedCollectiveClosedLoopResilienceCampaignV1,
 } from "@agentplat/mesh-sim";
+import {
+  COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1,
+  collectiveEvaluationCampaignProfileCellsV1,
+} from "@agentplat/collective-planning/evaluation";
 import {
   PLANNING_CONFORMANCE_CAPABILITIES_V1,
   createPlanningConformanceReportV1,
@@ -14,6 +23,49 @@ import {
 } from "@agentplat/mesh-conformance/planning";
 
 const peerCount = 3;
+const preflightCells = collectiveEvaluationCampaignProfileCellsV1(
+  COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1,
+  "packed-consumer-preflight",
+);
+const scaleConfiguration =
+  createCollectiveStatisticalCampaignScaleConfigurationV1({
+    schemaVersion: 1,
+    agentCount: 50,
+    seed: 0,
+    stratum: "nominal",
+  });
+const faultMatrix = createCollectiveStatisticalCampaignFaultMatrixV1();
+const nominalCoverage = createCollectiveStatisticalCampaignFaultCoverageV1({
+  schemaVersion: 1,
+  stratum: "nominal",
+  registeredFaultFamilies: [],
+  observedFaultFamilies: [],
+});
+assert.equal(preflightCells.length, 8);
+assert.deepEqual(
+  COLLECTIVE_STATISTICAL_CAMPAIGN_SCALE_LADDER_V1.map(
+    (entry) => entry.agentCount,
+  ),
+  [50, 100, 250, 500],
+);
+assert.equal(scaleConfiguration.topology.peerIds.length, 50);
+assert.equal(scaleConfiguration.topology.edges.length, 300);
+assert.equal(faultMatrix.rows.length, 4);
+assert.equal(nominalCoverage.observedFaultFamilies.length, 0);
+assert.match(
+  digestCollectiveStatisticalCampaignBundleV1({
+    schemaVersion: 1,
+    campaignId: "packed-consumer-preflight",
+    sourceLockArtifactId: "source-lock",
+    registrationArtifactId: "registration",
+    manifestArtifactId: "manifest",
+    cells: [],
+    expectedArtifacts: [],
+    artifacts: [],
+    summaryArtifactId: "summary",
+  }),
+  /^sha256:[0-9a-f]{64}$/,
+);
 const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(peerCount);
 const createScenario = (runner) =>
   createCollectiveClosedLoopResilienceReferenceScenarioV1({
@@ -132,6 +184,14 @@ process.stdout.write(
       suiteDigest: conformanceReport.suiteDigest,
       passedCases: conformanceReport.counts.passed,
       scope: "public_fixture_integration_only",
+    },
+    statisticalCampaignContractSmoke: {
+      scope: "registration_and_configuration_only",
+      preflightCells: preflightCells.length,
+      scaleAgents: COLLECTIVE_STATISTICAL_CAMPAIGN_SCALE_LADDER_V1.map(
+        (entry) => entry.agentCount,
+      ),
+      topologyEdges: scaleConfiguration.topology.edges.length,
     },
   })}\n`,
 );

@@ -261,3 +261,20 @@ streams, rejects unknown causal parents and chain rewrites, and scans public
 artifacts for raw, JSON-escaped, hexadecimal, Base64 or Base64URL forms of the
 registered hidden canary. Snapshot handles contain only public digests and
 counters; hidden snapshot state belongs to the environment implementation.
+
+### Frozen statistical campaign registration
+
+The evaluation subpath also exports an additive V1 registration and terminal
+manifest for paired multi-seed campaigns. The preflight profile fixes eight
+50-agent cells (two seeds across four strata); the normative profile fixes 240
+cells across 50, 100, 250 and 500 agents, using 10 paired seeds per smaller
+scale/stratum and 30 at 500. Every cell binds its exact scale configuration,
+interaction ceiling, adaptive and centralized definitions, fault plan and
+fault-matrix row before execution.
+
+The terminal manifest has exactly one ordered `success` or `failure` entry per
+registered cell. A failure retains a closed reason code and cannot carry
+success evidence; a success must bind both runners' result, trace, ledger and
+campaign-evidence digests plus the paired comparison digest. Validation
+recomputes registration and manifest digests and rejects omissions,
+substitutions, reordering, accessors and unknown fields.
