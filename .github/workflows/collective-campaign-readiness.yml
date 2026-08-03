@@ -380,10 +380,28 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: collective-registered-preflight-results-*
-          path: ${{ runner.temp }}/protected-preflight
+          path: ${{ runner.temp }}/protected-preflight-download
           merge-multiple: true
           github-token: ${{ github.token }}
           run-id: ${{ inputs.preflight_run_id }}
+      - name: Normalize the exact public receipt set outside the source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_root="$RUNNER_TEMP/protected-preflight-download"
+          authorization="$download_root/registered-preflight-authorization/authorization-receipt.json"
+          receipts_root="$download_root/registered-preflight-results"
+          mapfile -t files < <(find "$download_root" -type f -print | sort)
+          mapfile -t receipts < <(find "$receipts_root" -maxdepth 1 -type f -name 'preflight-receipt-*.json' -print | sort)
+          [[ "${#files[@]}" -eq 3 ]]
+          [[ "${#receipts[@]}" -eq 2 ]]
+          [[ -f "$authorization" && ! -L "$authorization" ]]
+          for file in "${files[@]}"; do [[ ! -L "$file" ]]; done
+          mkdir -p "$RUNNER_TEMP/protected-preflight"
+          cp -- "$authorization" "$RUNNER_TEMP/protected-preflight/authorization-receipt.json"
+          for receipt in "${receipts[@]}"; do
+            cp -- "$receipt" "$RUNNER_TEMP/protected-preflight/$(basename "$receipt")"
+          done
       - name: Verify execution, recovery and plan bindings
         shell: bash
         env:
@@ -433,6 +451,7 @@ jobs:
           set -euo pipefail
           corepack enable
           pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/collective-planning... build
           set +e
           node scripts/production-dependency-audit.mjs \
             --mode run \

@@ -53,6 +53,10 @@ test("campaign readiness workflow is manual, secret-free and non-executing", asy
 
 test("campaign readiness workflow closes the exact provider-neutral control set", async () => {
   const source = await readFile(workflow, "utf8");
+  const dependencySecurityJob = source.slice(
+    source.indexOf("\n  dependency-security:"),
+    source.indexOf("\n  assess:"),
+  );
   for (const controlId of [
     "portable_node20_consumer",
     "portable_node22_consumer",
@@ -74,10 +78,28 @@ test("campaign readiness workflow closes the exact provider-neutral control set"
   assert.match(source, /run-id: \$\{\{ inputs\.preflight_run_id \}\}/u);
   assert.match(
     source,
+    /download_root="\$RUNNER_TEMP\/protected-preflight-download"/u,
+  );
+  assert.match(
+    source,
+    /authorization="\$download_root\/registered-preflight-authorization\/authorization-receipt\.json"/u,
+  );
+  assert.match(
+    source,
+    /receipts_root="\$download_root\/registered-preflight-results"/u,
+  );
+  assert.match(source, /\[\[ "\$\{#files\[@\]\}" -eq 3 \]\]/u);
+  assert.match(source, /\[\[ "\$\{#receipts\[@\]\}" -eq 2 \]\]/u);
+  assert.match(
+    source,
     /\.path == "\.github\/workflows\/collective-statistical-registered-preflight\.yml"/u,
   );
   assert.match(source, /--status failed --reason-code evidence_missing/u);
   assert.match(source, /audit:dependencies|production-dependency-audit/u);
+  assert.match(
+    dependencySecurityJob,
+    /pnpm --filter @agentplat\/collective-planning\.\.\. build/u,
+  );
   assert.match(source, /--mode assess/u);
 });
 
