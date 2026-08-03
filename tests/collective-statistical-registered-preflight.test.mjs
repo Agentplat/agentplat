@@ -55,6 +55,19 @@ test('registered preflight workflow is manual, least-privilege, protected and bo
     /cache:\s*pnpm/u,
     'setup-node must not request pnpm caching before corepack enables pnpm',
   );
+  assert.equal(
+    (
+      source.match(
+        /path: \$\{\{ runner\.temp \}\}\/registered-preflight-plan/g,
+      ) ?? []
+    ).length,
+    3,
+  );
+  assert.doesNotMatch(
+    source,
+    /^\s+path:\s+registered-preflight-/mu,
+    'downloaded and generated evidence must not dirty the source checkout',
+  );
   assert.doesNotMatch(source, /^\s*(?:push|pull_request|schedule):/m);
   assert.doesNotMatch(
     source,

@@ -95,12 +95,12 @@ jobs:
             --mode plan --confirm DO_NOT_RUN \
             --campaign-id "$CAMPAIGN_ID" \
             --source-sha "$SOURCE_SHA" \
-            --output-directory registered-preflight-plan
-          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("registered-preflight-plan/registration.json","utf8")); const p=JSON.parse(fs.readFileSync("registered-preflight-plan/operation-plan.json","utf8")); const a=JSON.parse(fs.readFileSync("registered-preflight-plan/adapter-descriptor.json","utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`registration_digest=${r.registrationDigest}\nplan_digest=${p.planDigest}\nadapter_digest=${a.descriptorDigest}\n`);'
+            --output-directory "$RUNNER_TEMP/registered-preflight-plan"
+          node -e 'const fs=require("node:fs"); const root=`${process.env.RUNNER_TEMP}/registered-preflight-plan`; const r=JSON.parse(fs.readFileSync(`${root}/registration.json`,"utf8")); const p=JSON.parse(fs.readFileSync(`${root}/operation-plan.json`,"utf8")); const a=JSON.parse(fs.readFileSync(`${root}/adapter-descriptor.json`,"utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`registration_digest=${r.registrationDigest}\nplan_digest=${p.planDigest}\nadapter_digest=${a.descriptorDigest}\n`);'
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: registered-preflight-plan
+          path: ${{ runner.temp }}/registered-preflight-plan
           if-no-files-found: error
           retention-days: 30
 
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: registered-preflight-plan
+          path: ${{ runner.temp }}/registered-preflight-plan
       - id: gate
         name: Resolve the allowlisted adapter without executing it
         shell: bash
@@ -144,15 +144,15 @@ jobs:
             --mode validate --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
             --campaign-id "$CAMPAIGN_ID" \
             --source-sha "$SOURCE_SHA" \
-            --registration-directory registered-preflight-plan \
-            --output-directory registered-preflight-gate
-          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("registered-preflight-gate/adapter-validation-receipt.json","utf8")); if(r.status!=="accepted"||r.adapterRegistered!==true||r.executionPermitted!==false) process.exit(2); fs.appendFileSync(process.env.GITHUB_OUTPUT,"adapter_registered=true\n");'
+            --registration-directory "$RUNNER_TEMP/registered-preflight-plan" \
+            --output-directory "$RUNNER_TEMP/registered-preflight-gate"
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/registered-preflight-gate/adapter-validation-receipt.json`,"utf8")); if(r.status!=="accepted"||r.adapterRegistered!==true||r.executionPermitted!==false) process.exit(2); fs.appendFileSync(process.env.GITHUB_OUTPUT,"adapter_registered=true\n");'
       - name: Upload adapter validation receipt
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: collective-registered-preflight-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: registered-preflight-gate
+          path: ${{ runner.temp }}/registered-preflight-gate
           if-no-files-found: error
           retention-days: 30
 
@@ -195,7 +195,7 @@ jobs:
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: registered-preflight-plan
+          path: ${{ runner.temp }}/registered-preflight-plan
       - name: Preload the digest-pinned isolated runner
         shell: bash
         run: >-
@@ -216,10 +216,10 @@ jobs:
             --mode authorize --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
             --campaign-id "$CAMPAIGN_ID" \
             --source-sha "$SOURCE_SHA" \
-            --registration-directory registered-preflight-plan \
+            --registration-directory "$RUNNER_TEMP/registered-preflight-plan" \
             --authorization-id "$AUTHORIZATION_ID" \
             --execution-id "$EXECUTION_ID" \
-            --output-directory registered-preflight-authorization
+            --output-directory "$RUNNER_TEMP/registered-preflight-authorization"
       - name: Execute the exact five-cell preflight
         shell: bash
         env:
@@ -236,10 +236,10 @@ jobs:
             --mode execute --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
             --campaign-id "$CAMPAIGN_ID" \
             --source-sha "$SOURCE_SHA" \
-            --registration-directory registered-preflight-plan \
-            --authorization-directory registered-preflight-authorization \
+            --registration-directory "$RUNNER_TEMP/registered-preflight-plan" \
+            --authorization-directory "$RUNNER_TEMP/registered-preflight-authorization" \
             --worker-id "$WORKER_ID" \
-            --output-directory registered-preflight-results
+            --output-directory "$RUNNER_TEMP/registered-preflight-results"
       - name: Resume from a fresh process without re-executing slots
         shell: bash
         env:
@@ -256,22 +256,22 @@ jobs:
             --mode execute --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
             --campaign-id "$CAMPAIGN_ID" \
             --source-sha "$SOURCE_SHA" \
-            --registration-directory registered-preflight-plan \
-            --authorization-directory registered-preflight-authorization \
+            --registration-directory "$RUNNER_TEMP/registered-preflight-plan" \
+            --authorization-directory "$RUNNER_TEMP/registered-preflight-authorization" \
             --worker-id "$WORKER_ID" \
-            --output-directory registered-preflight-results
+            --output-directory "$RUNNER_TEMP/registered-preflight-results"
       - name: Verify execution and recovery receipts
         shell: bash
         run: |
           set -euo pipefail
-          node -e 'const fs=require("node:fs"); const files=fs.readdirSync("registered-preflight-results").filter(x=>x.startsWith("preflight-receipt-")).sort(); if(files.length!==2) process.exit(2); const rows=files.map(x=>JSON.parse(fs.readFileSync(`registered-preflight-results/${x}`,"utf8"))); const first=rows.find(x=>x.executedSlotCount===20&&x.resumedSlotCount===0); const resumed=rows.find(x=>x.executedSlotCount===0&&x.resumedSlotCount===20); if(!first||!resumed||first.executionId!==resumed.executionId||first.projectionRoot!==resumed.projectionRoot||rows.some(x=>x.projectionCount!==20||x.verifiedArtifactCount!==20||x.fullCampaignPermitted!==false||x.releaseEvidence!==false)) process.exit(2);'
+          node -e 'const fs=require("node:fs"); const root=`${process.env.RUNNER_TEMP}/registered-preflight-results`; const files=fs.readdirSync(root).filter(x=>x.startsWith("preflight-receipt-")).sort(); if(files.length!==2) process.exit(2); const rows=files.map(x=>JSON.parse(fs.readFileSync(`${root}/${x}`,"utf8"))); const first=rows.find(x=>x.executedSlotCount===20&&x.resumedSlotCount===0); const resumed=rows.find(x=>x.executedSlotCount===0&&x.resumedSlotCount===20); if(!first||!resumed||first.executionId!==resumed.executionId||first.projectionRoot!==resumed.projectionRoot||rows.some(x=>x.projectionCount!==20||x.verifiedArtifactCount!==20||x.fullCampaignPermitted!==false||x.releaseEvidence!==false)) process.exit(2);'
       - name: Upload public preflight receipts only
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: collective-registered-preflight-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            registered-preflight-authorization/authorization-receipt.json
-            registered-preflight-results/preflight-receipt-*.json
+            ${{ runner.temp }}/registered-preflight-authorization/authorization-receipt.json
+            ${{ runner.temp }}/registered-preflight-results/preflight-receipt-*.json
           if-no-files-found: error
           retention-days: 30
