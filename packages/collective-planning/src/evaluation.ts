@@ -2162,7 +2162,7 @@ export interface CreateCollectiveEvaluationBoundaryEvidenceInputV1 {
   readonly hiddenCanary: string;
 }
 
-function assertCollectiveMonitorTraceBindingsV1(
+export function assertCollectiveMonitorTraceBindingsV1(
   events: readonly CollectiveInvariantMonitorEventV1[],
   trace: CollectiveTraceV2
 ): void {

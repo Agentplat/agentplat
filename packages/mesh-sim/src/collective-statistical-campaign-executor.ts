@@ -70,6 +70,51 @@ export interface CollectiveStatisticalCampaignExecutionStoreV1 {
   ): Promise<"committed" | "duplicate">;
 }
 
+/**
+ * Durable execution store that linearizes an immutable execution commit with
+ * the currently active cell lease. The fence is checked before idempotency:
+ * an expired or superseded worker never receives `duplicate`, even when its
+ * bytes equal the canonical execution already stored.
+ */
+export interface CollectiveStatisticalCampaignFencedExecutionStoreV1 extends CollectiveStatisticalCampaignExecutionStoreV1 {
+  /** Linearizes state mutation with a trusted-clock operation deadline. */
+  compareAndSwapExecutionStateWithDeadlineV1(
+    input: Readonly<{
+      executionId: string;
+      expectedExecutionDigest: string | null;
+      operationExpiresAtMs: number;
+      state: CollectiveEvaluationCampaignExecutionV1;
+    }>,
+  ): Promise<"committed" | "duplicate" | "conflict" | "expired">;
+  /**
+   * Reads only a commit whose persisted provenance matches the exact fence
+   * that authorized it. Legacy or forged rows must fail rather than resume.
+   */
+  readExecutionWithFenceV1(
+    input: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveEvaluationExecutionFenceV1;
+      /** Exact operation deadline persisted with the committing fence. */
+      operationExpiresAtMs?: number | null;
+    }>,
+  ): Promise<CollectiveStatisticalCampaignExecutionArtifactsV1 | null>;
+  commitExecutionWithFenceV1(
+    input: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveEvaluationExecutionFenceV1;
+      /** Optional operation deadline; stores with trusted clocks enforce it. */
+      operationExpiresAtMs?: number | null;
+      execution: CollectiveStatisticalCampaignExecutionArtifactsV1;
+    }>,
+  ): Promise<"committed" | "duplicate" | "stale_fence">;
+}
+
 export interface CollectiveStatisticalCampaignExecutionContextV1 {
   readonly schemaVersion: 1;
   readonly executionId: string;
@@ -95,6 +140,8 @@ export interface CollectiveStatisticalCampaignShardExecutionInputV1 {
   }>;
   readonly leaseDurationMs: number;
   readonly maximumCells: number;
+  /** Optional admission deadline propagated by protected operations. */
+  readonly operationExpiresAtMs?: number;
   /**
    * Optional closed selection supplied by a higher-level operation. When
    * absent, the historical modulo partition is retained for compatibility.
@@ -155,11 +202,15 @@ export async function runCollectiveStatisticalCampaignShardV1(
     ) {
       const previous = state;
       const next = apply(previous);
-      const status = await input.store.compareAndSwapExecutionStateV1({
+      const status = await compareAndSwapExecutionState(input, {
         executionId: input.executionId,
         expectedExecutionDigest: previous.executionDigest,
         state: next,
       });
+      if (status === "expired")
+        throw new TypeError(
+          "collective_statistical_campaign_operation_authorization_expired",
+        );
       if (status === "committed") {
         state = next;
         return Object.freeze({ state, outcome: "committed" as const });
@@ -207,7 +258,17 @@ export async function runCollectiveStatisticalCampaignShardV1(
           currentSlot.status === "succeeded" ||
           currentSlot.status === "failed"
         ) {
-          const durable = await readOne(input.store, runKey);
+          if (currentSlot.settlementFence === null)
+            throw new TypeError(
+              "collective_statistical_campaign_terminal_settlement_invalid",
+            );
+          const durable = await readOne(input.store, runKey, {
+            executionId: input.executionId,
+            registrationDigest: registration.registrationDigest,
+            cellId: cell.cellId,
+            fence: currentSlot.settlementFence,
+            operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+          });
           if (durable === null)
             throw new TypeError(
               "collective_statistical_campaign_terminal_commit_missing",
@@ -228,7 +289,13 @@ export async function runCollectiveStatisticalCampaignShardV1(
         }
         if (currentSlot.status === "running") {
           const activeFence = fenceFor(state, cell.cellId);
-          let durable = await readOne(input.store, runKey);
+          let durable = await readOne(input.store, runKey, {
+            executionId: input.executionId,
+            registrationDigest: registration.registrationDigest,
+            cellId: cell.cellId,
+            fence: activeFence,
+            operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+          });
           const inspectionNow = clock(input.now);
           if (durable === null && activeFence.expiresAtMs > inspectionNow)
             throw new TypeError(
@@ -244,13 +311,23 @@ export async function runCollectiveStatisticalCampaignShardV1(
               attempt,
               "indeterminate_external_effect",
             );
-            const commit = await input.store.commitExecutionV1({
+            const commit = await commitExecution(
+              input,
+              registration.registrationDigest,
+              cell.cellId,
               runKey,
-              execution: durable,
-            });
+              activeFence,
+              durable,
+            );
             if (commit === "committed") executedSlotCount += 1;
             else {
-              const canonical = await readOne(input.store, runKey);
+              const canonical = await readOne(input.store, runKey, {
+                executionId: input.executionId,
+                registrationDigest: registration.registrationDigest,
+                cellId: cell.cellId,
+                fence: activeFence,
+                operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+              });
               if (canonical === null)
                 throw new TypeError(
                   "collective_statistical_campaign_duplicate_commit_missing",
@@ -286,6 +363,7 @@ export async function runCollectiveStatisticalCampaignShardV1(
           continue;
         }
 
+        assertOperationActive(input, clock(input.now));
         const claim = await transition((current) => {
           const candidate = cellFor(current, cell.cellId);
           const claimNow = clock(input.now);
@@ -303,7 +381,7 @@ export async function runCollectiveStatisticalCampaignShardV1(
               lease: {
                 workerId: input.workerId,
                 leaseToken,
-                expiresAtMs: safeAdd(claimNow, input.leaseDurationMs),
+                expiresAtMs: boundedLeaseExpiry(input, claimNow),
               },
             });
           }
@@ -331,18 +409,28 @@ export async function runCollectiveStatisticalCampaignShardV1(
         }
         const acquiredFence = fenceFor(state, cell.cellId);
         ownedFence = acquiredFence;
-        await transition((current) =>
-          startCollectiveEvaluationRunV1(current, {
+        await transition((current) => {
+          const startNow = clock(input.now);
+          assertOperationActive(input, startNow);
+          return startCollectiveEvaluationRunV1(current, {
             executionId: input.executionId,
             expectedRevision: current.revision,
             cellId: cell.cellId,
             runner,
             attempt,
-            nowMs: clock(input.now),
+            nowMs: startNow,
             fence: acquiredFence,
-          }),
-        );
+          });
+        });
         const renewLeaseV1 = async (expiresAtMs: number): Promise<void> => {
+          assertOperationActive(input, clock(input.now));
+          if (
+            input.operationExpiresAtMs !== undefined &&
+            expiresAtMs > input.operationExpiresAtMs
+          )
+            throw new TypeError(
+              "collective_statistical_campaign_operation_expiry_exceeded",
+            );
           const renewalFence = ownedFence;
           if (renewalFence === null)
             throw new TypeError(
@@ -361,7 +449,13 @@ export async function runCollectiveStatisticalCampaignShardV1(
           ownedFence = fenceFor(state, cell.cellId);
         };
 
-        const stored = await readOne(input.store, runKey);
+        const stored = await readOne(input.store, runKey, {
+          executionId: input.executionId,
+          registrationDigest: registration.registrationDigest,
+          cellId: cell.cellId,
+          fence: acquiredFence,
+          operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+        });
         let execution: CollectiveStatisticalCampaignExecutionArtifactsV1;
         if (stored !== null) {
           execution = validateStoredExecution(
@@ -377,6 +471,7 @@ export async function runCollectiveStatisticalCampaignShardV1(
         } else {
           let output: CollectiveStatisticalCampaignRunnerOutputV1;
           try {
+            assertOperationActive(input, clock(input.now));
             output = await input.execute(
               deepFreezePlanning({
                 schemaVersion: 1 as const,
@@ -411,14 +506,24 @@ export async function runCollectiveStatisticalCampaignShardV1(
             attempt,
             output,
           });
-          const commit = await input.store.commitExecutionV1({
+          const commit = await commitExecution(
+            input,
+            registration.registrationDigest,
+            cell.cellId,
             runKey,
+            ownedFence!,
             execution,
-          });
+          );
           if (commit === "committed") {
             executedSlotCount += 1;
           } else {
-            const durable = await readOne(input.store, runKey);
+            const durable = await readOne(input.store, runKey, {
+              executionId: input.executionId,
+              registrationDigest: registration.registrationDigest,
+              cellId: cell.cellId,
+              fence: ownedFence!,
+              operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+            });
             if (durable === null)
               throw new TypeError(
                 "collective_statistical_campaign_duplicate_commit_missing",
@@ -482,11 +587,15 @@ async function loadOrCreateExecutionState(
     executionId: input.executionId,
     registration,
   });
-  const status = await input.store.compareAndSwapExecutionStateV1({
+  const status = await compareAndSwapExecutionState(input, {
     executionId: input.executionId,
     expectedExecutionDigest: null,
     state: created,
   });
+  if (status === "expired")
+    throw new TypeError(
+      "collective_statistical_campaign_operation_authorization_expired",
+    );
   if (status === "committed") return created;
   const raced = await readExecutionState(input, registration);
   if (raced === null)
@@ -505,6 +614,28 @@ async function readExecutionState(
   return state === null
     ? null
     : validatePersistedState(state, input.executionId, registration);
+}
+
+async function compareAndSwapExecutionState(
+  input: CollectiveStatisticalCampaignShardExecutionInputV1,
+  mutation: Readonly<{
+    executionId: string;
+    expectedExecutionDigest: string | null;
+    state: CollectiveEvaluationCampaignExecutionV1;
+  }>,
+): Promise<"committed" | "duplicate" | "conflict" | "expired"> {
+  if (input.operationExpiresAtMs === undefined)
+    return input.store.compareAndSwapExecutionStateV1(mutation);
+  const fenced = input.store as CollectiveStatisticalCampaignExecutionStoreV1 &
+    Partial<CollectiveStatisticalCampaignFencedExecutionStoreV1>;
+  if (typeof fenced.compareAndSwapExecutionStateWithDeadlineV1 !== "function")
+    throw new TypeError(
+      "collective_statistical_campaign_deadline_state_store_required",
+    );
+  return fenced.compareAndSwapExecutionStateWithDeadlineV1({
+    ...mutation,
+    operationExpiresAtMs: input.operationExpiresAtMs,
+  });
 }
 
 function validatePersistedState(
@@ -806,9 +937,51 @@ export function reconstructCollectiveStatisticalCampaignExecutionV1(input: {
   );
 }
 
-export function createMemoryCollectiveStatisticalCampaignExecutionStoreV1(): CollectiveStatisticalCampaignExecutionStoreV1 {
+export function createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+  clockSource: () => number = Date.now,
+): CollectiveStatisticalCampaignFencedExecutionStoreV1 {
+  if (typeof clockSource !== "function")
+    throw new TypeError("collective_statistical_campaign_store_clock_invalid");
   const values = new Map<string, string>();
+  const provenances = new Map<
+    string,
+    Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      fence: CollectiveEvaluationExecutionFenceV1;
+      operationExpiresAtMs: number | null;
+    }>
+  >();
   const states = new Map<string, string>();
+  const compareAndSwapState = (
+    input: Readonly<{
+      executionId: string;
+      expectedExecutionDigest: string | null;
+      state: CollectiveEvaluationCampaignExecutionV1;
+    }>,
+  ): "committed" | "duplicate" | "conflict" => {
+    if (input.state.executionId !== input.executionId)
+      throw new TypeError(
+        "collective_statistical_campaign_state_execution_conflict",
+      );
+    const existing = states.get(input.executionId);
+    if (existing === undefined) {
+      if (input.expectedExecutionDigest !== null) return "conflict";
+    } else {
+      const current = JSON.parse(
+        existing,
+      ) as CollectiveEvaluationCampaignExecutionV1;
+      if (current.executionDigest !== input.expectedExecutionDigest)
+        return "conflict";
+      const serialized = json(input.state);
+      if (serialized === existing) return "duplicate";
+      states.set(input.executionId, serialized);
+      return "committed";
+    }
+    states.set(input.executionId, json(input.state));
+    return "committed";
+  };
   return Object.freeze({
     schemaVersion: 1 as const,
     async readExecutionStateV1({
@@ -829,35 +1002,29 @@ export function createMemoryCollectiveStatisticalCampaignExecutionStoreV1(): Col
         );
       return state;
     },
-    async compareAndSwapExecutionStateV1({
-      executionId,
-      expectedExecutionDigest,
-      state,
-    }: Readonly<{
+    async compareAndSwapExecutionStateV1(
+      input: Readonly<{
       executionId: string;
       expectedExecutionDigest: string | null;
       state: CollectiveEvaluationCampaignExecutionV1;
-    }>) {
-      if (state.executionId !== executionId)
-        throw new TypeError(
-          "collective_statistical_campaign_state_execution_conflict",
-        );
-      const existing = states.get(executionId);
-      if (existing === undefined) {
-        if (expectedExecutionDigest !== null) return "conflict" as const;
-      } else {
-        const current = JSON.parse(
-          existing,
-        ) as CollectiveEvaluationCampaignExecutionV1;
-        if (current.executionDigest !== expectedExecutionDigest)
-          return "conflict" as const;
-        const serialized = json(state);
-        if (serialized === existing) return "duplicate" as const;
-        states.set(executionId, serialized);
-        return "committed" as const;
-      }
-      states.set(executionId, json(state));
-      return "committed" as const;
+      }>,
+    ) {
+      return compareAndSwapState(input);
+    },
+    async compareAndSwapExecutionStateWithDeadlineV1(
+      input: Readonly<{
+        executionId: string;
+        expectedExecutionDigest: string | null;
+        operationExpiresAtMs: number;
+        state: CollectiveEvaluationCampaignExecutionV1;
+      }>,
+    ) {
+      if (
+        !Number.isSafeInteger(input.operationExpiresAtMs) ||
+        clock(clockSource) >= input.operationExpiresAtMs
+      )
+        return "expired" as const;
+      return compareAndSwapState(input);
     },
     async readExecutionsV1(runKeys: readonly string[]) {
       if (!Array.isArray(runKeys) || runKeys.length > 4_096)
@@ -900,7 +1067,168 @@ export function createMemoryCollectiveStatisticalCampaignExecutionStoreV1(): Col
       values.set(runKey, serialized);
       return "committed" as const;
     },
+    async readExecutionWithFenceV1({
+      executionId,
+      registrationDigest,
+      cellId,
+      runKey,
+      fence,
+      operationExpiresAtMs = null,
+    }: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveEvaluationExecutionFenceV1;
+      operationExpiresAtMs?: number | null;
+    }>) {
+      requireRunKey(runKey);
+      const serialized = values.get(runKey);
+      if (serialized === undefined) return null;
+      const provenance = provenances.get(runKey);
+      if (
+        provenance === undefined ||
+        provenance.executionId !== executionId ||
+        provenance.registrationDigest !== registrationDigest ||
+        provenance.cellId !== cellId ||
+        provenance.operationExpiresAtMs !== operationExpiresAtMs ||
+        !sameExecutionFence(provenance.fence, fence)
+      )
+        throw new TypeError(
+          "collective_statistical_campaign_store_commit_provenance_invalid",
+        );
+      return JSON.parse(
+        serialized,
+      ) as CollectiveStatisticalCampaignExecutionArtifactsV1;
+    },
+    async commitExecutionWithFenceV1({
+      executionId,
+      registrationDigest,
+      cellId,
+      runKey,
+      fence,
+      operationExpiresAtMs,
+      execution,
+    }: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveEvaluationExecutionFenceV1;
+      operationExpiresAtMs?: number | null;
+      execution: CollectiveStatisticalCampaignExecutionArtifactsV1;
+    }>) {
+      requireRunKey(runKey);
+      if (
+        execution.executionId !== executionId ||
+        execution.cellId !== cellId ||
+        execution.runKey !== runKey
+      )
+        throw new TypeError(
+          "collective_statistical_campaign_store_commit_scope_invalid",
+        );
+      const serializedState = states.get(executionId);
+      const nowMs = clock(clockSource);
+      if (serializedState === undefined) return "stale_fence" as const;
+      const state = JSON.parse(
+        serializedState,
+      ) as CollectiveEvaluationCampaignExecutionV1;
+      if (
+        (operationExpiresAtMs != null &&
+          (!Number.isSafeInteger(operationExpiresAtMs) ||
+            nowMs >= operationExpiresAtMs)) ||
+        state.registrationDigest !== registrationDigest ||
+        !activeExecutionFence(state, cellId, runKey, fence, nowMs)
+      )
+        return "stale_fence" as const;
+      const serialized = json(execution);
+      const existing = values.get(runKey);
+      if (existing !== undefined) {
+        if (existing !== serialized)
+          throw new TypeError(
+            "collective_statistical_campaign_store_commit_conflict",
+          );
+        const provenance = provenances.get(runKey);
+        if (
+          provenance === undefined ||
+          provenance.executionId !== executionId ||
+          provenance.registrationDigest !== registrationDigest ||
+          provenance.cellId !== cellId ||
+          provenance.operationExpiresAtMs !== (operationExpiresAtMs ?? null) ||
+          !sameExecutionFence(provenance.fence, fence)
+        )
+          throw new TypeError(
+            "collective_statistical_campaign_store_commit_provenance_invalid",
+          );
+        return "duplicate" as const;
+      }
+      values.set(runKey, serialized);
+      provenances.set(
+        runKey,
+        Object.freeze({
+          executionId,
+          registrationDigest,
+          cellId,
+          operationExpiresAtMs: operationExpiresAtMs ?? null,
+          fence: Object.freeze({ ...fence }),
+        }),
+      );
+      return "committed" as const;
+    },
   });
+}
+
+async function commitExecution(
+  input: CollectiveStatisticalCampaignShardExecutionInputV1,
+  registrationDigest: string,
+  cellId: string,
+  runKey: string,
+  fence: CollectiveEvaluationExecutionFenceV1,
+  execution: CollectiveStatisticalCampaignExecutionArtifactsV1,
+): Promise<"committed" | "duplicate"> {
+  assertOperationActive(input, clock(input.now));
+  const store = input.store as CollectiveStatisticalCampaignExecutionStoreV1 &
+    Partial<CollectiveStatisticalCampaignFencedExecutionStoreV1>;
+  if (typeof store.commitExecutionWithFenceV1 !== "function")
+    return store.commitExecutionV1({ runKey, execution });
+  const status = await store.commitExecutionWithFenceV1({
+    executionId: input.executionId,
+    registrationDigest,
+    cellId,
+    runKey,
+    fence,
+    operationExpiresAtMs: input.operationExpiresAtMs ?? null,
+    execution,
+  });
+  if (status === "stale_fence")
+    throw new TypeError(
+      "collective_statistical_campaign_execution_commit_stale_fence",
+    );
+  if (status !== "committed" && status !== "duplicate")
+    throw new TypeError(
+      "collective_statistical_campaign_execution_commit_invalid",
+    );
+  return status;
+}
+
+function activeExecutionFence(
+  state: CollectiveEvaluationCampaignExecutionV1,
+  cellId: string,
+  runKey: string,
+  fence: CollectiveEvaluationExecutionFenceV1,
+  nowMs: number,
+): boolean {
+  const cell = state.cells.find((candidate) => candidate.cellId === cellId);
+  const current = cell?.lease;
+  const slot = cell?.runs.find((candidate) => candidate.runKey === runKey);
+  return (
+    cell?.status === "running" &&
+    slot?.status === "running" &&
+    current !== null &&
+    current !== undefined &&
+    current.expiresAtMs > nowMs &&
+    sameExecutionFence(current, fence)
+  );
 }
 
 function validateExecutorInput(
@@ -927,6 +1255,9 @@ function validateExecutorInput(
     !Number.isSafeInteger(input.maximumCells) ||
     input.maximumCells < 1 ||
     input.maximumCells > 240 ||
+    (input.operationExpiresAtMs !== undefined &&
+      (!Number.isSafeInteger(input.operationExpiresAtMs) ||
+        input.operationExpiresAtMs < 0)) ||
     !input.store ||
     input.store.schemaVersion !== 1 ||
     typeof input.store.readExecutionStateV1 !== "function" ||
@@ -971,7 +1302,24 @@ function selectExplicitCells(
 async function readOne(
   store: CollectiveStatisticalCampaignExecutionStoreV1,
   runKey: string,
+  provenance?: Readonly<{
+    executionId: string;
+    registrationDigest: string;
+    cellId: string;
+    fence: CollectiveEvaluationExecutionFenceV1;
+    operationExpiresAtMs?: number | null;
+  }>,
 ): Promise<CollectiveStatisticalCampaignExecutionArtifactsV1 | null> {
+  const fenced = store as CollectiveStatisticalCampaignExecutionStoreV1 &
+    Partial<CollectiveStatisticalCampaignFencedExecutionStoreV1>;
+  if (
+    provenance !== undefined &&
+    typeof fenced.readExecutionWithFenceV1 === "function"
+  )
+    return fenced.readExecutionWithFenceV1({
+      ...provenance,
+      runKey,
+    });
   const result = await store.readExecutionsV1([runKey]);
   if (
     !Array.isArray(result) ||
@@ -980,6 +1328,35 @@ async function readOne(
   )
     throw new TypeError("collective_statistical_campaign_store_read_invalid");
   return result[0].execution;
+}
+
+function assertOperationActive(
+  input: CollectiveStatisticalCampaignShardExecutionInputV1,
+  nowMs: number,
+): void {
+  if (
+    input.operationExpiresAtMs !== undefined &&
+    nowMs >= input.operationExpiresAtMs
+  )
+    throw new TypeError(
+      "collective_statistical_campaign_operation_authorization_expired",
+    );
+}
+
+function boundedLeaseExpiry(
+  input: CollectiveStatisticalCampaignShardExecutionInputV1,
+  nowMs: number,
+): number {
+  const requested = safeAdd(nowMs, input.leaseDurationMs);
+  const expiresAtMs =
+    input.operationExpiresAtMs === undefined
+      ? requested
+      : Math.min(requested, input.operationExpiresAtMs);
+  if (expiresAtMs <= nowMs)
+    throw new TypeError(
+      "collective_statistical_campaign_operation_authorization_expired",
+    );
+  return expiresAtMs;
 }
 
 function validateStoredExecution(

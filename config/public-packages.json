@@ -121,7 +121,12 @@
       "layer": "collaboration",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./coordination", "./durability", "./loopback"],
+      "browserEntrypoints": [
+        ".",
+        "./coordination",
+        "./durability",
+        "./loopback"
+      ],
       "packSmoke": true
     },
     {
@@ -188,6 +193,15 @@
     {
       "name": "@agentplat/mesh-sim-local",
       "directory": "packages/mesh-sim-local",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/mesh-sim-postgres",
+      "directory": "packages/mesh-sim-postgres",
       "layer": "adapter",
       "publish": true,
       "providerNeutral": true,

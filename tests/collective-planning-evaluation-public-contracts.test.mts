@@ -5,6 +5,7 @@ import {
   COLLECTIVE_TRACE_SCHEMA_VERSION_V2,
   DEFAULT_COLLECTIVE_EVALUATION_LIMITS_V1,
   assertCollectiveEnvironmentPortV1,
+  assertCollectiveMonitorTraceBindingsV1,
   assertCollectiveTraceSuccessionV2,
   auditCollectiveEnvironmentPortV1,
   collectiveHiddenCanaryDigestV1,
@@ -58,6 +59,7 @@ const accountingVersion: typeof COLLECTIVE_INTERACTION_ACCOUNTING_VERSION_V2 =
 
 void DEFAULT_COLLECTIVE_EVALUATION_LIMITS_V1;
 void assertCollectiveEnvironmentPortV1;
+void assertCollectiveMonitorTraceBindingsV1;
 void assertCollectiveTraceSuccessionV2;
 void auditCollectiveEnvironmentPortV1;
 void collectiveHiddenCanaryDigestV1;

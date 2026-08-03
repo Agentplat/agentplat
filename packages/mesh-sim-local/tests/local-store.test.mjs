@@ -604,3 +604,126 @@ test("adapts immutable execution records to the portable campaign store", async 
     );
   });
 });
+
+test("local fenced execution commits validate the live lease before duplicate detection", async () => {
+  await withStore(async (root) => {
+    let currentTime = 1_500;
+    const local = await openCollectiveStatisticalCampaignLocalStoreV1({ root });
+    const store = createLocalCollectiveStatisticalCampaignExecutionStoreV1(
+      local,
+      () => currentTime,
+    );
+    const executionId = "execution/local-fenced";
+    const registrationDigest = bundleDigest("registration-fenced");
+    const runKey = bundleDigest("run-fenced");
+    const cellId = "cell:local-fenced";
+    const fenceA = {
+      workerId: "worker:a",
+      leaseToken: "lease:a",
+      generation: 1,
+      expiresAtMs: 1_000,
+    };
+    const fenceB = {
+      workerId: "worker:b",
+      leaseToken: "lease:b",
+      generation: 2,
+      expiresAtMs: 2_000,
+    };
+    const state = {
+      schemaVersion: 1,
+      executionId,
+      registrationDigest,
+      status: "active",
+      revision: 3,
+      cells: [
+        {
+          cellId,
+          status: "running",
+          lease: fenceB,
+          runs: [{ runKey, status: "running" }],
+        },
+      ],
+      manifest: null,
+      executionDigest: bundleDigest("state-fenced"),
+    };
+    assert.equal(
+      await store.compareAndSwapExecutionStateV1({
+        executionId,
+        expectedExecutionDigest: null,
+        state,
+      }),
+      "committed",
+    );
+    const execution = {
+      schemaVersion: 1,
+      executionId,
+      runKey,
+      cellId,
+      seed: 1,
+      runner: "adaptive_collective",
+      attempt: "first",
+    };
+    const operationExpiresAtMs = 3_000;
+    const commit = (fence) =>
+      store.commitExecutionWithFenceV1({
+        executionId,
+        registrationDigest,
+        cellId,
+        runKey,
+        fence,
+        operationExpiresAtMs,
+        execution,
+      });
+
+    assert.equal(await commit(fenceA), "stale_fence");
+    assert.deepEqual(await store.readExecutionsV1([runKey]), [
+      { runKey, execution: null },
+    ]);
+    for (const fence of [
+      { ...fenceB, workerId: "worker:wrong" },
+      { ...fenceB, leaseToken: "lease:wrong" },
+      { ...fenceB, generation: 3 },
+    ])
+      assert.equal(await commit(fence), "stale_fence");
+    assert.equal(await commit(fenceB), "committed");
+    assert.deepEqual(
+      await store.readExecutionWithFenceV1({
+        executionId,
+        registrationDigest,
+        cellId,
+        runKey,
+        fence: fenceB,
+        operationExpiresAtMs,
+      }),
+      execution,
+    );
+    await assert.rejects(
+      store.readExecutionWithFenceV1({
+        executionId,
+        registrationDigest,
+        cellId,
+        runKey,
+        fence: { ...fenceB, workerId: "worker:wrong" },
+        operationExpiresAtMs,
+      }),
+      /provenance does not match/u,
+    );
+    await assert.rejects(
+      store.readExecutionWithFenceV1({
+        executionId,
+        registrationDigest,
+        cellId,
+        runKey,
+        fence: fenceB,
+        operationExpiresAtMs: operationExpiresAtMs + 1,
+      }),
+      /provenance does not match/u,
+    );
+    assert.equal(await commit(fenceA), "stale_fence");
+    currentTime = fenceB.expiresAtMs;
+    assert.equal(await commit(fenceB), "stale_fence");
+    assert.deepEqual(await store.readExecutionsV1([runKey]), [
+      { runKey, execution },
+    ]);
+  });
+});

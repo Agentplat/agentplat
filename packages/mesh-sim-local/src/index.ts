@@ -16,6 +16,7 @@ import type {
   CollectiveStatisticalCampaignArtifactReaderV1,
   CollectiveStatisticalCampaignArtifactWriterV1,
   CollectiveStatisticalCampaignExecutionArtifactsV1,
+  CollectiveStatisticalCampaignFencedExecutionStoreV1,
   CollectiveStatisticalCampaignExecutionStoreV1,
 } from "@agentplat/mesh-sim";
 import {
@@ -109,6 +110,9 @@ type CollectiveStatisticalCampaignExecutionStateV1 = NonNullable<
     >
   >
 >;
+type CollectiveStatisticalCampaignExecutionFenceV1 = Parameters<
+  CollectiveStatisticalCampaignFencedExecutionStoreV1["commitExecutionWithFenceV1"]
+>[0]["fence"];
 
 export interface CollectiveStatisticalCampaignLocalStoreV1 {
   readonly root: string;
@@ -132,6 +136,27 @@ export interface CollectiveStatisticalCampaignLocalStoreV1 {
       state: CollectiveStatisticalCampaignExecutionStateV1;
     }>,
   ): Promise<"committed" | "duplicate" | "conflict">;
+  compareAndSwapExecutionStateWithDeadlineV1(
+    input: Readonly<{
+      executionId: string;
+      expectedExecutionDigest: string | null;
+      operationExpiresAtMs: number;
+      state: CollectiveStatisticalCampaignExecutionStateV1;
+    }>,
+    clockSource: () => number,
+  ): Promise<"committed" | "duplicate" | "conflict" | "expired">;
+  commitFencedExecutionRecordV1?(
+    input: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveStatisticalCampaignExecutionFenceV1;
+      operationExpiresAtMs?: number | null;
+      execution: CollectiveStatisticalCampaignExecutionArtifactsV1;
+    }>,
+    clockSource: () => number,
+  ): Promise<"committed" | "duplicate" | "stale_fence">;
   inspectMutationLockV1(): Promise<CollectiveStatisticalCampaignMutationLockInspectionV1>;
   /** Removes a stranded mutation lock only when its exact lockId is supplied. */
   recoverMutationLockV1(lockId: string): Promise<"recovered" | "missing">;
@@ -362,9 +387,17 @@ function artifactRunKeyV1(artifactId: string): string {
  */
 export function createLocalCollectiveStatisticalCampaignExecutionStoreV1(
   store: CollectiveStatisticalCampaignLocalStoreV1,
-): CollectiveStatisticalCampaignExecutionStoreV1 {
-  if (!store || typeof store !== "object")
+  clockSource: () => number = Date.now,
+): CollectiveStatisticalCampaignFencedExecutionStoreV1 {
+  if (
+    !store ||
+    typeof store !== "object" ||
+    typeof store.commitFencedExecutionRecordV1 !== "function"
+  )
     fail("local execution store is invalid");
+  if (typeof clockSource !== "function") fail("clock must be a function");
+  const commitFencedExecutionRecordV1 =
+    store.commitFencedExecutionRecordV1.bind(store);
   return Object.freeze({
     schemaVersion: 1 as const,
     readExecutionStateV1: (
@@ -377,6 +410,14 @@ export function createLocalCollectiveStatisticalCampaignExecutionStoreV1(
         state: CollectiveStatisticalCampaignExecutionStateV1;
       }>,
     ) => store.compareAndSwapExecutionStateV1(input),
+    compareAndSwapExecutionStateWithDeadlineV1: (
+      input: Readonly<{
+        executionId: string;
+        expectedExecutionDigest: string | null;
+        operationExpiresAtMs: number;
+        state: CollectiveStatisticalCampaignExecutionStateV1;
+      }>,
+    ) => store.compareAndSwapExecutionStateWithDeadlineV1(input, clockSource),
     async readExecutionsV1(runKeys: readonly string[]) {
       const commits = await store.readSlotCommitsV1(runKeys);
       const result = [];
@@ -385,8 +426,11 @@ export function createLocalCollectiveStatisticalCampaignExecutionStoreV1(
           result.push(Object.freeze({ runKey: entry.runKey, execution: null }));
           continue;
         }
-        if (entry.commit.artifactSha256.length !== 1)
-          fail("execution slot commit must bind exactly one record");
+        if (
+          entry.commit.artifactSha256.length !== 1 &&
+          entry.commit.artifactSha256.length !== 2
+        )
+          fail("execution slot commit has an invalid record count");
         const bytes = await store.readArtifactV1(
           entry.commit.artifactSha256[0]!,
         );
@@ -401,6 +445,79 @@ export function createLocalCollectiveStatisticalCampaignExecutionStoreV1(
         result.push(Object.freeze({ runKey: entry.runKey, execution }));
       }
       return Object.freeze(result);
+    },
+    async readExecutionWithFenceV1(
+      input: Parameters<
+        CollectiveStatisticalCampaignFencedExecutionStoreV1["readExecutionWithFenceV1"]
+      >[0],
+    ) {
+      exactObject(
+        input,
+        [
+          "cellId",
+          "executionId",
+          "fence",
+          "operationExpiresAtMs",
+          "registrationDigest",
+          "runKey",
+        ],
+        "fenced execution read",
+        true,
+      );
+      assertToken(input.executionId, "executionId");
+      assertBundleDigest(input.registrationDigest);
+      assertToken(input.cellId, "cellId");
+      assertBundleDigest(input.runKey);
+      const fence = normalizeFence(input.fence);
+      const operationExpiresAtMs = input.operationExpiresAtMs ?? null;
+      if (
+        operationExpiresAtMs !== null &&
+        (!Number.isSafeInteger(operationExpiresAtMs) ||
+          operationExpiresAtMs < 0)
+      )
+        fail("operation expiry is invalid");
+      const [entry] = await store.readSlotCommitsV1([input.runKey]);
+      if (!entry || entry.commit === null) return null;
+      if (entry.commit.artifactSha256.length !== 2)
+        fail("fenced execution provenance is missing");
+      const [executionBytes, provenanceBytes] = await Promise.all([
+        store.readArtifactV1(entry.commit.artifactSha256[0]!),
+        store.readArtifactV1(entry.commit.artifactSha256[1]!),
+      ]);
+      const provenance = parseObject(provenanceBytes, "execution provenance");
+      exactObject(
+        provenance,
+        [
+          "cellId",
+          "executionId",
+          "fence",
+          "operationExpiresAtMs",
+          "registrationDigest",
+          "runKey",
+          "schemaVersion",
+        ],
+        "execution provenance",
+      );
+      const persistedFence = normalizeFence(
+        provenance.fence as CollectiveStatisticalCampaignExecutionFenceV1,
+      );
+      if (
+        provenance.schemaVersion !== 1 ||
+        provenance.executionId !== input.executionId ||
+        provenance.registrationDigest !== input.registrationDigest ||
+        provenance.cellId !== input.cellId ||
+        provenance.runKey !== input.runKey ||
+        provenance.operationExpiresAtMs !== operationExpiresAtMs ||
+        !sameStoredFence(persistedFence, fence)
+      )
+        fail("fenced execution provenance does not match");
+      try {
+        return JSON.parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(executionBytes),
+        ) as CollectiveStatisticalCampaignExecutionArtifactsV1;
+      } catch {
+        fail("execution slot record is not valid UTF-8 JSON");
+      }
     },
     async commitExecutionV1(
       input: Readonly<{
@@ -419,6 +536,15 @@ export function createLocalCollectiveStatisticalCampaignExecutionStoreV1(
       });
       return committed.status;
     },
+    commitExecutionWithFenceV1: (
+      input: Parameters<
+        CollectiveStatisticalCampaignFencedExecutionStoreV1["commitExecutionWithFenceV1"]
+      >[0],
+    ) =>
+      commitFencedExecutionRecordV1(
+        { ...input, operationExpiresAtMs: input.operationExpiresAtMs ?? null },
+        clockSource,
+      ),
   });
 }
 
@@ -620,6 +746,60 @@ class LocalStore implements CollectiveStatisticalCampaignLocalStoreV1 {
       state: CollectiveStatisticalCampaignExecutionStateV1;
     }>,
   ): Promise<"committed" | "duplicate" | "conflict"> {
+    const result = await this.#compareAndSwapExecutionState(
+      input,
+      null,
+      Date.now,
+    );
+    if (result === "expired") fail("unexpected operation expiry");
+    return result;
+  }
+
+  async compareAndSwapExecutionStateWithDeadlineV1(
+    input: Readonly<{
+      executionId: string;
+      expectedExecutionDigest: string | null;
+      operationExpiresAtMs: number;
+      state: CollectiveStatisticalCampaignExecutionStateV1;
+    }>,
+    clockSource: () => number,
+  ): Promise<"committed" | "duplicate" | "conflict" | "expired"> {
+    exactObject(
+      input,
+      [
+        "executionId",
+        "expectedExecutionDigest",
+        "operationExpiresAtMs",
+        "state",
+      ],
+      "deadline execution state compare-and-swap",
+    );
+    if (
+      typeof clockSource !== "function" ||
+      !Number.isSafeInteger(input.operationExpiresAtMs) ||
+      input.operationExpiresAtMs < 0
+    )
+      fail("operation expiry is invalid");
+    return this.#compareAndSwapExecutionState(
+      {
+        executionId: input.executionId,
+        expectedExecutionDigest: input.expectedExecutionDigest,
+        state: input.state,
+      },
+      input.operationExpiresAtMs,
+      clockSource,
+    );
+  }
+
+  async #compareAndSwapExecutionState(
+    input: Readonly<{
+      executionId: string;
+      expectedExecutionDigest: string | null;
+      state: CollectiveStatisticalCampaignExecutionStateV1;
+    }>,
+    operationExpiresAtMs: number | null,
+    clockSource: () => number,
+  ): Promise<"committed" | "duplicate" | "conflict" | "expired"> {
     exactObject(
       input,
       ["executionId", "expectedExecutionDigest", "state"],
@@ -633,6 +813,11 @@ class LocalStore implements CollectiveStatisticalCampaignLocalStoreV1 {
     if (bytes.byteLength > this.#limits.maximumArtifactBytes)
       fail("execution state exceeds artifact byte limit");
     return this.#withMutationLock(async () => {
+      if (
+        operationExpiresAtMs !== null &&
+        localClock(clockSource) >= operationExpiresAtMs
+      )
+        return "expired";
       const destination = this.#statePath(input.executionId);
       if (!(await exists(destination))) {
         if (input.expectedExecutionDigest !== null) return "conflict";
@@ -653,6 +838,143 @@ class LocalStore implements CollectiveStatisticalCampaignLocalStoreV1 {
         return "conflict";
       if (equalBytes(currentBytes, bytes)) return "duplicate";
       await replaceAtomically(this.root, destination, bytes, "state");
+      return "committed";
+    });
+  }
+
+  async commitFencedExecutionRecordV1(
+    input: Readonly<{
+      executionId: string;
+      registrationDigest: string;
+      cellId: string;
+      runKey: string;
+      fence: CollectiveStatisticalCampaignExecutionFenceV1;
+      operationExpiresAtMs: number | null;
+      execution: CollectiveStatisticalCampaignExecutionArtifactsV1;
+    }>,
+    clockSource: () => number,
+  ): Promise<"committed" | "duplicate" | "stale_fence"> {
+    exactObject(
+      input,
+      [
+        "cellId",
+        "execution",
+        "executionId",
+        "fence",
+        "operationExpiresAtMs",
+        "registrationDigest",
+        "runKey",
+      ],
+      "fenced execution commit",
+    );
+    if (typeof clockSource !== "function") fail("clock must be a function");
+    assertToken(input.executionId, "executionId");
+    assertBundleDigest(input.registrationDigest);
+    assertToken(input.cellId, "cellId");
+    assertBundleDigest(input.runKey);
+    if (
+      input.execution.executionId !== input.executionId ||
+      input.execution.cellId !== input.cellId ||
+      input.execution.runKey !== input.runKey
+    )
+      fail("fenced execution record does not bind requested scope");
+    const fence = normalizeFence(input.fence);
+    if (
+      input.operationExpiresAtMs !== null &&
+      (!Number.isSafeInteger(input.operationExpiresAtMs) ||
+        input.operationExpiresAtMs < 0)
+    )
+      fail("operation expiry is invalid");
+    const bytes = normalizeBytes(
+      JSON.stringify(input.execution),
+      this.#limits.maximumArtifactBytes,
+    );
+    const sha256 = digestBytes(bytes);
+    const provenanceBytes = encodeCanonical({
+      schemaVersion: 1,
+      executionId: input.executionId,
+      registrationDigest: input.registrationDigest,
+      cellId: input.cellId,
+      runKey: input.runKey,
+      fence,
+      operationExpiresAtMs: input.operationExpiresAtMs,
+    });
+    const provenanceSha256 = digestBytes(provenanceBytes);
+    const commit = Object.freeze({
+      schemaVersion: 1 as const,
+      runKey: input.runKey,
+      artifactSha256: Object.freeze([sha256, provenanceSha256]),
+    });
+    const commitBytes = encodeCanonical(commit);
+    return this.#withMutationLock(async () => {
+      const statePath = this.#statePath(input.executionId);
+      if (!(await exists(statePath))) return "stale_fence";
+      const stateBytes = await readRegularFile(
+        statePath,
+        this.#limits.maximumArtifactBytes,
+      );
+      const state = parseExecutionState(stateBytes);
+      if (!equalBytes(stateBytes, encodeCanonical(state)))
+        fail("execution state is not canonical");
+      const nowMs = localClock(clockSource);
+      if (
+        (input.operationExpiresAtMs !== null &&
+          nowMs >= input.operationExpiresAtMs) ||
+        state.registrationDigest !== input.registrationDigest ||
+        !activeStoredFence(state, input.cellId, input.runKey, fence, nowMs)
+      )
+        return "stale_fence";
+
+      // Fence validation deliberately precedes duplicate detection.
+      const slotPath = this.#slotPath(input.runKey);
+      if (await exists(slotPath)) {
+        const existing = await readRegularFile(
+          slotPath,
+          this.#limits.maximumArtifactBytes,
+        );
+        const parsed = parseSlotCommit(
+          existing,
+          this.#limits.maximumArtifactsPerSlot,
+        );
+        if (!equalBytes(existing, encodeCanonical(parsed)))
+          fail("slot commit is not canonical");
+        if (!equalBytes(existing, commitBytes))
+          fail("slot commit conflicts with existing runKey");
+        for (const digest of [sha256, provenanceSha256]) {
+          const content = await readRegularFile(
+            this.#contentPath(digest),
+            this.#limits.maximumArtifactBytes,
+          );
+          if (digestBytes(content) !== digest)
+            fail("content-addressed artifact is corrupt");
+        }
+        return "duplicate";
+      }
+
+      const contentPath = this.#contentPath(sha256);
+      const contentExists = await exists(contentPath);
+      const provenancePath = this.#contentPath(provenanceSha256);
+      const provenanceExists = await exists(provenancePath);
+      await this.#reserveFiles(
+        1 + (contentExists ? 0 : 1) + (provenanceExists ? 0 : 1),
+      );
+      if (contentExists) {
+        const existing = await readRegularFile(
+          contentPath,
+          this.#limits.maximumArtifactBytes,
+        );
+        if (digestBytes(existing) !== sha256)
+          fail("content-addressed artifact is corrupt");
+      } else await publishNoReplace(contentPath, bytes);
+      if (provenanceExists) {
+        const existing = await readRegularFile(
+          provenancePath,
+          this.#limits.maximumArtifactBytes,
+        );
+        if (digestBytes(existing) !== provenanceSha256)
+          fail("content-addressed artifact is corrupt");
+      } else await publishNoReplace(provenancePath, provenanceBytes);
+      await publishNoReplace(slotPath, commitBytes);
       return "committed";
     });
   }
@@ -912,6 +1234,73 @@ function assertExecutionState(
   assertBundleDigest(record.registrationDigest);
   assertBundleDigest(record.executionDigest);
   return value as CollectiveStatisticalCampaignExecutionStateV1;
+}
+
+function normalizeFence(
+  value: unknown,
+): CollectiveStatisticalCampaignExecutionFenceV1 {
+  exactObject(
+    value,
+    ["expiresAtMs", "generation", "leaseToken", "workerId"],
+    "execution fence",
+  );
+  const fence = value as Record<string, unknown>;
+  assertToken(fence.workerId, "fence workerId");
+  assertToken(fence.leaseToken, "fence leaseToken");
+  if (
+    !Number.isSafeInteger(fence.generation) ||
+    (fence.generation as number) < 1 ||
+    !Number.isSafeInteger(fence.expiresAtMs) ||
+    (fence.expiresAtMs as number) < 0
+  )
+    fail("execution fence is invalid");
+  return Object.freeze({
+    workerId: fence.workerId,
+    leaseToken: fence.leaseToken,
+    generation: fence.generation,
+    expiresAtMs: fence.expiresAtMs,
+  }) as CollectiveStatisticalCampaignExecutionFenceV1;
+}
+
+function sameStoredFence(
+  left: CollectiveStatisticalCampaignExecutionFenceV1,
+  right: CollectiveStatisticalCampaignExecutionFenceV1,
+): boolean {
+  return (
+    left.workerId === right.workerId &&
+    left.leaseToken === right.leaseToken &&
+    left.generation === right.generation &&
+    left.expiresAtMs === right.expiresAtMs
+  );
+}
+
+function activeStoredFence(
+  state: CollectiveStatisticalCampaignExecutionStateV1,
+  cellId: string,
+  runKey: string,
+  fence: CollectiveStatisticalCampaignExecutionFenceV1,
+  nowMs: number,
+): boolean {
+  const cell = state.cells.find((candidate) => candidate.cellId === cellId);
+  const current = cell?.lease;
+  const slot = cell?.runs.find((candidate) => candidate.runKey === runKey);
+  return (
+    cell?.status === "running" &&
+    slot?.status === "running" &&
+    current !== null &&
+    current !== undefined &&
+    current.workerId === fence.workerId &&
+    current.leaseToken === fence.leaseToken &&
+    current.generation === fence.generation &&
+    current.expiresAtMs === fence.expiresAtMs &&
+    current.expiresAtMs > nowMs
+  );
+}
+
+function localClock(clockSource: () => number): number {
+  const value = clockSource();
+  if (!Number.isSafeInteger(value) || value < 0) fail("clock is invalid");
+  return value;
 }
 
 function parseExecutionState(

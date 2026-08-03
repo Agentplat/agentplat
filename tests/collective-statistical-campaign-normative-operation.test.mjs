@@ -98,11 +98,10 @@ function descriptor(runnerClass = "normative_candidate") {
     },
   });
 }
-function writer() {
+function writer(onWrite = () => undefined) {
   const values = new Map();
-  return {
-    schemaVersion: 1,
-    async putArtifactV1({ artifactId, kind, bytes }) {
+  const put = async ({ artifactId, kind, bytes }) => {
+    onWrite(artifactId);
       const parts = [];
       for await (const p of bytes) parts.push(p);
       const raw = Buffer.concat(parts);
@@ -122,6 +121,14 @@ function writer() {
           value,
         ),
       });
+  };
+  return {
+    schemaVersion: 1,
+    putArtifactV1: put,
+    async putArtifactBeforeDeadlineV1(input) {
+      const { operationExpiresAtMs: _operationExpiresAtMs, ...artifact } =
+        input;
+      return put(artifact);
     },
   };
 }
@@ -243,6 +250,7 @@ function fixture(change = {}) {
 }
 async function run(change = {}) {
   const x = fixture(change);
+  const now = change.now || (() => Date.parse("2026-08-03T01:00:00Z"));
   return runCollectiveStatisticalCampaignNormativeOperationV1({
     schemaVersion: 1,
     registration: x.r,
@@ -262,9 +270,11 @@ async function run(change = {}) {
     shardIndex: change.shardIndex ?? 0,
     workerId: "worker:test",
     leaseDurationMs: 1000,
-    store: createMemoryCollectiveStatisticalCampaignExecutionStoreV1(),
-    artifacts: writer(),
-    now: () => Date.parse("2026-08-03T01:00:00Z"),
+    store:
+      change.store ||
+      createMemoryCollectiveStatisticalCampaignExecutionStoreV1(now),
+    artifacts: change.artifacts || writer(),
+    now,
     adapterResolver: change.adapterResolver || {
       schemaVersion: 1,
       resolveRegisteredAdapterV1: (binding) => {
@@ -281,19 +291,21 @@ async function run(change = {}) {
               status: "passed",
               reasonCode: null,
               outcome: { runner },
-              traceRecords: [{ event: "terminal" }],
+              traceRecords: change.traceRecords || [{ event: "terminal" }],
               ledgerRecords: [],
               observations: [],
             }),
           },
           projector: {
             schemaVersion: 1,
-            projectV1: ({ execution }) =>
-              projection(
+            projectV1: ({ execution }) => {
+              change.onProject?.(execution);
+              return projection(
                 execution,
                 x.r,
                 change.projectionChange?.(execution) || {},
-              ),
+              );
+            },
           },
         };
       },
@@ -306,6 +318,16 @@ test("runs only the exact contiguous five-cell shard and closes twenty evaluator
   assert.equal(result.selectedCellCount, 5);
   assert.equal(result.projectionCount, 20);
   assert.equal(result.projectionArtifactIndexes.length, 20);
+});
+test("replay validation accepts bounded execution evidence above the generic JSON limit", async () => {
+  const traceRecords = Array.from({ length: 2_000 }, (_, index) => ({
+    event: `terminal:${String(index).padStart(4, "0")}:${"x".repeat(128)}`,
+  }));
+  assert.ok(JSON.stringify(traceRecords).length > 262_144);
+
+  const result = await run({ traceRecords });
+  assert.equal(result.projectionCount, 20);
+  assert.equal(result.executedSlotCount, 20);
 });
 test("resolves the signed adapter through the trusted registry before mutation", async () => {
   let lookup;
@@ -378,6 +400,27 @@ test("rejects non-normative adapters before runner execution", async () => {
   });
   await assert.rejects(run({ ...x, plan }), /adapter_not_normative/u);
 });
+test("rejects a legacy execution store before resolving the normative adapter", async () => {
+  const memory = createMemoryCollectiveStatisticalCampaignExecutionStoreV1();
+  const legacy = {
+    schemaVersion: 1,
+    readExecutionStateV1: memory.readExecutionStateV1,
+    compareAndSwapExecutionStateV1: memory.compareAndSwapExecutionStateV1,
+    readExecutionsV1: memory.readExecutionsV1,
+    commitExecutionV1: memory.commitExecutionV1,
+  };
+  let resolved = false;
+  await assert.rejects(
+    run({
+      store: legacy,
+      onResolve() {
+        resolved = true;
+      },
+    }),
+    /port_invalid/u,
+  );
+  assert.equal(resolved, false);
+});
 test("rejects authorization/source expiry, wrong shard, invalid projection, and replay divergence", async () => {
   const x = fixture();
   const { authorizationDigest, ...body } = x.auth;
@@ -389,6 +432,39 @@ test("rejects authorization/source expiry, wrong shard, invalid projection, and 
     run({ auth: expired }),
     /not valid|authorization_invalid/u,
   );
+  const { authorizationDigest: _activeDigest, ...activeBody } = x.auth;
+  const expiresDuringExecution = createNormativeOperationAuthorizationV1({
+    ...activeBody,
+    expiresAt: "2026-08-03T01:00:00.003Z",
+  });
+  let logicalNow = Date.parse("2026-08-03T01:00:00.000Z");
+  await assert.rejects(
+    run({
+      auth: expiresDuringExecution,
+      now: () => logicalNow++,
+    }),
+    /operation_authorization_expired|operation_expiry|stale_fence/u,
+  );
+  let projectionStarted = false;
+  let artifactWrites = 0;
+  await assert.rejects(
+    run({
+      now: () =>
+        Date.parse(
+          projectionStarted
+            ? "2026-08-04T00:00:00.000Z"
+            : "2026-08-03T01:00:00.000Z",
+        ),
+      onProject() {
+        projectionStarted = true;
+      },
+      artifacts: writer(() => {
+        artifactWrites += 1;
+      }),
+    }),
+    /authorization_expired/u,
+  );
+  assert.equal(artifactWrites, 0);
   await assert.rejects(
     run({
       source: { commit: "b".repeat(40), treeDigest: d("f"), clean: true },

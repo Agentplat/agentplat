@@ -13,6 +13,9 @@ import {
 import {
   COLLECTIVE_NORMATIVE_ANALYSIS_RESAMPLES_V1,
   analyzeCollectiveStatisticalCampaignNormativeV1,
+  createCollectiveStatisticalCampaignNormativeAdapterResolverV1,
+  createCollectiveStatisticalCampaignRegisteredProjectorV1,
+  createCollectiveStatisticalCampaignRegisteredRunnerV1,
   runCollectiveStatisticalCampaignNormativeOperationV1,
 } from "@agentplat/mesh-sim";
 
@@ -106,6 +109,37 @@ assert.equal(
   typeof runCollectiveStatisticalCampaignNormativeOperationV1,
   "function",
 );
+const registeredRunner =
+  createCollectiveStatisticalCampaignRegisteredRunnerV1();
+const registeredProjector =
+  createCollectiveStatisticalCampaignRegisteredProjectorV1(
+    adapter.digests.evaluatorDigest,
+  );
+const registeredResolver =
+  createCollectiveStatisticalCampaignNormativeAdapterResolverV1({
+    schemaVersion: 1,
+    registrations: [
+      {
+        schemaVersion: 1,
+        descriptor: adapter,
+        runner: registeredRunner,
+        projector: registeredProjector,
+        planDigests: [plan.planDigest],
+        authorizationDigests: [digest("0")],
+      },
+    ],
+  });
+const resolved = registeredResolver.resolveRegisteredAdapterV1({
+  schemaVersion: 1,
+  purpose: "collective-statistical-campaign-normative-adapter-v1",
+  descriptorDigest: adapter.descriptorDigest,
+  implementationDigest: adapter.digests.implementationDigest,
+  evaluatorDigest: adapter.digests.evaluatorDigest,
+  planDigest: plan.planDigest,
+  authorizationDigest: digest("0"),
+});
+assert.equal(resolved.runner.executeV1, registeredRunner.executeV1);
+assert.equal(resolved.projector.projectV1, registeredProjector.projectV1);
 
 // Projections are evaluator-owned evidence, not a runner-supplied score.
 const projectedEventIds = ["event:consumer:terminal"];
@@ -206,5 +240,5 @@ const analysis = analyzeCollectiveStatisticalCampaignNormativeV1({
 assert.equal(analysis.decision, "incomplete");
 assert.ok(analysis.reasonCodes.length > 0);
 process.stdout.write(
-  `${JSON.stringify({ status: "passed", campaign: "control-plane-only", cells: plan.expectedCellCount, slots: plan.expectedSlotCount, projectionOwner: projection.projectionOwner, analysis: analysis.decision })}\n`,
+  `${JSON.stringify({ status: "passed", campaign: "control-plane-only", cells: plan.expectedCellCount, slots: plan.expectedSlotCount, registeredAdapter: resolved.descriptorDigest, projectionOwner: projection.projectionOwner, analysis: analysis.decision })}\n`,
 );

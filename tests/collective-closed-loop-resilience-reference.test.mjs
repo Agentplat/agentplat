@@ -105,6 +105,32 @@ test('resilience reference construction is deterministic and binds the recovered
   assert.equal(staleEvent.faultBinding?.scheduleId, '04-peer-restart');
 });
 
+test('non-nominal campaign strata remain bound without widening the nominal definition contract', async () => {
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const [nominal, benign] = await Promise.all([
+    createCollectiveClosedLoopResilienceReferenceScenarioV1({
+      runner: 'adaptive_collective',
+      peerCount: 3,
+      seed: 17,
+      stratum: 'nominal',
+      runtime,
+    }),
+    createCollectiveClosedLoopResilienceReferenceScenarioV1({
+      runner: 'adaptive_collective',
+      peerCount: 3,
+      seed: 17,
+      stratum: 'benign',
+      runtime,
+    }),
+  ]);
+
+  assert.equal(benign.definition.nominalDefinition.registration.stratum, 'nominal');
+  assert.notEqual(
+    benign.definition.nominalDefinition.registration.registrationDigest,
+    nominal.definition.nominalDefinition.registration.registrationDigest
+  );
+});
+
 test('adaptive and centralized reference factories share mission, peers and fault schedule', async () => {
   const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   const [adaptive, centralized] = await Promise.all([

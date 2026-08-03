@@ -68,6 +68,7 @@ import {
   type CollectiveStatisticalCampaignEvidenceV1,
   type CollectiveStatisticalCampaignExecutionArtifactsV1,
   type CollectiveStatisticalCampaignExecutionContextV1,
+  type CollectiveStatisticalCampaignFencedExecutionStoreV1,
   type CollectiveStatisticalCampaignExecutionStoreV1,
   type CollectiveStatisticalCampaignExpectedArtifactV1,
   type CollectiveStatisticalCampaignFaultCoverageV1,
@@ -123,8 +124,7 @@ declare const summaryBody: Omit<
 >;
 
 const schema: typeof COLLECTIVE_EVALUATION_CAMPAIGN_SCHEMA_VERSION_V1 = 1;
-const statisticalSchema: typeof COLLECTIVE_STATISTICAL_CAMPAIGN_SCHEMA_VERSION_V1 =
-  1;
+const statisticalSchema: typeof COLLECTIVE_STATISTICAL_CAMPAIGN_SCHEMA_VERSION_V1 = 1;
 const profile: CollectiveEvaluationCampaignProfileV1 =
   COLLECTIVE_EVALUATION_NORMATIVE_CAMPAIGN_PROFILE_V1;
 const diagnosticProfile: CollectiveEvaluationCampaignProfileV1 =
@@ -233,6 +233,7 @@ void (null as CollectiveStatisticalCampaignAggregationResultV1 | null);
 void (null as CollectiveStatisticalCampaignExecutionArtifactsV1 | null);
 void (null as CollectiveStatisticalCampaignExecutionContextV1 | null);
 void (null as CollectiveStatisticalCampaignExecutionStoreV1 | null);
+void (null as CollectiveStatisticalCampaignFencedExecutionStoreV1 | null);
 void (null as CollectiveStatisticalCampaignShardExecutionInputV1 | null);
 void (null as CollectiveStatisticalCampaignShardExecutionResultV1 | null);
 void digestCollectiveStatisticalCampaignArtifactV1;
@@ -259,8 +260,12 @@ void (null as CollectiveStatisticalCampaignSourceLockV1 | null);
 void (null as CollectiveStatisticalCampaignTopologyEdgeV1 | null);
 void (null as CollectiveStatisticalCampaignTopologyV1 | null);
 
-// @ts-expect-error the campaign ladder is closed to four registered scales.
-createCollectiveStatisticalCampaignTopologyV1({ schemaVersion: 1, agentCount: 51, seed: 0 });
+createCollectiveStatisticalCampaignTopologyV1({
+  schemaVersion: 1,
+  // @ts-expect-error the campaign ladder is closed to four registered scales.
+  agentCount: 51,
+  seed: 0,
+});
 // @ts-expect-error an unregistered runner cannot enter a comparison.
 const invalidRunner: CollectiveStatisticalCampaignRunnerV1 = "oracle";
 // @ts-expect-error campaign registrations are immutable after they are sealed.
