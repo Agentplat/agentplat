@@ -81,7 +81,7 @@ import {
 } from './collective-closed-loop-runner.js';
 
 const MINIMUM_PEERS = 3;
-const MAXIMUM_PEERS = 100;
+const MAXIMUM_PEERS = 500;
 const SEED = 11;
 const MAXIMUM_LOGICAL_TIME_MS = 5_000;
 // The reference mandate remains inside its two-day validity window. Recovery
@@ -123,6 +123,8 @@ export interface CollectiveClosedLoopReferenceRuntimeV1 {
 export interface CreateCollectiveClosedLoopReferenceScenarioInputV1 {
   readonly runner: CollectiveEvaluationRunnerV2;
   readonly peerCount: number;
+  readonly seed?: number;
+  readonly stratum?: 'nominal' | 'benign' | 'adversarial' | 'mixed';
   readonly runtime?: CollectiveClosedLoopReferenceRuntimeV1;
 }
 
@@ -135,6 +137,8 @@ export interface CreateCollectiveClosedLoopReferenceScenarioInputV1 {
 export interface CreateCollectiveClosedLoopResilienceReferenceScenarioInputV1 {
   readonly runner: CollectiveEvaluationRunnerV2;
   readonly peerCount: number;
+  readonly seed?: number;
+  readonly stratum?: 'nominal' | 'benign' | 'adversarial' | 'mixed';
   readonly runtime?: CollectiveClosedLoopReferenceRuntimeV1;
 }
 
@@ -205,6 +209,8 @@ export async function createCollectiveClosedLoopReferenceScenarioV1(
 ): Promise<CollectiveClosedLoopExecutionInputV1> {
   assertRunner(input.runner);
   assertPeerCount(input.peerCount);
+  const seed = referenceSeed(input.seed);
+  const stratum = referenceStratum(input.stratum);
   const runtimeHandles =
     input.runtime ??
     (await createCollectiveClosedLoopReferenceRuntimeV1(input.peerCount));
@@ -260,7 +266,7 @@ export async function createCollectiveClosedLoopReferenceScenarioV1(
     planningProposal,
     planningMode: input.runner,
     runner: runtime,
-    seed: SEED,
+    seed,
     maximumLogicalTimeMs: MAXIMUM_LOGICAL_TIME_MS,
   });
   const actionLogicalTimeMs = preflight.logicalTimeMs + 1;
@@ -322,6 +328,9 @@ export async function createCollectiveClosedLoopReferenceScenarioV1(
   const registrationDigest = digest({
     registration: 'closed-loop-reference',
     runner: input.runner,
+    peerCount: input.peerCount,
+    seed,
+    stratum,
   });
   const monitorPolicy = createCollectiveInvariantMonitorPolicyV1({
     schemaVersion: 1,
@@ -344,8 +353,8 @@ export async function createCollectiveClosedLoopReferenceScenarioV1(
     intentRevision: missionIntent.revision,
     intentDigest: missionIntent.intentDigest,
     runner: input.runner,
-    stratum: 'nominal',
-    seed: SEED,
+    stratum,
+    seed,
     environmentDigest: collectiveDeterministicEnvironmentDigestV1(
       environmentDefinition
     ),
@@ -412,7 +421,12 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
 ): Promise<CollectiveClosedLoopResilienceExecutionInputV1> {
   assertRunner(input.runner);
   assertPeerCount(input.peerCount);
-  const nominal = await createCollectiveClosedLoopReferenceScenarioV1(input);
+  const seed = referenceSeed(input.seed);
+  const stratum = referenceStratum(input.stratum);
+  const nominal = await createCollectiveClosedLoopReferenceScenarioV1({
+    ...input,
+    stratum: 'nominal',
+  });
   const nominalDefinition = nominal.definition;
   const peerIds = nominalDefinition.peers.map((peer) => peer.peerId);
   const owner = nominalDefinition.peers[0];
@@ -443,7 +457,7 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
     planningProposal,
     planningMode: input.runner,
     runner: nominal.runtime,
-    seed: SEED,
+    seed,
     maximumLogicalTimeMs: MAXIMUM_LOGICAL_TIME_MS,
   });
   const replacementPeerId = nominalDefinition.peers.find(
@@ -544,6 +558,9 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
   const registrationDigest = digest({
     registration: 'closed-loop-resilience-reference',
     campaign: 'paired-reference-v1',
+    peerCount: input.peerCount,
+    seed,
+    stratum,
   });
   const monitorPolicy = createCollectiveInvariantMonitorPolicyV1({
     schemaVersion: 1,
@@ -566,8 +583,11 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
     intentRevision: nominalDefinition.missionIntent.revision,
     intentDigest: nominalDefinition.missionIntent.intentDigest,
     runner: input.runner,
+    // The resilience definition wraps a nominal closed-loop definition. The
+    // target statistical stratum remains bound by registrationDigest, the
+    // fault plan and the outer campaign cell.
     stratum: 'nominal',
-    seed: SEED,
+    seed,
     environmentDigest: collectiveDeterministicEnvironmentDigestV1(
       environmentDefinition
     ),
@@ -616,6 +636,7 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
     failedWinnerPeerId: preflight.winnerPeerId,
     replacementPeerId,
     faultPlan: definition.faultPlan.faults,
+    seed,
   });
 
   return Object.freeze({
@@ -774,6 +795,7 @@ function resilienceFaultMatrixPortFor(input: {
   readonly ownerPeerId: string;
   readonly failedWinnerPeerId: string;
   readonly replacementPeerId: string;
+  readonly seed: number;
   readonly faultPlan: readonly {
     readonly faultId: string;
     readonly family: string;
@@ -827,7 +849,7 @@ function resilienceFaultMatrixPortFor(input: {
     scenario: {
       schemaVersion: 1 as const,
       scenarioId: 'closed-loop-resilience-reference-fault-matrix-v1',
-      seed: SEED,
+      seed: input.seed,
       prngVersion: 'xorshift32-v1' as const,
       peers: input.peerIds.map((peerId) => ({
         peerId,
@@ -1204,6 +1226,22 @@ function assertPeerCount(value: number): void {
     value > MAXIMUM_PEERS
   )
     throw new RangeError('closed_loop_reference_peer_count_invalid');
+}
+
+function referenceSeed(value: number | undefined): number {
+  const seed = value ?? SEED;
+  if (!Number.isSafeInteger(seed) || seed < 0)
+    throw new TypeError('closed_loop_reference_seed_invalid');
+  return seed;
+}
+
+function referenceStratum(
+  value: 'nominal' | 'benign' | 'adversarial' | 'mixed' | undefined
+): 'nominal' | 'benign' | 'adversarial' | 'mixed' {
+  const stratum = value ?? 'nominal';
+  if (!['nominal', 'benign', 'adversarial', 'mixed'].includes(stratum))
+    throw new TypeError('closed_loop_reference_stratum_invalid');
+  return stratum;
 }
 
 function peerIdsFor(peerCount: number): readonly string[] {

@@ -30,9 +30,17 @@ import {
 import {
   runCollectiveStatisticalCampaignShardV1,
   type CollectiveStatisticalCampaignExecutionContextV1,
-  type CollectiveStatisticalCampaignExecutionStoreV1,
+  type CollectiveStatisticalCampaignFencedExecutionStoreV1,
 } from "./collective-statistical-campaign-executor.js";
-import type { CollectiveStatisticalCampaignArtifactWriterV1 } from "./collective-statistical-campaign-artifact-stream.js";
+import type { CollectiveStatisticalCampaignDeadlineArtifactWriterV1 } from "./collective-statistical-campaign-artifact-stream.js";
+
+const NORMATIVE_REPLAY_JSON_LIMITS = Object.freeze({
+  maximumBytes: COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1,
+  maximumDepth: 64,
+  maximumNodes: 1_000_000,
+  maximumKeysPerObject: 4_096,
+  maximumItemsPerArray: 16_384,
+});
 
 export interface CollectiveStatisticalCampaignNormativeRunnerPortV1 {
   readonly schemaVersion: 1;
@@ -151,8 +159,8 @@ export async function runCollectiveStatisticalCampaignNormativeOperationV1(input
   readonly shardIndex: number;
   readonly workerId: string;
   readonly leaseDurationMs: number;
-  readonly store: CollectiveStatisticalCampaignExecutionStoreV1;
-  readonly artifacts: CollectiveStatisticalCampaignArtifactWriterV1;
+  readonly store: CollectiveStatisticalCampaignFencedExecutionStoreV1;
+  readonly artifacts: CollectiveStatisticalCampaignDeadlineArtifactWriterV1;
   readonly adapterResolver: CollectiveStatisticalCampaignNormativeAdapterResolverPortV1;
   readonly now: () => number;
 }): Promise<CollectiveStatisticalCampaignNormativeOperationResultV1> {
@@ -238,6 +246,7 @@ export async function runCollectiveStatisticalCampaignNormativeOperationV1(input
       plan,
       authorization,
     });
+  const operationExpiresAtMs = Date.parse(authorization.expiresAt);
 
   const shardResult = await runCollectiveStatisticalCampaignShardV1({
     schemaVersion: 1,
@@ -248,6 +257,7 @@ export async function runCollectiveStatisticalCampaignNormativeOperationV1(input
     cellIds: shard.cellIds,
     leaseDurationMs: input.leaseDurationMs,
     maximumCells: 5,
+    operationExpiresAtMs,
     store: input.store,
     now: input.now,
     execute: (context) => resolvedAdapter.runner.executeV1(context),
@@ -262,6 +272,7 @@ export async function runCollectiveStatisticalCampaignNormativeOperationV1(input
   const indexes: CollectiveStatisticalCampaignArtifactIndexEntryV1[] = [];
   const byReplay = new Map<string, string>();
   for (const execution of shardResult.executions) {
+    assertOperationActive(input.now, operationExpiresAtMs);
     const projection = validateNormativeMetricProjectionV1(
       await resolvedAdapter.projector.projectV1({
         schemaVersion: 1,
@@ -277,24 +288,29 @@ export async function runCollectiveStatisticalCampaignNormativeOperationV1(input
       projection,
     );
     const pairKey = `${execution.cellId}\u0000${execution.runner}`;
-    const replaySignature = canonicalizePlanningJsonV1({
-      sampleDigest: execution.sample.sampleDigest,
-      traceRecords: execution.trace.records,
-      ledgerRecords: execution.ledger.records,
-      observations: execution.evidence.observations,
-      projection: replayStableProjection(projection),
-    } as unknown as PlanningJson);
+    const replaySignature = canonicalizePlanningJsonV1(
+      {
+        sampleDigest: execution.sample.sampleDigest,
+        traceRecords: execution.trace.records,
+        ledgerRecords: execution.ledger.records,
+        observations: execution.evidence.observations,
+        projection: replayStableProjection(projection),
+      } as unknown as PlanningJson,
+      NORMATIVE_REPLAY_JSON_LIMITS,
+    );
     const first = byReplay.get(pairKey);
     if (execution.attempt === "first") byReplay.set(pairKey, replaySignature);
     else if (!first || first !== replaySignature) fail("replay_diverged");
     const bytes = new TextEncoder().encode(
       canonicalizePlanningJsonV1(projection as unknown as PlanningJson),
     );
+    assertOperationActive(input.now, operationExpiresAtMs);
     indexes.push(
-      await input.artifacts.putArtifactV1({
+      await input.artifacts.putArtifactBeforeDeadlineV1({
         artifactId: `metric-projection:${operationExecutionId}:${execution.cellId}:${execution.runner}:${execution.attempt}`,
         kind: "metric-projection",
         bytes: single(bytes),
+        operationExpiresAtMs,
         maximumBytes: Math.min(
           descriptor.limits.maximumArtifactBytesPerExecution,
           COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1,
@@ -338,11 +354,33 @@ function validatePorts(
       "function" ||
     typeof input.authorizationAudience !== "string" ||
     input.authorizationAudience.length === 0 ||
+    !input.store ||
+    input.store.schemaVersion !== 1 ||
+    typeof input.store.readExecutionStateV1 !== "function" ||
+    typeof input.store.compareAndSwapExecutionStateV1 !== "function" ||
+    typeof input.store.compareAndSwapExecutionStateWithDeadlineV1 !==
+      "function" ||
+    typeof input.store.readExecutionsV1 !== "function" ||
+    typeof input.store.commitExecutionV1 !== "function" ||
+    typeof input.store.readExecutionWithFenceV1 !== "function" ||
+    typeof input.store.commitExecutionWithFenceV1 !== "function" ||
     !input.artifacts ||
     input.artifacts.schemaVersion !== 1 ||
-    typeof input.artifacts.putArtifactV1 !== "function"
+    typeof input.artifacts.putArtifactV1 !== "function" ||
+    typeof input.artifacts.putArtifactBeforeDeadlineV1 !== "function"
   )
     fail("port_invalid");
+}
+
+function assertOperationActive(now: () => number, expiresAtMs: number): void {
+  const current = now();
+  if (
+    !Number.isSafeInteger(current) ||
+    current < 0 ||
+    !Number.isSafeInteger(expiresAtMs) ||
+    current >= expiresAtMs
+  )
+    fail("authorization_expired");
 }
 
 function validateResolvedAdapter(

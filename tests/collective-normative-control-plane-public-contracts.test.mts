@@ -37,6 +37,9 @@ import {
   collectiveNormativeWilson95V1,
   collectiveNormativeWilsonLower95V1,
   collectiveStatisticalCampaignNormativeExecutionIdV1,
+  createCollectiveStatisticalCampaignNormativeAdapterResolverV1,
+  createCollectiveStatisticalCampaignRegisteredProjectorV1,
+  createCollectiveStatisticalCampaignRegisteredRunnerV1,
   mapCollectiveNormativeProjectionRowsV1,
   runCollectiveStatisticalCampaignNormativeOperationV1,
   verifyCollectiveStatisticalCampaignArtifactStreamV1,
@@ -44,8 +47,13 @@ import {
   type CollectiveNormativeAnalysisV1,
   type CollectiveNormativeCampaignRowV1,
   type CollectiveStatisticalCampaignArtifactReaderV1,
+  type CollectiveStatisticalCampaignDeadlineArtifactWriterV1,
+  type CollectiveStatisticalCampaignExecutionStoreV1,
+  type CollectiveStatisticalCampaignFencedExecutionStoreV1,
   type CollectiveStatisticalCampaignNormativeOperationResultV1,
   type CollectiveStatisticalCampaignNormativeAdapterResolverPortV1,
+  type CollectiveStatisticalCampaignNormativeAdapterRegistrationV1,
+  type CollectiveStatisticalCampaignNormativeAdapterRegistryV1,
   type CollectiveStatisticalCampaignNormativeProjectionPortV1,
   type CollectiveStatisticalCampaignResolvedNormativeAdapterV1,
   type CollectiveStatisticalCampaignNormativeRunnerPortV1,
@@ -87,6 +95,12 @@ declare const rows: readonly CollectiveNormativeCampaignRowV1[];
 declare const registration: CollectiveEvaluationCampaignRegistrationV1;
 declare const projections: readonly NormativeMetricProjectionV1[];
 declare const reader: CollectiveStatisticalCampaignArtifactReaderV1;
+declare const legacyExecutionStore: CollectiveStatisticalCampaignExecutionStoreV1;
+
+const fencedExecutionStore: CollectiveStatisticalCampaignFencedExecutionStoreV1 =
+  operationInput.store;
+// @ts-expect-error normative operations require atomic fence-aware commits.
+const invalidNormativeStore: typeof operationInput.store = legacyExecutionStore;
 
 const analysisInput: CollectiveNormativeAnalysisInputV1 = {
   schemaVersion: COLLECTIVE_NORMATIVE_ANALYSIS_VERSION_V1,
@@ -167,6 +181,7 @@ void attestationInput;
 void closureProofInput;
 void analysis;
 void streamVerification;
+void (null as CollectiveStatisticalCampaignDeadlineArtifactWriterV1 | null);
 void operation;
 void operationExecutionId;
 void authorizationVerification;
@@ -176,3 +191,10 @@ void normativeRunner;
 void normativeProjector;
 void adapterResolver;
 void resolvedAdapter;
+void createCollectiveStatisticalCampaignNormativeAdapterResolverV1;
+void createCollectiveStatisticalCampaignRegisteredProjectorV1;
+void createCollectiveStatisticalCampaignRegisteredRunnerV1;
+void (null as CollectiveStatisticalCampaignNormativeAdapterRegistrationV1 | null);
+void (null as CollectiveStatisticalCampaignNormativeAdapterRegistryV1 | null);
+void fencedExecutionStore;
+void invalidNormativeStore;

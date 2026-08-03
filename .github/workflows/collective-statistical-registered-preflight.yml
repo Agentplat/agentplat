@@ -1,0 +1,280 @@
+name: Collective statistical registered preflight (protected)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan safely or execute the bounded registered preflight.
+        required: true
+        default: plan
+        type: choice
+        options: [plan, preflight]
+      confirm:
+        description: Exact confirmation; the preflight never enables the complete campaign.
+        required: true
+        default: DO_NOT_RUN
+        type: choice
+        options: [DO_NOT_RUN, RUN_REGISTERED_PREFLIGHT_5X4]
+      campaign_id:
+        description: Immutable operator campaign identifier.
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-hex commit at the dispatched protected main ref.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collective-registered-preflight-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      source_sha: ${{ steps.source.outputs.source_sha }}
+      registration_digest: ${{ steps.plan.outputs.registration_digest }}
+      plan_digest: ${{ steps.plan.outputs.plan_digest }}
+      adapter_digest: ${{ steps.plan.outputs.adapter_digest }}
+    steps:
+      - id: source
+        name: Validate immutable source and closed operation
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CONFIRM: ${{ inputs.confirm }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$SOURCE_SHA" == "$GITHUB_SHA" ]]
+          if [[ "$OPERATION" == "plan" ]]; then
+            [[ "$CONFIRM" == "DO_NOT_RUN" ]]
+          else
+            [[ "$OPERATION" == "preflight" ]]
+            [[ "$CONFIRM" == "RUN_REGISTERED_PREFLIGHT_5X4" ]]
+          fi
+          printf 'source_sha=%s\n' "$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.source.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Recheck exact clean source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=all)" ]]
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build registered runtime and durable adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/mesh-sim-postgres... build
+      - id: plan
+        name: Write immutable plan and cost ceiling only
+        shell: bash
+        env:
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode plan --confirm DO_NOT_RUN \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --output-directory registered-preflight-plan
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("registered-preflight-plan/registration.json","utf8")); const p=JSON.parse(fs.readFileSync("registered-preflight-plan/operation-plan.json","utf8")); const a=JSON.parse(fs.readFileSync("registered-preflight-plan/adapter-descriptor.json","utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`registration_digest=${r.registrationDigest}\nplan_digest=${p.planDigest}\nadapter_digest=${a.descriptorDigest}\n`);'
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: registered-preflight-plan
+          if-no-files-found: error
+          retention-days: 30
+
+  execution-gate:
+    if: ${{ inputs.operation == 'preflight' }}
+    needs: plan
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      adapter_registered: ${{ steps.gate.outputs.adapter_registered }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build registered runtime and durable adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/mesh-sim-postgres... build
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: registered-preflight-plan
+      - id: gate
+        name: Resolve the allowlisted adapter without executing it
+        shell: bash
+        env:
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode validate --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --registration-directory registered-preflight-plan \
+            --output-directory registered-preflight-gate
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("registered-preflight-gate/adapter-validation-receipt.json","utf8")); if(r.status!=="accepted"||r.adapterRegistered!==true||r.executionPermitted!==false) process.exit(2); fs.appendFileSync(process.env.GITHUB_OUTPUT,"adapter_registered=true\n");'
+      - name: Upload adapter validation receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-registered-preflight-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: registered-preflight-gate
+          if-no-files-found: error
+          retention-days: 30
+
+  preflight:
+    if: ${{ needs.execution-gate.result == 'success' && needs.execution-gate.outputs.adapter_registered == 'true' }}
+    needs: [plan, execution-gate]
+    environment: normative-campaign-protected
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    services:
+      postgres:
+        image: postgres:16.14-alpine3.24@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_USER: preflight
+          POSTGRES_PASSWORD: ${{ secrets.AGENTPLAT_PREFLIGHT_DATABASE_PASSWORD }}
+          POSTGRES_DB: agentplat_preflight
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U preflight -d agentplat_preflight"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+          cache: pnpm
+      - name: Build registered runtime and durable adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @agentplat/mesh-sim-postgres... build
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: collective-registered-preflight-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: registered-preflight-plan
+      - name: Preload the digest-pinned isolated runner
+        shell: bash
+        run: >-
+          docker pull
+          node:20.19.3-bookworm-slim@sha256:fa43945ad45c5f8c50dbea0633d888ddeb739f7d4e06c7696a9d68b54054238a
+      - name: Issue a shard-scoped detached authorization
+        shell: bash
+        env:
+          AGENTPLAT_PREFLIGHT_SIGNING_PRIVATE_KEY_B64: ${{ secrets.AGENTPLAT_PREFLIGHT_SIGNING_PRIVATE_KEY_B64 }}
+          AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64: ${{ vars.AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64 }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          AUTHORIZATION_ID: ${{ format('authorization:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+          EXECUTION_ID: ${{ format('preflight:{0}:attempt:{1}', github.run_id, github.run_attempt) }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode authorize --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --registration-directory registered-preflight-plan \
+            --authorization-id "$AUTHORIZATION_ID" \
+            --execution-id "$EXECUTION_ID" \
+            --output-directory registered-preflight-authorization
+      - name: Execute the exact five-cell preflight
+        shell: bash
+        env:
+          AGENTPLAT_PREFLIGHT_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_preflight
+          AGENTPLAT_PREFLIGHT_DATABASE_USER: preflight
+          AGENTPLAT_PREFLIGHT_DATABASE_PASSWORD: ${{ secrets.AGENTPLAT_PREFLIGHT_DATABASE_PASSWORD }}
+          AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64: ${{ vars.AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64 }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          WORKER_ID: ${{ format('worker:{0}:{1}:first', github.run_id, github.run_attempt) }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode execute --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --registration-directory registered-preflight-plan \
+            --authorization-directory registered-preflight-authorization \
+            --worker-id "$WORKER_ID" \
+            --output-directory registered-preflight-results
+      - name: Resume from a fresh process without re-executing slots
+        shell: bash
+        env:
+          AGENTPLAT_PREFLIGHT_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_preflight
+          AGENTPLAT_PREFLIGHT_DATABASE_USER: preflight
+          AGENTPLAT_PREFLIGHT_DATABASE_PASSWORD: ${{ secrets.AGENTPLAT_PREFLIGHT_DATABASE_PASSWORD }}
+          AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64: ${{ vars.AGENTPLAT_PREFLIGHT_TRUSTED_PUBLIC_KEY_B64 }}
+          CAMPAIGN_ID: ${{ inputs.campaign_id }}
+          SOURCE_SHA: ${{ needs.plan.outputs.source_sha }}
+          WORKER_ID: ${{ format('worker:{0}:{1}:resume', github.run_id, github.run_attempt) }}
+        run: |
+          set -euo pipefail
+          node scripts/collective-beta3-registered-preflight.mjs \
+            --mode execute --confirm RUN_REGISTERED_PREFLIGHT_5X4 \
+            --campaign-id "$CAMPAIGN_ID" \
+            --source-sha "$SOURCE_SHA" \
+            --registration-directory registered-preflight-plan \
+            --authorization-directory registered-preflight-authorization \
+            --worker-id "$WORKER_ID" \
+            --output-directory registered-preflight-results
+      - name: Verify execution and recovery receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const fs=require("node:fs"); const files=fs.readdirSync("registered-preflight-results").filter(x=>x.startsWith("preflight-receipt-")).sort(); if(files.length!==2) process.exit(2); const rows=files.map(x=>JSON.parse(fs.readFileSync(`registered-preflight-results/${x}`,"utf8"))); const first=rows.find(x=>x.executedSlotCount===20&&x.resumedSlotCount===0); const resumed=rows.find(x=>x.executedSlotCount===0&&x.resumedSlotCount===20); if(!first||!resumed||first.executionId!==resumed.executionId||first.projectionRoot!==resumed.projectionRoot||rows.some(x=>x.projectionCount!==20||x.verifiedArtifactCount!==20||x.fullCampaignPermitted!==false||x.releaseEvidence!==false)) process.exit(2);'
+      - name: Upload public preflight receipts only
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: collective-registered-preflight-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            registered-preflight-authorization/authorization-receipt.json
+            registered-preflight-results/preflight-receipt-*.json
+          if-no-files-found: error
+          retention-days: 30

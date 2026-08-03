@@ -1,11 +1,14 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increments 0 through 10 are complete at the open-core implementation
+Status: Increments 0 through 11 are complete at the open-core implementation
 boundary. Increment 9 added the bounded diagnostic executor and local durable
 adapter; Increment 10 adds the protected, fail-closed normative control plane,
-independent analysis and evidence custody. Their implementation evidence is
+independent analysis and evidence custody; Increment 11 adds a registered
+provider-neutral runtime, transactional cross-host custody and a bounded
+protected preflight. Their implementation evidence is
 recorded in the [Increment 9 review](beta-3-increment-9-review.md) and
-[Increment 10 review](beta-3-increment-10-review.md). Execution of the real
+[Increment 10 review](beta-3-increment-10-review.md), with the final review in
+[Increment 11](beta-3-increment-11-review.md). Execution of the complete
 normative statistical campaign and release publication remain open. Every
 unchecked item remains release-blocking unless it is explicitly labeled
 diagnostic or deferred.
@@ -135,7 +138,7 @@ diagnostic or deferred.
 - [x] Every claimed fault has scheduled, injected and observed events.
 - [x] Missing/extra fault records invalidate the bounded resilience result and
       campaign evidence; full multi-seed campaign validation remains open.
-- [ ] Mission/safety failure cannot be reclassified as infrastructure invalid.
+- [x] Mission/safety failure cannot be reclassified as infrastructure invalid.
 - [x] Nominal collective and centralized runners bind the same public intent,
       per-peer observations, policy, protected-effect boundary and no faults.
 - [x] Centralized nominal mode receives no evaluator hidden state and accounts
@@ -187,7 +190,7 @@ started, and no package is published or released by this capability.
 - [x] Streaming custody applies non-overridable artifact, byte and chunk caps
       and commits each logical path as part of its immutable semantic binding.
 
-- [ ] Registrations are frozen before normative execution.
+- [x] Registrations are frozen before normative execution.
 - [ ] Ladder completes at 50, 100, 250 and exactly 500 agents.
 - [ ] Every sample stays at or below 5,000 event-derived interactions.
 - [ ] At least 30 paired seeds per runner/stratum run at 500 agents.
@@ -240,9 +243,9 @@ started, and no package is published or released by this capability.
 
 ## Packaging and release
 
-- [x] Root and all 37 public packages use exactly `0.3.0-beta.3`.
+- [x] Root and all 39 public packages use exactly `0.3.0-beta.3`.
 - [x] Clean build, type, unit, adapter, conformance and campaign gates pass.
-- [x] All 37 isolated tarballs and public export subpaths install under pnpm and
+- [x] All 39 isolated tarballs and public export subpaths install under pnpm and
       npm without workspace links.
 - [ ] Portable Node 20, portable Node 22 and PostgreSQL durable registry
       consumers pass.

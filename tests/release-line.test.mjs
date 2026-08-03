@@ -46,14 +46,14 @@ test('release-line guard accepts the coordinated 36-package Beta 2 cohort', asyn
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test('release-line guard accepts the coordinated 38-package Beta 3 cohort', async (t) => {
+test('release-line guard accepts the coordinated 39-package Beta 3 cohort', async (t) => {
   const root = await createReleaseLineFixture({ line: BETA_3 });
   t.after(() => rm(root, { force: true, recursive: true }));
 
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test('release-line guard rejects Beta 2 versions in a 38-package cohort', async (t) => {
+test('release-line guard rejects Beta 2 versions in a 39-package cohort', async (t) => {
   const root = await createReleaseLineFixture({
     line: BETA_3,
     version: BETA_2.releaseVersion,
@@ -66,10 +66,10 @@ test('release-line guard rejects Beta 2 versions in a 38-package cohort', async 
   );
 });
 
-test('release-line guard rejects a 38-package Beta 2 cohort', async (t) => {
+test('release-line guard rejects a 39-package Beta 2 cohort', async (t) => {
   const root = await createReleaseLineFixture({
     line: BETA_2,
-    packageCount: 38,
+    packageCount: 39,
   });
   t.after(() => rm(root, { force: true, recursive: true }));
 

@@ -34,6 +34,19 @@ export interface CollectiveStatisticalCampaignArtifactWriterV1 {
   }): Promise<CollectiveStatisticalCampaignArtifactIndexEntryV1>;
 }
 
+/**
+ * Writer used by protected operations. The trusted store clock must reject
+ * the mutation when the exact authorization deadline has been reached.
+ */
+export interface CollectiveStatisticalCampaignDeadlineArtifactWriterV1 extends CollectiveStatisticalCampaignArtifactWriterV1 {
+  putArtifactBeforeDeadlineV1(
+    input: Parameters<
+      CollectiveStatisticalCampaignArtifactWriterV1["putArtifactV1"]
+    >[0] &
+      Readonly<{ operationExpiresAtMs: number }>,
+  ): Promise<CollectiveStatisticalCampaignArtifactIndexEntryV1>;
+}
+
 export interface CollectiveStatisticalCampaignArtifactStreamLimitsV1 {
   readonly maximumArtifacts: number;
   readonly maximumArtifactBytes: number;

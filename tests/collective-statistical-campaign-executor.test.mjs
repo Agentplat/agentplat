@@ -7,6 +7,7 @@ import {
   collectiveEvaluationCampaignProfileCellsV1,
   createCollectiveEvaluationCampaignExecutionV1,
   createCollectiveEvaluationCampaignRegistrationV1,
+  startCollectiveEvaluationRunV1,
 } from "../packages/collective-planning/dist/evaluation.js";
 import {
   createMemoryCollectiveStatisticalCampaignExecutionStoreV1,
@@ -108,7 +109,9 @@ function shardInput(registration, store, index, execute, now = () => 100) {
 
 test("runs disjoint shards and resumes every immutable slot without re-execution", async () => {
   const registration = registrationFixture();
-  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1();
+  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+    () => 100,
+  );
   const calls = [];
   const execute = async (context) => {
     calls.push(context.runKey);
@@ -391,7 +394,9 @@ test("a forced CAS conflict rechecks now before retrying start and settlement", 
 
 test("retains a failed slot while executing the other three slots in its cell", async () => {
   const registration = registrationFixture();
-  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1();
+  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+    () => 100,
+  );
   let calls = 0;
   const result = await runCollectiveStatisticalCampaignShardV1({
     ...shardInput(registration, store, 0, async (context) => {
@@ -415,9 +420,16 @@ test("retains a failed slot while executing the other three slots in its cell", 
   );
 });
 
-test("reconciles a commit written immediately before lease expiry without re-execution", async () => {
+test("legacy store reconciles a commit written immediately before lease expiry without re-execution", async () => {
   const registration = registrationFixture();
-  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1();
+  const memory = createMemoryCollectiveStatisticalCampaignExecutionStoreV1();
+  const store = {
+    schemaVersion: 1,
+    readExecutionStateV1: memory.readExecutionStateV1,
+    compareAndSwapExecutionStateV1: memory.compareAndSwapExecutionStateV1,
+    readExecutionsV1: memory.readExecutionsV1,
+    commitExecutionV1: memory.commitExecutionV1,
+  };
   let currentTime = 0;
   let calls = 0;
   const reconciled = await runCollectiveStatisticalCampaignShardV1({
@@ -513,4 +525,184 @@ test("reads the canonical durable artifact after a duplicate commit", async () =
   assert.equal(result.resumedSlotCount, 1);
   assert.equal(result.failedSlotCount, 1);
   assert.equal(result.executions[0].sample.status, "failed");
+});
+
+test("fenced memory commits reject superseded and exact-expiry workers before duplicate detection", async () => {
+  const registration = registrationFixture();
+  const executionId = "execution:fenced-memory";
+  let currentTime = 0;
+  const store = createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+    () => currentTime,
+  );
+  const initial = createCollectiveEvaluationCampaignExecutionV1({
+    schemaVersion: 1,
+    executionId,
+    registration,
+  });
+  assert.equal(
+    await store.compareAndSwapExecutionStateV1({
+      executionId,
+      expectedExecutionDigest: null,
+      state: initial,
+    }),
+    "committed",
+  );
+  const cell = registration.cells[0];
+  const claimedByA = claimCollectiveEvaluationCellV1(initial, {
+    executionId,
+    expectedRevision: initial.revision,
+    cellId: cell.cellId,
+    nowMs: 0,
+    lease: {
+      workerId: "worker:a",
+      leaseToken: "lease:a",
+      expiresAtMs: 1_000,
+    },
+  });
+  assert.equal(
+    await store.compareAndSwapExecutionStateV1({
+      executionId,
+      expectedExecutionDigest: initial.executionDigest,
+      state: claimedByA,
+    }),
+    "committed",
+  );
+  const fenceA = claimedByA.cells[0].lease;
+  assert.ok(fenceA);
+
+  currentTime = 1_000;
+  const claimedByB = claimCollectiveEvaluationCellV1(claimedByA, {
+    executionId,
+    expectedRevision: claimedByA.revision,
+    cellId: cell.cellId,
+    nowMs: currentTime,
+    lease: {
+      workerId: "worker:b",
+      leaseToken: "lease:b",
+      expiresAtMs: 2_000,
+    },
+  });
+  const fenceB = claimedByB.cells[0].lease;
+  assert.ok(fenceB);
+  const runningByB = startCollectiveEvaluationRunV1(claimedByB, {
+    executionId,
+    expectedRevision: claimedByB.revision,
+    cellId: cell.cellId,
+    runner: "adaptive_collective",
+    attempt: "first",
+    nowMs: currentTime,
+    fence: fenceB,
+  });
+  assert.equal(
+    await store.compareAndSwapExecutionStateV1({
+      executionId,
+      expectedExecutionDigest: claimedByA.executionDigest,
+      state: runningByB,
+    }),
+    "committed",
+  );
+  const runKey = runningByB.cells[0].runs.find(
+    (slot) => slot.runner === "adaptive_collective" && slot.attempt === "first",
+  ).runKey;
+  const execution = createCollectiveStatisticalCampaignExecutionArtifactsV1({
+    schemaVersion: 1,
+    executionId,
+    runKey,
+    registrationDigest: registration.registrationDigest,
+    cell,
+    runner: "adaptive_collective",
+    attempt: "first",
+    output: output("adaptive_collective"),
+  });
+  const commit = (fence) =>
+    store.commitExecutionWithFenceV1({
+      executionId,
+      registrationDigest: registration.registrationDigest,
+      cellId: cell.cellId,
+      runKey,
+      fence,
+      execution,
+    });
+
+  const legacySeeded =
+    createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+      () => currentTime,
+    );
+  assert.equal(
+    await legacySeeded.compareAndSwapExecutionStateV1({
+      executionId,
+      expectedExecutionDigest: null,
+      state: runningByB,
+    }),
+    "committed",
+  );
+  assert.equal(
+    await legacySeeded.commitExecutionV1({ runKey, execution }),
+    "committed",
+  );
+  await assert.rejects(
+    legacySeeded.readExecutionWithFenceV1({
+      executionId,
+      registrationDigest: registration.registrationDigest,
+      cellId: cell.cellId,
+      runKey,
+      fence: fenceB,
+    }),
+    /commit_provenance_invalid/u,
+  );
+
+  currentTime = 1_500;
+  assert.equal(await commit(fenceA), "stale_fence");
+  assert.deepEqual(await store.readExecutionsV1([runKey]), [
+    { runKey, execution: null },
+  ]);
+  for (const fence of [
+    { ...fenceB, workerId: "worker:wrong" },
+    { ...fenceB, leaseToken: "lease:wrong" },
+    { ...fenceB, generation: fenceB.generation + 1 },
+  ])
+    assert.equal(await commit(fence), "stale_fence");
+  assert.equal(await commit(fenceB), "committed");
+  // The stale check is deliberately before identical-byte idempotency.
+  assert.equal(await commit(fenceA), "stale_fence");
+  assert.deepEqual(await store.readExecutionsV1([runKey]), [
+    { runKey, execution },
+  ]);
+  currentTime = fenceB.expiresAtMs;
+  assert.equal(await commit(fenceB), "stale_fence");
+});
+
+test("executor never falls back to the legacy commit after a fenced rejection", async () => {
+  const registration = registrationFixture();
+  const memory = createMemoryCollectiveStatisticalCampaignExecutionStoreV1(
+    () => 100,
+  );
+  let fencedCalls = 0;
+  let legacyCalls = 0;
+  const store = {
+    schemaVersion: 1,
+    readExecutionStateV1: memory.readExecutionStateV1,
+    compareAndSwapExecutionStateV1: memory.compareAndSwapExecutionStateV1,
+    readExecutionsV1: memory.readExecutionsV1,
+    async commitExecutionV1(input) {
+      legacyCalls += 1;
+      return memory.commitExecutionV1(input);
+    },
+    async commitExecutionWithFenceV1() {
+      fencedCalls += 1;
+      return "stale_fence";
+    },
+  };
+  await assert.rejects(
+    runCollectiveStatisticalCampaignShardV1({
+      ...shardInput(registration, store, 0, (context) =>
+        output(context.runner),
+      ),
+      shard: { schemaVersion: 1, index: 0, count: 16 },
+      maximumCells: 1,
+    }),
+    /execution_commit_stale_fence/u,
+  );
+  assert.equal(fencedCalls, 1);
+  assert.equal(legacyCalls, 0);
 });
