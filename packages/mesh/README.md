@@ -298,7 +298,42 @@ execution record rejected by the domain still consumes normal replay security
 accounting; diagnostics remain local. The same boundary accepts authenticated
 `lease.renew`, `lease.takeover_proposal`, `lease.vote` and `lease.certificate`
 records only after replay and admission checks. This alpha does not implement
-durable execution storage, owner transfer or external-action authority.
+durable execution storage or external-action authority.
+
+## Certified authority continuity
+
+Import `@agentplat/mesh/continuity` when an application cannot depend forever
+on the initially provisioned Objective issuer or Work Item owner. It maintains
+one independently durable, generation-fenced authority head for either an
+`objective_issuer` or `work_owner` scope.
+
+A coordinated transfer requires evidence signed by the exact current holder
+and separate signed acceptance by the eligible successor. Recovery without the
+holder requires a successor-signed proposal, the configured delay, distinct
+verified endorsements from the fixed witness set, its threshold certificate
+and successor acceptance. The threshold must be a strict majority and the
+current holder or proposed successor cannot be one of its own witnesses. A
+proposal, endorsement or certificate alone never
+activates authority. Recovery cannot replace its witness policy; only a
+current-holder transfer may install the successor policy it signs.
+
+The runtime binds its verifier, successor-eligibility implementation, proof
+limit and retained-evidence limit into every snapshot. State changes use a
+caller-supplied compare-and-swap store. Each accepted transition increments the
+generation, derives a new fencing token from the certificate, retains the full
+evidence chain and makes the prior holder fail `checkCurrent()`. Malformed,
+stale, concurrent, expired, under-threshold or unverifiable transitions fail
+closed.
+
+This subpath is transport-neutral and does not reinterpret an older allocation
+envelope. Gateways compose its current head before admitting issuer/owner
+commands and bind the resulting generation, head digest and fencing token into
+new Work Contracts, action permits and downstream effects. The included
+in-memory store is a reference adapter; durable deployments implement the same
+CAS port.
+Snapshots revalidate their closed shape, canonical digests and complete
+transition chain on load; the durable store must integrity-protect them because
+historical signature providers are not contacted again during restoration.
 
 `@agentplat/mesh/loopback` provides the explicit in-memory signed transport used
 by the local vertical slice. `createMeshLoopbackTransport` owns composite
@@ -308,6 +343,6 @@ transports. Outbound sequence allocators are included in restart snapshots,
 duplicate batches repeat the exact signed envelope, and cooperative close
 drains already accepted work.
 
-Importing either entrypoint performs no network, clock, storage or key
+Importing any entrypoint performs no network, clock, storage or key
 operations. Clocks, message-ID sources, signers, keys and verification policy
 are supplied explicitly when a peer is registered.

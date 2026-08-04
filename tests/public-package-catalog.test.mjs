@@ -14,6 +14,7 @@ const alphaOneCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
       '.',
+      './continuity',
       './coordination',
       './durability',
       './loopback',
