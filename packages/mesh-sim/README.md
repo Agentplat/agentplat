@@ -303,3 +303,29 @@ recompute the namespace with
 
 This is a control-plane capability only: it does not execute the 50–500-agent
 campaign, invoke a provider, or claim that the campaign has passed.
+
+## Progressive scale execution surface
+
+`COLLECTIVE_PROGRESSIVE_SCALE_PROFILES_V1` defines three closed industry
+profiles. They progress from 500 participants and 5,000 interactions to 5,000
+participants and 50,000 interactions, then to 100,000 participants and
+1,000,000 interactions. The profiles also bind the role-coherence horizon,
+benign or Byzantine affected population, recovery-work class and physical,
+social or cyber scenario domains. Existing V1 campaign contracts remain
+unchanged.
+
+`createCollectiveProgressiveScalePlanV1()` produces an immutable execution plan
+whose sparse topology is an algorithmic descriptor. A worker derives one
+peer's O(log N) neighbors and affected-population membership on demand; the
+plan never materializes the global peer or edge set. Peer and interaction
+ranges are exact, non-overlapping shards, and the implicit affine permutation
+selects the configured affected population without a global membership list.
+
+`runCollectiveProgressiveScaleShardV1()` binds a provider-neutral executor ID
+and version to one exact shard. Results retain interaction, recovery-work,
+mission-success and digest-only event-stream evidence. The aggregate report
+requires an exact shard closure, the registered role-coherence horizon, the
+complete affected population, restored mission success and the profile's
+quadratic, N log N or linear recovery ceiling. These APIs make large-scale
+execution pluggable and bounded; constructing a plan or a conformant-shaped
+report is not evidence that a large campaign was actually executed.

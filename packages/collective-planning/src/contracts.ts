@@ -53,7 +53,14 @@ export type PlanningDigestDomainV1 =
   | "evaluation-campaign-topology-v1"
   | "evaluation-campaign-scale-configuration-v1"
   | "evaluation-campaign-fault-matrix-v1"
-  | "evaluation-campaign-fault-coverage-v1";
+  | "evaluation-campaign-fault-coverage-v1"
+  | "progressive-scale-profile-v1"
+  | "progressive-scale-topology-v1"
+  | "progressive-scale-shard-v1"
+  | "progressive-scale-plan-v1"
+  | "progressive-scale-role-coherence-v1"
+  | "progressive-scale-shard-result-v1"
+  | "progressive-scale-report-v1";
 
 export interface PlanningLimitsV1 {
   readonly schemaVersion: 1;
