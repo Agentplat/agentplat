@@ -8,6 +8,7 @@ import {
   REGISTRY_COLLECTIVE_PLANNING_PACKAGE,
   REGISTRY_COLLECTIVE_QUORUM_PACKAGES,
   REGISTRY_COLLECTIVE_RUNTIME_PACKAGE,
+  REGISTRY_COLLECTIVE_SYNC_PACKAGES,
   REGISTRY_CONSUMER_SCRIPTS,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
@@ -16,7 +17,7 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from '../scripts/verify-registry-consumer.mjs';
 
-test('registry consumer pins all 44 public packages to the exact release version', () => {
+test('registry consumer pins all 46 public packages to the exact release version', () => {
   const manifest = registryConsumerManifest('0.3.0-alpha.1');
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -24,11 +25,24 @@ test('registry consumer pins all 44 public packages to the exact release version
     new Set(['0.3.0-alpha.1'])
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 44);
+  assert.equal(REGISTRY_PACKAGES.length, 46);
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest('workspace:^'),
     /must be SemVer/u
+  );
+});
+
+test('registry consumer includes causal sync and its durable adapter', () => {
+  assert.deepEqual(REGISTRY_COLLECTIVE_SYNC_PACKAGES, [
+    '@agentplat/collective-sync',
+    '@agentplat/collective-sync-postgres',
+  ]);
+  assert.equal(
+    REGISTRY_COLLECTIVE_SYNC_PACKAGES.every((name) =>
+      REGISTRY_PACKAGES.includes(name)
+    ),
+    true
   );
 });
 

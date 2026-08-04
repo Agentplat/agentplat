@@ -328,6 +328,21 @@ export interface CollectiveQuorumSemanticEvidencePortV1 {
   }): Promise<boolean>;
 }
 
+export type CollectiveQuorumReadinessOperationV1 =
+  "assignment_attestation" | "recovery_promise" | "recovery_acceptance";
+
+/** Optional fail-closed gate supplied by membership-bound state catch-up. */
+export interface CollectiveQuorumReadinessPortV1 {
+  check(input: {
+    readonly operation: CollectiveQuorumReadinessOperationV1;
+    readonly policyDomainId: string;
+    readonly scopeDigest: string;
+    readonly membershipEpoch?: number;
+    readonly membershipConfigurationDigest?: string;
+    readonly logicalTimeMs: number;
+  }): Promise<{ readonly ready: boolean; readonly reasonCode: string }>;
+}
+
 export interface CollectiveQuorumPeerOptionsV1 {
   readonly scope: CollectiveQuorumScopeV1;
   readonly signing: CollectiveQuorumSigningV1;
@@ -335,6 +350,7 @@ export interface CollectiveQuorumPeerOptionsV1 {
   readonly membership?: CollectiveQuorumMembershipBindingPortV1;
   readonly repository: CollectiveQuorumRepositoryV1;
   readonly evidence: CollectiveQuorumSemanticEvidencePortV1;
+  readonly readiness?: CollectiveQuorumReadinessPortV1;
   readonly clock: CollectiveQuorumClockV1;
   readonly crypto?: Crypto;
   readonly maximumEnvelopeTtlMs?: number;
@@ -356,6 +372,7 @@ export interface CollectiveQuorumPeerHandleResultV1 {
     | "invalid_envelope"
     | "wrong_audience"
     | "expired"
+    | "not_ready"
     | "semantic_evidence_unavailable"
     | "ballot_rejected"
     | "invalid_quorum";

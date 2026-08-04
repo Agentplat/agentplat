@@ -68,6 +68,8 @@ export class CollectiveQuorumPeerV1 {
       return { accepted: false, code: "expired" };
     if (!(await this.#hasValidMembershipBinding(request)))
       return { accepted: false, code: "invalid_quorum" };
+    if (!(await this.#isReady(request, now.logicalTimeMs)))
+      return { accepted: false, code: "not_ready" };
 
     switch (request.payload.type) {
       case "assignment.confirm.request":
@@ -360,6 +362,39 @@ export class CollectiveQuorumPeerV1 {
     const members = new Set(binding.memberPeerIds);
     return [...required].every((peerId) => members.has(peerId));
   }
+
+  async #isReady(
+    request: SignedCollectiveQuorumEnvelopeV1<CollectiveQuorumRequestPayloadV1>,
+    logicalTimeMs: number,
+  ): Promise<boolean> {
+    if (!this.options.readiness) return true;
+    const operation =
+      request.payload.type === "assignment.confirm.request"
+        ? "assignment_attestation"
+        : request.payload.type === "recovery.prepare"
+          ? "recovery_promise"
+          : "recovery_acceptance";
+    try {
+      const decision = await this.options.readiness.check({
+        operation,
+        policyDomainId: this.options.scope.policyDomainId,
+        scopeDigest: request.payload.scopeDigest,
+        ...(request.payload.membershipEpoch === undefined
+          ? {}
+          : { membershipEpoch: request.payload.membershipEpoch }),
+        ...(request.payload.membershipConfigurationDigest === undefined
+          ? {}
+          : {
+              membershipConfigurationDigest:
+                request.payload.membershipConfigurationDigest,
+            }),
+        logicalTimeMs,
+      });
+      return decision?.ready === true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function membershipBindingFields(payload: {
@@ -392,6 +427,8 @@ function assertOptions(options: CollectiveQuorumPeerOptionsV1): void {
     !options.resolver ||
     !options.repository ||
     !options.evidence ||
+    (options.readiness !== undefined &&
+      typeof options.readiness.check !== "function") ||
     !options.clock
   )
     throw new TypeError("Collective quorum peer options are required");

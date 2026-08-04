@@ -84,6 +84,8 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.    |
 | `@agentplat/collective-quorum`              | Signed peer quorum, semantic confirmations and recovery consensus.      |
 | `@agentplat/collective-quorum-postgres`     | Durable peer promises, votes and certificates in PostgreSQL.            |
+| `@agentplat/collective-sync`                | Signed causal anti-entropy, catch-up certificates and readiness gates.  |
+| `@agentplat/collective-sync-postgres`       | Resumable causal records, frontiers and certificates in PostgreSQL.     |
 | `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.       |
 | `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                            |
 | `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                        |

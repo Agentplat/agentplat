@@ -94,6 +94,30 @@ test("a partition without a witness majority fails closed", async () => {
   assert.equal(decision, null);
 });
 
+test("quorum acceptors refuse participation until causal state is ready", async () => {
+  const operations = [];
+  const fixture = await createFixture({
+    readiness: {
+      check: async (input) => {
+        operations.push(input.operation);
+        return { ready: false, reasonCode: "sync_certificate_missing" };
+      },
+    },
+  });
+  assert.equal(
+    await fixture.client("assignee").confirm({
+      workContract: workContract(),
+      acceptanceMessageId: "acceptance.message.1",
+      latestLeaseRenewalId: null,
+      eligibleWitnessPeerIds: ["witness.1", "witness.2", "witness.3"],
+      recoveryWitnessThreshold: 2,
+      logicalTimeMs: 100,
+    }),
+    null,
+  );
+  assert.ok(operations.includes("assignment_attestation"));
+});
+
 test("an operation stays pinned to its starting membership epoch", async () => {
   const first = {
     epoch: 1,
@@ -305,6 +329,7 @@ async function createFixture(options = {}) {
       },
       resolver,
       membership: options.membership,
+      readiness: options.readiness,
       repository: repositories[peerId],
       evidence: {
         confirmAssignment: async ({ request, localPeerId }) => ({
