@@ -31,6 +31,7 @@
     "example:quick": "pnpm run build && node examples/quick-run.mjs",
     "example:sessions": "pnpm run build && node examples/multi-agent-session.mjs",
     "example:collective": "pnpm run build && node examples/collective-runtime.mjs",
+    "example:portable-agent": "pnpm --filter @agentplat/runtime build && node examples/portable-agent-adapter.mjs",
     "example:mesh-multiprocess": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node examples/mesh-multiprocess/demo.mjs",
     "benchmark:mesh-adapters": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node scripts/mesh-adapters-benchmark.mjs",
     "example:rooms": "pnpm --dir examples/rooms-api start",

@@ -29,3 +29,33 @@ the call can be retried: reject those operations when `runId` is absent and
 reuse the same value across every retry. Forward it to providers that support
 idempotency keys, or use it in the adapter's deduplication mechanism, so one
 logical run cannot apply the same effect twice.
+
+## Portable heterogeneous agents
+
+`@agentplat/runtime/adapter` adds a stateful protocol for language, vision,
+action, policy, symbolic, hybrid and custom agents. A manifest declares the
+modalities, interaction modes, cancellation behavior and recovery support of
+one immutable adapter implementation. Applications negotiate those capabilities
+before opening a session, so incompatible peers fail before execution.
+
+`PortableAgentSessionRuntimeV1` binds every session to an adapter implementation,
+a versioned local control implementation and a revisioned role. Each step uses
+compare-and-set state, a stable idempotency key and explicit source zones for
+observations. Outputs and inert action proposals remain withheld until the
+configured control approves the relevant pre-step, post-output and pre-action
+checkpoints. Control errors fail closed.
+
+Sessions can be paused, checkpointed, restored, assigned a successor role and
+closed. Checkpoints cannot move between adapter implementations, and role
+updates must form an unbroken revision chain for the same objective. Ephemeral
+credentials are supplied only to the adapter call and are never persisted or
+shown to controls.
+
+Two bridges connect this protocol to the existing runtime:
+
+- `createAgentRuntimePortableAdapterV1` exposes an existing `AgentRuntime`
+  agent through the portable protocol without granting tool calls action
+  authority.
+- `createPortableAgentProviderV1` exposes a portable session as an
+  `AgentProvider`, allowing workflows and collectives to use the controlled,
+  stateful execution path through `DefaultAgentRuntime`.
