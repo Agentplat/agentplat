@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./peer": {
+      "types": "./dist/peer.d.ts",
+      "import": "./dist/peer.js"
     }
   },
   "files": [
@@ -23,6 +27,8 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@agentplat/collective-control": "workspace:^",
+    "@agentplat/collective-planning": "workspace:^",
     "@agentplat/core": "workspace:^",
     "@agentplat/runtime": "workspace:^"
   },

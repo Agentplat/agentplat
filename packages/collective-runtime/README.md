@@ -113,3 +113,30 @@ signed decentralized peer, lease, fencing and certified-recovery protocols in
 `@agentplat/mesh`, nor does a collective assignment grant authority for an
 external side effect. Applications that need those boundaries compose them in
 their provider or transport adapter.
+
+## Productive peer loop
+
+Import `@agentplat/collective-runtime/peer` to connect peer-local planning and
+current Mesh assignments to `@agentplat/runtime/adapter`. This opt-in subpath
+does not change the high-level coordinator above.
+
+`CollectivePeerRuntimeV1.plan()` supplies one agent only the accepted mission
+intent, its bounded local plan view and its local observations. The agent may
+abstain or return a draft. The runtime owns proposer identity and all binding
+digests, rejects references outside that local context and constructs a normal
+`PlanFragmentProposalV1`. The result remains proposal data until the existing
+planning reducer accepts it.
+
+`CollectivePeerRuntimeV1.execute()` requires an exact `WorkContractV1` and
+`AdaptiveRoleBindingV1`. A construction-bound currentness port runs before and
+after the portable agent step. If authority changes while the agent is working,
+the result is withheld and the session is closed so that result cannot be
+released by an idempotent retry. A released action remains an inert action
+proposal; action grants, governed permits and downstream fencing still belong
+to their existing gateways.
+
+Peer sessions persist the exact Work Contract, adaptive role, adapter and
+currentness implementation bindings. Credentials and the current tenant actor
+context remain ephemeral. This gives applications a production composition
+path for model, policy, symbolic or hybrid agents without treating an agent's
+output as assignment or effect authority.

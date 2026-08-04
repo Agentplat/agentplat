@@ -236,6 +236,12 @@ importers:
 
   packages/collective-runtime:
     dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
+      '@agentplat/collective-planning':
+        specifier: workspace:^
+        version: link:../collective-planning
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
