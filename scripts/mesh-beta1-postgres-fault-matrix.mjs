@@ -28,6 +28,7 @@ import {
 const argumentsByName = parseArguments(process.argv.slice(2));
 const output = argumentsByName.get("--output");
 const candidateCommit = argumentsByName.get("--candidate-commit") ?? null;
+const currentMigrationVersion = 4;
 const schema = `mesh_fault_matrix_${randomBytes(8).toString("hex")}`;
 const legacySchema = `mesh_fault_legacy_${randomBytes(8).toString("hex")}`;
 const pools = [createPostgresPool({ max: 4 }), createPostgresPool({ max: 4 })];
@@ -51,7 +52,7 @@ try {
   );
   assert.deepEqual(
     concurrent.map(({ currentVersion }) => currentVersion),
-    [3, 3],
+    [currentMigrationVersion, currentMigrationVersion],
   );
   cells.push(cell("migration_contention", "passed"));
 
@@ -151,7 +152,7 @@ try {
   assert.equal(preMigrationSnapshot.snapshotSchemaVersion, undefined);
   assert.equal(
     (await runMigrations(pools[1], { schema: legacySchema })).currentVersion,
-    3,
+    currentMigrationVersion,
   );
   assert.deepEqual(
     await getCompatibilityStatus(pools[1], { schema: legacySchema }),
@@ -354,8 +355,16 @@ try {
   });
   assert.equal(
     (await getMigrationStatus(activePool, { schema })).currentVersion,
-    3,
+    currentMigrationVersion,
   );
+  const dependencyRollback = await rollbackMigrations(activePool, {
+    schema,
+    expectedCurrentVersion: currentMigrationVersion,
+    confirm: rollbackConfirmation(schema, currentMigrationVersion),
+    allowDataLoss: true,
+    verifiedBackup: true,
+  });
+  assert.equal(dependencyRollback.currentVersion, 3);
   const durableRollback = await rollbackMigrations(activePool, {
     schema,
     expectedCurrentVersion: 3,
