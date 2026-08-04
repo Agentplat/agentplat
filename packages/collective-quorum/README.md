@@ -71,9 +71,10 @@ atomic semantics but loses promises and votes when the process exits.
 
 This protocol tolerates crashes, restarts, message loss, reordering and
 minority partitions under an authenticated non-Byzantine acceptor model. It is
-not a Byzantine-fault-tolerant consensus protocol, does not discover peers or
-keys, and does not make external actions exactly once. Membership and key
-rotation remain explicit host policy.
+not a Byzantine-fault-tolerant consensus protocol, does not discover peer
+endpoints, and does not make external actions exactly once. Certified dynamic
+membership and overlapping key rotation are available through the optional
+membership port implemented by `@agentplat/collective-membership`.
 
 See [Distributed Peer Quorum V1](../../docs/agent-mesh/distributed-peer-quorum-v1.md)
 for the state machines and operational invariants.

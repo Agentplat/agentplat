@@ -176,7 +176,7 @@ test('public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedPublicNames
   );
-  assert.equal(expectedPublicPackageCount, 42);
+  assert.equal(expectedPublicPackageCount, 44);
   assert.equal(catalog.packages.length, expectedPublicPackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),

@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_membership_certificates;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_membership_responses;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_membership_vote_slots;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_membership_configurations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_membership_heads;

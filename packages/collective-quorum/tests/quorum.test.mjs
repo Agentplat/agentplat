@@ -94,6 +94,69 @@ test("a partition without a witness majority fails closed", async () => {
   assert.equal(decision, null);
 });
 
+test("an operation stays pinned to its starting membership epoch", async () => {
+  const first = {
+    epoch: 1,
+    configurationDigest: digest("8"),
+    memberPeerIds: ["assignee", "owner", "witness.1", "witness.2", "witness.3"],
+    memberInstances: [
+      "assignee",
+      "owner",
+      "witness.1",
+      "witness.2",
+      "witness.3",
+    ].map((peerId) => ({ peerId, instanceId: `instance.${peerId}` })),
+  };
+  const second = {
+    epoch: 2,
+    configurationDigest: digest("9"),
+    memberPeerIds: ["owner", "witness.1", "witness.2", "witness.3"],
+    memberInstances: ["owner", "witness.1", "witness.2", "witness.3"].map(
+      (peerId) => ({ peerId, instanceId: `instance.${peerId}` }),
+    ),
+  };
+  let current = first;
+  const history = new Map([
+    [first.epoch, first],
+    [second.epoch, second],
+  ]);
+  const membership = {
+    currentBinding: async () => current,
+    resolveBinding: async ({ epoch, configurationDigest }) => {
+      const binding = history.get(epoch);
+      return binding?.configurationDigest === configurationDigest
+        ? binding
+        : null;
+    },
+  };
+  const fixture = await createFixture({ membership });
+  const exchange = fixture.transport.exchange.bind(fixture.transport);
+  const observed = [];
+  fixture.transport.exchange = async (input) => {
+    observed.push(input.request.payload);
+    current = second;
+    return exchange(input);
+  };
+  const confirmation = await fixture.client("assignee").confirm({
+    workContract: workContract(),
+    acceptanceMessageId: "acceptance.message.1",
+    latestLeaseRenewalId: null,
+    eligibleWitnessPeerIds: ["witness.1", "witness.2", "witness.3"],
+    recoveryWitnessThreshold: 2,
+    logicalTimeMs: 100,
+  });
+  assert.ok(confirmation);
+  assert.equal(observed.length > 0, true);
+  assert.equal(
+    observed.every(
+      (payload) =>
+        payload.membershipEpoch === 1 &&
+        payload.membershipConfigurationDigest === first.configurationDigest,
+    ),
+    true,
+  );
+});
+
 test("tampering with a signed request is rejected before semantic evidence", async () => {
   const fixture = await createFixture();
   const client = fixture.client("assignee");
@@ -202,7 +265,7 @@ test("node evidence confirms only the exact durable lease projection", async () 
   );
 });
 
-async function createFixture() {
+async function createFixture(options = {}) {
   const peerIds = ["owner", "assignee", "witness.1", "witness.2", "witness.3"];
   const keys = Object.create(null);
   const records = [];
@@ -241,6 +304,7 @@ async function createFixture() {
         algorithm: MESH_SIGNATURE_ALGORITHM,
       },
       resolver,
+      membership: options.membership,
       repository: repositories[peerId],
       evidence: {
         confirmAssignment: async ({ request, localPeerId }) => ({
@@ -274,6 +338,7 @@ async function createFixture() {
           algorithm: MESH_SIGNATURE_ALGORITHM,
         },
         resolver,
+        membership: options.membership,
         repository: repositories[peerId],
         transport,
         clock,
