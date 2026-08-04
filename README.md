@@ -79,6 +79,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | ------------------------------------ | ----------------------------------------------------------------------- |
 | `@agentplat/core`                    | IDs, metadata, lifecycle states, tenant context, envelopes and errors.  |
 | `@agentplat/framework`               | High-level composition, safe local defaults and ephemeral quick runs.   |
+| `@agentplat/collective-runtime`      | Capability-routed collectives with policy, events and recovery.         |
 | `@agentplat/model`                   | Provider-neutral direct model generation and streaming contracts.       |
 | `@agentplat/model-anthropic`         | Dependency-light Anthropic Messages adapter.                            |
 | `@agentplat/model-gemini`            | Dependency-light Gemini generateContent adapter.                        |
@@ -227,6 +228,7 @@ corepack pnpm install
 corepack pnpm run example:quick
 corepack pnpm run example:basic
 corepack pnpm run example:sessions
+corepack pnpm run example:collective
 ```
 
 ## Development

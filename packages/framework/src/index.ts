@@ -1,4 +1,9 @@
 import { AgentPlatError } from '@agentplat/core';
+import { createCollective as createCollectiveRuntime } from '@agentplat/collective-runtime';
+import type {
+  Collective,
+  CreateCollectiveOptions,
+} from '@agentplat/collective-runtime';
 import type {
   AgentPlatID,
   JsonObject,
@@ -42,6 +47,7 @@ export {
   MultiAgentSession,
   sessionMetrics,
 } from '@agentplat/sessions';
+export * from '@agentplat/collective-runtime';
 export type {
   MultiAgentSessionEvent,
   MultiAgentSessionInput,
@@ -195,6 +201,12 @@ export type FrameworkSessionOptions = Omit<
 export interface ConfiguredAgentSessionOptions extends FrameworkSessionOptions {
   platformOverrides?: Record<AgentPlatID, string>;
 }
+
+/** Collective options that inherit this facade's runtime and tenant context. */
+export type FrameworkCollectiveOptions = Omit<
+  CreateCollectiveOptions,
+  'runtime' | 'tenant' | 'credentials'
+>;
 
 /**
  * Reusable high-level agent assembled from a portable provider preset.
@@ -402,6 +414,24 @@ export class AgentPlatFramework {
       runtime: this.runtime,
       tenant: this.tenant,
       credentials: this.credentials,
+      idGenerator: options.idGenerator ?? this.idGenerator,
+      clock: options.clock ?? this.clock,
+    });
+  }
+
+  /**
+   * Create a capability-routed collective over this facade's provider registry.
+   * The collective inherits tenant scope and execution-only credentials while
+   * retaining an explicit plan, policy and state-store boundary.
+   */
+  createCollective(options: FrameworkCollectiveOptions): Collective {
+    return createCollectiveRuntime({
+      ...options,
+      runtime: this.runtime,
+      tenant: this.tenant,
+      ...(this.credentials === undefined
+        ? {}
+        : { credentials: this.credentials }),
       idGenerator: options.idGenerator ?? this.idGenerator,
       clock: options.clock ?? this.clock,
     });

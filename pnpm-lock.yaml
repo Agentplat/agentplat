@@ -31,6 +31,9 @@ importers:
       '@agentplat/collective-planning':
         specifier: workspace:*
         version: link:packages/collective-planning
+      '@agentplat/collective-runtime':
+        specifier: workspace:*
+        version: link:packages/collective-runtime
       '@agentplat/core':
         specifier: workspace:*
         version: link:packages/core
@@ -231,6 +234,15 @@ importers:
         specifier: workspace:^
         version: link:../mesh-protocol
 
+  packages/collective-runtime:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/runtime':
+        specifier: workspace:^
+        version: link:../runtime
+
   packages/core: {}
 
   packages/events:
@@ -241,6 +253,9 @@ importers:
 
   packages/framework:
     dependencies:
+      '@agentplat/collective-runtime':
+        specifier: workspace:^
+        version: link:../collective-runtime
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core

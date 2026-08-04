@@ -1,7 +1,7 @@
 {
-  "name": "@agentplat/framework",
+  "name": "@agentplat/collective-runtime",
   "version": "0.3.0-beta.3",
-  "description": "Lightweight high-level composition and quick-run facade for AgentPlat.",
+  "description": "High-level provider-neutral runtime for capability-based AgentPlat collectives.",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -11,10 +11,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
     }
   },
   "files": [
@@ -27,14 +23,11 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@agentplat/collective-runtime": "workspace:^",
     "@agentplat/core": "workspace:^",
-    "@agentplat/model": "workspace:^",
-    "@agentplat/model-openai-compatible": "workspace:^",
-    "@agentplat/rooms": "workspace:^",
-    "@agentplat/runtime": "workspace:^",
-    "@agentplat/sessions": "workspace:^",
-    "@agentplat/streaming": "workspace:^"
+    "@agentplat/runtime": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
   },
   "publishConfig": {
     "access": "public"
@@ -42,6 +35,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",
-    "directory": "packages/framework"
+    "directory": "packages/collective-runtime"
   }
 }

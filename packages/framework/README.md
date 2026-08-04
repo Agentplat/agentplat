@@ -81,6 +81,45 @@ For applications with mock and live backends in one process, pass a `platforms`
 map containing explicit adapters/providers. The framework validates registered
 speaker platforms without importing optional model SDKs.
 
+## Capability-routed collectives
+
+Use `createCollective` when agents should receive different work based on
+capabilities, dependencies and policy instead of speaking in a fixed turn
+order. It inherits this facade's runtime, tenant and execution-only
+credentials.
+
+```ts
+const collective = agentplat.createCollective({
+  collectiveId: 'release-team',
+  objective: {
+    objectiveId: 'release-brief',
+    summary: 'Research and write the release brief.',
+  },
+  plan: {
+    workItems: [
+      {
+        workItemId: 'research',
+        summary: 'Collect verified release facts.',
+        requiredCapabilityKeys: ['research'],
+      },
+      {
+        workItemId: 'write',
+        summary: 'Write the brief from the research result.',
+        requiredCapabilityKeys: ['writing'],
+        dependsOn: ['research'],
+      },
+    ],
+  },
+});
+
+collective.register({ agent: researcher, capabilityKeys: ['research'] });
+collective.register({ agent: writer, capabilityKeys: ['writing'] });
+const execution = await collective.run();
+```
+
+The `@agentplat/collective-runtime` types, state store and direct factory are
+re-exported for applications that need custom composition or recovery.
+
 ## Browser boundary
 
 Import `@agentplat/framework/browser` from a Next.js Client Component. It only
