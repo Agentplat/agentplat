@@ -1,5 +1,6 @@
 import type { AgentPlatID, Metadata, TenantContext } from "@agentplat/core";
 import type {
+  PlanningArtifactAvailabilityPortV1,
   PlanningMeshInboundProcessorV1,
   PlanningMeshInboundRuntimeStateV1,
   PlanningFragmentRepositoryV1,
@@ -360,6 +361,8 @@ export interface CollectivePeerNodeRuntimeConfigV1 {
   readonly inbound: PlanningMeshInboundProcessorV1;
   readonly deliverOutbox: MeshDurableOutboxDeliver;
   readonly fragments: PlanningFragmentRepositoryV1;
+  /** Optional exact-fetch path for artifacts referenced by authenticated offers. */
+  readonly planningArtifacts?: PlanningArtifactAvailabilityPortV1;
   readonly peerRuntime: CollectivePeerRuntimeV1;
   readonly agents: readonly CollectivePeerNodeAgentRegistrationV1[];
   readonly expectedControlBinding: CollectivePeerNodeControlBindingV1;

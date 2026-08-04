@@ -94,6 +94,31 @@ export interface PlanningFragmentRepositoryV1 {
     | Promise<PlanningFragmentRepositoryRecordV1 | null>;
 }
 
+export interface PlanningArtifactAvailabilityRequestV1 {
+  readonly tenantId: string;
+  readonly meshId: string;
+  readonly policyDomainId: string;
+  readonly objectiveId: string;
+  readonly missionIntentId: string;
+  readonly intentRevision: number;
+  readonly intentDigest: PlanningDigestV1;
+  readonly proposalDigest: PlanningDigestV1;
+  readonly fragmentDigest: PlanningDigestV1;
+  readonly planViewDigest: PlanningDigestV1;
+  readonly contentReference: string;
+  readonly sourcePeerId: string;
+  readonly sourceInstanceId: string;
+  readonly receivedAtLogicalMs: number;
+  readonly signal?: AbortSignal;
+}
+
+/** Ensures the exact authenticated offer artifact is durable in the local repository. */
+export interface PlanningArtifactAvailabilityPortV1 {
+  ensureAvailable(
+    input: PlanningArtifactAvailabilityRequestV1,
+  ): Promise<boolean>;
+}
+
 export interface InMemoryPlanningFragmentRepositoryOptionsV1 {
   readonly maximumRecords?: number;
   readonly maximumRecordBytes?: number;

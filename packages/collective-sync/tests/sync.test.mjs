@@ -47,6 +47,16 @@ test("records are append-only, gap-free, and fork rejecting", async () => {
     second.recordDigest,
   ]);
   assert.equal(result.frontier.entries[0].sequence, 2);
+  assert.equal(
+    (
+      await repository.readRecord({
+        syncDomain: "mission.1",
+        streamId: first.streamId,
+        sequence: 2,
+      })
+    )?.recordDigest,
+    second.recordDigest,
+  );
   const duplicate = await repository.append({
     syncDomain: "mission.1",
     membership: binding,
@@ -292,6 +302,90 @@ test("a joining peer catches up from matching member frontiers and becomes ready
   assert.equal(
     (await gate.check({ syncDomain: "mission.1" })).reasonCode,
     "sync_local_frontier_changed",
+  );
+});
+
+test("an authenticated peer resolves one exact record without readiness certification", async () => {
+  const keys = new Map();
+  for (const peerId of binding.memberPeerIds) {
+    keys.set(
+      peerId,
+      await crypto.subtle.generateKey(MESH_SIGNATURE_ALGORITHM, true, [
+        "sign",
+        "verify",
+      ]),
+    );
+  }
+  const membership = membershipFor(keys);
+  const transport = new InMemoryCollectiveSyncTransportV1();
+  const clock = { now: () => ({ wallTime, logicalTimeMs: 100 }) };
+  const source = new InMemoryCollectiveSyncRepositoryV1(scope("peer.2"));
+  const exact = await record(1, null, {
+    type: "planning.artifact.publication",
+    value: "exact",
+  });
+  await source.append({
+    syncDomain: "mission.1",
+    membership: binding,
+    records: [exact],
+  });
+  transport.register(
+    "peer.2",
+    new CollectiveSyncPeerV1({
+      scope: scope("peer.2"),
+      signing: signing("peer.2", keys),
+      membership,
+      repository: source,
+      clock,
+    }),
+  );
+
+  const target = new InMemoryCollectiveSyncRepositoryV1(scope("peer.1"));
+  const replayed = [];
+  const client = new CollectiveSyncClientV1({
+    scope: scope("peer.1"),
+    signing: signing("peer.1", keys),
+    membership,
+    repository: target,
+    adapter: {
+      validate: async (candidate) =>
+        candidate.recordDigest === exact.recordDigest,
+      replay: async (records) => replayed.push(...records),
+    },
+    transport,
+    clock,
+  });
+  assert.equal(
+    (
+      await client.resolveRecord({
+        peerId: "peer.2",
+        syncDomain: exact.syncDomain,
+        streamId: exact.streamId,
+        sequence: exact.sequence,
+      })
+    )?.recordDigest,
+    exact.recordDigest,
+  );
+  assert.equal(replayed.length, 1);
+  assert.equal(
+    (
+      await target.readRecord({
+        syncDomain: exact.syncDomain,
+        streamId: exact.streamId,
+        sequence: 1,
+      })
+    )?.recordDigest,
+    exact.recordDigest,
+  );
+  assert.equal(await target.latestCertificate(exact.syncDomain), undefined);
+  assert.equal(
+    await client.resolveRecord({
+      peerId: "peer.2",
+      syncDomain: exact.syncDomain,
+      streamId: "stream.missing",
+      sequence: 1,
+    }),
+    null,
   );
 });
 

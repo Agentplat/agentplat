@@ -41,6 +41,13 @@ const client = new CollectiveSyncClientV1({
 });
 
 await client.catchUp({ syncDomain: "mission.42.planning" });
+// Availability-only lookup; this does not create a readiness certificate.
+await client.resolveRecord({
+  peerId: "peer.2",
+  syncDomain: "planning.artifacts.v1",
+  streamId: "planning.artifact.<fragment-digest>",
+  sequence: 1,
+});
 const readiness = await new CollectiveSyncReadinessGateV1({
   scope,
   membership,
@@ -56,6 +63,10 @@ adapter must apply normal authority and semantic validation before records are
 replayed. Do not create synchronization records from credentials, signing
 material, raw prompts, private reasoning, transient inference context, or any
 other content that is not explicitly safe to replicate.
+
+`resolveRecord` authenticates one exact source response and replays one domain
+validated record. It proves availability only; callers must not treat it as
+threshold agreement or causal readiness.
 
 The default readiness threshold is the current membership majority. A
 certificate is invalid after membership rotation, instance change, or local

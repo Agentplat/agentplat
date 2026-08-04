@@ -277,6 +277,29 @@ export class PostgresCollectiveSyncRepositoryV1 implements CollectiveSyncReposit
     });
   }
 
+  async readRecord(
+    input: Parameters<CollectiveSyncRepositoryV1["readRecord"]>[0],
+  ): Promise<CollectiveSyncRecordV1 | undefined> {
+    if (
+      typeof input.syncDomain !== "string" ||
+      typeof input.streamId !== "string" ||
+      !Number.isSafeInteger(input.sequence) ||
+      input.sequence < 1
+    )
+      throw new TypeError("invalid_sync_record_lookup");
+    const result = await this.pool.query<{ record: unknown }>(
+      `SELECT record FROM ${this.#prefix}collective_sync_records
+        WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+          AND instance_id = $4 AND policy_domain_id = $5
+          AND sync_domain = $6 AND stream_id = $7 AND sequence = $8`,
+      [...this.#scope, input.syncDomain, input.streamId, input.sequence],
+    );
+    if (!result.rows[0]) return undefined;
+    const record = await verifyCollectiveSyncRecordV1(result.rows[0].record);
+    if (!record) throw new Error("sync_record_corrupt");
+    return record;
+  }
+
   async saveSession(session: CollectiveSyncSessionV1): Promise<void> {
     const valid = validateCollectiveSyncSessionV1(session);
     if (!valid) throw new TypeError("invalid_sync_session");

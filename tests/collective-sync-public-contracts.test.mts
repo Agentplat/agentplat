@@ -50,6 +50,17 @@ const client = new CollectiveSyncClientV1({
   adapter,
   membership,
 });
+void client.resolveRecord({
+  peerId: "peer.2",
+  syncDomain: "mission.1",
+  streamId: "stream.1",
+  sequence: 1,
+});
+void repository.readRecord({
+  syncDomain: "mission.1",
+  streamId: "stream.1",
+  sequence: 1,
+});
 const readiness = new CollectiveSyncReadinessGateV1(readinessOptions);
 const operational = new CollectiveSyncOperationalGateV1<
   CollectivePeerNodeStoredStateV1["runtime"]

@@ -2,10 +2,11 @@
 
 Transactional PostgreSQL persistence for `@agentplat/collective-sync`.
 
-The repository stores append-only causal records, compare-and-set stream heads,
-resumable session cursors, receipts, and catch-up certificates for one exact
-peer instance. Records and head advancement commit in the same transaction, so
-a restart cannot expose a partially imported frontier.
+The repository stores append-only causal records, exact point reads,
+compare-and-set stream heads, resumable session cursors, receipts, and catch-up
+certificates for one exact peer instance. Records and head advancement commit
+in the same transaction, so a restart cannot expose a partially imported
+frontier.
 
 ```ts
 import {

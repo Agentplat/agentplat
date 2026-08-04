@@ -136,6 +136,24 @@ const betaThreeCatalogEntries = Object.freeze([
   }),
   Object.freeze({
     browserEntrypoints: Object.freeze([]),
+    directory: 'packages/planning-artifacts',
+    layer: 'collaboration',
+    name: '@agentplat/planning-artifacts',
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze([]),
+    directory: 'packages/planning-artifacts-postgres',
+    layer: 'adapter',
+    name: '@agentplat/planning-artifacts-postgres',
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze([]),
     directory: 'packages/mesh-sim-local',
     layer: 'adapter',
     name: '@agentplat/mesh-sim-local',
@@ -176,7 +194,7 @@ test('public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedPublicNames
   );
-  assert.equal(expectedPublicPackageCount, 46);
+  assert.equal(expectedPublicPackageCount, 48);
   assert.equal(catalog.packages.length, expectedPublicPackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),

@@ -241,6 +241,12 @@ remains terminal.
 Planning fragment records are content-addressed. `put()` must be idempotent for
 the same record, and `get()` must resolve authenticated records referenced by
 received offers (for example through a shared or replicated content store).
+Configure `planningArtifacts` with a `PlanningArtifactAvailabilityPortV1` when
+peers do not share that store. After the normal inbound processor authenticates
+an offer and reports `planning_repository_missing`, the node resolves the exact
+referenced artifact and processes the original envelope again. Temporary
+unavailability throws from inbox processing so the durable worker retries it;
+without the port, the existing terminal rejection remains unchanged.
 
 For joining, restarted, or partition-healed peers, configure the optional
 `synchronization` port. Planning, reconciliation/bidding, execution,
