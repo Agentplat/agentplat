@@ -379,6 +379,50 @@ function validatePayload(value: unknown): CollectiveSyncPayloadV1 | null {
       )
         return null;
       break;
+    case "sync.record.request":
+      if (
+        !exact(value, [
+          "membershipConfigurationDigest",
+          "membershipEpoch",
+          "requestedAtLogicalMs",
+          "sequence",
+          "streamId",
+          "syncDomain",
+          "type",
+        ]) ||
+        !identifier(value.syncDomain) ||
+        !identifier(value.streamId) ||
+        !positive(value.sequence) ||
+        !logical(value.requestedAtLogicalMs)
+      )
+        return null;
+      break;
+    case "sync.record.response":
+      if (
+        !exact(value, [
+          "membershipConfigurationDigest",
+          "membershipEpoch",
+          "record",
+          "requestMessageId",
+          "respondedAtLogicalMs",
+          "sequence",
+          "sourcePeerId",
+          "streamId",
+          "syncDomain",
+          "type",
+        ]) ||
+        !identifier(value.requestMessageId) ||
+        !identifier(value.syncDomain) ||
+        !identifier(value.streamId) ||
+        !positive(value.sequence) ||
+        !identifier(value.sourcePeerId) ||
+        !(
+          value.record === null || validateCollectiveSyncRecordV1(value.record)
+        ) ||
+        !logical(value.respondedAtLogicalMs)
+      )
+        return null;
+      break;
     case "sync.receipt":
       if (
         !exact(value, [

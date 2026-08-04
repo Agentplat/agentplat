@@ -9,6 +9,7 @@ import type {
   CollectiveSyncMembershipV1,
   CollectiveSyncPayloadV1,
   CollectiveSyncRepositoryV1,
+  CollectiveSyncRecordV1,
   CollectiveSyncRequestPayloadV1,
   CollectiveSyncResponsePayloadV1,
   CollectiveSyncScopeV1,
@@ -57,6 +58,14 @@ export interface CollectiveSyncCatchUpInputV1 {
   readonly syncDomain: string;
   readonly sessionId?: string;
   readonly sourcePeerIds?: readonly string[];
+  readonly signal?: AbortSignal;
+}
+
+export interface CollectiveSyncResolveRecordInputV1 {
+  readonly peerId: string;
+  readonly syncDomain: string;
+  readonly streamId: string;
+  readonly sequence: number;
   readonly signal?: AbortSignal;
 }
 
@@ -407,6 +416,85 @@ export class CollectiveSyncClientV1 {
     }
   }
 
+  /**
+   * Resolve one exact record from one authenticated current member. This path
+   * proves availability only and never creates a catch-up certificate.
+   */
+  async resolveRecord(
+    input: CollectiveSyncResolveRecordInputV1,
+  ): Promise<CollectiveSyncRecordV1 | null> {
+    if (
+      !syncIdentifier(input?.peerId) ||
+      !syncIdentifier(input.syncDomain) ||
+      !syncIdentifier(input.streamId) ||
+      !Number.isSafeInteger(input.sequence) ||
+      input.sequence < 1
+    )
+      throw new TypeError("invalid_sync_record_resolution");
+    const now = this.options.clock.now();
+    const binding = await this.options.membership.currentBinding({
+      logicalTimeMs: now.logicalTimeMs,
+    });
+    if (
+      !binding ||
+      !boundInstance(
+        binding,
+        this.options.scope.peerId,
+        this.options.scope.instanceId,
+      ) ||
+      input.peerId === this.options.scope.peerId ||
+      !binding.memberPeerIds.includes(input.peerId)
+    )
+      throw new Error("sync_record_source_membership_unavailable");
+    const request = await this.#request(input.peerId, binding, {
+      type: "sync.record.request",
+      syncDomain: input.syncDomain,
+      streamId: input.streamId,
+      sequence: input.sequence,
+      membershipEpoch: binding.epoch,
+      membershipConfigurationDigest: binding.configurationDigest,
+      requestedAtLogicalMs: now.logicalTimeMs,
+    });
+    const raw = await this.options.transport.exchange({
+      peerId: input.peerId,
+      request,
+      ...(input.signal ? { signal: input.signal } : {}),
+    });
+    const response = await this.#response(raw, request, input.peerId, binding);
+    if (!response || response.payload.type !== "sync.record.response")
+      throw new Error("sync_record_response_unavailable");
+    const payload = response.payload;
+    if (
+      payload.sourcePeerId !== input.peerId ||
+      payload.syncDomain !== input.syncDomain ||
+      payload.streamId !== input.streamId ||
+      payload.sequence !== input.sequence
+    )
+      throw new Error("sync_record_response_mismatch");
+    if (payload.record === null) return null;
+    const record = await verifyCollectiveSyncRecordV1(payload.record);
+    if (
+      !record ||
+      record.tenantId !== this.options.scope.tenantId ||
+      record.meshId !== this.options.scope.meshId ||
+      record.policyDomainId !== this.options.scope.policyDomainId ||
+      record.syncDomain !== input.syncDomain ||
+      record.streamId !== input.streamId ||
+      record.sequence !== input.sequence
+    )
+      throw new Error("sync_record_response_invalid");
+    await this.#assertMembership(binding);
+    if (!(await this.options.adapter.validate(record)))
+      throw new Error("sync_domain_validation_rejected");
+    await this.options.repository.append({
+      syncDomain: input.syncDomain,
+      membership: binding,
+      records: [record],
+    });
+    await this.options.adapter.replay([record]);
+    return record;
+  }
+
   async #sendReceipt(
     peerId: string,
     binding: CollectiveQuorumMembershipBindingV1,
@@ -638,6 +726,12 @@ function bounded(
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum)
     throw new TypeError(`${name} is out of range`);
   return value;
+}
+function syncIdentifier(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u.test(value)
+  );
 }
 function safeFailureCode(error: unknown): string {
   const raw = error instanceof Error ? error.message : "sync_failed";

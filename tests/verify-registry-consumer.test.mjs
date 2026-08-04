@@ -13,11 +13,12 @@ import {
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
   REGISTRY_PACKAGES,
+  REGISTRY_PLANNING_ARTIFACT_PACKAGES,
   REGISTRY_POSTGRES_CONSUMER_SCRIPT,
   REGISTRY_TRUST_PACKAGE,
 } from '../scripts/verify-registry-consumer.mjs';
 
-test('registry consumer pins all 46 public packages to the exact release version', () => {
+test('registry consumer pins all 48 public packages to the exact release version', () => {
   const manifest = registryConsumerManifest('0.3.0-alpha.1');
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -25,7 +26,7 @@ test('registry consumer pins all 46 public packages to the exact release version
     new Set(['0.3.0-alpha.1'])
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 46);
+  assert.equal(REGISTRY_PACKAGES.length, 48);
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest('workspace:^'),
@@ -40,6 +41,19 @@ test('registry consumer includes causal sync and its durable adapter', () => {
   ]);
   assert.equal(
     REGISTRY_COLLECTIVE_SYNC_PACKAGES.every((name) =>
+      REGISTRY_PACKAGES.includes(name)
+    ),
+    true
+  );
+});
+
+test('registry consumer includes planning artifacts and durable storage', () => {
+  assert.deepEqual(REGISTRY_PLANNING_ARTIFACT_PACKAGES, [
+    '@agentplat/planning-artifacts',
+    '@agentplat/planning-artifacts-postgres',
+  ]);
+  assert.equal(
+    REGISTRY_PLANNING_ARTIFACT_PACKAGES.every((name) =>
       REGISTRY_PACKAGES.includes(name)
     ),
     true

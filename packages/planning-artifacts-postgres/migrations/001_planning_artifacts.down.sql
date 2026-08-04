@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.planning_artifacts;

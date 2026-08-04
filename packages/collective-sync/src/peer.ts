@@ -5,6 +5,7 @@ import type {
   CollectiveSyncFrontierResponsePayloadV1,
   CollectiveSyncPayloadV1,
   CollectiveSyncReceiptAckPayloadV1,
+  CollectiveSyncRecordResponsePayloadV1,
   CollectiveSyncRequestPayloadV1,
   CollectiveSyncResponsePayloadV1,
   CollectiveSyncScopeV1,
@@ -172,6 +173,25 @@ export class CollectiveSyncPeerV1 {
         nextCursors: chunk.nextCursors,
         hasMore: chunk.hasMore,
         chunkDigest,
+        respondedAtLogicalMs: logicalTimeMs,
+      });
+    }
+    if (payload.type === "sync.record.request") {
+      const record = await this.options.repository.readRecord({
+        syncDomain: payload.syncDomain,
+        streamId: payload.streamId,
+        sequence: payload.sequence,
+      });
+      return Object.freeze<CollectiveSyncRecordResponsePayloadV1>({
+        type: "sync.record.response",
+        requestMessageId: request.messageId,
+        syncDomain: payload.syncDomain,
+        streamId: payload.streamId,
+        sequence: payload.sequence,
+        sourcePeerId: this.options.scope.peerId,
+        membershipEpoch: binding.epoch,
+        membershipConfigurationDigest: binding.configurationDigest,
+        record: record ?? null,
         respondedAtLogicalMs: logicalTimeMs,
       });
     }

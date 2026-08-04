@@ -103,6 +103,12 @@ importers:
       '@agentplat/model-openai-compatible':
         specifier: workspace:*
         version: link:packages/model-openai-compatible
+      '@agentplat/planning-artifacts':
+        specifier: workspace:*
+        version: link:packages/planning-artifacts
+      '@agentplat/planning-artifacts-postgres':
+        specifier: workspace:*
+        version: link:packages/planning-artifacts-postgres
       '@agentplat/postgres':
         specifier: workspace:*
         version: link:packages/postgres
@@ -620,6 +626,45 @@ importers:
       '@agentplat/model':
         specifier: workspace:^
         version: link:../model
+
+  packages/planning-artifacts:
+    dependencies:
+      '@agentplat/collective-planning':
+        specifier: workspace:^
+        version: link:../collective-planning
+      '@agentplat/collective-quorum':
+        specifier: workspace:^
+        version: link:../collective-quorum
+      '@agentplat/collective-sync':
+        specifier: workspace:^
+        version: link:../collective-sync
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/planning-artifacts-postgres:
+    dependencies:
+      '@agentplat/collective-planning':
+        specifier: workspace:^
+        version: link:../collective-planning
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
 
   packages/postgres:
     dependencies:

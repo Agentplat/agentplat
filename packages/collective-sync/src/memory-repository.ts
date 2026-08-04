@@ -188,6 +188,23 @@ export class InMemoryCollectiveSyncRepositoryV1 implements CollectiveSyncReposit
     });
   }
 
+  readRecord(
+    input: Parameters<CollectiveSyncRepositoryV1["readRecord"]>[0],
+  ): Promise<CollectiveSyncRecordV1 | undefined> {
+    if (
+      typeof input.syncDomain !== "string" ||
+      typeof input.streamId !== "string" ||
+      !Number.isSafeInteger(input.sequence) ||
+      input.sequence < 1
+    )
+      return Promise.reject(new TypeError("invalid_sync_record_lookup"));
+    return Promise.resolve(
+      this.#records
+        .get(streamKey(input.syncDomain, input.streamId))
+        ?.get(input.sequence),
+    );
+  }
+
   saveSession(session: CollectiveSyncSessionV1): Promise<void> {
     const valid = validateCollectiveSyncSessionV1(session);
     if (!valid) return Promise.reject(new TypeError("invalid_sync_session"));

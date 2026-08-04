@@ -152,6 +152,11 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     if (!options.fragments || typeof options.fragments.put !== "function")
       invalid("a planning fragment repository is required");
     if (
+      options.planningArtifacts !== undefined &&
+      typeof options.planningArtifacts.ensureAvailable !== "function"
+    )
+      invalid("the planning artifact availability port is invalid");
+    if (
       !options.peerRuntime ||
       typeof options.peerRuntime.plan !== "function" ||
       typeof options.peerRuntime.execute !== "function"
@@ -283,6 +288,43 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         });
         if (signal?.aborted)
           throw new Error("collective_peer_node_inbox_aborted");
+        if (
+          !decision.accepted &&
+          decision.code === "planning_repository_missing" &&
+          options.planningArtifacts
+        ) {
+          const request = planningArtifactAvailabilityRequestV1(
+            this.#scope,
+            inbox.envelope,
+            receivedAt,
+            signal,
+          );
+          if (!request)
+            throw new CollectivePeerRuntimeErrorV1(
+              "STATE_CONFLICT",
+              "authenticated planning offer has inconsistent artifact bindings",
+            );
+          const available =
+            await options.planningArtifacts.ensureAvailable(request);
+          if (!available)
+            throw new CollectivePeerRuntimeErrorV1(
+              "STATE_CONFLICT",
+              `authenticated planning artifact is temporarily unavailable: ${request.contentReference}`,
+            );
+          decision = await options.inbound.process(state.runtime, {
+            envelope: inbox.envelope,
+            verifiedAt: now.wallTime,
+            receivedAt,
+          });
+          if (
+            !decision.accepted &&
+            decision.code === "planning_repository_missing"
+          )
+            throw new CollectivePeerRuntimeErrorV1(
+              "STATE_CONFLICT",
+              `resolved planning artifact was not committed locally: ${request.contentReference}`,
+            );
+        }
         if (!decision.accepted) {
           const missingPredecessor = missingInboundPredecessorV1(
             state,
@@ -4852,6 +4894,44 @@ function isAllocationEnvelope(
     "lease.vote",
     "lease.certificate",
   ]).has(envelope.payload.type);
+}
+
+function planningArtifactAvailabilityRequestV1(
+  scope: ReturnType<typeof normalizeCollectivePeerNodeScopeV1>,
+  envelope: SignedMeshEnvelope<MeshAllocationPayload>,
+  receivedAtLogicalMs: number,
+  signal?: AbortSignal,
+) {
+  if (
+    envelope.payload.type !== "work.offer" ||
+    typeof envelope.payload.inputReference !== "string"
+  )
+    return null;
+  let extension: PlanningWorkExtensionV1;
+  try {
+    extension = validatePlanningWorkExtensionV1(
+      envelope.extensions?.[PLANNING_WORK_EXTENSION_KEY_V1],
+    );
+  } catch {
+    return null;
+  }
+  return Object.freeze({
+    tenantId: scope.tenantId,
+    meshId: scope.meshId,
+    policyDomainId: scope.policyDomainId,
+    objectiveId: envelope.payload.objectiveId,
+    missionIntentId: extension.missionIntentId,
+    intentRevision: extension.intentRevision,
+    intentDigest: extension.intentDigest,
+    proposalDigest: extension.proposalDigest,
+    fragmentDigest: extension.fragmentDigest,
+    planViewDigest: extension.planViewDigest,
+    contentReference: envelope.payload.inputReference,
+    sourcePeerId: envelope.sender.peerId,
+    sourceInstanceId: envelope.sender.instanceId,
+    receivedAtLogicalMs,
+    ...(signal ? { signal } : {}),
+  });
 }
 
 function isCausalPredecessorRejectionV1(code: string): boolean {

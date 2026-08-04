@@ -43,6 +43,10 @@ export const REGISTRY_COLLECTIVE_SYNC_PACKAGES = Object.freeze([
   '@agentplat/collective-sync',
   '@agentplat/collective-sync-postgres',
 ]);
+export const REGISTRY_PLANNING_ARTIFACT_PACKAGES = Object.freeze([
+  '@agentplat/planning-artifacts',
+  '@agentplat/planning-artifacts-postgres',
+]);
 export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   '@agentplat/mesh-http',
@@ -82,6 +86,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/model-anthropic',
   '@agentplat/model-gemini',
   '@agentplat/model-openai-compatible',
+  '@agentplat/planning-artifacts',
+  '@agentplat/planning-artifacts-postgres',
   '@agentplat/postgres',
   '@agentplat/provider-openai',
   '@agentplat/rooms',

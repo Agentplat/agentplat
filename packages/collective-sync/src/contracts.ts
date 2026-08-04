@@ -98,6 +98,26 @@ export interface CollectiveSyncChunkPayloadV1 extends CollectiveSyncMembershipBo
   readonly respondedAtLogicalMs: number;
 }
 
+/** Point lookup for one exact causal record; it does not certify readiness. */
+export interface CollectiveSyncRecordRequestPayloadV1 extends CollectiveSyncMembershipBoundPayloadV1 {
+  readonly type: "sync.record.request";
+  readonly syncDomain: string;
+  readonly streamId: string;
+  readonly sequence: number;
+  readonly requestedAtLogicalMs: number;
+}
+
+export interface CollectiveSyncRecordResponsePayloadV1 extends CollectiveSyncMembershipBoundPayloadV1 {
+  readonly type: "sync.record.response";
+  readonly requestMessageId: string;
+  readonly syncDomain: string;
+  readonly streamId: string;
+  readonly sequence: number;
+  readonly sourcePeerId: string;
+  readonly record: CollectiveSyncRecordV1 | null;
+  readonly respondedAtLogicalMs: number;
+}
+
 export interface CollectiveSyncReceiptPayloadV1 extends CollectiveSyncMembershipBoundPayloadV1 {
   readonly type: "sync.receipt";
   readonly sessionId: string;
@@ -142,12 +162,14 @@ export interface CollectiveSyncAttestationPayloadV1 extends CollectiveSyncMember
 export type CollectiveSyncRequestPayloadV1 =
   | CollectiveSyncFrontierRequestPayloadV1
   | CollectiveSyncChunkRequestPayloadV1
+  | CollectiveSyncRecordRequestPayloadV1
   | CollectiveSyncReceiptPayloadV1
   | CollectiveSyncAttestationRequestPayloadV1;
 
 export type CollectiveSyncResponsePayloadV1 =
   | CollectiveSyncFrontierResponsePayloadV1
   | CollectiveSyncChunkPayloadV1
+  | CollectiveSyncRecordResponsePayloadV1
   | CollectiveSyncReceiptAckPayloadV1
   | CollectiveSyncAttestationPayloadV1;
 
@@ -252,6 +274,11 @@ export interface CollectiveSyncRepositoryV1 {
     readonly maximumRecords: number;
     readonly maximumBytes: number;
   }): Promise<CollectiveSyncChunkReadV1>;
+  readRecord(input: {
+    readonly syncDomain: string;
+    readonly streamId: string;
+    readonly sequence: number;
+  }): Promise<CollectiveSyncRecordV1 | undefined>;
   saveSession(session: CollectiveSyncSessionV1): Promise<void>;
   loadSession(sessionId: string): Promise<CollectiveSyncSessionV1 | undefined>;
   saveReceipt(
