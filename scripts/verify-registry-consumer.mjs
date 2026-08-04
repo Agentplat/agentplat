@@ -39,6 +39,10 @@ export const REGISTRY_COLLECTIVE_QUORUM_PACKAGES = Object.freeze([
   '@agentplat/collective-quorum',
   '@agentplat/collective-quorum-postgres',
 ]);
+export const REGISTRY_COLLECTIVE_SYNC_PACKAGES = Object.freeze([
+  '@agentplat/collective-sync',
+  '@agentplat/collective-sync-postgres',
+]);
 export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   '@agentplat/mesh-http',
@@ -57,6 +61,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/collective-quorum',
   '@agentplat/collective-quorum-postgres',
   '@agentplat/collective-runtime',
+  '@agentplat/collective-sync',
+  '@agentplat/collective-sync-postgres',
   '@agentplat/core',
   '@agentplat/events',
   '@agentplat/framework',

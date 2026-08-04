@@ -94,6 +94,7 @@ import {
   type CollectivePeerNodeRunOutcomeV1,
   type CollectivePeerNodeSnapshotV1,
   type CollectivePeerNodeStoredStateV1,
+  type CollectivePeerNodeSynchronizationOperationV1,
 } from "./node-contracts.js";
 import { CollectivePeerRuntimeErrorV1 } from "./peer-errors.js";
 import {
@@ -176,6 +177,12 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       typeof options.recoveryElection.select !== "function"
     )
       invalid("a threshold-certified recovery election port is required");
+    if (
+      options.synchronization !== undefined &&
+      (typeof options.synchronization.readiness !== "function" ||
+        typeof options.synchronization.recoverPredecessor !== "function")
+    )
+      invalid("the synchronization port is invalid");
     if (!options.actions || typeof options.actions.execute !== "function")
       invalid("an action execution port is required");
     if (!options.authority || typeof options.authority !== "object")
@@ -269,7 +276,7 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
           state.runtime.mesh.coordination.lastLogicalTime,
         );
         state = this.#advanceDueTimersInMemory(state, receivedAt);
-        const decision = await options.inbound.process(state.runtime, {
+        let decision = await options.inbound.process(state.runtime, {
           envelope: inbox.envelope,
           verifiedAt: now.wallTime,
           receivedAt,
@@ -284,11 +291,36 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
           if (
             missingPredecessor &&
             isCausalPredecessorRejectionV1(decision.code)
-          )
-            throw new CollectivePeerRuntimeErrorV1(
-              "STATE_CONFLICT",
-              `authenticated inbound evidence is waiting for ${missingPredecessor}`,
-            );
+          ) {
+            const recovered = options.synchronization
+              ? await options.synchronization.recoverPredecessor({
+                  scope: this.#scope,
+                  state: state.runtime,
+                  envelope: inbox.envelope,
+                  missingPredecessor,
+                  logicalTimeMs: receivedAt,
+                })
+              : null;
+            if (recovered) {
+              state = createCollectivePeerNodeStoredStateV1({
+                scope: this.#scope,
+                outboundSequence: state.outboundSequence,
+                runtime: recovered,
+                releases: state.releases,
+                initialPlanningState: this.#initial.runtime.planning,
+              });
+              decision = await options.inbound.process(state.runtime, {
+                envelope: inbox.envelope,
+                verifiedAt: now.wallTime,
+                receivedAt,
+              });
+            }
+            if (!decision.accepted)
+              throw new CollectivePeerRuntimeErrorV1(
+                "STATE_CONFLICT",
+                `authenticated inbound evidence is waiting for ${missingPredecessor}`,
+              );
+          }
         }
         if (
           decision.accepted &&
@@ -491,6 +523,13 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
 
     for (let attempt = 0; attempt < this.#maximumCommitAttempts; attempt += 1) {
       const snapshot = await this.restore();
+      const readiness = await this.#readiness("planning", logicalTimeMs);
+      if (!readiness.ready)
+        return Object.freeze({
+          status: "paused" as const,
+          reasonCode: readiness.reasonCode,
+          durableRevision: snapshot.durableRevision,
+        });
       const planning = snapshot.state.runtime.planning;
       const tenant = input.tenant ?? { tenantId: this.#scope.tenantId };
       if (tenant.tenantId !== this.#scope.tenantId)
@@ -616,6 +655,15 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         release: existing,
         durableRevision: initialSnapshot.durableRevision,
       });
+    const executionReadiness = await this.#readiness(
+      "execution",
+      logicalTimeMs,
+    );
+    if (!executionReadiness.ready)
+      return withheldExecution(
+        executionReadiness.reasonCode,
+        initialSnapshot.durableRevision,
+      );
     if (
       logicalTimeMs <
       Math.max(
@@ -912,10 +960,24 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     for (let attempt = 0; attempt < this.#maximumCommitAttempts; attempt += 1) {
       const snapshot = await this.restore();
       const now = normalizeClockReading(this.#options.clock.now());
+      const reconciliationLogicalTime = currentLogicalTime(
+        snapshot.state,
+        now.logicalTimeMs,
+        now,
+      );
+      const readiness = await this.#readiness(
+        "bidding",
+        reconciliationLogicalTime,
+      );
+      if (!readiness.ready)
+        return Object.freeze({
+          status: "idle" as const,
+          durableRevision: snapshot.durableRevision,
+        });
       const prepared = await this.#prepareReconciliation(
         snapshot.state,
         now.wallTime,
-        currentLogicalTime(snapshot.state, now.logicalTimeMs, now),
+        reconciliationLogicalTime,
       );
       if (!prepared)
         return Object.freeze({
@@ -973,6 +1035,38 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       "STATE_CONFLICT",
       "collective peer node reconciliation retry limit was exceeded",
     );
+  }
+
+  async #readiness(
+    operation: CollectivePeerNodeSynchronizationOperationV1,
+    logicalTimeMs: number,
+  ): Promise<{ readonly ready: boolean; readonly reasonCode: string }> {
+    if (!this.#options.synchronization)
+      return Object.freeze({
+        ready: true,
+        reasonCode: "synchronization_not_configured",
+      });
+    try {
+      const decision = await this.#options.synchronization.readiness({
+        scope: this.#scope,
+        operation,
+        logicalTimeMs,
+      });
+      return decision?.ready === true
+        ? Object.freeze({
+            ready: true,
+            reasonCode: decision.reasonCode || "sync_ready",
+          })
+        : Object.freeze({
+            ready: false,
+            reasonCode: decision?.reasonCode || "sync_readiness_unavailable",
+          });
+    } catch {
+      return Object.freeze({
+        ready: false,
+        reasonCode: "sync_readiness_unavailable",
+      });
+    }
   }
 
   async #deriveExecutionAssignment(
@@ -1323,6 +1417,10 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     assignment: DerivedExecutionAssignmentV1,
     logicalTimeMs: number,
   ): Promise<CollectivePeerNodeAssignmentConfirmationV1 | null> {
+    if (
+      !(await this.#readiness("assignment_confirmation", logicalTimeMs)).ready
+    )
+      return null;
     const mesh = current.runtime.mesh;
     const lease =
       mesh.allocation.leaseHeads[assignment.execution.executionScopeKey];
@@ -2687,6 +2785,8 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     proposed: LeaseTakeoverProposalPayload,
     logicalTimeMs: number,
   ): Promise<CollectivePeerNodeRecoveryElectionDecisionV1 | null> {
+    if (!(await this.#readiness("recovery_election", logicalTimeMs)).ready)
+      return null;
     const objective = historicalObjectivePolicy(
       mesh,
       proposed.objectiveId,

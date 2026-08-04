@@ -241,3 +241,13 @@ remains terminal.
 Planning fragment records are content-addressed. `put()` must be idempotent for
 the same record, and `get()` must resolve authenticated records referenced by
 received offers (for example through a shared or replicated content store).
+
+For joining, restarted, or partition-healed peers, configure the optional
+`synchronization` port. Planning, reconciliation/bidding, execution,
+assignment confirmation, and recovery-election participation then fail closed
+until the port reports membership-bound causal readiness. When an otherwise
+valid inbound envelope lacks a predecessor, the port may fetch and replay that
+evidence and return the rehydrated runtime state; the node processes the
+original envelope again through the normal inbound reducer. No synchronization
+payload bypasses admission or authority checks. `@agentplat/collective-sync`
+provides the reference operational adapter.

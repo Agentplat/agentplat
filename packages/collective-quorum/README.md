@@ -65,6 +65,10 @@ atomic semantics but loses promises and votes when the process exits.
 - Assignment attestations are non-equivocating per lease version.
 - Invalid signatures, wrong audiences, expired envelopes, missing semantic
   evidence and minority partitions fail closed.
+- When the optional readiness port is configured, an acceptor refuses
+  assignment attestations, recovery promises, and recovery acceptances until
+  its local causal frontier has a current membership-bound catch-up
+  certificate.
 - Independent peers may assemble different proof sets for the same selected
   value. The node treats those certificates as semantically equivalent while
   each port validates its own threshold evidence.

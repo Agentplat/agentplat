@@ -267,6 +267,38 @@ export interface CollectivePeerNodeContinuityPortV1 {
   ): Promise<MeshAuthorityCurrentnessDecisionV1>;
 }
 
+export type CollectivePeerNodeSynchronizationOperationV1 =
+  | "planning"
+  | "bidding"
+  | "execution"
+  | "assignment_confirmation"
+  | "recovery_election";
+
+/** Optional fail-closed seam for membership-bound causal catch-up. */
+export interface CollectivePeerNodeSynchronizationPortV1 {
+  readiness(input: {
+    readonly scope: CollectivePeerNodeScopeV1;
+    readonly operation: CollectivePeerNodeSynchronizationOperationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<{
+    readonly ready: boolean;
+    readonly reasonCode: string;
+    readonly certificateId?: AgentPlatID | null;
+  }>;
+  /**
+   * Fetch and replay one missing authenticated predecessor. A successful
+   * implementation returns the rehydrated runtime state; the original inbound
+   * envelope is then processed again by the normal reducer.
+   */
+  recoverPredecessor(input: {
+    readonly scope: CollectivePeerNodeScopeV1;
+    readonly state: PlanningMeshInboundRuntimeStateV1;
+    readonly envelope: SignedMeshEnvelope;
+    readonly missingPredecessor: string;
+    readonly logicalTimeMs: number;
+  }): Promise<PlanningMeshInboundRuntimeStateV1 | null>;
+}
+
 export interface CollectivePeerNodeExecutionReleaseV1 {
   readonly schemaVersion: 1;
   readonly releaseId: AgentPlatID;
@@ -340,6 +372,7 @@ export interface CollectivePeerNodeRuntimeConfigV1 {
   readonly continuity: CollectivePeerNodeContinuityPortV1;
   readonly assignmentConfirmation: CollectivePeerNodeAssignmentConfirmationPortV1;
   readonly recoveryElection: CollectivePeerNodeRecoveryElectionPortV1;
+  readonly synchronization?: CollectivePeerNodeSynchronizationPortV1;
   readonly actions: CollectivePeerNodeActionPortV1;
   readonly signing: CollectivePeerNodeSigningV1;
   readonly clock: CollectivePeerNodeClockV1;
