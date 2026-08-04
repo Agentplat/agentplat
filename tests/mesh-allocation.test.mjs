@@ -958,6 +958,13 @@ test('signed recipient offers reserve once, accept causal signed bids, rank, and
   });
   assert.equal(selected.reason, 'selected');
   assert.equal(selected.bid.bidId, 'bid-a-v2');
+  const policyFiltered = selectMeshAllocationBid(replaced.state, {
+    offerId: 'offer-a',
+    evaluatedAt: 11,
+    excludedBidderPeerIds: ['peer-a'],
+  });
+  assert.equal(policyFiltered.reason, 'selected');
+  assert.equal(policyFiltered.bid.bidderPeerId, 'peer-c');
   assert.equal(
     selectMeshAllocationBid(replaced.state, {
       offerId: 'offer-a',

@@ -591,6 +591,8 @@ export interface MeshLocalAwardCommand {
   readonly offerId: string;
   readonly bidId: string;
   readonly bidRevision: number;
+  /** Owner-local policy exclusions applied by the deterministic selector. */
+  readonly excludedBidderPeerIds?: readonly string[];
   readonly recipient: MeshLocalAwardPreparedRecipient;
 }
 
@@ -655,6 +657,8 @@ export interface MeshLocalAwardPreparedRecipient {
 export interface MeshAllocationSelectionInput {
   readonly offerId: string;
   readonly evaluatedAt: MeshLogicalTime;
+  /** Deterministic owner-local policy exclusions; order has no meaning. */
+  readonly excludedBidderPeerIds?: readonly string[];
 }
 
 export type MeshAllocationCommand =

@@ -245,6 +245,15 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
       '@agentplat/runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -361,6 +370,9 @@ importers:
 
   packages/mesh-http:
     dependencies:
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
       '@agentplat/mesh-protocol':
         specifier: workspace:^
         version: link:../mesh-protocol

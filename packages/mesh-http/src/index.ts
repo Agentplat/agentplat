@@ -12,6 +12,8 @@ import type {
   SignedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
 
+export { createMeshHttpDurableOutboxDeliver } from "./durable-outbox.js";
+
 export const MESH_HTTP_RECEIPT_SCHEMA_VERSION = 1 as const;
 export const MESH_HTTP_V0_PATH = "/agentplat/mesh/v0/envelopes";
 export const MESH_HTTP_V1_PATH = "/agentplat/mesh/v1/envelopes";

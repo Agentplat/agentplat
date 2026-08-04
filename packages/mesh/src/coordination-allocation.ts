@@ -447,9 +447,11 @@ function evaluateAwardCommand(
   verifiedAt: string,
   receivedAt: number,
 ): MeshAllocationDecision {
+  const commandKeys = Object.keys(command).sort().join(",");
   if (
-    Object.keys(command).sort().join(",") !==
-      "bidId,bidRevision,kind,offerId,recipient" ||
+    (commandKeys !== "bidId,bidRevision,kind,offerId,recipient" &&
+      commandKeys !==
+        "bidId,bidRevision,excludedBidderPeerIds,kind,offerId,recipient") ||
     !command.recipient ||
     Object.keys(command.recipient).sort().join(",") !==
       "envelope,preparedAt,recipientPeerId"
@@ -470,6 +472,9 @@ function evaluateAwardCommand(
   const selected = selectMeshAllocationBid(state, {
     offerId: offer.offerId,
     evaluatedAt: receivedAt,
+    ...(command.excludedBidderPeerIds === undefined
+      ? {}
+      : { excludedBidderPeerIds: command.excludedBidderPeerIds }),
   });
   if (
     selected.reason !== "selected" ||
@@ -2623,13 +2628,25 @@ export function selectMeshAllocationBid(
   state: MeshAllocationRuntimeState,
   input: MeshAllocationSelectionInput,
 ): MeshAllocationBidSelection {
+  const inputKeys =
+    input && typeof input === "object"
+      ? Object.keys(input).sort().join(",")
+      : "";
+  const excludedBidderPeerIds = input?.excludedBidderPeerIds ?? [];
   if (
     !input ||
     typeof input !== "object" ||
-    Object.keys(input).sort().join(",") !== "evaluatedAt,offerId" ||
+    (inputKeys !== "evaluatedAt,offerId" &&
+      inputKeys !== "evaluatedAt,excludedBidderPeerIds,offerId") ||
     typeof input.offerId !== "string" ||
     !Number.isSafeInteger(input.evaluatedAt) ||
-    input.evaluatedAt < 0
+    input.evaluatedAt < 0 ||
+    !Array.isArray(excludedBidderPeerIds) ||
+    excludedBidderPeerIds.length > 256 ||
+    new Set(excludedBidderPeerIds).size !== excludedBidderPeerIds.length ||
+    excludedBidderPeerIds.some(
+      (peerId) => typeof peerId !== "string" || peerId.length === 0,
+    )
   )
     throw new TypeError("Invalid Mesh allocation selection input");
   assertRuntime(state, input.evaluatedAt);
@@ -2663,6 +2680,7 @@ export function selectMeshAllocationBid(
     });
   const eligible = Object.values(state.allocation.bidHeads).filter((bid) => {
     if (bid.offerId !== input.offerId) return false;
+    if (excludedBidderPeerIds.includes(bid.bidderPeerId)) return false;
     const evidence = state.allocation.acceptedBidEvidence[bid.bidId];
     if (!evidence) return false;
     return (

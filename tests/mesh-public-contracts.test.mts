@@ -872,6 +872,7 @@ const allocationRuntimeState: MeshAllocationRuntimeState =
 const allocationSelectionInput: MeshAllocationSelectionInput = {
   offerId: 'offer-a',
   evaluatedAt: 0,
+  excludedBidderPeerIds: ['witness-a'],
 };
 const allocationSelection: MeshAllocationBidSelection = selectMeshAllocationBid(
   allocationRuntimeState,

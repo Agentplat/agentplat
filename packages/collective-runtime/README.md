@@ -140,3 +140,104 @@ currentness implementation bindings. Credentials and the current tenant actor
 context remain ephemeral. This gives applications a production composition
 path for model, policy, symbolic or hybrid agents without treating an agent's
 output as assignment or effect authority.
+
+## Adaptive peer node
+
+Import `@agentplat/collective-runtime/node` for the long-lived, provider-neutral
+peer composition. `CollectivePeerNodeRuntimeV1` owns one concrete peer
+incarnation and connects the existing Mesh, planning reducer, portable-agent
+runtime, authority continuity, action gateway, durable repository and signed
+transport boundaries.
+
+The caller supplies only ephemeral step input and observations. The node never
+accepts a caller-created plan view, Work Contract, adaptive role or assignment
+authority. It instead:
+
+1. restores its strict peer snapshot and durable inbox/outbox;
+2. creates local proposals from the accepted mission view and publishes signed
+   planning Work offers only while its `work_owner` continuity head is current;
+3. bids, awards and accepts Work using the retained Mesh evidence;
+4. reconstructs the Work Contract from the current signed offer, accepted
+   award, assignment fence, stored planning fragment and delegation mandate;
+5. requires the configured portable-agent control binding before inference;
+6. sends every action proposal through the injected action port and withholds
+   the result unless every resolution is durable and dispatched; and
+7. rechecks assignment and owner continuity before atomically committing the
+   completed planning state, signed checkpoint/result records, release record,
+   journal and causal outbox effects.
+
+`runOnce()` processes one durable transport batch and one local allocation
+reconciliation. Reconciliation consumes the earliest due generation-fenced
+Mesh timer before issuing new bids, awards or acceptances, so bid windows,
+acceptance windows, Work deadlines and assignment leases advance without a
+global scheduler. Ready Work is reoffered from its retained planning fragment
+and current discovery view after a bid or acceptance attempt expires, bounded
+by the Mesh offer-attempt ceiling. `start()` repeats that cycle until its signal
+is aborted.
+
+Authenticated messages that arrive before required award, acceptance, renewal,
+checkpoint or recovery evidence are durably deferred instead of being
+permanently rejected. Authentication and admission happen before deferral, and
+the signed envelope remains retryable only until its own bounded expiry.
+
+An active assignee renews a lease during its final third, within the immutable
+Objective policy, Work deadline and renewal ceiling. Execution re-derives the
+same stable assignment authority before every action and commit, so a confirmed
+renewal may extend a long-running step without changing its action retry keys.
+
+Assignment evidence is copied in parallel to every eligible Objective recovery
+witness; independent witnesses are not chained as transport dependencies. A
+candidate that is itself a configured witness does not bid, and an assignment
+fails closed if excluding owner/assignee leaves fewer witnesses than the policy
+threshold. After a lease and its recovery grace expire, eligible peers can
+propose the next assignment epoch. Witnesses vote only for the exact
+threshold-certified decision returned by the required recovery-election port;
+the decision is carried in the signed vote and certificate envelopes. The port
+may implement peer-to-peer rounds or another quorum protocol, but a
+first-arrival or process-local quiet-window choice is not valid certification.
+The Work owner counts only votes bound to the same live decision, then issues a
+newly fenced recovery award. Certificate-to-award causality is fenced per
+recipient, without serializing unrelated recipients. The replacement accepts
+and executes through the same Work Contract, inference-control, action and
+commit boundaries as an initial assignee. When a checkpoint exists, its signed
+content reference is retained as recovery evidence; resolving the referenced
+application state remains the responsibility of the configured content/session
+adapter. If the election port cannot certify a round during a partition,
+recovery fails closed.
+
+`execute()` remains explicit because observations, credentials and agent input
+are intentionally not persisted in the node snapshot. Its successful
+`committed` status means the checkpoint/result release and causal outbox are
+durable locally; it does not claim that asynchronous remote delivery has
+already completed.
+
+The action port is part of the trusted application boundary. Its `execute()`
+implementation must use the node-supplied `effectId` as its idempotency key,
+persist the returned resolution before acknowledging `dispatched`, and return
+that same resolution when a crash or compare-and-swap retry replays the key.
+The key is bound to tenant, mesh, Objective, Work revision, step and action—not
+to a mutable lease, continuity read or assignment epoch. A recovery assignee
+therefore reuses the same effect key, and the action gateway must share durable
+receipts across peers that can execute that Work. It
+must also atomically revalidate the supplied Work Contract, assignment fence
+continuity binding and assignment confirmation at the downstream effect
+boundary. The assignment-confirmation port must return only after the owner and
+at least the configured witness threshold have semantically accepted the exact
+acceptance or latest renewal; local outbox enqueue/delivery alone is not
+sufficient execution authority. The continuity port
+must implement `resolveScope()` for local owner commands and `resolve()` for a
+derived Work Contract, then check the exact current `work_owner` scope. Stale or
+unavailable authority withholds Work creation, offer/award/certificate
+publication, ingress, actions, commit and delivery. Owner envelopes carry the
+exact continuity head in the signed
+`agentplat.collective.owner-continuity.v1` extension, closing ABA delivery and
+ingress races. The continuity port must explicitly declare
+`ownerTransferMode: "stop_and_replan"`: a Work whose logical owner transfers
+is stopped and must be replanned under the successor in this V1 profile.
+Historical Objective policy
+is used for already accepted Work revisions; a current Objective cancellation
+remains terminal.
+
+Planning fragment records are content-addressed. `put()` must be idempotent for
+the same record, and `get()` must resolve authenticated records referenced by
+received offers (for example through a shared or replicated content store).

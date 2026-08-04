@@ -20,6 +20,7 @@ const migrationNames = [
   "001_mesh_durability",
   "002_mesh_compatibility_metadata",
   "003_planning_recovery_durability",
+  "004_mesh_outbox_dependencies",
 ] as const;
 
 export const migrationDirectory = fileURLToPath(
@@ -108,6 +109,44 @@ async function migrations(): Promise<readonly PostgresMigration[]> {
           to_regclass('__AGENTPLAT_SCHEMA__.mesh_planning_recovery_states') IS NOT NULL
           AND to_regclass('__AGENTPLAT_SCHEMA__.mesh_planning_recovery_events') IS NOT NULL
           AS present
+      `,
+    },
+    {
+      version: 4,
+      name: migrationNames[3],
+      up: sources[6],
+      down: sources[7],
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          EXISTS (
+            SELECT 1
+              FROM information_schema.columns
+             WHERE table_schema = '__AGENTPLAT_SCHEMA__'
+               AND table_name = 'mesh_outbox'
+               AND column_name = 'depends_on_effect_id'
+               AND data_type = 'text'
+               AND is_nullable = 'YES'
+          )
+          AND EXISTS (
+            SELECT 1
+              FROM information_schema.table_constraints
+             WHERE table_schema = '__AGENTPLAT_SCHEMA__'
+               AND table_name = 'mesh_outbox'
+               AND constraint_name = 'mesh_outbox_dependency_not_self_check'
+               AND constraint_type = 'CHECK'
+          )
+          AND EXISTS (
+            SELECT 1
+              FROM information_schema.table_constraints
+             WHERE table_schema = '__AGENTPLAT_SCHEMA__'
+               AND table_name = 'mesh_outbox'
+               AND constraint_name = 'mesh_outbox_dependency_scope_fkey'
+               AND constraint_type = 'FOREIGN KEY'
+          )
+          AND to_regclass(
+            '__AGENTPLAT_SCHEMA__.mesh_outbox_dependency_idx'
+          ) IS NOT NULL AS present
       `,
     },
   ];

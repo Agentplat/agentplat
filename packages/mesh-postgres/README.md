@@ -53,6 +53,13 @@ planning snapshot with `createPlanningRecoveryDurableStateV1`, and then call
 uses the same validation and is intended for conformance tests, not as durable
 storage.
 
+Migration 4 adds causal outbox dependencies. A transition may publish an
+ordered effect chain by setting `dependsOnEffectId` to an earlier effect in the
+same atomic commit or to a retained effect from an earlier commit in the same
+durable peer scope. PostgreSQL rejects missing or cross-scope predecessors and
+will not claim the dependent effect until the predecessor is durably settled
+as delivered.
+
 The pool remains caller-owned. `repository.close()` intentionally does not call
 `pool.end()`.
 
@@ -65,8 +72,10 @@ outbox insert and inbox settlement commit atomically.
 
 Outbox delivery is at least once. A worker may retry after the receiver has
 already committed, so receivers must use the durable message key and Mesh replay
-boundary. Database claims schedule work; they do not create Objective, lease,
-assignment or action authority.
+boundary. Permanently rejecting a predecessor atomically rejects its dependent
+chain with `dependency_rejected`; dependents are never delivered out of order
+or left as apparently claimable backlog. Database claims schedule work; they do
+not create Objective, lease, assignment or action authority.
 
 Every loaded envelope is passed through the strict protocol parser, every
 snapshot digest is recomputed, and every inspected journal entry is recomputed

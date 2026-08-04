@@ -201,7 +201,11 @@ offer envelopes is a trusted driver boundary; this reducer does not verify a
 signature itself.
 
 The owner-side award increment extends that projection with one prepared,
-signed direct `work.award` envelope for the current deterministic bid. Awarding
+signed direct `work.award` envelope for the current deterministic bid.
+Selection may supply a bounded, explicit `excludedBidderPeerIds` set to both it
+and the local award command, allowing immutable owner policy (for example,
+witness/assignee separation) to choose the next eligible bid deterministically.
+Awarding
 atomically closes the bid window, replaces its timer with a generation-fenced
 acceptance timer and keeps the reservation reserved. Already-verified direct
 `work.accept` and `work.decline` responses are accepted only from the awarded
@@ -297,8 +301,17 @@ instance authority, replay accounting and the allocation transition. A signed
 execution record rejected by the domain still consumes normal replay security
 accounting; diagnostics remain local. The same boundary accepts authenticated
 `lease.renew`, `lease.takeover_proposal`, `lease.vote` and `lease.certificate`
-records only after replay and admission checks. This alpha does not implement
-durable execution storage or external-action authority.
+records only after replay and admission checks. The state machine does not
+choose a storage engine or grant external-action authority; applications bind
+it to a durable repository and a separately governed action gateway.
+
+The durable outbox supports an optional `dependsOnEffectId` causal fence. A
+dependency may name an earlier effect in the same atomic transition or a
+retained effect from an earlier transition in the same durable peer scope.
+Forward references within one transition are rejected. Durable adapters claim
+the dependent effect only after its predecessor is settled as delivered, so
+checkpoint-before-result and multi-transition witness ordering survive retries
+and process loss.
 
 ## Certified authority continuity
 

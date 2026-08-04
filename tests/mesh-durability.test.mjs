@@ -96,7 +96,11 @@ async function records() {
       expiresAt: "2026-08-01T00:01:00.000Z",
     }),
   });
-  return { inbox, outboundEnvelope };
+  return {
+    inbox,
+    outboundEnvelope,
+    outboundPrivateKey: receiver.privateKey,
+  };
 }
 
 test("snapshot codecs use exact formats, verify digests and migrate deterministically", async () => {
@@ -307,7 +311,15 @@ test("durable value and journal digests are deterministic and tamper evident", a
 });
 
 test("durable worker normalizes one inbox transition and never starts implicitly", async () => {
-  const { inbox, outboundEnvelope } = await records();
+  const { inbox, outboundEnvelope, outboundPrivateKey } = await records();
+  const dependentEnvelope = await ping({
+    messageId: "OOOOOOOOOOOOOOOOOOOOOQ",
+    senderPeerId: "peer-b",
+    senderInstanceId: "instance-b",
+    audiencePeerId: "peer-a",
+    keyId: "key-b",
+    privateKey: outboundPrivateKey,
+  });
   let claims = 0;
   let committed;
   let abandoned = 0;
@@ -351,7 +363,14 @@ test("durable worker normalizes one inbox transition and never starts implicitly
         outcome: "applied",
         nextState: { revision: 1 },
         journal: [{ entryId: "entry-1", kind: "transition.applied" }],
-        outbox: [{ effectId: "effect-1", envelope: outboundEnvelope }],
+        outbox: [
+          { effectId: "effect-1", envelope: outboundEnvelope },
+          {
+            effectId: "effect-2",
+            dependsOnEffectId: "effect-1",
+            envelope: dependentEnvelope,
+          },
+        ],
       };
     },
     deliverOutbox: async () => ({ disposition: "delivered" }),
@@ -369,6 +388,7 @@ test("durable worker normalizes one inbox transition and never starts implicitly
     committed.outbox[0].envelope.messageId,
     outboundEnvelope.messageId,
   );
+  assert.equal(committed.outbox[1].dependsOnEffectId, "effect-1");
   assert.equal(abandoned, 0);
 });
 

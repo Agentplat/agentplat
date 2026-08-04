@@ -103,7 +103,7 @@ test(
         schema,
         createSchema: true,
       });
-      assert.equal(migrated.currentVersion, 3);
+      assert.equal(migrated.currentVersion, 4);
       assert.deepEqual(await getCompatibilityStatus(pool, { schema }), {
         legacyInboxRows: 0,
         legacyOutboxRows: 0,
@@ -383,6 +383,84 @@ test(
         [],
       );
 
+      const rejectedPredecessorEnvelope = await signedPing({
+        messageId: "RRRRRRRRRRRRRRRRRRRRRA",
+        senderPeerId: "peer-b",
+        senderInstanceId: "instance-b",
+        audiencePeerId: "peer-a",
+        keyId: "key-b",
+        privateKey: receiverKeys.privateKey,
+        sequence: 2,
+      });
+      const impossibleDependentEnvelope = await signedPing({
+        messageId: "DDDDDDDDDDDDDDDDDDDDDA",
+        senderPeerId: "peer-b",
+        senderInstanceId: "instance-b",
+        audiencePeerId: "peer-a",
+        keyId: "key-b",
+        privateKey: receiverKeys.privateKey,
+        sequence: 3,
+      });
+      const predecessorCommit = await repository.commitLocalTransition({
+        scope,
+        expectedSnapshotRevision: 1,
+        transitionId: "transition-rejected-predecessor",
+        nextState: { applied: true, sequence: 2 },
+        journal: [
+          {
+            entryId: "journal-rejected-predecessor",
+            kind: "local.transition",
+          },
+        ],
+        outbox: [
+          {
+            effectId: "effect-rejected-predecessor",
+            envelope: rejectedPredecessorEnvelope,
+          },
+        ],
+      });
+      assert.equal(predecessorCommit.committed, true);
+      const [rejectedPredecessor] = await repository.claimOutbox({
+        scope,
+        workerId: "worker-rejected-predecessor",
+        limit: 1,
+        leaseDurationMs: 30_000,
+      });
+      assert.equal(
+        await repository.settleOutbox({
+          outbox: rejectedPredecessor,
+          settlement: {
+            disposition: "permanent_rejection",
+            reasonCode: "remote_rejection",
+          },
+        }),
+        true,
+      );
+      await assert.rejects(
+        () =>
+          repository.commitLocalTransition({
+            scope,
+            expectedSnapshotRevision: 2,
+            transitionId: "transition-impossible-dependent",
+            nextState: { applied: true, sequence: 3 },
+            journal: [
+              {
+                entryId: "journal-impossible-dependent",
+                kind: "local.transition",
+              },
+            ],
+            outbox: [
+              {
+                effectId: "effect-impossible-dependent",
+                dependsOnEffectId: "effect-rejected-predecessor",
+                envelope: impossibleDependentEnvelope,
+              },
+            ],
+          }),
+        /dependency was rejected/u,
+      );
+      assert.equal((await repository.loadSnapshot(scope)).revision, 2);
+
       const journal = await repository.inspectJournal({ scope, limit: 10 });
       assert.equal(await verifyMeshDurableJournal({ entries: journal }), true);
       await pool.query(
@@ -418,8 +496,17 @@ test(
       assert.equal((await pool.query("SELECT 1 AS ok")).rows[0].ok, 1);
 
       const status = await getMigrationStatus(pool, { schema });
-      assert.equal(status.currentVersion, 3);
+      assert.equal(status.currentVersion, 4);
       const rolledBack = await rollbackMigrations(pool, {
+        schema,
+        expectedCurrentVersion: 4,
+        confirm: rollbackConfirmation(schema, 4),
+        allowDataLoss: true,
+        verifiedBackup: true,
+        allowIncompatibleRows: true,
+      });
+      assert.equal(rolledBack.currentVersion, 3);
+      const planningRollback = await rollbackMigrations(pool, {
         schema,
         expectedCurrentVersion: 3,
         confirm: rollbackConfirmation(schema, 3),
@@ -427,7 +514,7 @@ test(
         verifiedBackup: true,
         allowIncompatibleRows: true,
       });
-      assert.equal(rolledBack.currentVersion, 2);
+      assert.equal(planningRollback.currentVersion, 2);
       await assert.rejects(
         () =>
           rollbackMigrations(pool, {

@@ -22,6 +22,10 @@ pnpm add @agentplat/inference-control@next
   ledger and gateway.
 - `@agentplat/inference-control/trust` — content-free outcome-to-Claim
   conversion plus opt-in legacy and authenticated state-backed Trust gates.
+- `@agentplat/inference-control/portable-agent` — fail-closed bridge from a
+  portable-agent session control point to a bound inference-control policy and
+  assessor. It maps `pre_step`, `post_output`, and `pre_action` to `pre_run`,
+  `post_run`, and `pre_tool`; it does not invoke a provider or grant actions.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts

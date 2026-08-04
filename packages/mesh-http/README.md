@@ -56,3 +56,9 @@ origins and envelope-supplied origins are not accepted.
 Delivery is at least once. The client performs one attempt, never follows
 redirects, and returns a coarse receipt. Retry scheduling belongs to the
 durable outbox worker, which must retry the exact same signed envelope.
+
+`createMeshHttpDurableOutboxDeliver({ client })` adapts that single HTTP
+attempt to `MeshDurableOutboxDeliver`: accepted receipts settle as delivered,
+permanent rejections settle as rejected, and retryable receipts preserve their
+bounded `retryAfterMs`. Topic deliveries preserve the durable record's exact
+`targetPeerId`; the signed envelope is never modified.

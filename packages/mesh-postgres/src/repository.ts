@@ -15,14 +15,16 @@ import type {
   MeshDurableClaim,
   MeshDurableClaimOptions,
   MeshDurableCommitInboxInput,
+  MeshDurableCommitLocalInput,
   MeshDurableCommitResult,
   MeshDurableInboxRecord,
   MeshDurableJournalEntry,
   MeshDurableJournalQuery,
   MeshDurableOutboxRecord,
+  MeshDurableOutboundDraft,
   MeshDurablePeerSnapshot,
   MeshDurableReceiveResult,
-  MeshDurableRepository,
+  MeshDurableLocalTransitionRepository,
   MeshDurableScope,
   MeshDurableSettleOutboxInput,
   MeshDurableSnapshotDescriptor,
@@ -75,7 +77,7 @@ export interface PostgresMeshDurableRepositoryOptions {
  *
  * The pool is caller-owned and is never closed by this adapter.
  */
-export class PostgresMeshDurableRepository implements MeshDurableRepository {
+export class PostgresMeshDurableRepository implements MeshDurableLocalTransitionRepository {
   readonly #schema: string;
   readonly #maximumPendingInboxRowsPerScope: number;
 
@@ -356,6 +358,7 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
           throw new CommitConflictError("outbox_conflict");
         }
       }
+      await assertPersistedOutboxDependencies(database, scope, input.outbox);
 
       const lastJournal = await database.query<Row>(
         `SELECT sequence, digest FROM public.mesh_journal
@@ -448,17 +451,18 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
         const inserted = await database.query<Row>(
           `INSERT INTO public.mesh_outbox
              (tenant_id, mesh_id, peer_id, instance_id, effect_id, message_id,
-              target_peer_id, envelope, envelope_digest,
+              target_peer_id, depends_on_effect_id, envelope, envelope_digest,
               wrapper_schema_version, envelope_format,
               envelope_wire_version, envelope_bytes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11,
-                   $12, $13)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11,
+                   $12, $13, $14)
            RETURNING *`,
           [
             ...scopeValues(scope),
             outbound.effectId,
             envelope.messageId,
             targetPeerId ?? null,
+            outbound.dependsOnEffectId ?? null,
             JSON.stringify(envelope),
             envelopeDigest,
             MESH_DURABILITY_SCHEMA_VERSION,
@@ -490,6 +494,221 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
       return Object.freeze({
         committed: true,
         ...(snapshot === undefined ? {} : { snapshot }),
+        journal: Object.freeze(journal),
+        outbox: Object.freeze(outbox),
+      });
+    }).catch((error: unknown) => {
+      if (error instanceof CommitConflictError) {
+        return commitConflict(error.code);
+      }
+      throw error;
+    });
+  }
+
+  async commitLocalTransition(
+    input: MeshDurableCommitLocalInput,
+  ): Promise<MeshDurableCommitResult> {
+    const scope = normalizeMeshDurableScope(input.scope);
+    assertLocalCommitInput(input, scope);
+    return this.#transaction(async (database) => {
+      // The advisory lock also serializes the revision-zero insert with inbox
+      // transitions for the same concrete peer incarnation.
+      await database.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [scopeKey(scope)],
+      );
+      const transition = await database.query<Row>(
+        `SELECT 1 FROM public.mesh_journal
+          WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+            AND instance_id = $4 AND transition_id = $5
+          LIMIT 1`,
+        [...scopeValues(scope), input.transitionId],
+      );
+      if (transition.rowCount !== 0) {
+        return commitConflict("transition_conflict");
+      }
+
+      const currentResult = await database.query<Row>(
+        `SELECT * FROM public.mesh_peer_snapshots
+          WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+            AND instance_id = $4
+          FOR UPDATE`,
+        scopeValues(scope),
+      );
+      const current =
+        currentResult.rowCount === 0
+          ? undefined
+          : await mapSnapshot(currentResult.rows[0]!, scope);
+      if ((current?.revision ?? 0) !== input.expectedSnapshotRevision) {
+        return commitConflict("revision_conflict");
+      }
+
+      for (const outbound of input.outbox) {
+        const conflict = await database.query<Row>(
+          `SELECT 1 FROM public.mesh_outbox
+            WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+              AND instance_id = $4
+              AND (effect_id = $5 OR message_id = $6)
+            LIMIT 1`,
+          [
+            ...scopeValues(scope),
+            outbound.effectId,
+            outbound.envelope.messageId,
+          ],
+        );
+        if (conflict.rowCount !== 0) {
+          throw new CommitConflictError("outbox_conflict");
+        }
+      }
+      await assertPersistedOutboxDependencies(database, scope, input.outbox);
+
+      const state = cloneStrictJson(input.nextState);
+      const stateDigest = await computeMeshDurableValueDigest(state);
+      const descriptor = normalizeSnapshotDescriptor(input.nextStateDescriptor);
+      const revision = input.expectedSnapshotRevision + 1;
+      const snapshotResult = await database.query<Row>(
+        `INSERT INTO public.mesh_peer_snapshots
+           (tenant_id, mesh_id, peer_id, instance_id, revision, state,
+            state_digest, wrapper_schema_version, snapshot_format,
+            snapshot_schema_version, committed_at)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10,
+                 transaction_timestamp())
+         ON CONFLICT (tenant_id, mesh_id, peer_id, instance_id)
+         DO UPDATE SET revision = EXCLUDED.revision,
+                       state = EXCLUDED.state,
+                       state_digest = EXCLUDED.state_digest,
+                       wrapper_schema_version = EXCLUDED.wrapper_schema_version,
+                       snapshot_format = EXCLUDED.snapshot_format,
+                       snapshot_schema_version = EXCLUDED.snapshot_schema_version,
+                       committed_at = EXCLUDED.committed_at
+         RETURNING *`,
+        [
+          ...scopeValues(scope),
+          revision,
+          JSON.stringify(state),
+          stateDigest,
+          MESH_DURABILITY_SCHEMA_VERSION,
+          descriptor.format,
+          descriptor.schemaVersion,
+        ],
+      );
+      const snapshot = await mapSnapshot(snapshotResult.rows[0]!, scope);
+
+      const timestamp = iso(
+        (
+          await database.query<Row>(
+            "SELECT transaction_timestamp() AS occurred_at",
+          )
+        ).rows[0]!.occurred_at,
+      );
+      const lastJournal = await database.query<Row>(
+        `SELECT sequence, digest FROM public.mesh_journal
+          WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+            AND instance_id = $4
+          ORDER BY sequence DESC
+          LIMIT 1`,
+        scopeValues(scope),
+      );
+      let sequence =
+        lastJournal.rowCount === 0
+          ? 0
+          : safeInteger(lastJournal.rows[0]!.sequence, "journal sequence");
+      let previousDigest =
+        lastJournal.rowCount === 0
+          ? MESH_DURABLE_GENESIS_DIGEST
+          : String(lastJournal.rows[0]!.digest);
+      const drafts =
+        input.journal.length === 0
+          ? [
+              {
+                entryId: input.transitionId,
+                kind: "transition.applied",
+              },
+            ]
+          : input.journal;
+      const journal: MeshDurableJournalEntry[] = [];
+      for (const draft of drafts) {
+        sequence += 1;
+        const entry = await createMeshDurableJournalEntry({
+          scope,
+          sequence,
+          previousDigest,
+          transitionId: input.transitionId,
+          snapshotRevision: snapshot.revision,
+          snapshotDigest: snapshot.stateDigest,
+          draft,
+          occurredAt: timestamp,
+        });
+        await database.query(
+          `INSERT INTO public.mesh_journal
+             (tenant_id, mesh_id, peer_id, instance_id, sequence, entry_id,
+              previous_digest, digest, transition_id, inbox_message_id,
+              snapshot_revision, snapshot_digest, kind, reason_code,
+              occurred_at, wrapper_schema_version, journal_version)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11,
+                   $12, $13, $14::timestamptz, $15, $16)`,
+          [
+            ...scopeValues(scope),
+            entry.sequence,
+            entry.entryId,
+            entry.previousDigest,
+            entry.digest,
+            entry.transitionId,
+            entry.snapshotRevision,
+            entry.snapshotDigest,
+            entry.kind,
+            entry.reasonCode ?? null,
+            entry.occurredAt,
+            MESH_DURABILITY_SCHEMA_VERSION,
+            MESH_DURABLE_JOURNAL_VERSION,
+          ],
+        );
+        journal.push(entry);
+        previousDigest = entry.digest;
+      }
+
+      const outbox: MeshDurableOutboxRecord[] = [];
+      for (const outbound of input.outbox) {
+        const targetPeerId =
+          outbound.targetPeerId ??
+          (outbound.envelope.audience.kind === "peer"
+            ? outbound.envelope.audience.peerId
+            : undefined);
+        const envelope = validateOutboundEnvelope(
+          outbound.envelope,
+          scope,
+          targetPeerId,
+        );
+        const envelopeDigest = await digestEnvelope(envelope);
+        const envelopeBytes = canonicalEnvelopeBytes(envelope);
+        const inserted = await database.query<Row>(
+          `INSERT INTO public.mesh_outbox
+             (tenant_id, mesh_id, peer_id, instance_id, effect_id, message_id,
+              target_peer_id, depends_on_effect_id, envelope, envelope_digest,
+              wrapper_schema_version, envelope_format,
+              envelope_wire_version, envelope_bytes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11,
+                   $12, $13, $14)
+           RETURNING *`,
+          [
+            ...scopeValues(scope),
+            outbound.effectId,
+            envelope.messageId,
+            targetPeerId ?? null,
+            outbound.dependsOnEffectId ?? null,
+            JSON.stringify(envelope),
+            envelopeDigest,
+            MESH_DURABILITY_SCHEMA_VERSION,
+            MESH_DURABLE_ENVELOPE_FORMAT,
+            envelope.wireVersion,
+            Buffer.from(envelopeBytes),
+          ],
+        );
+        outbox.push(await mapOutbox(inserted.rows[0]!, scope));
+      }
+      return Object.freeze({
+        committed: true,
+        snapshot,
         journal: Object.freeze(journal),
         outbox: Object.freeze(outbox),
       });
@@ -545,16 +764,30 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
     const options = normalizeClaimOptions(input);
     return this.#transaction(async (database) => {
       const selected = await database.query<Row>(
-        `SELECT effect_id
-           FROM public.mesh_outbox
-          WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
-            AND instance_id = $4
+        `SELECT candidate.effect_id
+           FROM public.mesh_outbox AS candidate
+          WHERE candidate.tenant_id = $1 AND candidate.mesh_id = $2
+            AND candidate.peer_id = $3 AND candidate.instance_id = $4
             AND (
-              (status = 'pending' AND available_at <= transaction_timestamp())
-              OR
-              (status = 'delivering' AND claim_expires_at <= transaction_timestamp())
+              (candidate.status = 'pending'
+                AND candidate.available_at <= transaction_timestamp())
+              OR (candidate.status = 'delivering'
+                AND candidate.claim_expires_at <= transaction_timestamp())
             )
-          ORDER BY created_at, effect_id
+            AND (
+              candidate.depends_on_effect_id IS NULL
+              OR EXISTS (
+                SELECT 1
+                  FROM public.mesh_outbox AS predecessor
+                 WHERE predecessor.tenant_id = candidate.tenant_id
+                   AND predecessor.mesh_id = candidate.mesh_id
+                   AND predecessor.peer_id = candidate.peer_id
+                   AND predecessor.instance_id = candidate.instance_id
+                   AND predecessor.effect_id = candidate.depends_on_effect_id
+                   AND predecessor.status = 'delivered'
+              )
+            )
+          ORDER BY candidate.created_at, candidate.effect_id
           FOR UPDATE SKIP LOCKED
           LIMIT $5`,
         [...scopeValues(options.scope), options.limit],
@@ -618,36 +851,69 @@ export class PostgresMeshDurableRepository implements MeshDurableRepository {
       : input.settlement.disposition === "delivered"
         ? "delivered"
         : "rejected";
-    const result = await scopedDatabase(this.pool, this.#schema).query(
-      `UPDATE public.mesh_outbox
-          SET status = $9,
-              available_at = CASE WHEN $9 = 'pending'
-                THEN transaction_timestamp()
-                  + ($10::bigint * interval '1 millisecond')
-                ELSE available_at END,
-              settled_at = CASE WHEN $9 = 'pending'
-                THEN NULL ELSE transaction_timestamp() END,
-              reason_code = $11,
-              claim_worker_id = NULL,
-              claim_token = NULL,
-              claim_expires_at = NULL
-        WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
-          AND instance_id = $4 AND effect_id = $5
-          AND status = 'delivering' AND claim_worker_id = $6
-          AND claim_token = $7 AND claim_generation = $8
-          AND claim_expires_at > transaction_timestamp()`,
-      [
-        ...scopeValues(scope),
-        input.outbox.effectId,
-        claim.workerId,
-        claim.leaseToken,
-        claim.generation,
-        status,
-        retryAfterMs,
-        input.settlement.reasonCode ?? null,
-      ],
-    );
-    return result.rowCount === 1;
+    return this.#transaction(async (database) => {
+      const result = await database.query(
+        `UPDATE public.mesh_outbox
+            SET status = $9,
+                available_at = CASE WHEN $9 = 'pending'
+                  THEN transaction_timestamp()
+                    + ($10::bigint * interval '1 millisecond')
+                  ELSE available_at END,
+                settled_at = CASE WHEN $9 = 'pending'
+                  THEN NULL ELSE transaction_timestamp() END,
+                reason_code = $11,
+                claim_worker_id = NULL,
+                claim_token = NULL,
+                claim_expires_at = NULL
+          WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+            AND instance_id = $4 AND effect_id = $5
+            AND status = 'delivering' AND claim_worker_id = $6
+            AND claim_token = $7 AND claim_generation = $8
+            AND claim_expires_at > transaction_timestamp()`,
+        [
+          ...scopeValues(scope),
+          input.outbox.effectId,
+          claim.workerId,
+          claim.leaseToken,
+          claim.generation,
+          status,
+          retryAfterMs,
+          input.settlement.reasonCode ?? null,
+        ],
+      );
+      if (
+        result.rowCount === 1 &&
+        input.settlement.disposition === "permanent_rejection"
+      ) {
+        await database.query(
+          `WITH RECURSIVE blocked(effect_id) AS (
+             SELECT effect_id
+               FROM public.mesh_outbox
+              WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+                AND instance_id = $4 AND depends_on_effect_id = $5
+             UNION
+             SELECT child.effect_id
+               FROM public.mesh_outbox AS child
+               JOIN blocked AS predecessor
+                 ON child.depends_on_effect_id = predecessor.effect_id
+              WHERE child.tenant_id = $1 AND child.mesh_id = $2
+                AND child.peer_id = $3 AND child.instance_id = $4
+           )
+           UPDATE public.mesh_outbox
+              SET status = 'rejected',
+                  settled_at = transaction_timestamp(),
+                  reason_code = 'dependency_rejected',
+                  claim_worker_id = NULL,
+                  claim_token = NULL,
+                  claim_expires_at = NULL
+            WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+              AND instance_id = $4 AND effect_id IN (SELECT effect_id FROM blocked)
+              AND status IN ('pending', 'delivering')`,
+          [...scopeValues(scope), input.outbox.effectId],
+        );
+      }
+      return result.rowCount === 1;
+    });
   }
 
   async inspectJournal(
@@ -916,10 +1182,21 @@ async function mapOutbox(
   const claim = mapClaim(row, status === "delivering");
   const schemaVersion = durabilitySchemaVersion(row.wrapper_schema_version);
   assertEnvelopeMetadata(row, schemaVersion, envelope, restored.bytes);
+  const effectId = String(row.effect_id);
+  const dependsOnEffectId =
+    row.depends_on_effect_id == null
+      ? undefined
+      : String(row.depends_on_effect_id);
+  if (
+    !validIdentifier(effectId) ||
+    (dependsOnEffectId !== undefined &&
+      (!validIdentifier(dependsOnEffectId) || dependsOnEffectId === effectId))
+  )
+    throw new TypeError("Persisted Mesh outbox dependency is invalid");
   return Object.freeze({
     schemaVersion,
     scope,
-    effectId: String(row.effect_id),
+    effectId,
     messageId: envelope.messageId,
     envelope,
     envelopeDigest,
@@ -936,6 +1213,7 @@ async function mapOutbox(
     ...(row.target_peer_id == null
       ? {}
       : { targetPeerId: String(row.target_peer_id) }),
+    ...(dependsOnEffectId === undefined ? {} : { dependsOnEffectId }),
     status,
     attempts: safeInteger(row.attempts, "outbox attempts"),
     availableAt: iso(row.available_at),
@@ -1140,6 +1418,8 @@ function assertCommitInput(
     if (
       !outbound ||
       !validIdentifier(outbound.effectId) ||
+      (outbound.dependsOnEffectId !== undefined &&
+        !validIdentifier(outbound.dependsOnEffectId)) ||
       (outbound.targetPeerId !== undefined &&
         !validIdentifier(outbound.targetPeerId))
     ) {
@@ -1154,6 +1434,111 @@ function assertCommitInput(
           : undefined),
     );
   }
+  assertOutboxDependencies(input.outbox);
+}
+
+function assertLocalCommitInput(
+  input: MeshDurableCommitLocalInput,
+  scope: MeshDurableScope,
+): void {
+  if (
+    !scopeEquals(scope, input.scope) ||
+    !Number.isSafeInteger(input.expectedSnapshotRevision) ||
+    input.expectedSnapshotRevision < 0 ||
+    !validIdentifier(input.transitionId) ||
+    !Array.isArray(input.journal) ||
+    input.journal.length > 64 ||
+    !Array.isArray(input.outbox) ||
+    input.outbox.length > 256 ||
+    input.nextState === undefined
+  ) {
+    throw new TypeError("Mesh durable local commit input is invalid");
+  }
+  normalizeSnapshotDescriptor(input.nextStateDescriptor);
+  cloneStrictJson(input.nextState);
+  for (const draft of input.journal) {
+    if (
+      !draft ||
+      !validIdentifier(draft.entryId) ||
+      !validReason(draft.kind) ||
+      (draft.reasonCode !== undefined && !validReason(draft.reasonCode))
+    ) {
+      throw new TypeError("Mesh durable journal draft is invalid");
+    }
+  }
+  for (const outbound of input.outbox) {
+    if (
+      !outbound ||
+      !validIdentifier(outbound.effectId) ||
+      (outbound.dependsOnEffectId !== undefined &&
+        !validIdentifier(outbound.dependsOnEffectId)) ||
+      (outbound.targetPeerId !== undefined &&
+        !validIdentifier(outbound.targetPeerId))
+    ) {
+      throw new TypeError("Mesh durable outbound draft is invalid");
+    }
+    validateOutboundEnvelope(
+      outbound.envelope,
+      scope,
+      outbound.targetPeerId ??
+        (outbound.envelope?.audience?.kind === "peer"
+          ? outbound.envelope.audience.peerId
+          : undefined),
+    );
+  }
+  assertOutboxDependencies(input.outbox);
+}
+
+function assertOutboxDependencies(
+  outbox: readonly MeshDurableOutboundDraft[],
+): void {
+  const batch = new Set(outbox.map(({ effectId }) => effectId));
+  const seen = new Set<string>();
+  for (const outbound of outbox) {
+    if (
+      seen.has(outbound.effectId) ||
+      (outbound.dependsOnEffectId !== undefined &&
+        batch.has(outbound.dependsOnEffectId) &&
+        !seen.has(outbound.dependsOnEffectId))
+    )
+      throw new TypeError("Mesh durable outbox dependency order is invalid");
+    seen.add(outbound.effectId);
+  }
+}
+
+async function assertPersistedOutboxDependencies(
+  database: Database,
+  scope: MeshDurableScope,
+  outbox: readonly MeshDurableOutboundDraft[],
+): Promise<void> {
+  const batch = new Set(outbox.map(({ effectId }) => effectId));
+  const external = [
+    ...new Set(
+      outbox
+        .map(({ dependsOnEffectId }) => dependsOnEffectId)
+        .filter(
+          (effectId): effectId is string =>
+            effectId !== undefined && !batch.has(effectId),
+        ),
+    ),
+  ];
+  if (external.length === 0) return;
+  const retained = await database.query<Row>(
+    `SELECT effect_id, status FROM public.mesh_outbox
+      WHERE tenant_id = $1 AND mesh_id = $2 AND peer_id = $3
+        AND instance_id = $4 AND effect_id = ANY($5::text[])`,
+    [...scopeValues(scope), external],
+  );
+  const retainedStatus = new Map(
+    retained.rows.map(({ effect_id, status }) => [
+      String(effect_id),
+      String(status),
+    ]),
+  );
+  if (external.some((effectId) => !retainedStatus.has(effectId)))
+    throw new TypeError("Mesh durable outbox dependency does not exist");
+  if (external.some((effectId) => retainedStatus.get(effectId) === "rejected"))
+    throw new TypeError("Mesh durable outbox dependency was rejected");
 }
 
 function normalizeClaimOptions(input: MeshDurableClaimOptions): {

@@ -98,6 +98,8 @@ export interface MeshDurableOutboundDraft {
   readonly envelope: SignedMeshEnvelope;
   /** Required when a topic envelope is delivered to one selected peer. */
   readonly targetPeerId?: string;
+  /** Optional causal fence; this effect is claimable only after its predecessor is delivered. */
+  readonly dependsOnEffectId?: string;
 }
 
 export interface MeshDurableOutboxRecord extends MeshDurableOutboundDraft {
@@ -147,6 +149,23 @@ export interface MeshDurableCommitInboxInput {
   readonly journal: readonly MeshDurableJournalDraft[];
   readonly outbox: readonly MeshDurableOutboundDraft[];
   readonly reasonCode?: string;
+}
+
+/**
+ * Atomically commits a peer-local transition and its durable outbound effects.
+ *
+ * Unlike an inbox transition, this operation is not authorized by possession
+ * of an inbox claim. Callers must derive the transition from local authority
+ * and use the snapshot revision as the compare-and-swap fence.
+ */
+export interface MeshDurableCommitLocalInput {
+  readonly scope: MeshDurableScope;
+  readonly expectedSnapshotRevision: number;
+  readonly transitionId: string;
+  readonly nextState: MeshJsonValue;
+  readonly nextStateDescriptor?: MeshDurableSnapshotDescriptor;
+  readonly journal: readonly MeshDurableJournalDraft[];
+  readonly outbox: readonly MeshDurableOutboundDraft[];
 }
 
 /** Caller-owned snapshot content identity, separate from wrapper/DB versions. */
@@ -248,6 +267,13 @@ export interface MeshDurableRepository {
     query: MeshDurableJournalQuery,
   ): Promise<readonly MeshDurableJournalEntry[]>;
   close?(): void | Promise<void>;
+}
+
+/** Durable repositories that can atomically publish peer-local transitions. */
+export interface MeshDurableLocalTransitionRepository extends MeshDurableRepository {
+  commitLocalTransition(
+    input: MeshDurableCommitLocalInput,
+  ): Promise<MeshDurableCommitResult>;
 }
 
 export interface MeshDurableInboxProcessorInput {
@@ -933,6 +959,7 @@ function normalizeProcessorResult(
   if (outbox.length > 256) {
     throw new RangeError("Mesh durable transition outbox is too large");
   }
+  assertOrderedOutboxDependencies(outbox);
   return Object.freeze({
     outcome: "applied",
     ...(result.transitionId ? { transitionId: result.transitionId } : {}),
@@ -940,6 +967,23 @@ function normalizeProcessorResult(
     journal,
     outbox,
   });
+}
+
+function assertOrderedOutboxDependencies(
+  outbox: readonly MeshDurableOutboundDraft[],
+): void {
+  const batch = new Set(outbox.map(({ effectId }) => effectId));
+  const seen = new Set<string>();
+  for (const draft of outbox) {
+    if (
+      seen.has(draft.effectId) ||
+      (draft.dependsOnEffectId !== undefined &&
+        batch.has(draft.dependsOnEffectId) &&
+        !seen.has(draft.dependsOnEffectId))
+    )
+      throw new TypeError("Mesh durable outbox dependency order is invalid");
+    seen.add(draft.effectId);
+  }
 }
 
 function normalizeOutboundDraft(
@@ -951,6 +995,12 @@ function normalizeOutboundDraft(
     throw new TypeError("Mesh durable outbound draft is invalid");
   }
   boundedIdentifier(draft.effectId, "effectId");
+  if (draft.dependsOnEffectId !== undefined) {
+    boundedIdentifier(draft.dependsOnEffectId, "dependsOnEffectId");
+    if (draft.dependsOnEffectId === draft.effectId) {
+      throw new TypeError("Mesh durable outbox dependency is self-referential");
+    }
+  }
   const validated = validateSignedMeshEnvelope(draft.envelope);
   if (
     !validated.ok ||
@@ -985,6 +1035,9 @@ function normalizeOutboundDraft(
     ...(draft.targetPeerId === undefined
       ? {}
       : { targetPeerId: draft.targetPeerId }),
+    ...(draft.dependsOnEffectId === undefined
+      ? {}
+      : { dependsOnEffectId: draft.dependsOnEffectId }),
   });
 }
 
