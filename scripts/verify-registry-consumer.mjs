@@ -31,6 +31,8 @@ export const REGISTRY_INFERENCE_CONTROL_PACKAGE =
   '@agentplat/inference-control';
 export const REGISTRY_COLLECTIVE_PLANNING_PACKAGE =
   '@agentplat/collective-planning';
+export const REGISTRY_COLLECTIVE_RUNTIME_PACKAGE =
+  '@agentplat/collective-runtime';
 export const REGISTRY_TRUST_PACKAGE = '@agentplat/trust';
 export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   '@agentplat/mesh-http',
@@ -44,6 +46,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/collective-control',
   '@agentplat/collective-control-postgres',
   '@agentplat/collective-planning',
+  '@agentplat/collective-runtime',
   '@agentplat/core',
   '@agentplat/events',
   '@agentplat/framework',

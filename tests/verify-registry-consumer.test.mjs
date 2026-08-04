@@ -6,6 +6,7 @@ import {
   registryConsumerManifest,
   REGISTRY_ALPHA5_PACKAGES,
   REGISTRY_COLLECTIVE_PLANNING_PACKAGE,
+  REGISTRY_COLLECTIVE_RUNTIME_PACKAGE,
   REGISTRY_CONSUMER_SCRIPTS,
   REGISTRY_INFERENCE_CONTROL_PACKAGE,
   REGISTRY_MESH_PACKAGES,
@@ -14,7 +15,7 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from '../scripts/verify-registry-consumer.mjs';
 
-test('registry consumer pins all 39 public packages to the exact release version', () => {
+test('registry consumer pins all 40 public packages to the exact release version', () => {
   const manifest = registryConsumerManifest('0.3.0-alpha.1');
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -22,7 +23,7 @@ test('registry consumer pins all 39 public packages to the exact release version
     new Set(['0.3.0-alpha.1'])
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 39);
+  assert.equal(REGISTRY_PACKAGES.length, 40);
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest('workspace:^'),
@@ -81,6 +82,7 @@ test('registry consumer copies compatibility and conformance scenarios', () => {
     ...REGISTRY_ALPHA5_PACKAGES,
     REGISTRY_INFERENCE_CONTROL_PACKAGE,
     REGISTRY_COLLECTIVE_PLANNING_PACKAGE,
+    REGISTRY_COLLECTIVE_RUNTIME_PACKAGE,
     REGISTRY_TRUST_PACKAGE,
   ]) {
     assert.equal(REGISTRY_PACKAGES.includes(packageName), true);
