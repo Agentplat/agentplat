@@ -34,6 +34,8 @@ export const REGISTRY_COLLECTIVE_PLANNING_PACKAGE =
 export const REGISTRY_COLLECTIVE_RUNTIME_PACKAGE =
   '@agentplat/collective-runtime';
 export const REGISTRY_COLLECTIVE_QUORUM_PACKAGES = Object.freeze([
+  '@agentplat/collective-membership',
+  '@agentplat/collective-membership-postgres',
   '@agentplat/collective-quorum',
   '@agentplat/collective-quorum-postgres',
 ]);
@@ -49,6 +51,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   '@agentplat/auth',
   '@agentplat/collective-control',
   '@agentplat/collective-control-postgres',
+  '@agentplat/collective-membership',
+  '@agentplat/collective-membership-postgres',
   '@agentplat/collective-planning',
   '@agentplat/collective-quorum',
   '@agentplat/collective-quorum-postgres',

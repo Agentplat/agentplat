@@ -160,7 +160,7 @@ function validateAssignmentRequest(
   value: Record<string, unknown>,
 ): CollectiveQuorumAssignmentRequestPayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "acceptanceMessageId",
       "assignedInstanceId",
       "assignedPeerId",
@@ -222,7 +222,7 @@ function validateAssignmentAttestation(
   value: Record<string, unknown>,
 ): CollectiveQuorumAssignmentAttestationPayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "acceptanceId",
       "assignmentAuthorityId",
       "assignmentEpoch",
@@ -264,7 +264,7 @@ function validateRecoveryPrepare(
   value: Record<string, unknown>,
 ): CollectiveQuorumRecoveryPreparePayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "ballot",
       "eligibleWitnessPeerIds",
       "objectiveId",
@@ -302,7 +302,7 @@ function validateRecoveryPromise(
   value: Record<string, unknown>,
 ): CollectiveQuorumRecoveryPromisePayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "accepted",
       "ballot",
       "promisedAtLogicalMs",
@@ -328,7 +328,7 @@ function validateRecoveryAccept(
   value: Record<string, unknown>,
 ): CollectiveQuorumRecoveryAcceptPayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "ballot",
       "eligibleWitnessPeerIds",
       "expiresAtLogicalMs",
@@ -385,7 +385,7 @@ function validateRecoveryAccepted(
   value: Record<string, unknown>,
 ): CollectiveQuorumRecoveryAcceptedPayloadV1 | null {
   if (
-    !hasExactKeys(value, [
+    !hasExactKeysWithMembership(value, [
       "acceptedAtLogicalMs",
       "ballot",
       "expiresAtLogicalMs",
@@ -534,6 +534,25 @@ function hasExactKeys(
   return (
     keys.length === sorted.length &&
     keys.every((key, index) => key === sorted[index])
+  );
+}
+
+function hasExactKeysWithMembership(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+): boolean {
+  const hasEpoch = Object.hasOwn(value, "membershipEpoch");
+  const hasDigest = Object.hasOwn(value, "membershipConfigurationDigest");
+  if (hasEpoch !== hasDigest) return false;
+  if (!hasEpoch) return hasExactKeys(value, expected);
+  return (
+    isPositiveInteger(value.membershipEpoch) &&
+    isDigest(value.membershipConfigurationDigest) &&
+    hasExactKeys(value, [
+      ...expected,
+      "membershipEpoch",
+      "membershipConfigurationDigest",
+    ])
   );
 }
 

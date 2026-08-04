@@ -40,7 +40,35 @@ export interface CollectiveQuorumAcceptedRecoveryValueV1 {
   readonly value: CollectiveQuorumRecoveryValueV1;
 }
 
-export interface CollectiveQuorumAssignmentRequestPayloadV1 {
+/** Immutable membership snapshot that pins a quorum operation to one epoch. */
+export interface CollectiveQuorumMembershipBindingV1 {
+  readonly epoch: number;
+  readonly configurationDigest: string;
+  readonly memberPeerIds: readonly string[];
+  readonly memberInstances: readonly {
+    readonly peerId: string;
+    readonly instanceId: string;
+  }[];
+}
+
+/** Optional integration port supplied by a certified membership registry. */
+export interface CollectiveQuorumMembershipBindingPortV1 {
+  currentBinding(input: {
+    readonly logicalTimeMs: number;
+  }): Promise<CollectiveQuorumMembershipBindingV1 | null>;
+  resolveBinding(input: {
+    readonly epoch: number;
+    readonly configurationDigest: string;
+    readonly logicalTimeMs: number;
+  }): Promise<CollectiveQuorumMembershipBindingV1 | null>;
+}
+
+interface CollectiveQuorumMembershipBoundPayloadV1 {
+  readonly membershipEpoch?: number;
+  readonly membershipConfigurationDigest?: string;
+}
+
+export interface CollectiveQuorumAssignmentRequestPayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "assignment.confirm.request";
   readonly scopeDigest: string;
   readonly assignmentSlotDigest: string;
@@ -64,7 +92,7 @@ export interface CollectiveQuorumAssignmentRequestPayloadV1 {
   readonly requestedAtLogicalMs: number;
 }
 
-export interface CollectiveQuorumAssignmentAttestationPayloadV1 {
+export interface CollectiveQuorumAssignmentAttestationPayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "assignment.confirm.attestation";
   readonly requestMessageId: string;
   readonly scopeDigest: string;
@@ -81,7 +109,7 @@ export interface CollectiveQuorumAssignmentAttestationPayloadV1 {
   readonly confirmedAtLogicalMs: number;
 }
 
-export interface CollectiveQuorumRecoveryPreparePayloadV1 {
+export interface CollectiveQuorumRecoveryPreparePayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "recovery.prepare";
   readonly scopeDigest: string;
   readonly objectiveId: string;
@@ -99,7 +127,7 @@ export interface CollectiveQuorumRecoveryPreparePayloadV1 {
   readonly requestedAtLogicalMs: number;
 }
 
-export interface CollectiveQuorumRecoveryPromisePayloadV1 {
+export interface CollectiveQuorumRecoveryPromisePayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "recovery.promise";
   readonly requestMessageId: string;
   readonly scopeDigest: string;
@@ -109,7 +137,7 @@ export interface CollectiveQuorumRecoveryPromisePayloadV1 {
   readonly promisedAtLogicalMs: number;
 }
 
-export interface CollectiveQuorumRecoveryAcceptPayloadV1 {
+export interface CollectiveQuorumRecoveryAcceptPayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "recovery.accept";
   readonly scopeDigest: string;
   readonly objectiveId: string;
@@ -130,7 +158,7 @@ export interface CollectiveQuorumRecoveryAcceptPayloadV1 {
   readonly expiresAtLogicalMs: number;
 }
 
-export interface CollectiveQuorumRecoveryAcceptedPayloadV1 {
+export interface CollectiveQuorumRecoveryAcceptedPayloadV1 extends CollectiveQuorumMembershipBoundPayloadV1 {
   readonly type: "recovery.accepted";
   readonly requestMessageId: string;
   readonly scopeDigest: string;
@@ -304,6 +332,7 @@ export interface CollectiveQuorumPeerOptionsV1 {
   readonly scope: CollectiveQuorumScopeV1;
   readonly signing: CollectiveQuorumSigningV1;
   readonly resolver: MeshKeyResolver;
+  readonly membership?: CollectiveQuorumMembershipBindingPortV1;
   readonly repository: CollectiveQuorumRepositoryV1;
   readonly evidence: CollectiveQuorumSemanticEvidencePortV1;
   readonly clock: CollectiveQuorumClockV1;

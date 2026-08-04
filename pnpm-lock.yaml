@@ -28,6 +28,12 @@ importers:
       '@agentplat/collective-control-postgres':
         specifier: workspace:*
         version: link:packages/collective-control-postgres
+      '@agentplat/collective-membership':
+        specifier: workspace:*
+        version: link:packages/collective-membership
+      '@agentplat/collective-membership-postgres':
+        specifier: workspace:*
+        version: link:packages/collective-membership-postgres
       '@agentplat/collective-planning':
         specifier: workspace:*
         version: link:packages/collective-planning
@@ -212,6 +218,36 @@ importers:
       '@agentplat/inference-control':
         specifier: workspace:^
         version: link:../inference-control
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+
+  packages/collective-membership:
+    dependencies:
+      '@agentplat/collective-quorum':
+        specifier: workspace:^
+        version: link:../collective-quorum
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/collective-membership-postgres:
+    dependencies:
+      '@agentplat/collective-membership':
+        specifier: workspace:^
+        version: link:../collective-membership
       '@agentplat/postgres':
         specifier: workspace:^
         version: link:../postgres

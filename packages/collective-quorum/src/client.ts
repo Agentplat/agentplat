@@ -79,6 +79,13 @@ export class CollectiveQuorumClientV1 {
       !strictMajority(input.recoveryWitnessThreshold, witnesses.length)
     )
       return null;
+    const membership = await this.#membershipBinding(input.logicalTimeMs, [
+      this.options.scope.peerId,
+      assignment.ownerPeerId,
+      assignment.assignedPeerId,
+      ...witnesses,
+    ]);
+    if (!membership) return null;
     const assignmentSlotDigest = await collectiveQuorumDigestV1(
       {
         tenantId: scope.tenantId,
@@ -129,6 +136,7 @@ export class CollectiveQuorumClientV1 {
       eligibleWitnessPeerIds: witnesses,
       recoveryWitnessThreshold: input.recoveryWitnessThreshold,
       requestedAtLogicalMs: input.logicalTimeMs,
+      ...membership,
     };
     const peerIds = [assignment.ownerPeerId, ...witnesses];
     const exchanges = await this.#exchangeMany(payload, peerIds);
@@ -243,6 +251,12 @@ export class CollectiveQuorumClientV1 {
       input.logicalTimeMs >= input.objectiveExpiresAtLogicalMs
     )
       return null;
+    const membership = await this.#membershipBinding(input.logicalTimeMs, [
+      this.options.scope.peerId,
+      ...witnesses,
+      ...proposals.map(({ proposedAssigneePeerId }) => proposedAssigneePeerId),
+    ]);
+    if (!membership) return null;
     const proposalsDigest = await collectiveQuorumDigestV1(
       proposals,
       this.options.crypto,
@@ -268,6 +282,7 @@ export class CollectiveQuorumClientV1 {
         eligibleWitnessPeerIds: witnesses,
         recoveryWitnessThreshold: input.recoveryWitnessThreshold,
         requestedAtLogicalMs: input.logicalTimeMs,
+        ...membership,
       };
       const prepareExchanges = await this.#exchangeMany(
         preparePayload,
@@ -323,6 +338,7 @@ export class CollectiveQuorumClientV1 {
         ),
         requestedAtLogicalMs: input.logicalTimeMs,
         expiresAtLogicalMs,
+        ...membership,
       };
       const acceptExchanges = await this.#exchangeMany(
         acceptPayload,
@@ -436,11 +452,46 @@ export class CollectiveQuorumClientV1 {
           candidate = null;
         }
         const verified = candidate
-          ? await this.#verifyResponse(candidate, peerId)
+          ? await this.#verifyResponse(
+              candidate,
+              peerId,
+              payload.requestedAtLogicalMs,
+            )
           : null;
         return Object.freeze({ peerId, request, response: verified });
       }),
     );
+  }
+
+  async #membershipBinding(
+    logicalTimeMs: number,
+    requiredPeerIds: readonly string[],
+  ): Promise<
+    | Record<string, never>
+    | {
+        readonly membershipEpoch: number;
+        readonly membershipConfigurationDigest: string;
+      }
+    | null
+  > {
+    if (!this.options.membership) return {};
+    const binding = await this.options.membership.currentBinding({
+      logicalTimeMs,
+    });
+    if (!binding) return null;
+    const members = new Set(binding.memberPeerIds);
+    const localInstance = binding.memberInstances.find(
+      ({ peerId }) => peerId === this.options.scope.peerId,
+    );
+    if (
+      localInstance?.instanceId !== this.options.scope.instanceId ||
+      !requiredPeerIds.every((peerId) => members.has(peerId))
+    )
+      return null;
+    return {
+      membershipEpoch: binding.epoch,
+      membershipConfigurationDigest: binding.configurationDigest,
+    };
   }
 
   async #signRequest<TPayload extends CollectiveQuorumRequestPayloadV1>(
@@ -488,6 +539,7 @@ export class CollectiveQuorumClientV1 {
   async #verifyResponse(
     candidate: SignedCollectiveQuorumEnvelopeV1<CollectiveQuorumResponsePayloadV1>,
     peerId: string,
+    logicalTimeMs: number,
   ): Promise<SignedCollectiveQuorumEnvelopeV1<CollectiveQuorumResponsePayloadV1> | null> {
     const now = this.options.clock.now();
     const response =
@@ -499,11 +551,30 @@ export class CollectiveQuorumClientV1 {
           crypto: this.options.crypto,
         },
       );
+    let validInstance = true;
+    if (response && this.options.membership) {
+      const epoch = response.payload.membershipEpoch;
+      const configurationDigest =
+        response.payload.membershipConfigurationDigest;
+      const binding =
+        epoch !== undefined && configurationDigest !== undefined
+          ? await this.options.membership.resolveBinding({
+              epoch,
+              configurationDigest,
+              logicalTimeMs,
+            })
+          : null;
+      validInstance =
+        binding?.memberInstances.find(
+          ({ peerId: memberPeerId }) => memberPeerId === peerId,
+        )?.instanceId === response.senderInstanceId;
+    }
     if (
       !response ||
       response.tenantId !== this.options.scope.tenantId ||
       response.meshId !== this.options.scope.meshId ||
       response.senderPeerId !== peerId ||
+      !validInstance ||
       response.audiencePeerId !== this.options.scope.peerId
     )
       return null;
@@ -591,7 +662,8 @@ function validAssignmentAttestation(
     payload.assignmentEpoch === request.assignmentEpoch &&
     payload.fencingToken === request.fencingToken &&
     payload.leaseRenewalId === request.latestLeaseRenewalId &&
-    payload.confirmedAtLogicalMs === request.requestedAtLogicalMs
+    payload.confirmedAtLogicalMs === request.requestedAtLogicalMs &&
+    sameMembershipBinding(request, payload)
   );
 }
 
@@ -610,7 +682,8 @@ function validRecoveryPromise(
     promise.scopeDigest === payload.scopeDigest &&
     sameCollectiveQuorumBallotV1(promise.ballot, payload.ballot) &&
     promise.witnessPeerId === peerId &&
-    payload.eligibleWitnessPeerIds.includes(peerId)
+    payload.eligibleWitnessPeerIds.includes(peerId) &&
+    sameMembershipBinding(payload, promise)
   );
 }
 
@@ -631,7 +704,25 @@ function validRecoveryAccepted(
     sameCollectiveQuorumRecoveryValueV1(accepted.selected, payload.selected) &&
     accepted.witnessPeerId === peerId &&
     accepted.acceptedAtLogicalMs === payload.requestedAtLogicalMs &&
-    accepted.expiresAtLogicalMs === payload.expiresAtLogicalMs
+    accepted.expiresAtLogicalMs === payload.expiresAtLogicalMs &&
+    sameMembershipBinding(payload, accepted)
+  );
+}
+
+function sameMembershipBinding(
+  request: {
+    readonly membershipEpoch?: number;
+    readonly membershipConfigurationDigest?: string;
+  },
+  response: {
+    readonly membershipEpoch?: number;
+    readonly membershipConfigurationDigest?: string;
+  },
+): boolean {
+  return (
+    request.membershipEpoch === response.membershipEpoch &&
+    request.membershipConfigurationDigest ===
+      response.membershipConfigurationDigest
   );
 }
 

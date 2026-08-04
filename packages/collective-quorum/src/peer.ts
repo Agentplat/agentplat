@@ -66,6 +66,8 @@ export class CollectiveQuorumPeerV1 {
       boundedTtl.value > 0
     )
       return { accepted: false, code: "expired" };
+    if (!(await this.#hasValidMembershipBinding(request)))
+      return { accepted: false, code: "invalid_quorum" };
 
     switch (request.payload.type) {
       case "assignment.confirm.request":
@@ -147,6 +149,7 @@ export class CollectiveQuorumPeerV1 {
             leaseRenewalId: payload.latestLeaseRenewalId,
             confirmedLeaseExpiresAt: evidence.confirmedLeaseExpiresAt,
             confirmedAtLogicalMs: payload.requestedAtLogicalMs,
+            ...membershipBindingFields(payload),
           };
         return this.#signResponse(
           responsePayload,
@@ -198,6 +201,7 @@ export class CollectiveQuorumPeerV1 {
             payload.requestedAtLogicalMs,
             logicalTimeMs,
           ),
+          ...membershipBindingFields(payload),
         };
         return this.#signResponse(
           responsePayload,
@@ -259,6 +263,7 @@ export class CollectiveQuorumPeerV1 {
           witnessPeerId: this.options.scope.peerId,
           acceptedAtLogicalMs: payload.requestedAtLogicalMs,
           expiresAtLogicalMs: payload.expiresAtLogicalMs,
+          ...membershipBindingFields(payload),
         };
         return this.#signResponse(
           responsePayload,
@@ -312,6 +317,67 @@ export class CollectiveQuorumPeerV1 {
       crypto: this.options.crypto,
     });
   }
+
+  async #hasValidMembershipBinding(
+    request: SignedCollectiveQuorumEnvelopeV1<CollectiveQuorumRequestPayloadV1>,
+  ): Promise<boolean> {
+    const payload = request.payload;
+    const hasEpoch = payload.membershipEpoch !== undefined;
+    const hasDigest = payload.membershipConfigurationDigest !== undefined;
+    if (!this.options.membership) return !hasEpoch && !hasDigest;
+    if (!hasEpoch || !hasDigest) return false;
+    const binding = await this.options.membership.resolveBinding({
+      epoch: payload.membershipEpoch!,
+      configurationDigest: payload.membershipConfigurationDigest!,
+      logicalTimeMs: payload.requestedAtLogicalMs,
+    });
+    if (!binding) return false;
+    const senderInstance = binding.memberInstances.find(
+      ({ peerId }) => peerId === request.senderPeerId,
+    );
+    const localInstance = binding.memberInstances.find(
+      ({ peerId }) => peerId === this.options.scope.peerId,
+    );
+    if (
+      senderInstance?.instanceId !== request.senderInstanceId ||
+      localInstance?.instanceId !== this.options.scope.instanceId
+    )
+      return false;
+    const required = new Set<string>([
+      request.senderPeerId,
+      this.options.scope.peerId,
+    ]);
+    if (payload.type === "assignment.confirm.request") {
+      required.add(payload.ownerPeerId);
+      required.add(payload.assignedPeerId);
+      for (const peerId of payload.eligibleWitnessPeerIds) required.add(peerId);
+    } else {
+      required.add(payload.ballot.proposerPeerId);
+      for (const peerId of payload.eligibleWitnessPeerIds) required.add(peerId);
+      for (const proposal of payload.proposals)
+        required.add(proposal.proposedAssigneePeerId);
+    }
+    const members = new Set(binding.memberPeerIds);
+    return [...required].every((peerId) => members.has(peerId));
+  }
+}
+
+function membershipBindingFields(payload: {
+  readonly membershipEpoch?: number;
+  readonly membershipConfigurationDigest?: string;
+}):
+  | Record<string, never>
+  | {
+      readonly membershipEpoch: number;
+      readonly membershipConfigurationDigest: string;
+    } {
+  return payload.membershipEpoch !== undefined &&
+    payload.membershipConfigurationDigest !== undefined
+    ? {
+        membershipEpoch: payload.membershipEpoch,
+        membershipConfigurationDigest: payload.membershipConfigurationDigest,
+      }
+    : {};
 }
 
 function assertOptions(options: CollectiveQuorumPeerOptionsV1): void {
