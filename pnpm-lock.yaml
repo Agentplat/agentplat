@@ -31,6 +31,12 @@ importers:
       '@agentplat/collective-planning':
         specifier: workspace:*
         version: link:packages/collective-planning
+      '@agentplat/collective-quorum':
+        specifier: workspace:*
+        version: link:packages/collective-quorum
+      '@agentplat/collective-quorum-postgres':
+        specifier: workspace:*
+        version: link:packages/collective-quorum-postgres
       '@agentplat/collective-runtime':
         specifier: workspace:*
         version: link:packages/collective-runtime
@@ -233,6 +239,42 @@ importers:
       '@agentplat/mesh-protocol':
         specifier: workspace:^
         version: link:../mesh-protocol
+
+  packages/collective-quorum:
+    dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
+      '@agentplat/collective-runtime':
+        specifier: workspace:^
+        version: link:../collective-runtime
+      '@agentplat/mesh':
+        specifier: workspace:^
+        version: link:../mesh
+      '@agentplat/mesh-crypto':
+        specifier: workspace:^
+        version: link:../mesh-crypto
+      '@agentplat/mesh-protocol':
+        specifier: workspace:^
+        version: link:../mesh-protocol
+
+  packages/collective-quorum-postgres:
+    dependencies:
+      '@agentplat/collective-quorum':
+        specifier: workspace:^
+        version: link:../collective-quorum
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
 
   packages/collective-runtime:
     dependencies:

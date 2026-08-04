@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_quorum_certificates;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_quorum_responses;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_quorum_ballot_counters;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_quorum_recovery_acceptors;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_quorum_assignment_slots;

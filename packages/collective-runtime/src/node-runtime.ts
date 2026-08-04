@@ -2723,6 +2723,7 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       scopeDigest,
       objectiveId: proposed.objectiveId,
       objectiveRevision: proposed.objectiveRevision,
+      objectiveExpiresAtLogicalMs: objective.expiresAt,
       workItemId: proposed.workItemId,
       workItemRevision: proposed.workItemRevision,
       priorAssignmentEpoch: proposed.assignmentEpoch,
@@ -4657,19 +4658,14 @@ function sameRecoveryElectionDecision(
   left: CollectivePeerNodeRecoveryElectionDecisionV1,
   right: CollectivePeerNodeRecoveryElectionDecisionV1,
 ): boolean {
+  // Different peers may assemble different signed proof sets for the same
+  // Paxos value. Mesh interoperability depends on semantic decision equality,
+  // while each configured port remains responsible for validating its local
+  // threshold certificate and expiry before returning it.
   return (
-    left.electionId === right.electionId &&
-    left.electionRound === right.electionRound &&
     left.scopeDigest === right.scopeDigest &&
     left.selectedProposalId === right.selectedProposalId &&
-    left.selectedAssigneePeerId === right.selectedAssigneePeerId &&
-    left.certifiedAtLogicalMs === right.certifiedAtLogicalMs &&
-    left.expiresAtLogicalMs === right.expiresAtLogicalMs &&
-    left.certifiedWitnessPeerIds.length ===
-      right.certifiedWitnessPeerIds.length &&
-    left.certifiedWitnessPeerIds.every(
-      (peerId, index) => peerId === right.certifiedWitnessPeerIds[index],
-    )
+    left.selectedAssigneePeerId === right.selectedAssigneePeerId
   );
 }
 

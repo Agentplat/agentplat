@@ -232,6 +232,8 @@ export interface CollectivePeerNodeRecoveryElectionPortV1 {
     readonly scopeDigest: PlanningDigestV1;
     readonly objectiveId: AgentPlatID;
     readonly objectiveRevision: number;
+    /** Exclusive logical expiry bounding every election certificate. */
+    readonly objectiveExpiresAtLogicalMs: number;
     readonly workItemId: AgentPlatID;
     readonly workItemRevision: number;
     readonly priorAssignmentEpoch: number;

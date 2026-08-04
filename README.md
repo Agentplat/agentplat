@@ -80,6 +80,8 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/core`                    | IDs, metadata, lifecycle states, tenant context, envelopes and errors.  |
 | `@agentplat/framework`               | High-level composition, safe local defaults and ephemeral quick runs.   |
 | `@agentplat/collective-runtime`      | Capability-routed collectives with policy, events and recovery.         |
+| `@agentplat/collective-quorum`         | Signed peer quorum, semantic confirmations and recovery consensus.      |
+| `@agentplat/collective-quorum-postgres` | Durable peer promises, votes and certificates in PostgreSQL.           |
 | `@agentplat/model`                   | Provider-neutral direct model generation and streaming contracts.       |
 | `@agentplat/model-anthropic`         | Dependency-light Anthropic Messages adapter.                            |
 | `@agentplat/model-gemini`            | Dependency-light Gemini generateContent adapter.                        |
