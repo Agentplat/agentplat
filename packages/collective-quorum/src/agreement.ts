@@ -1,6 +1,7 @@
 export * from "./agreement-contracts.js";
 export * from "./agreement-codec.js";
 export * from "./agreement-certificates.js";
+export * from "./role-realignment.js";
 export * from "./agreement-messages.js";
 export * from "./agreement-memory.js";
 export * from "./agreement-peer.js";

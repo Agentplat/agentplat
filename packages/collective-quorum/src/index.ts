@@ -8,3 +8,4 @@ export * from "./memory-repository.js";
 export * from "./node-evidence.js";
 export * from "./peer.js";
 export * from "./transport.js";
+export * from "./role-realignment.js";

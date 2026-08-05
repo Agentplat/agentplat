@@ -14,6 +14,7 @@ export type CollectiveAgreementValueKindV1 =
   | "assignment_confirmation"
   | "recovery_selection"
   | "planning_slot_head"
+  | "role_reconfiguration"
   | "synchronization_watermark"
   | "membership_reconfiguration";
 

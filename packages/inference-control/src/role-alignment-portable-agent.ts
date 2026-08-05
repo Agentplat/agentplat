@@ -181,6 +181,14 @@ export interface RoleAlignmentPortableAgentControlV1 extends PortableAgentContro
     readonly assessorBindingDigest: string;
   }>;
   getState(sessionId: string): Promise<RoleAlignmentStateV1 | undefined>;
+  activateSessionRole(input: {
+    readonly sessionId: string;
+    readonly expectedRevision: number;
+    readonly tenantId: string;
+    readonly agentId: string;
+    readonly role: PortableAgentRoleBindingV1;
+    readonly logicalTimeMs: number;
+  }): Promise<RoleAlignmentStateV1>;
   resumeSession(input: {
     readonly sessionId: string;
     readonly expectedRevision: number;
@@ -307,6 +315,41 @@ class RoleAlignmentPortableAgentControl implements RoleAlignmentPortableAgentCon
   }): Promise<RoleAlignmentStateV1> {
     const state = await this.requireState(input.sessionId);
     const next = resumeRoleAlignmentStateV1(state, input, this.policy);
+    await this.stateStore.save(next, state.revision);
+    return next;
+  }
+
+  async activateSessionRole(input: {
+    readonly sessionId: string;
+    readonly expectedRevision: number;
+    readonly tenantId: string;
+    readonly agentId: string;
+    readonly role: PortableAgentRoleBindingV1;
+    readonly logicalTimeMs: number;
+  }): Promise<RoleAlignmentStateV1> {
+    const state = await this.requireState(input.sessionId);
+    assertSafeInteger(input.expectedRevision, 'expectedRevision');
+    if (state.revision !== input.expectedRevision)
+      throw new RoleAlignmentStoreConflictErrorV1();
+    assertIdentifier(input.tenantId, 'tenantId');
+    assertIdentifier(input.agentId, 'agentId');
+    const role = normalizeRoleBindingV1(input.role);
+    const anchor = anchorFor({
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      agentId: input.agentId,
+      role,
+    });
+    if (anchor.anchorDigest === state.roleAnchor.anchorDigest) return state;
+    const next = replaceRoleAlignmentRoleV1(
+      state,
+      {
+        expectedRevision: state.revision,
+        roleAnchor: anchor,
+        logicalTimeMs: input.logicalTimeMs,
+      },
+      this.policy
+    );
     await this.stateStore.save(next, state.revision);
     return next;
   }

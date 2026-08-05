@@ -46,6 +46,24 @@ See the [implementation plan](./docs/inference-control/continuous-role-alignment
 [architecture decision](./docs/adr/0015-continuous-role-alignment.md) and
 [threat model](./docs/security/continuous-role-alignment-threat-model.md).
 
+### Adaptive Role Realignment V1
+
+The opt-in realignment controller closes a `realignment_required` state by
+discovering content-free trusted-catalog candidates, filtering proposers and
+evaluators through Trust, selecting deterministically, certifying the exact
+digest and installing one successor role revision in Portable Agent Runtime.
+Candidates can narrow the current authority ceiling but cannot widen it.
+
+```js
+import { createRoleRealignmentPortableAgentV1 } from "@agentplat/inference-control/role-realignment/portable-agent";
+```
+
+The optional Collective Agreement adapter binds certification to the current
+membership epoch and Byzantine quorum. See the [integration
+guide](./docs/inference-control/adaptive-role-realignment-v1.md), [architecture
+decision](./docs/adr/0016-adaptive-role-realignment.md) and [threat
+model](./docs/security/adaptive-role-realignment-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
