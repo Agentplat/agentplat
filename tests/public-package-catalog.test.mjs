@@ -57,7 +57,7 @@ const alphaOneCatalogEntries = Object.freeze([
 
 const alphaThreeCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.', './tools']),
+    browserEntrypoints: Object.freeze(['.', './role-alignment', './tools']),
     directory: 'packages/inference-control',
     layer: 'runtime',
     name: '@agentplat/inference-control',

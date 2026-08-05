@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added opt-in Continuous Role Alignment contracts and a deterministic
+  longitudinal reducer with bounded coherence windows, recovery hysteresis,
+  context challenges, role reinforcement, pause, realignment and protected
+  action denial.
+- Added a provider-neutral Portable Agent controller with exact assessor
+  bindings, revision-checked persistence and checkpoint-transfer-bound handoff
+  continuity that preserves adverse control history across executors.
 - Added the opt-in Beta 3 resilient closed-loop reference surface: strict
   fault-plan, resilience-result and campaign-evidence contracts bind a nominal
   definition, bounded epochs, scheduled/injected/observed fault evidence and

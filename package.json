@@ -32,6 +32,7 @@
     "example:sessions": "pnpm run build && node examples/multi-agent-session.mjs",
     "example:collective": "pnpm run build && node examples/collective-runtime.mjs",
     "example:portable-agent": "pnpm --filter @agentplat/runtime build && node examples/portable-agent-adapter.mjs",
+    "example:role-alignment": "pnpm --filter @agentplat/inference-control... build && node examples/continuous-role-alignment.mjs",
     "example:mesh-multiprocess": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node examples/mesh-multiprocess/demo.mjs",
     "example:collective-quorum-multiprocess": "pnpm --filter @agentplat/collective-quorum --filter @agentplat/collective-quorum-postgres build && node examples/collective-quorum-multiprocess/demo.mjs",
     "example:collective-membership-multiprocess": "pnpm --filter @agentplat/collective-membership --filter @agentplat/collective-membership-postgres build && node examples/collective-membership-multiprocess/demo.mjs",
