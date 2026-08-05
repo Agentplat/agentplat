@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.planning_artifact_certificate_acks;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.planning_artifact_replication_certificates;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.planning_artifact_replica_receipts;

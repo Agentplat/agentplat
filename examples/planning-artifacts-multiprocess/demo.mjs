@@ -6,11 +6,24 @@ import { fileURLToPath } from "node:url";
 import { collectiveSyncDigestV1 } from "@agentplat/collective-sync";
 import { runMigrations as runSyncMigrations } from "@agentplat/collective-sync-postgres";
 import { MESH_SIGNATURE_ALGORITHM } from "@agentplat/mesh-protocol";
+import { selectPlanningArtifactReplicasV1 } from "@agentplat/planning-artifacts";
 import { runMigrations as runArtifactMigrations } from "@agentplat/planning-artifacts-postgres";
 import { Pool } from "pg";
 import { planningArtifactFixture } from "./fixture.mjs";
 
-const peerIds = ["peer:alpha", "peer:beta", "peer:gamma"];
+const peerIds = [
+  "peer:alpha",
+  "peer:beta",
+  "peer:delta",
+  "peer:epsilon",
+  "peer:gamma",
+];
+const replicationPolicy = Object.freeze({
+  schemaVersion: 1,
+  replicaCount: 2,
+  writeThreshold: 2,
+  receiptLifetimeMs: 10_000,
+});
 const runId = randomUUID().replaceAll("-", "");
 const schemas = Object.fromEntries(
   peerIds.map((peerId) => [
@@ -47,6 +60,33 @@ try {
   });
   assert.equal(publication.published, true);
   assert.equal(publication.contentReference, record.contentReference);
+  assert.ok(publication.certificateId);
+  const selectedReplicas = await selectPlanningArtifactReplicasV1({
+    membership: binding,
+    sourcePeerId: "peer:alpha",
+    sourceInstanceId: "instance:alpha:1",
+    fragmentDigest: record.fragmentDigest,
+    policy: replicationPolicy,
+  });
+  assert.deepEqual(
+    publication.certifiedReplicaPeerIds,
+    selectedReplicas.map((replica) => replica.peerId).sort(),
+  );
+  const receiverId = peerIds.find(
+    (peerId) =>
+      peerId !== "peer:alpha" &&
+      !selectedReplicas.some((replica) => replica.peerId === peerId),
+  );
+  assert.ok(receiverId);
+  const before = await command(receiverId, {
+    kind: "inspect",
+    contentReference: record.contentReference,
+    fragmentDigest: record.fragmentDigest,
+  });
+  assert.equal(before.available, false);
+
+  // The producer is removed before resolution. Only certified replicas remain.
+  await stop("peer:alpha");
 
   // This request is exactly what the runtime derives after authenticating a work offer.
   const offerArtifact = {
@@ -65,37 +105,40 @@ try {
     sourceInstanceId: "instance:alpha:1",
     receivedAtLogicalMs: 100,
   };
-  const beta = await command("peer:beta", {
+  const receiver = await command(receiverId, {
     kind: "accept_offer",
     request: offerArtifact,
   });
-  const gamma = await command("peer:gamma", {
-    kind: "accept_offer",
-    request: offerArtifact,
-  });
-  for (const outcome of [beta, gamma]) {
-    assert.equal(outcome.accepted, true, outcome.error);
-    assert.equal(outcome.fragmentDigest, record.fragmentDigest);
-    assert.equal(outcome.certificateCreated, false);
-  }
+  assert.equal(receiver.accepted, true, receiver.error);
+  assert.equal(receiver.fragmentDigest, record.fragmentDigest);
+  assert.equal(receiver.certificateCreated, false);
 
-  await stop("peer:beta");
-  await start("peer:beta", binding, keys);
-  const restarted = await command("peer:beta", {
+  await stop(receiverId);
+  await start(receiverId, binding, keys);
+  const restarted = await command(receiverId, {
     kind: "inspect",
     contentReference: record.contentReference,
+    fragmentDigest: record.fragmentDigest,
   });
   assert.equal(restarted.available, true);
   assert.equal(restarted.fragmentDigest, record.fragmentDigest);
+  assert.equal(restarted.certificateId, publication.certificateId);
 
   process.stdout.write(
     `${JSON.stringify(
       {
         status: "passed",
         independentPeerProcesses: peerIds.length,
-        exactArtifactResolvedBy: ["peer:beta", "peer:gamma"],
-        readinessCertificateCreated: false,
+        certifiedReplicaPeerIds: selectedReplicas.map(
+          (replica) => replica.peerId,
+        ),
+        producerStoppedBeforeResolution: true,
+        exactArtifactResolvedBy: receiverId,
+        catchUpCertificateCreated: false,
         receiverRestartPreservedArtifact: restarted.available,
+        receiverRestartPreservedReplicationCertificate: Boolean(
+          restarted.certificateId,
+        ),
       },
       null,
       2,

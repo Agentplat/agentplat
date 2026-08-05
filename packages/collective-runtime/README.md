@@ -248,6 +248,14 @@ referenced artifact and processes the original envelope again. Temporary
 unavailability throws from inbox processing so the durable worker retries it;
 without the port, the existing terminal rejection remains unchanged.
 
+`CertifiedPlanningArtifactAvailabilityV2` from
+`@agentplat/planning-artifacts` implements the same port and adds a
+current-membership, threshold-certified replica fallback after the normal
+source-first attempt. Pair it with
+`CertifiedReplicatedPlanningFragmentRepositoryV2` on producers so work offers
+are not published until the configured artifact and certificate-custody
+thresholds succeed.
+
 For joining, restarted, or partition-healed peers, configure the optional
 `synchronization` port. Planning, reconciliation/bidding, execution,
 assignment confirmation, and recovery-election participation then fail closed

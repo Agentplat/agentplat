@@ -86,8 +86,8 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/collective-quorum-postgres`     | Durable peer promises, votes and certificates in PostgreSQL.            |
 | `@agentplat/collective-sync`                | Signed causal anti-entropy, catch-up certificates and readiness gates.  |
 | `@agentplat/collective-sync-postgres`       | Resumable causal records, frontiers and certificates in PostgreSQL.     |
-| `@agentplat/planning-artifacts`             | Signed planning artifacts and exact peer-to-peer availability recovery. |
-| `@agentplat/planning-artifacts-postgres`    | Immutable, instance-scoped planning artifact persistence in PostgreSQL. |
+| `@agentplat/planning-artifacts`             | Signed planning artifacts with source-first and certified multi-source availability. |
+| `@agentplat/planning-artifacts-postgres`    | Immutable artifact and replication-evidence persistence in PostgreSQL. |
 | `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.       |
 | `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                            |
 | `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                        |
