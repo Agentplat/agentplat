@@ -102,6 +102,7 @@ export async function validateCollectiveAgreementValueV1(
       "recovery_selection",
       "planning_slot_head",
       "role_reconfiguration",
+      "role_refinement",
       "synchronization_watermark",
       "membership_reconfiguration",
     ].includes(candidate.kind as string) ||

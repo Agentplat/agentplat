@@ -334,6 +334,53 @@ test("checkpoint, successor role and restore preserve session binding", async ()
   assert.deepEqual(restored, ["checkpoint-1"]);
 });
 
+test("role restoration is predecessor-exact and certificate-bound", async () => {
+  const runtime = sessionRuntime({
+    adapter: {
+      async step() {
+        throw new Error("unused");
+      },
+    },
+  });
+  await createSession(runtime);
+  const initial = await runtime.getSession("session-1");
+  const successor = await runtime.updateRole(
+    "session-1",
+    role({
+      roleBindingId: "role-2",
+      roleRevision: 2,
+      predecessorRoleBindingId: "role-1",
+      roleKey: "local-verifier",
+    }),
+    initial.revision,
+  );
+  const authorization = {
+    schemaVersion: 1,
+    restorationId: "rollback-1",
+    expectedActiveRoleBindingId: "role-2",
+    expectedActiveRoleRevision: 2,
+    restoredRoleBindingId: "role-1",
+    restoredRoleRevision: 1,
+    certificateDigest: `sha256:${"a".repeat(64)}`,
+  };
+  await assert.rejects(
+    runtime.restoreRole("session-1", role(), successor.revision, {
+      ...authorization,
+      certificateDigest: "sha256:invalid",
+    }),
+    /authorization is invalid/u,
+  );
+  const restored = await runtime.restoreRole(
+    "session-1",
+    role(),
+    successor.revision,
+    authorization,
+  );
+  assert.equal(restored.role.roleBindingId, "role-1");
+  assert.equal(restored.role.roleRevision, 1);
+  assert.equal(restored.revision, successor.revision + 1);
+});
+
 test("AgentRuntime bridges portable sessions into collective-compatible providers", async () => {
   const sourceRuntime = new DefaultAgentRuntime();
   sourceRuntime.registerProvider("source", {

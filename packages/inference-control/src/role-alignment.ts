@@ -225,6 +225,13 @@ export interface ReplaceRoleAlignmentRoleInputV1 {
   readonly logicalTimeMs: number;
 }
 
+export interface RestoreRoleAlignmentRoleInputV1 {
+  readonly expectedRevision: number;
+  readonly roleAnchor: RoleAlignmentRoleAnchorV1;
+  readonly authorizationDigest: string;
+  readonly logicalTimeMs: number;
+}
+
 export interface RebindRoleAlignmentSessionInputV1 {
   readonly expectedRevision: number;
   readonly targetRoleAnchor: RoleAlignmentRoleAnchorV1;
@@ -604,6 +611,65 @@ export function replaceRoleAlignmentRoleV1(
     signal: null,
     decision: null,
     reasonCode: 'role_replaced',
+    logicalTimeMs: input.logicalTimeMs,
+  });
+  const next = withStateDigest({
+    ...withoutStateDigest(state),
+    roleAnchor: anchor,
+    status: 'active',
+    revision: state.revision + 1,
+    degraded: false,
+    consecutiveBreaches: 0,
+    recoveryStreak: 0,
+    interventionCounts: {
+      reinforcements: 0,
+      contextChallenges: 0,
+      pauses: 0,
+    },
+    lastInterventionEventSequence: null,
+    rollingWindow: [],
+    rollingCoherenceBps: null,
+    lastLogicalTimeMs: input.logicalTimeMs,
+    lastEventDigest: event.eventDigest,
+    events: retainEvents(state.events, event, policy),
+  });
+  ensureStateCapacity(next, policy);
+  return next;
+}
+
+/** Restores only the exact predecessor of the active role under certification. */
+export function restoreRoleAlignmentRoleV1(
+  stateInput: RoleAlignmentStateV1,
+  input: RestoreRoleAlignmentRoleInputV1,
+  policyInput: RoleAlignmentPolicyV1
+): RoleAlignmentStateV1 {
+  const policy = assertRoleAlignmentStateV1(stateInput, policyInput);
+  const state = stateInput;
+  requireExpectedRevision(state, input.expectedRevision);
+  if (state.status === 'closed') throw new TypeError('role_alignment_closed');
+  assertSafeInteger(input.logicalTimeMs, 'logicalTimeMs');
+  assertDigest(input.authorizationDigest, 'authorizationDigest');
+  if (input.logicalTimeMs < state.lastLogicalTimeMs)
+    throw new TypeError('role_alignment_clock_rollback');
+  const anchor = validateRoleAlignmentRoleAnchorV1(input.roleAnchor);
+  if (
+    anchor.tenantId !== state.tenantId ||
+    anchor.sessionId !== state.sessionId ||
+    anchor.agentId !== state.agentId ||
+    anchor.objectiveId !== state.objectiveId ||
+    anchor.roleRevision + 1 !== state.roleAnchor.roleRevision ||
+    state.roleAnchor.predecessorRoleBindingId !== anchor.roleBindingId ||
+    anchor.anchorDigest === state.roleAnchor.anchorDigest
+  )
+    throw new TypeError('role_alignment_role_restoration_invalid');
+  const event = createEvent({
+    state,
+    eventType: 'role_replaced',
+    inputDigest: input.authorizationDigest,
+    roleAnchorDigest: anchor.anchorDigest,
+    signal: null,
+    decision: null,
+    reasonCode: 'role_restored_under_certification',
     logicalTimeMs: input.logicalTimeMs,
   });
   const next = withStateDigest({

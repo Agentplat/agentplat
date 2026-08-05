@@ -64,6 +64,25 @@ guide](./docs/inference-control/adaptive-role-realignment-v1.md), [architecture
 decision](./docs/adr/0016-adaptive-role-realignment.md) and [threat
 model](./docs/security/adaptive-role-realignment-threat-model.md).
 
+### Certified Role Refinement V1
+
+The opt-in refinement controller evolves the active role in place from
+longitudinal evidence. Strategies produce structured, preconditioned patches;
+local semantic validation and independent Trust-eligible evaluation gate one
+deterministic result. A collective certificate authorizes governed catalog
+publication, while provisional monitoring can confirm the revision or trigger
+certified predecessor restoration and quarantine.
+
+```js
+import { createRoleRefinementPortableAgentV1 } from "@agentplat/inference-control/role-refinement/portable-agent";
+```
+
+Coordination state contains only identifiers and digests; exact instructions,
+constraints and patches remain local. See the [integration
+guide](./docs/inference-control/certified-role-refinement-v1.md), [architecture
+decision](./docs/adr/0017-certified-role-refinement.md) and [threat
+model](./docs/security/certified-role-refinement-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
@@ -274,6 +293,7 @@ corepack pnpm run example:basic
 corepack pnpm run example:sessions
 corepack pnpm run example:collective
 corepack pnpm run example:role-alignment
+corepack pnpm run example:role-refinement
 ```
 
 ## Development
