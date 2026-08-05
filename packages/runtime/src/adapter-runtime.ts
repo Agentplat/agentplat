@@ -6,6 +6,7 @@ import type {
   PortableAgentAdapterManifestV1,
   PortableAgentAdapterV1,
   PortableAgentCheckpointV1,
+  PortableAgentCheckpointTransferV1,
   PortableAgentControlDecisionV1,
   PortableAgentControlPointV1,
   PortableAgentRoleBindingV1,
@@ -25,6 +26,7 @@ import {
   jsonByteLength,
   normalizeAdapterRequirementsV1,
   normalizeCheckpointV1,
+  normalizeCheckpointTransferV1,
   normalizeControlDecisionV1,
   normalizeJson,
   normalizeMetadata,
@@ -163,6 +165,175 @@ export class PortableAgentSessionRuntimeV1 {
     const snapshot = await this.stateStore.load(sessionId);
     if (snapshot === undefined) return undefined;
     return this.assertBoundSnapshot(snapshot, sessionId).snapshot;
+  }
+
+  async exportCheckpoint(
+    sessionIdInput: AgentPlatID,
+    options: PortableAgentStepOptionsV1 = {},
+  ): Promise<PortableAgentCheckpointTransferV1> {
+    const sessionId = identifier(sessionIdInput, "sessionId");
+    return this.exclusive(sessionId, async (operationSignal) => {
+      const { snapshot, adapter } = await this.loadBound(sessionId);
+      if (!snapshot.checkpoint) {
+        throw new PortableAgentErrorV1(
+          "STATE_INVALID",
+          "session has no checkpoint to export",
+        );
+      }
+      if (!adapter.exportCheckpoint || !adapter.importCheckpoint) {
+        throw new PortableAgentErrorV1(
+          "ADAPTER_INCOMPATIBLE",
+          "session adapter does not support checkpoint transfer",
+        );
+      }
+      const exported = await adapter.exportCheckpoint(
+        {
+          schemaVersion: 1,
+          tenantId: snapshot.tenantId,
+          objectiveId: snapshot.objectiveId,
+          sessionId,
+          agentId: snapshot.agentId,
+          role: snapshot.role,
+          checkpoint: snapshot.checkpoint,
+        },
+        this.adapterContext(
+          snapshot,
+          combineSignals(operationSignal, options.signal),
+          options,
+        ),
+      );
+      if (
+        !exported ||
+        typeof exported !== "object" ||
+        Array.isArray(exported) ||
+        Object.keys(exported).sort().join(",") !==
+          "contentClass,schemaVersion,state" ||
+        exported.schemaVersion !== 1 ||
+        exported.contentClass !== "portable_application_state"
+      ) {
+        throw new PortableAgentErrorV1(
+          "STATE_INVALID",
+          "adapter returned an invalid checkpoint transfer",
+        );
+      }
+      return normalizeCheckpointTransferV1(
+        {
+          schemaVersion: 1,
+          contentClass: "portable_application_state",
+          tenantId: snapshot.tenantId,
+          objectiveId: snapshot.objectiveId,
+          sourceSessionId: sessionId,
+          sourceAgentId: snapshot.agentId,
+          sourceSessionRevision: snapshot.revision,
+          roleBindingId: snapshot.role.roleBindingId,
+          adapterId: snapshot.manifest.adapterId,
+          adapterVersion: snapshot.manifest.adapterVersion,
+          implementationId: snapshot.manifest.implementationId,
+          checkpoint: snapshot.checkpoint,
+          state: normalizeJson(exported.state, "exported checkpoint state"),
+          exportedAt: this.now(),
+        },
+        { maximumStateBytes: this.maximumSessionSnapshotBytes },
+      );
+    });
+  }
+
+  async importCheckpoint(
+    sessionIdInput: AgentPlatID,
+    transferInput: PortableAgentCheckpointTransferV1,
+    expectedRevision: number,
+    options: PortableAgentStepOptionsV1 = {},
+  ): Promise<PortableAgentSessionSnapshotV1> {
+    const sessionId = identifier(sessionIdInput, "sessionId");
+    const transfer = normalizeCheckpointTransferV1(transferInput, {
+      maximumStateBytes: this.maximumSessionSnapshotBytes,
+    });
+    return this.exclusive(sessionId, async (operationSignal) => {
+      const { snapshot, adapter } = await this.loadBound(sessionId);
+      if (
+        snapshot.tenantId !== transfer.tenantId ||
+        snapshot.objectiveId !== transfer.objectiveId ||
+        snapshot.manifest.adapterId !== transfer.adapterId ||
+        snapshot.manifest.adapterVersion !== transfer.adapterVersion ||
+        snapshot.manifest.implementationId !== transfer.implementationId
+      ) {
+        throw new PortableAgentErrorV1(
+          "ADAPTER_INCOMPATIBLE",
+          "checkpoint transfer does not match the target session",
+        );
+      }
+      // A successfully imported transfer is safe to retry even when the caller
+      // still holds the revision that preceded the first import.
+      if (
+        snapshot.checkpoint?.stateDigest === transfer.checkpoint.stateDigest &&
+        snapshot.checkpoint.adapterId === transfer.adapterId &&
+        snapshot.checkpoint.adapterVersion === transfer.adapterVersion &&
+        snapshot.checkpoint.implementationId === transfer.implementationId
+      ) {
+        return snapshot;
+      }
+      this.requireRevision(snapshot, expectedRevision);
+      if (!adapter.importCheckpoint || !adapter.restore) {
+        throw new PortableAgentErrorV1(
+          "ADAPTER_INCOMPATIBLE",
+          "target adapter cannot import and restore checkpoints",
+        );
+      }
+      if (snapshot.status !== "active" && snapshot.status !== "paused") {
+        throw new PortableAgentErrorV1(
+          "SESSION_NOT_ACTIVE",
+          "target session cannot import a checkpoint",
+        );
+      }
+      if (snapshot.checkpoint) {
+        throw new PortableAgentErrorV1(
+          "STATE_CONFLICT",
+          "target session already contains another checkpoint",
+        );
+      }
+      if (
+        snapshot.nextStepSequence !== 1 ||
+        snapshot.stepRecords.length !== 0
+      ) {
+        throw new PortableAgentErrorV1(
+          "STATE_CONFLICT",
+          "checkpoint handoff requires an unused target session",
+        );
+      }
+      const imported = normalizeCheckpointV1(
+        await adapter.importCheckpoint(
+          {
+            schemaVersion: 1,
+            tenantId: snapshot.tenantId,
+            objectiveId: snapshot.objectiveId,
+            targetSessionId: sessionId,
+            targetAgentId: snapshot.agentId,
+            targetRole: snapshot.role,
+            transfer,
+          },
+          this.adapterContext(
+            snapshot,
+            combineSignals(operationSignal, options.signal),
+            options,
+          ),
+        ),
+        {
+          sessionId,
+          manifest: snapshot.manifest,
+          maximumSequence: 0,
+        },
+      );
+      if (imported.stateDigest !== transfer.checkpoint.stateDigest) {
+        throw new PortableAgentErrorV1(
+          "STATE_INVALID",
+          "imported checkpoint digest does not match the transfer",
+        );
+      }
+      return this.commit(snapshot, {
+        checkpoint: imported,
+        status: "paused",
+      });
+    });
   }
 
   async updateRole(

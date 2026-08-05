@@ -11,7 +11,10 @@ import type { PostgresMigrationStatus } from "@agentplat/postgres";
 import type { Pool } from "pg";
 
 const applicationId = "@agentplat/collective-sync-postgres";
-const migrationName = "001_collective_sync";
+const migrationNames = [
+  "001_collective_sync",
+  "002_execution_checkpoints",
+] as const;
 
 export const migrationDirectory = fileURLToPath(
   new URL("../migrations/", import.meta.url),
@@ -23,22 +26,24 @@ export interface CollectiveSyncPostgresMigrationOptionsV1 {
 }
 
 async function migrations() {
-  const [up, down] = await Promise.all([
-    readFile(
-      new URL(`../migrations/${migrationName}.up.sql`, import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL(`../migrations/${migrationName}.down.sql`, import.meta.url),
-      "utf8",
-    ),
-  ]);
+  const files = await Promise.all(
+    migrationNames.flatMap((name) => [
+      readFile(
+        new URL(`../migrations/${name}.up.sql`, import.meta.url),
+        "utf8",
+      ),
+      readFile(
+        new URL(`../migrations/${name}.down.sql`, import.meta.url),
+        "utf8",
+      ),
+    ]),
+  );
   return [
     {
       version: 1,
-      name: migrationName,
-      up,
-      down,
+      name: migrationNames[0],
+      up: files[0],
+      down: files[1],
       destructiveDown: true,
       adoptIf: `
       SELECT
@@ -47,6 +52,21 @@ async function migrations() {
         AND to_regclass('__AGENTPLAT_SCHEMA__.collective_sync_sessions') IS NOT NULL
         AND to_regclass('__AGENTPLAT_SCHEMA__.collective_sync_receipts') IS NOT NULL
         AND to_regclass('__AGENTPLAT_SCHEMA__.collective_sync_certificates') IS NOT NULL
+        AS present
+    `,
+    },
+    {
+      version: 2,
+      name: migrationNames[1],
+      up: files[2],
+      down: files[3],
+      destructiveDown: true,
+      adoptIf: `
+      SELECT
+        to_regclass('__AGENTPLAT_SCHEMA__.execution_checkpoint_artifacts') IS NOT NULL
+        AND to_regclass('__AGENTPLAT_SCHEMA__.execution_checkpoint_receipts') IS NOT NULL
+        AND to_regclass('__AGENTPLAT_SCHEMA__.execution_checkpoint_certificates') IS NOT NULL
+        AND to_regclass('__AGENTPLAT_SCHEMA__.execution_checkpoint_certificate_acks') IS NOT NULL
         AS present
     `,
     },
@@ -78,7 +98,7 @@ export async function getMigrationStatus(
 
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 1,
+  version = 2,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

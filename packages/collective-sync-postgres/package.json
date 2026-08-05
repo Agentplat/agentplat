@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./checkpoints": {
+      "types": "./dist/checkpoints.d.ts",
+      "import": "./dist/checkpoints.js"
     }
   },
   "files": [
@@ -25,6 +29,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@agentplat/collective-runtime": "workspace:^",
     "@agentplat/collective-sync": "workspace:^",
     "@agentplat/mesh-protocol": "workspace:^",
     "@agentplat/postgres": "workspace:^",

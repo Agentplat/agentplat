@@ -10,6 +10,7 @@ export {
   normalizeAdapterManifestV1,
   normalizeAdapterRequirementsV1,
   normalizeCheckpointV1,
+  normalizeCheckpointTransferV1,
   normalizeControlDecisionV1,
   normalizeObservationV1,
   normalizeRoleBindingV1,

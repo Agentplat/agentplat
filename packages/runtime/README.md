@@ -46,10 +46,13 @@ configured control approves the relevant pre-step, post-output and pre-action
 checkpoints. Control errors fail closed.
 
 Sessions can be paused, checkpointed, restored, assigned a successor role and
-closed. Checkpoints cannot move between adapter implementations, and role
-updates must form an unbroken revision chain for the same objective. Ephemeral
-credentials are supplied only to the adapter call and are never persisted or
-shown to controls.
+closed. Adapters may implement the paired `exportCheckpoint` and
+`importCheckpoint` hooks to move portable application state between unused
+sessions bound to the exact same adapter version and implementation. Imports
+are digest-checked, pause before restore and are idempotent for the same
+transfer. Role updates must form an unbroken revision chain for the same
+objective. Ephemeral credentials are supplied only to the adapter call and are
+never persisted, exported or shown to controls.
 
 Two bridges connect this protocol to the existing runtime:
 

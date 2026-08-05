@@ -37,6 +37,7 @@
     "example:collective-membership-multiprocess": "pnpm --filter @agentplat/collective-membership --filter @agentplat/collective-membership-postgres build && node examples/collective-membership-multiprocess/demo.mjs",
     "example:collective-sync-multiprocess": "pnpm --filter @agentplat/collective-sync --filter @agentplat/collective-sync-postgres build && node examples/collective-sync-multiprocess/demo.mjs",
     "example:planning-artifacts-multiprocess": "pnpm --filter @agentplat/planning-artifacts... --filter @agentplat/planning-artifacts-postgres... build && node examples/planning-artifacts-multiprocess/demo.mjs",
+    "example:execution-checkpoint-handoff-multiprocess": "pnpm --filter @agentplat/collective-runtime... --filter @agentplat/collective-sync-postgres... build && node examples/execution-checkpoint-handoff-multiprocess/demo.mjs",
     "benchmark:mesh-adapters": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node scripts/mesh-adapters-benchmark.mjs",
     "example:rooms": "pnpm --dir examples/rooms-api start",
     "audit:public": "node scripts/audit-public.mjs",

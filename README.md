@@ -75,49 +75,49 @@ record](./docs/inference-control/alpha-3-design-review.md).
 
 ## Packages
 
-| Package                                     | Current public capability                                               |
-| ------------------------------------------- | ----------------------------------------------------------------------- |
-| `@agentplat/core`                           | IDs, metadata, lifecycle states, tenant context, envelopes and errors.  |
-| `@agentplat/framework`                      | High-level composition, safe local defaults and ephemeral quick runs.   |
-| `@agentplat/collective-runtime`             | Capability-routed collectives with policy, events and recovery.         |
-| `@agentplat/collective-membership`          | Joint-quorum membership epochs and overlapping signing-key rotation.    |
-| `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.    |
-| `@agentplat/collective-quorum`              | Signed peer quorum, semantic confirmations and recovery consensus.      |
-| `@agentplat/collective-quorum-postgres`     | Durable peer promises, votes and certificates in PostgreSQL.            |
-| `@agentplat/collective-sync`                | Signed causal anti-entropy, catch-up certificates and readiness gates.  |
-| `@agentplat/collective-sync-postgres`       | Resumable causal records, frontiers and certificates in PostgreSQL.     |
+| Package                                     | Current public capability                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `@agentplat/core`                           | IDs, metadata, lifecycle states, tenant context, envelopes and errors.               |
+| `@agentplat/framework`                      | High-level composition, safe local defaults and ephemeral quick runs.                |
+| `@agentplat/collective-runtime`             | Governed collectives, recovery and replicated execution checkpoints.                 |
+| `@agentplat/collective-membership`          | Joint-quorum membership epochs and overlapping signing-key rotation.                 |
+| `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.                 |
+| `@agentplat/collective-quorum`              | Signed peer quorum, semantic confirmations and recovery consensus.                   |
+| `@agentplat/collective-quorum-postgres`     | Durable peer promises, votes and certificates in PostgreSQL.                         |
+| `@agentplat/collective-sync`                | Signed causal anti-entropy, catch-up certificates and readiness gates.               |
+| `@agentplat/collective-sync-postgres`       | Durable causal sync and execution-checkpoint evidence in PostgreSQL.                 |
 | `@agentplat/planning-artifacts`             | Signed planning artifacts with source-first and certified multi-source availability. |
-| `@agentplat/planning-artifacts-postgres`    | Immutable artifact and replication-evidence persistence in PostgreSQL. |
-| `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.       |
-| `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                            |
-| `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                        |
-| `@agentplat/model-openai-compatible`        | Dependency-light Chat Completions adapter for compatible servers.       |
-| `@agentplat/rooms`                          | Agent Room domain, lifecycle, policy, context and repository contracts. |
-| `@agentplat/rooms-postgres`                 | Durable PostgreSQL repository, migrations and transactional events.     |
-| `@agentplat/postgres`                       | Shared pool health, schema safety and versioned migration primitives.   |
-| `@agentplat/audit-postgres`                 | PostgreSQL audit and Session event sinks without Agent Rooms.           |
-| `@agentplat/rooms-api`                      | Injectable Hono REST API for the Agent Room lifecycle.                  |
-| `@agentplat/runtime`                        | Provider contracts plus executable provider dispatch and streaming.     |
-| `@agentplat/runtime-mock`                   | Deterministic, network-free provider for examples and tests.            |
-| `@agentplat/sessions`                       | Typed, bounded multi-agent turn orchestration over the public runtime.  |
-| `@agentplat/sessions-redis`                 | Redis pub/sub control for Sessions across service instances.            |
-| `@agentplat/streaming`                      | Versioned SSE server helpers, parser and thin browser subscription API. |
-| `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.           |
-| `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                 |
-| `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.      |
-| `@agentplat/inference-control`              | Opt-in inference boundaries, controlled release and safe action gates.  |
-| `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.    |
-| `@agentplat/mesh`                           | Bounded peer coordination, allocation, leases, fencing and recovery.    |
-| `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.   |
-| `@agentplat/mesh-protocol`                  | Strict bounded wire parsing, validation and conformance fixtures.       |
-| `@agentplat/mesh-sim`                       | Versioned faults, snapshots, invariants, trace digests and replay.      |
-| `@agentplat/mesh-sim-local`                 | Node-local immutable campaign artifacts, slot commits and locks.        |
-| `@agentplat/mesh-sim-postgres`              | Cross-host campaign custody with transactional leases and fencing.      |
-| `@agentplat/tools`                          | Tool contracts and an in-memory tool registry.                          |
-| `@agentplat/mcp`                            | MCP server, tool-binding and registry contracts.                        |
-| `@agentplat/events`                         | Event contracts and an in-memory event bus.                             |
-| `@agentplat/audit`                          | Audit contracts, recursive redaction and an in-memory sink.             |
-| `@agentplat/auth`                           | Auth, permission and tenant-resolution contracts with local adapters.   |
+| `@agentplat/planning-artifacts-postgres`    | Immutable artifact and replication-evidence persistence in PostgreSQL.               |
+| `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.                    |
+| `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                                         |
+| `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                                     |
+| `@agentplat/model-openai-compatible`        | Dependency-light Chat Completions adapter for compatible servers.                    |
+| `@agentplat/rooms`                          | Agent Room domain, lifecycle, policy, context and repository contracts.              |
+| `@agentplat/rooms-postgres`                 | Durable PostgreSQL repository, migrations and transactional events.                  |
+| `@agentplat/postgres`                       | Shared pool health, schema safety and versioned migration primitives.                |
+| `@agentplat/audit-postgres`                 | PostgreSQL audit and Session event sinks without Agent Rooms.                        |
+| `@agentplat/rooms-api`                      | Injectable Hono REST API for the Agent Room lifecycle.                               |
+| `@agentplat/runtime`                        | Provider contracts plus executable provider dispatch and streaming.                  |
+| `@agentplat/runtime-mock`                   | Deterministic, network-free provider for examples and tests.                         |
+| `@agentplat/sessions`                       | Typed, bounded multi-agent turn orchestration over the public runtime.               |
+| `@agentplat/sessions-redis`                 | Redis pub/sub control for Sessions across service instances.                         |
+| `@agentplat/streaming`                      | Versioned SSE server helpers, parser and thin browser subscription API.              |
+| `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                        |
+| `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                              |
+| `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                   |
+| `@agentplat/inference-control`              | Opt-in inference boundaries, controlled release and safe action gates.               |
+| `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.                 |
+| `@agentplat/mesh`                           | Bounded peer coordination, allocation, leases, fencing and recovery.                 |
+| `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.                |
+| `@agentplat/mesh-protocol`                  | Strict bounded wire parsing, validation and conformance fixtures.                    |
+| `@agentplat/mesh-sim`                       | Versioned faults, snapshots, invariants, trace digests and replay.                   |
+| `@agentplat/mesh-sim-local`                 | Node-local immutable campaign artifacts, slot commits and locks.                     |
+| `@agentplat/mesh-sim-postgres`              | Cross-host campaign custody with transactional leases and fencing.                   |
+| `@agentplat/tools`                          | Tool contracts and an in-memory tool registry.                                       |
+| `@agentplat/mcp`                            | MCP server, tool-binding and registry contracts.                                     |
+| `@agentplat/events`                         | Event contracts and an in-memory event bus.                                          |
+| `@agentplat/audit`                          | Audit contracts, recursive redaction and an in-memory sink.                          |
+| `@agentplat/auth`                           | Auth, permission and tenant-resolution contracts with local adapters.                |
 
 ## Agent Room quickstart
 
@@ -140,13 +140,13 @@ Except for `GET /health`, the reference API requires `X-Agentplat-Tenant-Id`. Th
 For a single prompt, only import the facade:
 
 ```js
-import { AgentPlat } from '@agentplat/framework';
+import { AgentPlat } from "@agentplat/framework";
 
 const answer = await AgentPlat.ask({
-  provider: 'openai',
+  provider: "openai",
   apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4.1-mini',
-  prompt: 'Draft a launch message.',
+  model: "gpt-4.1-mini",
+  prompt: "Draft a launch message.",
 });
 ```
 
@@ -161,17 +161,17 @@ the [`@agentplat/framework` guide](./packages/framework/README.md).
 For a direct, ephemeral model call with no Room persistence:
 
 ```js
-import { AgentPlat } from '@agentplat/framework';
-import { chatModel } from '@agentplat/model-openai-compatible';
+import { AgentPlat } from "@agentplat/framework";
+import { chatModel } from "@agentplat/model-openai-compatible";
 
 const result = await AgentPlat.quickRun({
   adapter: chatModel({
-    provider: 'openai',
+    provider: "openai",
     apiKey: process.env.OPENAI_API_KEY,
     defaultModel: process.env.OPENAI_MODEL,
   }),
-  instructions: 'Be concise.',
-  input: 'Draft a launch message.',
+  instructions: "Be concise.",
+  input: "Draft a launch message.",
 });
 ```
 
@@ -206,26 +206,26 @@ The low-level runtime registry remains available when an application wants
 full control:
 
 ```js
-import { DefaultAgentRuntime } from '@agentplat/runtime';
+import { DefaultAgentRuntime } from "@agentplat/runtime";
 
 const runtime = new DefaultAgentRuntime();
-runtime.registerProvider('local', {
+runtime.registerProvider("local", {
   async run(_agent, input) {
-    return { status: 'completed', output: `local:${input.input}` };
+    return { status: "completed", output: `local:${input.input}` };
   },
 });
 
 const agent = {
-  id: 'example-agent',
-  tenantId: 'example-tenant',
-  name: 'Local example',
-  platform: 'local',
+  id: "example-agent",
+  tenantId: "example-tenant",
+  name: "Local example",
+  platform: "local",
 };
 
 const result = await runtime.run(
   agent,
-  { input: 'hello open core' },
-  { tenant: { tenantId: agent.tenantId }, agentId: agent.id }
+  { input: "hello open core" },
+  { tenant: { tenantId: agent.tenantId }, agentId: agent.id },
 );
 ```
 

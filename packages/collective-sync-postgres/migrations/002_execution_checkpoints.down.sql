@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.execution_checkpoint_certificate_acks;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.execution_checkpoint_certificates;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.execution_checkpoint_receipts;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.execution_checkpoint_artifacts;
