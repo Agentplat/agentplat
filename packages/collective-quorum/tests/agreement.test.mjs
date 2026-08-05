@@ -21,7 +21,25 @@ import {
   verifyCollectiveAgreementCatchupBundleV1,
   verifyCollectiveAgreementCommitCertificateV1,
   verifyCollectiveAgreementJointReconfigurationCertificateV1,
+  createCollectiveRoleRealignmentCertificationPortV1,
 } from "../dist/agreement.js";
+import {
+  createRoleAlignmentRoleAnchorV1,
+  createRoleAlignmentStateV1,
+  observeRoleAlignmentSignalV1,
+} from "../../inference-control/dist/role-alignment.js";
+import {
+  admitRoleCandidateV1,
+  createRoleAuthorityCeilingV1,
+  createRoleCandidateEvaluationV1,
+  createRoleCandidateProposalV1,
+  createRoleRealignmentRequestV1,
+  createRoleRealignmentStateV1,
+  createTrustedRoleDefinitionV1,
+  recordRoleCandidateEvaluationV1,
+  selectRoleCandidateV1,
+} from "../../inference-control/dist/role-realignment.js";
+import { digestTrustEligibilityDecisionV1 } from "../../trust/dist/index.js";
 
 const wallTime = "2030-01-01T00:00:00.000Z";
 
@@ -109,6 +127,44 @@ test("seven validators commit with two unavailable participants", async () => {
       )?.certificateDigest,
       commit.certificateDigest,
     );
+});
+
+test("role realignment adapter verifies agreement and counts only Trust-eligible witnesses", async () => {
+  const fixture = await createFixture({
+    activePeerIds: ["p0", "p1", "p2", "p3", "p4"],
+  });
+  const { state, policy } = selectedRoleRealignmentState();
+  const certification = createCollectiveRoleRealignmentCertificationPortV1({
+    policyDomainId: "policy.1",
+    certifierId: "role.certifier.1",
+    certifierVersion: 1,
+    certifierBindingDigest: digest("e"),
+    agreement: fixture.client("p0"),
+    membership: fixture.membershipPort,
+    resolver: fixture.resolver,
+    clock: { now: () => ({ wallTime, logicalTimeMs: 100 }) },
+    coordinates: {
+      resolve: () => ({ height: 1, round: 0, previousCommitDigest: null }),
+    },
+    witnessTrust: {
+      evaluate: () => eligibleTrustDecision(100),
+    },
+  });
+  const certificate = await certification.certify({
+    state,
+    policy,
+    logicalTimeMs: 100,
+    expiresAtLogicalMs: 500,
+  });
+  assert.ok(certificate);
+  assert.equal(certificate.certificationKind, "collective_agreement");
+  assert.equal(certificate.membershipEpoch, fixture.membership.epoch);
+  assert.equal(
+    certificate.membershipConfigurationDigest,
+    fixture.membership.configurationDigest,
+  );
+  assert.deepEqual(certificate.witnessIds, ["p0", "p1", "p2", "p3", "p4"]);
+  assert.match(certificate.sourceCertificateDigest, /^sha256:[0-9a-f]{64}$/u);
 });
 
 test("fewer than 2f+1 validators cannot manufacture a commit", async () => {
@@ -603,6 +659,255 @@ function signedVote(fixture, peerId, coordinate, valueDigest, proposalId) {
     },
     clock: { wallTime, logicalTimeMs: 100 },
   });
+}
+
+function selectedRoleRealignmentState() {
+  const alignmentPolicy = {
+    schemaVersion: 1,
+    policyId: "alignment.policy.1",
+    policyVersion: 1,
+    parentPolicyDigest: null,
+    thresholds: {
+      healthyCoherenceBps: 8_000,
+      reinforceCoherenceBelowBps: 7_000,
+      pauseCoherenceAtOrBelowBps: 3_000,
+      denyCoherenceAtOrBelowBps: 1_000,
+      challengeContextAtOrAboveBps: 8_000,
+      maximumUncertaintyBps: 6_000,
+    },
+    consecutiveBreachLimit: 1,
+    recoverySignalsRequired: 2,
+    reinforcementCooldownSignals: 0,
+    denyActionsWhileDegraded: true,
+    budgets: {
+      maximumReinforcements: 8,
+      maximumContextChallenges: 4,
+      maximumPauses: 2,
+    },
+    limits: {
+      rollingWindowSignals: 16,
+      maximumSignals: 1_000,
+      maximumRetainedEvents: 256,
+      maximumReasonCodesPerSignal: 8,
+      maximumEvidenceReferencesPerSignal: 8,
+      maximumAssessmentTtlMs: 1_000,
+      maximumStateBytes: 16_777_216,
+    },
+  };
+  const rolePolicy = {
+    schemaVersion: 1,
+    policyId: "role.policy.1",
+    policyVersion: 1,
+    parentPolicyDigest: null,
+    minimumIndependentEvaluations: 1,
+    minimumCertificationWitnesses: 5,
+    thresholds: {
+      minimumRoleFitBps: 7_000,
+      minimumMissionContributionBps: 6_000,
+      maximumUncertaintyBps: 3_000,
+      maximumTransitionRiskBps: 3_000,
+    },
+    scoringWeights: {
+      roleFitBps: 4_000,
+      missionContributionBps: 3_000,
+      uncertaintyPenaltyBps: 1_500,
+      transitionRiskPenaltyBps: 1_500,
+    },
+    limits: {
+      maximumProposers: 4,
+      maximumCandidates: 8,
+      maximumEvaluationsPerCandidate: 4,
+      maximumReasonCodes: 8,
+      maximumEvidenceReferences: 8,
+      maximumCapabilities: 8,
+      maximumResourceClasses: 8,
+      maximumInstructions: 8,
+      maximumInstructionBytes: 4_096,
+      maximumConstraintsBytes: 16_384,
+      maximumRequestTtlMs: 2_000,
+      maximumEvaluationTtlMs: 1_000,
+      maximumCertificationTtlMs: 1_000,
+      maximumRetainedEvents: 256,
+      maximumStateBytes: 16_777_216,
+    },
+  };
+  const anchor = createRoleAlignmentRoleAnchorV1({
+    tenantId: "tenant.1",
+    sessionId: "session.1",
+    agentId: "agent.1",
+    objectiveId: "objective.1",
+    roleBindingId: "role.1",
+    roleRevision: 1,
+    predecessorRoleBindingId: null,
+    roleKey: "observer",
+    roleContent: {
+      instructions: ["Inspect evidence."],
+      constraints: { externalWrites: false },
+    },
+  });
+  let alignment = createRoleAlignmentStateV1({
+    controllerId: "alignment.1",
+    controllerVersion: 1,
+    implementationId: "alignment.build.1",
+    policy: alignmentPolicy,
+    roleAnchor: anchor,
+    createdAtLogicalMs: 0,
+  });
+  alignment = observeRoleAlignmentSignalV1(
+    alignment,
+    {
+      expectedRevision: alignment.revision,
+      signal: {
+        schemaVersion: 1,
+        signalId: "signal.1",
+        assessmentRequestId: "assessment.1",
+        assessorId: "assessor.1",
+        assessorVersion: 1,
+        assessorBindingDigest: digest("a"),
+        tenantId: "tenant.1",
+        sessionId: "session.1",
+        agentId: "agent.1",
+        stepId: "step.1",
+        checkpoint: "pre_step",
+        roleAnchorDigest: anchor.anchorDigest,
+        roleRevision: 1,
+        targetDigest: digest("1"),
+        coherenceBps: 6_000,
+        uncertaintyBps: 1_000,
+        contextInconsistencyBps: 500,
+        hardViolation: false,
+        reasonCodes: ["role_drift"],
+        evidenceReferenceIds: ["evidence.1"],
+        observedAtLogicalMs: 1,
+        expiresAtLogicalMs: 500,
+      },
+    },
+    alignmentPolicy,
+  ).state;
+  const authority = createRoleAuthorityCeilingV1({
+    mandateDigest: digest("b"),
+    capabilityKeys: ["evidence.read"],
+    resourceClasses: ["local.evidence"],
+    maximumActionBudgetUnits: 10,
+    validUntilLogicalMs: 1_000,
+  });
+  const request = createRoleRealignmentRequestV1({
+    requestId: "request.1",
+    policy: rolePolicy,
+    alignmentPolicy,
+    alignmentState: alignment,
+    authorityCeiling: authority,
+    createdAtLogicalMs: 2,
+    expiresAtLogicalMs: 1_000,
+  });
+  const definition = createTrustedRoleDefinitionV1({
+    catalogId: "catalog.1",
+    definitionId: "reviewer.1",
+    definitionRevision: 1,
+    predecessorDefinitionDigest: null,
+    roleKey: "reviewer",
+    instructions: ["Review inconsistent evidence."],
+    constraints: { externalWrites: false },
+    requiredCapabilityKeys: ["evidence.read"],
+    requiredResourceClasses: ["local.evidence"],
+    maximumActionBudgetUnits: 5,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: 1_000,
+  });
+  const proposal = createRoleCandidateProposalV1({
+    proposalId: "proposal.1",
+    requestDigest: request.requestDigest,
+    proposerId: "proposer.1",
+    proposerVersion: 1,
+    proposerBindingDigest: digest("c"),
+    definitionId: definition.definitionId,
+    definitionRevision: definition.definitionRevision,
+    definitionDigest: definition.definitionDigest,
+    reasonCodes: ["catalog_match"],
+    evidenceReferenceIds: ["evidence.role.1"],
+    proposedAtLogicalMs: 3,
+    expiresAtLogicalMs: 900,
+  });
+  let state = createRoleRealignmentStateV1({
+    controllerId: "realignment.1",
+    controllerVersion: 1,
+    implementationId: "realignment.build.1",
+    policy: rolePolicy,
+    request,
+    createdAtLogicalMs: 2,
+  });
+  state = admitRoleCandidateV1(
+    state,
+    {
+      expectedRevision: state.revision,
+      proposal,
+      proposerEligibilityDecisionDigest: digest("d"),
+      definition,
+      logicalTimeMs: 3,
+    },
+    rolePolicy,
+  ).state;
+  const candidate = state.candidates[0];
+  state = recordRoleCandidateEvaluationV1(
+    state,
+    {
+      expectedRevision: state.revision,
+      evaluation: createRoleCandidateEvaluationV1({
+        evaluationId: "evaluation.1",
+        requestDigest: request.requestDigest,
+        candidateDigest: candidate.candidateDigest,
+        definitionDigest: candidate.proposal.definitionDigest,
+        evaluatorId: "evaluator.1",
+        evaluatorVersion: 1,
+        evaluatorBindingDigest: digest("e"),
+        eligibilityDecisionDigest: digest("f"),
+        eligible: true,
+        roleFitBps: 9_000,
+        missionContributionBps: 8_500,
+        uncertaintyBps: 1_000,
+        transitionRiskBps: 1_000,
+        reasonCodes: ["candidate_supported"],
+        evidenceReferenceIds: ["evidence.candidate.1"],
+        evaluatedAtLogicalMs: 4,
+        expiresAtLogicalMs: 900,
+      }),
+      logicalTimeMs: 4,
+    },
+    rolePolicy,
+  ).state;
+  state = selectRoleCandidateV1(
+    state,
+    {
+      expectedRevision: state.revision,
+      selectionId: "selection.1",
+      logicalTimeMs: 5,
+    },
+    rolePolicy,
+  ).state;
+  return { state, policy: rolePolicy };
+}
+
+function eligibleTrustDecision(logicalTimeMs) {
+  const trustDigest = (character) => character.repeat(64);
+  const decision = {
+    schemaVersion: 1,
+    eligibilityDecisionId: "pending",
+    requestDigest: trustDigest("1"),
+    subjectDigest: trustDigest("2"),
+    scopeDigest: trustDigest("3"),
+    policyDigest: trustDigest("4"),
+    profileId: `profile:${trustDigest("5")}`,
+    profileDigest: trustDigest("5"),
+    quarantineRecordIds: [],
+    evaluatedAtLogicalMs: logicalTimeMs,
+    disposition: "eligible",
+    requirementResults: [],
+    reasonCodes: [],
+  };
+  return {
+    ...decision,
+    eligibilityDecisionId: `eligibility-decision:${digestTrustEligibilityDecisionV1(decision)}`,
+  };
 }
 
 function digest(character) {

@@ -67,6 +67,13 @@ See
 [Byzantine-resilient collective agreement V1](../../docs/agent-mesh/byzantine-resilient-collective-agreement-v1.md)
 for integration and operations guidance.
 
+The `@agentplat/collective-quorum/role-realignment` entry point maps a
+content-free role selection to the same agreement protocol. Its certificate
+binds membership epoch and configuration, and only Trust-eligible precommit
+signers count as role-certification witnesses. Agreement never transports role
+instructions or grants action authority. See [Adaptive Role Realignment
+V1](../../docs/inference-control/adaptive-role-realignment-v1.md).
+
 ## Safety and availability
 
 - Witness thresholds must be strict majorities. Duplicate witnesses, owners or

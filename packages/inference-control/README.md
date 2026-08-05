@@ -31,6 +31,12 @@ pnpm add @agentplat/inference-control@next
   interventions.
 - `@agentplat/inference-control/role-alignment/portable-agent` — stateful
   Portable Agent controller plus checkpoint-handoff continuity.
+- `@agentplat/inference-control/role-realignment` — content-free discovery,
+  trusted-catalog admission, deterministic selection, certificates and the
+  pure realignment reducer.
+- `@agentplat/inference-control/role-realignment/portable-agent` — restart-safe
+  discovery-to-activation orchestration with Trust eligibility, exact Runtime
+  role updates and checkpoint-handoff continuity.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -116,6 +122,24 @@ rules, another model, representation probes exposed by an open-weight adapter
 or an ensemble, but its result never creates role or action authority. State is
 content-free and can be exported alongside an exact Portable Agent checkpoint
 transfer so a handoff cannot silently reset adverse history.
+
+## Adaptive role realignment
+
+The realignment controller consumes an exact `realignment_required` state and
+can close the loop without accepting role instructions from a peer. Discovery
+strategies propose only trusted catalog references. Independent Trust-eligible
+evaluators score the resolved definitions, the pure reducer selects one with
+integer arithmetic and a certificate gates installation of the exact successor
+role revision.
+
+```js
+import { createRoleRealignmentPortableAgentV1 } from "@agentplat/inference-control/role-realignment/portable-agent";
+```
+
+Definitions may narrow capabilities, resource classes, action budget or
+validity, but cannot widen the request's authority ceiling. Runtime-first
+activation is retryable: a process interruption after the role update does not
+create a second revision. See the [integration guide](../../docs/inference-control/adaptive-role-realignment-v1.md).
 
 ## Security boundary
 
