@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./agreement": {
+      "types": "./dist/agreement.d.ts",
+      "import": "./dist/agreement.js"
     }
   },
   "files": [
@@ -28,7 +32,8 @@
     "@agentplat/collective-runtime": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-crypto": "workspace:^",
-    "@agentplat/mesh-protocol": "workspace:^"
+    "@agentplat/mesh-protocol": "workspace:^",
+    "@agentplat/trust": "workspace:^"
   },
   "engines": {
     "node": ">=20.19.3"
