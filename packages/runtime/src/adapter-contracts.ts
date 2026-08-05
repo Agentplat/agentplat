@@ -125,6 +125,21 @@ export interface PortableAgentRoleBindingV1 {
   readonly validUntilLogicalMs: number;
 }
 
+/**
+ * Exact, externally certified authorization for restoring the predecessor of
+ * the currently active role. The runtime binds the proof digest to both role
+ * revisions; proof verification remains the governing control's responsibility.
+ */
+export interface PortableAgentRoleRestorationAuthorizationV1 {
+  readonly schemaVersion: 1;
+  readonly restorationId: AgentPlatID;
+  readonly expectedActiveRoleBindingId: AgentPlatID;
+  readonly expectedActiveRoleRevision: number;
+  readonly restoredRoleBindingId: AgentPlatID;
+  readonly restoredRoleRevision: number;
+  readonly certificateDigest: string;
+}
+
 export interface PortableAgentStepRequestV1 {
   readonly schemaVersion: 1;
   readonly stepId: AgentPlatID;

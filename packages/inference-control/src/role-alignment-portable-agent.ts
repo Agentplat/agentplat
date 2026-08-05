@@ -2,11 +2,13 @@ import type { JsonValue } from '@agentplat/core';
 import {
   normalizeCheckpointTransferV1,
   normalizeRoleBindingV1,
+  normalizeRoleRestorationAuthorizationV1,
   type PortableAgentCheckpointTransferV1,
   type PortableAgentControlDecisionV1,
   type PortableAgentControlPortV1,
   type PortableAgentControlRequestV1,
   type PortableAgentRoleBindingV1,
+  type PortableAgentRoleRestorationAuthorizationV1,
 } from '@agentplat/runtime/adapter';
 
 import {
@@ -21,6 +23,7 @@ import {
   observeRoleAlignmentSignalV1,
   rebindRoleAlignmentSessionV1,
   replaceRoleAlignmentRoleV1,
+  restoreRoleAlignmentRoleV1,
   resumeRoleAlignmentStateV1,
   type RoleAlignmentCheckpointV1,
   type RoleAlignmentDecisionV1,
@@ -216,13 +219,26 @@ export interface RoleAlignmentPortableAgentControlV1 extends PortableAgentContro
   }): Promise<RoleAlignmentStateV1>;
 }
 
+/** Additive restoration surface used by certified refinement controllers. */
+export interface RoleAlignmentRestorablePortableAgentControlV1 extends RoleAlignmentPortableAgentControlV1 {
+  restoreSessionRole(input: {
+    readonly sessionId: string;
+    readonly expectedRevision: number;
+    readonly tenantId: string;
+    readonly agentId: string;
+    readonly role: PortableAgentRoleBindingV1;
+    readonly authorization: PortableAgentRoleRestorationAuthorizationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<RoleAlignmentStateV1>;
+}
+
 export function createRoleAlignmentPortableAgentControlV1(
   options: CreateRoleAlignmentPortableAgentControlV1
-): RoleAlignmentPortableAgentControlV1 {
+): RoleAlignmentRestorablePortableAgentControlV1 {
   return new RoleAlignmentPortableAgentControl(options);
 }
 
-class RoleAlignmentPortableAgentControl implements RoleAlignmentPortableAgentControlV1 {
+class RoleAlignmentPortableAgentControl implements RoleAlignmentRestorablePortableAgentControlV1 {
   readonly controlId: string;
   readonly controlVersion: number;
   readonly implementationId: string;
@@ -346,6 +362,55 @@ class RoleAlignmentPortableAgentControl implements RoleAlignmentPortableAgentCon
       {
         expectedRevision: state.revision,
         roleAnchor: anchor,
+        logicalTimeMs: input.logicalTimeMs,
+      },
+      this.policy
+    );
+    await this.stateStore.save(next, state.revision);
+    return next;
+  }
+
+  async restoreSessionRole(input: {
+    readonly sessionId: string;
+    readonly expectedRevision: number;
+    readonly tenantId: string;
+    readonly agentId: string;
+    readonly role: PortableAgentRoleBindingV1;
+    readonly authorization: PortableAgentRoleRestorationAuthorizationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<RoleAlignmentStateV1> {
+    const state = await this.requireState(input.sessionId);
+    assertSafeInteger(input.expectedRevision, 'expectedRevision');
+    if (state.revision !== input.expectedRevision)
+      throw new RoleAlignmentStoreConflictErrorV1();
+    assertIdentifier(input.tenantId, 'tenantId');
+    assertIdentifier(input.agentId, 'agentId');
+    const role = normalizeRoleBindingV1(input.role);
+    const authorization = normalizeRoleRestorationAuthorizationV1(
+      input.authorization
+    );
+    if (
+      authorization.expectedActiveRoleBindingId !==
+        state.roleAnchor.roleBindingId ||
+      authorization.expectedActiveRoleRevision !==
+        state.roleAnchor.roleRevision ||
+      authorization.restoredRoleBindingId !== role.roleBindingId ||
+      authorization.restoredRoleRevision !== role.roleRevision
+    )
+      throw new TypeError('role_alignment_role_restoration_invalid');
+    const anchor = anchorFor({
+      tenantId: input.tenantId,
+      sessionId: input.sessionId,
+      agentId: input.agentId,
+      role,
+    });
+    if (anchor.anchorDigest === state.roleAnchor.anchorDigest) return state;
+    const next = restoreRoleAlignmentRoleV1(
+      state,
+      {
+        expectedRevision: state.revision,
+        roleAnchor: anchor,
+        authorizationDigest: authorization.certificateDigest,
         logicalTimeMs: input.logicalTimeMs,
       },
       this.policy

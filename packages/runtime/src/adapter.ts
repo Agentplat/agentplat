@@ -14,6 +14,7 @@ export {
   normalizeControlDecisionV1,
   normalizeObservationV1,
   normalizeRoleBindingV1,
+  normalizeRoleRestorationAuthorizationV1,
   normalizeStepRequestV1,
   normalizeStepResultV1,
 } from "./adapter-validation.js";

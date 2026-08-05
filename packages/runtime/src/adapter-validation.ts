@@ -14,6 +14,7 @@ import type {
   PortableAgentObservationV1,
   PortableAgentOutputV1,
   PortableAgentRoleBindingV1,
+  PortableAgentRoleRestorationAuthorizationV1,
   PortableAgentSessionSnapshotV1,
   PortableAgentSourceZoneV1,
   PortableAgentStepRequestV1,
@@ -313,6 +314,52 @@ export function normalizeRoleBindingV1(
     constraints: normalizeJsonObject(input.constraints, "role.constraints"),
     validFromLogicalMs,
     validUntilLogicalMs,
+  });
+}
+
+export function normalizeRoleRestorationAuthorizationV1(
+  input: PortableAgentRoleRestorationAuthorizationV1,
+): PortableAgentRoleRestorationAuthorizationV1 {
+  exactKeys(
+    input,
+    [
+      "schemaVersion",
+      "restorationId",
+      "expectedActiveRoleBindingId",
+      "expectedActiveRoleRevision",
+      "restoredRoleBindingId",
+      "restoredRoleRevision",
+      "certificateDigest",
+    ],
+    "role restoration authorization",
+  );
+  if (
+    input.schemaVersion !== 1 ||
+    !/^sha256:[0-9a-f]{64}$/u.test(input.certificateDigest)
+  )
+    invalid("role restoration authorization is invalid");
+  return cloneAndFreeze({
+    schemaVersion: 1,
+    restorationId: identifier(input.restorationId, "restorationId"),
+    expectedActiveRoleBindingId: identifier(
+      input.expectedActiveRoleBindingId,
+      "expectedActiveRoleBindingId",
+    ),
+    expectedActiveRoleRevision: positiveInteger(
+      input.expectedActiveRoleRevision,
+      "expectedActiveRoleRevision",
+      Number.MAX_SAFE_INTEGER,
+    ),
+    restoredRoleBindingId: identifier(
+      input.restoredRoleBindingId,
+      "restoredRoleBindingId",
+    ),
+    restoredRoleRevision: positiveInteger(
+      input.restoredRoleRevision,
+      "restoredRoleRevision",
+      Number.MAX_SAFE_INTEGER,
+    ),
+    certificateDigest: input.certificateDigest,
   });
 }
 

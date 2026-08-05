@@ -10,6 +10,7 @@ import type {
   PortableAgentControlDecisionV1,
   PortableAgentControlPointV1,
   PortableAgentRoleBindingV1,
+  PortableAgentRoleRestorationAuthorizationV1,
   PortableAgentSessionRuntimeOptionsV1,
   PortableAgentSessionSnapshotV1,
   PortableAgentStepOptionsV1,
@@ -31,6 +32,7 @@ import {
   normalizeJson,
   normalizeMetadata,
   normalizeRoleBindingV1,
+  normalizeRoleRestorationAuthorizationV1,
   normalizeStepRequestV1,
   normalizeStepResultV1,
 } from "./adapter-validation.js";
@@ -359,6 +361,44 @@ export class PortableAgentSessionRuntimeV1 {
       ) {
         throw validation(
           "role update does not extend the current role binding",
+        );
+      }
+      return this.commit(snapshot, { role });
+    });
+  }
+
+  async restoreRole(
+    sessionIdInput: AgentPlatID,
+    roleInput: PortableAgentRoleBindingV1,
+    expectedRevision: number,
+    authorizationInput: PortableAgentRoleRestorationAuthorizationV1,
+  ): Promise<PortableAgentSessionSnapshotV1> {
+    const sessionId = identifier(sessionIdInput, "sessionId");
+    return this.exclusive(sessionId, async () => {
+      const { snapshot } = await this.loadBound(sessionId);
+      this.requireRevision(snapshot, expectedRevision);
+      if (snapshot.status !== "active" && snapshot.status !== "paused") {
+        throw new PortableAgentErrorV1(
+          "SESSION_NOT_ACTIVE",
+          `session "${sessionId}" cannot restore a role`,
+        );
+      }
+      const role = normalizeRoleBindingV1(roleInput);
+      const authorization =
+        normalizeRoleRestorationAuthorizationV1(authorizationInput);
+      if (
+        role.objectiveId !== snapshot.objectiveId ||
+        snapshot.role.predecessorRoleBindingId !== role.roleBindingId ||
+        snapshot.role.roleRevision !== role.roleRevision + 1 ||
+        authorization.expectedActiveRoleBindingId !==
+          snapshot.role.roleBindingId ||
+        authorization.expectedActiveRoleRevision !==
+          snapshot.role.roleRevision ||
+        authorization.restoredRoleBindingId !== role.roleBindingId ||
+        authorization.restoredRoleRevision !== role.roleRevision
+      ) {
+        throw validation(
+          "role restoration does not match the active role predecessor",
         );
       }
       return this.commit(snapshot, { role });

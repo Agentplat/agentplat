@@ -74,6 +74,13 @@ signers count as role-certification witnesses. Agreement never transports role
 instructions or grants action authority. See [Adaptive Role Realignment
 V1](../../docs/inference-control/adaptive-role-realignment-v1.md).
 
+The `@agentplat/collective-quorum/role-refinement` entry point certifies both
+governed publication and rollback of an exact role revision. Agreement values
+carry only action, revision and digest bindings; local validators must resolve
+the exact patch and definition before voting. Only Trust-eligible precommit
+signers count as certification witnesses. See [Certified Role Refinement
+V1](../../docs/inference-control/certified-role-refinement-v1.md).
+
 ## Safety and availability
 
 - Witness thresholds must be strict majorities. Duplicate witnesses, owners or

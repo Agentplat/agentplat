@@ -22,6 +22,7 @@ import {
   verifyCollectiveAgreementCommitCertificateV1,
   verifyCollectiveAgreementJointReconfigurationCertificateV1,
   createCollectiveRoleRealignmentCertificationPortV1,
+  createCollectiveRoleRefinementCertificationPortV1,
 } from "../dist/agreement.js";
 import {
   createRoleAlignmentRoleAnchorV1,
@@ -39,6 +40,20 @@ import {
   recordRoleCandidateEvaluationV1,
   selectRoleCandidateV1,
 } from "../../inference-control/dist/role-realignment.js";
+import {
+  admitRoleRefinementCandidateV1,
+  createRoleRefinementEvaluationV1,
+  createRoleRefinementEvidenceSummaryV1,
+  createRoleRefinementPatchV1,
+  createRoleRefinementPolicyRecordV1,
+  createRoleRefinementProposalV1,
+  createRoleRefinementRequestV1,
+  createRoleRefinementSemanticDecisionV1,
+  createRoleRefinementStateV1,
+  materializeRefinedRoleDefinitionV1,
+  recordRoleRefinementEvaluationV1,
+  selectRoleRefinementCandidateV1,
+} from "../../inference-control/dist/role-refinement.js";
 import { digestTrustEligibilityDecisionV1 } from "../../trust/dist/index.js";
 
 const wallTime = "2030-01-01T00:00:00.000Z";
@@ -165,6 +180,79 @@ test("role realignment adapter verifies agreement and counts only Trust-eligible
   );
   assert.deepEqual(certificate.witnessIds, ["p0", "p1", "p2", "p3", "p4"]);
   assert.match(certificate.sourceCertificateDigest, /^sha256:[0-9a-f]{64}$/u);
+});
+
+test("role refinement adapter certifies only a verified content-free agreement", async () => {
+  const fixture = await createFixture({
+    activePeerIds: ["p0", "p1", "p2", "p3", "p4"],
+  });
+  const selected = selectedRoleRefinementState();
+  const certification = createCollectiveRoleRefinementCertificationPortV1({
+    policyDomainId: "policy.1",
+    certifierId: "refinement.certifier.1",
+    certifierVersion: 1,
+    certifierBindingDigest: digest("8"),
+    realignmentPolicy: selected.realignmentPolicy,
+    agreement: fixture.client("p0"),
+    membership: fixture.membershipPort,
+    resolver: fixture.resolver,
+    clock: { now: () => ({ wallTime, logicalTimeMs: 100 }) },
+    coordinates: {
+      resolve: () => ({ height: 1, round: 0, previousCommitDigest: null }),
+    },
+    witnessTrust: {
+      evaluate: () => eligibleTrustDecision(100),
+    },
+  });
+  const certificate = await certification.certify({
+    action: "publish",
+    state: selected.state,
+    policy: selected.policy,
+    logicalTimeMs: 100,
+    expiresAtLogicalMs: 500,
+  });
+  assert.ok(certificate);
+  assert.equal(certificate.action, "publish");
+  assert.deepEqual(certificate.witnessIds, ["p0", "p1", "p2", "p3", "p4"]);
+  assert.equal(certificate.activationDigest, null);
+  assert.equal(certificate.monitoringDigest, null);
+  assert.match(certificate.sourceCertificateDigest, /^sha256:[0-9a-f]{64}$/u);
+});
+
+test("role refinement Trust filtering cannot reduce witnesses below Byzantine quorum", async () => {
+  const fixture = await createFixture({
+    activePeerIds: ["p0", "p1", "p2", "p3", "p4"],
+  });
+  const selected = selectedRoleRefinementState(2);
+  const certification = createCollectiveRoleRefinementCertificationPortV1({
+    policyDomainId: "policy.1",
+    certifierId: "refinement.certifier.1",
+    certifierVersion: 1,
+    certifierBindingDigest: digest("8"),
+    realignmentPolicy: selected.realignmentPolicy,
+    agreement: fixture.client("p0"),
+    membership: fixture.membershipPort,
+    resolver: fixture.resolver,
+    clock: { now: () => ({ wallTime, logicalTimeMs: 100 }) },
+    coordinates: {
+      resolve: () => ({ height: 1, round: 0, previousCommitDigest: null }),
+    },
+    witnessTrust: {
+      evaluate({ peerId }) {
+        return peerId === "p4" ? null : eligibleTrustDecision(100);
+      },
+    },
+  });
+  assert.equal(
+    await certification.certify({
+      action: "publish",
+      state: selected.state,
+      policy: selected.policy,
+      logicalTimeMs: 100,
+      expiresAtLogicalMs: 500,
+    }),
+    null,
+  );
 });
 
 test("fewer than 2f+1 validators cannot manufacture a commit", async () => {
@@ -885,6 +973,245 @@ function selectedRoleRealignmentState() {
     rolePolicy,
   ).state;
   return { state, policy: rolePolicy };
+}
+
+function selectedRoleRefinementState(minimumCertificationWitnesses = 5) {
+  const realignmentPolicy = selectedRoleRealignmentState().policy;
+  const policy = {
+    schemaVersion: 1,
+    policyId: "refinement.policy.1",
+    policyVersion: 1,
+    minimumIndependentEvaluations: 1,
+    minimumCertificationWitnesses,
+    minimumMonitoringObservations: 1,
+    maximumConsecutiveDegradedObservations: 1,
+    thresholds: {
+      minimumPredictedCoherenceBps: 7_000,
+      minimumPredictedContributionBps: 6_000,
+      maximumPredictedUncertaintyBps: 3_000,
+      maximumTransitionRiskBps: 3_000,
+      confirmationCoherenceBps: 8_000,
+      confirmationContributionBps: 7_000,
+      confirmationMaximumUncertaintyBps: 2_000,
+      rollbackCoherenceBps: 4_000,
+      rollbackContributionBps: 3_000,
+      rollbackUncertaintyBps: 7_000,
+    },
+    scoringWeights: {
+      coherenceBps: 4_000,
+      contributionBps: 3_000,
+      uncertaintyPenaltyBps: 1_500,
+      transitionRiskPenaltyBps: 1_500,
+    },
+    limits: {
+      maximumCandidates: 4,
+      maximumStrategies: 2,
+      maximumEvaluators: 4,
+      maximumPatchOperations: 4,
+      maximumInstructions: 8,
+      maximumInstructionBytes: 4_096,
+      maximumConstraintsBytes: 16_384,
+      maximumReasonCodes: 8,
+      maximumEvidenceReferences: 8,
+      maximumObservations: 8,
+      maximumEvents: 128,
+      maximumRequestLifetimeMs: 2_000,
+      maximumEvaluationLifetimeMs: 1_000,
+      maximumCertificateLifetimeMs: 1_000,
+      maximumMonitoringLifetimeMs: 1_000,
+    },
+  };
+  const predecessor = createTrustedRoleDefinitionV1({
+    catalogId: "catalog.1",
+    definitionId: "investigator.1",
+    definitionRevision: 1,
+    predecessorDefinitionDigest: null,
+    roleKey: "investigator",
+    instructions: ["Inspect evidence."],
+    constraints: { externalWrites: false },
+    requiredCapabilityKeys: ["evidence.read"],
+    requiredResourceClasses: ["local.evidence"],
+    maximumActionBudgetUnits: 5,
+    validFromLogicalMs: 0,
+    validUntilLogicalMs: 1_000,
+  });
+  const authority = createRoleAuthorityCeilingV1({
+    mandateDigest: digest("1"),
+    capabilityKeys: ["evidence.read"],
+    resourceClasses: ["local.evidence"],
+    maximumActionBudgetUnits: 5,
+    validUntilLogicalMs: 1_000,
+  });
+  const evidence = createRoleRefinementEvidenceSummaryV1(
+    {
+      alignmentStateRevision: 2,
+      alignmentStateDigest: digest("2"),
+      rollingCoherenceBps: 6_000,
+      degraded: true,
+      observedSignalCount: 2,
+      reasonCodes: ["role_drift"],
+      evidenceReferenceIds: ["evidence.1"],
+      summarizedAtLogicalMs: 2,
+    },
+    policy,
+  );
+  const policyRecord = createRoleRefinementPolicyRecordV1(policy);
+  const request = createRoleRefinementRequestV1(
+    {
+      requestId: "refinement.request.1",
+      selectionId: "refinement.selection.1",
+      publicationId: "refinement.publication.1",
+      activationId: "refinement.activation.1",
+      rollbackId: "refinement.rollback.1",
+      policyId: policy.policyId,
+      policyVersion: policy.policyVersion,
+      policyDigest: policyRecord.policyDigest,
+      tenantId: "tenant.1",
+      sessionId: "session.1",
+      agentId: "agent.1",
+      objectiveId: "objective.1",
+      predecessorCatalogId: predecessor.catalogId,
+      predecessorDefinitionId: predecessor.definitionId,
+      predecessorDefinitionRevision: predecessor.definitionRevision,
+      predecessorDefinitionDigest: predecessor.definitionDigest,
+      predecessorRoleAnchorDigest: digest("3"),
+      authorityCeiling: authority,
+      evidence,
+      createdAtLogicalMs: 2,
+      expiresAtLogicalMs: 1_000,
+    },
+    policy,
+    realignmentPolicy,
+  );
+  const patch = createRoleRefinementPatchV1(
+    {
+      predecessorDefinitionDigest: predecessor.definitionDigest,
+      operations: [
+        {
+          operationId: "operation.1",
+          kind: "instruction_insert",
+          index: 1,
+          instruction: "Quantify uncertainty.",
+        },
+      ],
+      authority: {
+        requiredCapabilityKeys: ["evidence.read"],
+        requiredResourceClasses: ["local.evidence"],
+        maximumActionBudgetUnits: 4,
+        validUntilLogicalMs: 900,
+      },
+    },
+    predecessor,
+    policy,
+    realignmentPolicy,
+  );
+  const definition = materializeRefinedRoleDefinitionV1({
+    predecessor,
+    patch,
+    authorityCeiling: authority,
+    policy,
+    realignmentPolicy,
+  });
+  const proposal = createRoleRefinementProposalV1(
+    {
+      proposalId: "refinement.proposal.1",
+      requestDigest: request.requestDigest,
+      proposerId: "proposer.1",
+      proposerVersion: 1,
+      proposerBindingDigest: digest("4"),
+      patch,
+      refinedDefinitionDigest: definition.definitionDigest,
+      reasonCodes: ["evidence_supported"],
+      evidenceReferenceIds: ["evidence.1"],
+      proposedAtLogicalMs: 3,
+      expiresAtLogicalMs: 900,
+    },
+    request,
+    predecessor,
+    policy,
+    realignmentPolicy,
+  );
+  const semanticDecision = createRoleRefinementSemanticDecisionV1(
+    {
+      requestDigest: request.requestDigest,
+      patchDigest: patch.patchDigest,
+      refinedDefinitionDigest: definition.definitionDigest,
+      validatorId: "validator.1",
+      validatorVersion: 1,
+      validatorBindingDigest: digest("5"),
+      accepted: true,
+      objectiveAligned: true,
+      constraintsNotWeaker: true,
+      reasonCodes: ["semantically_valid"],
+      evidenceReferenceIds: ["evidence.1"],
+      decidedAtLogicalMs: 3,
+      expiresAtLogicalMs: 900,
+    },
+    policy,
+  );
+  let state = createRoleRefinementStateV1({
+    controllerId: "refinement.1",
+    controllerVersion: 1,
+    implementationId: "refinement.build.1",
+    request,
+    policy,
+    realignmentPolicy,
+  });
+  state = admitRoleRefinementCandidateV1(
+    state,
+    {
+      expectedRevision: state.revision,
+      proposal,
+      refinedDefinition: definition,
+      draftId: "draft.1",
+      semanticDecision,
+      proposerTrustDecisionDigest: digest("6"),
+      logicalTimeMs: 3,
+    },
+    predecessor,
+    policy,
+    realignmentPolicy,
+  ).state;
+  const candidate = state.candidates[0];
+  const evaluation = createRoleRefinementEvaluationV1(
+    {
+      evaluationId: "refinement.evaluation.1",
+      requestDigest: request.requestDigest,
+      candidateDigest: candidate.candidateDigest,
+      patchDigest: candidate.patchDigest,
+      refinedDefinitionDigest: candidate.refinedDefinitionDigest,
+      evaluatorId: "evaluator.1",
+      evaluatorVersion: 1,
+      evaluatorBindingDigest: digest("7"),
+      evaluatorTrustDecisionDigest: digest("8"),
+      eligible: true,
+      predictedCoherenceBps: 9_000,
+      predictedContributionBps: 8_500,
+      uncertaintyBps: 1_000,
+      transitionRiskBps: 1_000,
+      reasonCodes: ["candidate_supported"],
+      evidenceReferenceIds: ["evidence.1"],
+      evaluatedAtLogicalMs: 4,
+      expiresAtLogicalMs: 900,
+    },
+    state,
+    policy,
+  );
+  state = recordRoleRefinementEvaluationV1(
+    state,
+    { expectedRevision: state.revision, evaluation, logicalTimeMs: 4 },
+    policy,
+  ).state;
+  state = selectRoleRefinementCandidateV1(
+    state,
+    {
+      expectedRevision: state.revision,
+      selectionId: "refinement.selection.1",
+      logicalTimeMs: 5,
+    },
+    policy,
+  ).state;
+  return { state, policy, realignmentPolicy };
 }
 
 function eligibleTrustDecision(logicalTimeMs) {

@@ -141,6 +141,24 @@ validity, but cannot widen the request's authority ceiling. Runtime-first
 activation is retryable: a process interruption after the role update does not
 create a second revision. See the [integration guide](../../docs/inference-control/adaptive-role-realignment-v1.md).
 
+## Certified role refinement
+
+The `./role-refinement` reducer applies closed, preconditioned edits to the
+exact active definition. The `./role-refinement/portable-agent` orchestrator
+keeps exact patches and definitions in a local draft repository, evaluates only
+Trust-eligible candidates, publishes with catalog compare-and-swap, activates
+provisionally and either confirms or performs certified rollback plus
+quarantine.
+
+```js
+import { createRoleRefinementPortableAgentV1 } from "@agentplat/inference-control/role-refinement/portable-agent";
+```
+
+Normal role updates remain forward-only. Rollback uses explicit Runtime and
+Role Alignment restoration surfaces that accept only the exact predecessor and
+bind the operation to a certificate digest. See the [integration
+guide](../../docs/inference-control/certified-role-refinement-v1.md).
+
 ## Security boundary
 
 Protection applies only to calls routed through the exact controlled executor
