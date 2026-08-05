@@ -28,6 +28,24 @@ AgentPlat is a downloadable framework for building self-hosted agentic platforms
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
+### Continuous Role Alignment V1
+
+The opt-in role-alignment controller extends Inference Control across long
+portable-agent sessions. It accumulates bounded coherence, uncertainty and
+context-consistency signals; applies recovery hysteresis; and can reinforce,
+challenge, pause, request a successor role or deny before protected actions are
+released. Checkpoint handoffs preserve the content-free control history instead
+of resetting it.
+
+```js
+import { createRoleAlignmentPortableAgentControlV1 } from "@agentplat/inference-control/role-alignment/portable-agent";
+```
+
+See the [implementation plan](./docs/inference-control/continuous-role-alignment-v1-implementation-plan.md),
+[acceptance checklist](./docs/inference-control/continuous-role-alignment-v1-acceptance-checklist.md),
+[architecture decision](./docs/adr/0015-continuous-role-alignment.md) and
+[threat model](./docs/security/continuous-role-alignment-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
@@ -105,7 +123,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                        |
 | `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                              |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                   |
-| `@agentplat/inference-control`              | Opt-in inference boundaries, controlled release and safe action gates.               |
+| `@agentplat/inference-control`              | Inference gates plus longitudinal role-alignment and handoff control.                |
 | `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.                 |
 | `@agentplat/mesh`                           | Bounded peer coordination, allocation, leases, fencing and recovery.                 |
 | `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.                |
@@ -237,6 +255,7 @@ corepack pnpm run example:quick
 corepack pnpm run example:basic
 corepack pnpm run example:sessions
 corepack pnpm run example:collective
+corepack pnpm run example:role-alignment
 ```
 
 ## Development

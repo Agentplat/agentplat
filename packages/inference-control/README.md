@@ -26,6 +26,11 @@ pnpm add @agentplat/inference-control@next
   portable-agent session control point to a bound inference-control policy and
   assessor. It maps `pre_step`, `post_output`, and `pre_action` to `pre_run`,
   `post_run`, and `pre_tool`; it does not invoke a provider or grant actions.
+- `@agentplat/inference-control/role-alignment` — deterministic longitudinal
+  role anchors, coherence signals, recovery hysteresis and bounded local
+  interventions.
+- `@agentplat/inference-control/role-alignment/portable-agent` — stateful
+  Portable Agent controller plus checkpoint-handoff continuity.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -83,6 +88,34 @@ const result = await executor.generate(
 Context entries are immutable and digest-bound. Only `policy`, `objective` and
 configured `local_trusted` entries may supply instructions; user, peer, tool,
 retrieval, provider and assessor content remains ordinary untrusted data.
+
+## Continuous role alignment
+
+The role-alignment controller turns exact checkpoint assessments into bounded
+session history. It can allow a healthy step, reinforce the current role,
+abstain on contradictory context, pause, request a successor role or deny. A
+single healthy assessment does not erase accumulated degradation: recovery
+requires the policy's consecutive healthy-signal threshold.
+
+```js
+import { createRoleAlignmentPortableAgentControlV1 } from "@agentplat/inference-control/role-alignment/portable-agent";
+
+const control = createRoleAlignmentPortableAgentControlV1({
+  controlId: "alignment:local",
+  controlVersion: 1,
+  implementationId: "alignment:local:v1",
+  policy: localRoleAlignmentPolicy,
+  assessorBinding: localAssessorBinding,
+  assessor: localAssessor,
+  assessmentTtlMs: 5_000,
+});
+```
+
+The scorer is deliberately application-provided. It may use deterministic
+rules, another model, representation probes exposed by an open-weight adapter
+or an ensemble, but its result never creates role or action authority. State is
+content-free and can be exported alongside an exact Portable Agent checkpoint
+transfer so a handoff cannot silently reset adverse history.
 
 ## Security boundary
 

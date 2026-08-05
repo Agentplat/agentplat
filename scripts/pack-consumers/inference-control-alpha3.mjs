@@ -19,6 +19,11 @@ import {
   OutboundMessageGateway,
   outboundMessageDigest,
 } from '@agentplat/inference-control/messages';
+import {
+  createRoleAlignmentRoleAnchorV1,
+  createRoleAlignmentStateV1,
+  observeRoleAlignmentSignalV1,
+} from '@agentplat/inference-control/role-alignment';
 
 const context = createContextEntryV1({
   contextEntryId: 'context:policy',
@@ -168,7 +173,7 @@ const result = await executor.generate(
     options: null,
     scope: null,
   },
-  { tenant: { tenantId: 'tenant:alpha3' } },
+  { tenant: { tenantId: 'tenant:alpha3' } }
 );
 const incrementalPolicy = {
   ...policy,
@@ -261,7 +266,7 @@ for await (const event of incremental.stream(
     options: null,
     scope: null,
   },
-  { tenant: { tenantId: 'tenant:alpha3' } },
+  { tenant: { tenantId: 'tenant:alpha3' } }
 ))
   incrementalEvents.push(event);
 const validator = createControlledAgentSseValidatorV1();
@@ -405,7 +410,7 @@ const actionGateway = new ActionGateway(
     async consumeCurrent() {
       return true;
     },
-  },
+  }
 );
 await actionGateway.invoke({
   schemaVersion: 1,
@@ -483,13 +488,95 @@ const messageGateway = new OutboundMessageGateway(
       return true;
     },
   },
-  ['email'],
+  ['email']
 );
 await messageGateway.send({
   schemaVersion: 1,
   message,
   logicalTimeMs: 2,
 });
+const alignmentPolicy = {
+  schemaVersion: 1,
+  policyId: 'alignment:packed',
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  thresholds: {
+    healthyCoherenceBps: 8_000,
+    reinforceCoherenceBelowBps: 7_000,
+    pauseCoherenceAtOrBelowBps: 4_000,
+    denyCoherenceAtOrBelowBps: 1_000,
+    challengeContextAtOrAboveBps: 5_000,
+    maximumUncertaintyBps: 6_000,
+  },
+  consecutiveBreachLimit: 3,
+  recoverySignalsRequired: 2,
+  reinforcementCooldownSignals: 1,
+  denyActionsWhileDegraded: true,
+  budgets: {
+    maximumReinforcements: 4,
+    maximumContextChallenges: 2,
+    maximumPauses: 1,
+  },
+  limits: {
+    rollingWindowSignals: 8,
+    maximumSignals: 100,
+    maximumRetainedEvents: 32,
+    maximumReasonCodesPerSignal: 4,
+    maximumEvidenceReferencesPerSignal: 4,
+    maximumAssessmentTtlMs: 1_000,
+    maximumStateBytes: 1_048_576,
+  },
+};
+const alignmentAnchor = createRoleAlignmentRoleAnchorV1({
+  tenantId: 'tenant:packed',
+  sessionId: 'session:packed',
+  agentId: 'agent:packed',
+  objectiveId: 'objective:packed',
+  roleBindingId: 'role:packed:1',
+  roleRevision: 1,
+  predecessorRoleBindingId: null,
+  roleKey: 'reviewer',
+  roleContent: { instructions: ['Review only.'], constraints: {} },
+});
+const alignmentState = createRoleAlignmentStateV1({
+  controllerId: 'alignment:packed',
+  controllerVersion: 1,
+  implementationId: 'alignment:packed:v1',
+  policy: alignmentPolicy,
+  roleAnchor: alignmentAnchor,
+  createdAtLogicalMs: 0,
+});
+const alignmentResult = observeRoleAlignmentSignalV1(
+  alignmentState,
+  {
+    expectedRevision: 0,
+    signal: {
+      schemaVersion: 1,
+      signalId: 'signal:packed:1',
+      assessmentRequestId: 'assessment-request:packed:1',
+      assessorId: 'assessor:packed',
+      assessorVersion: 1,
+      assessorBindingDigest: `sha256:${'4'.repeat(64)}`,
+      tenantId: alignmentState.tenantId,
+      sessionId: alignmentState.sessionId,
+      agentId: alignmentState.agentId,
+      stepId: 'step:packed:1',
+      checkpoint: 'pre_step',
+      roleAnchorDigest: alignmentAnchor.anchorDigest,
+      roleRevision: 1,
+      targetDigest: `sha256:${'5'.repeat(64)}`,
+      coherenceBps: 6_500,
+      uncertaintyBps: 1_000,
+      contextInconsistencyBps: 500,
+      hardViolation: false,
+      reasonCodes: ['packed_role_check'],
+      evidenceReferenceIds: ['evidence:packed:1'],
+      observedAtLogicalMs: 1,
+      expiresAtLogicalMs: 101,
+    },
+  },
+  alignmentPolicy
+);
 if (
   result.status !== 'completed' ||
   result.output !== 'safe' ||
@@ -497,6 +584,8 @@ if (
   !messageDigest.startsWith('sha256:') ||
   actionDispatches !== 1 ||
   messageSends !== 1 ||
+  alignmentResult.decision.intervention !== 'reinforce_role' ||
+  alignmentResult.state.signalCount !== 1 ||
   incrementalEvents
     .filter((event) => event.type === 'control_output_released')
     .map((event) => event.content)
@@ -504,5 +593,5 @@ if (
 )
   process.exit(1);
 console.log(
-  'Verified packed inference-control public entrypoints and controlled behavior.',
+  'Verified packed inference-control and role-alignment entrypoints and controlled behavior.'
 );
