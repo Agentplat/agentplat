@@ -11,7 +11,8 @@ import type { PostgresMigrationStatus } from "@agentplat/postgres";
 import type { Pool } from "pg";
 
 const applicationId = "@agentplat/collective-quorum-postgres";
-const migrationName = "001_collective_quorum";
+const legacyMigrationName = "001_collective_quorum";
+const agreementMigrationName = "002_collective_agreement";
 
 export const migrationDirectory = fileURLToPath(
   new URL("../migrations/", import.meta.url),
@@ -23,22 +24,36 @@ export interface CollectiveQuorumPostgresMigrationOptionsV1 {
 }
 
 async function migrations() {
-  const [up, down] = await Promise.all([
+  const [legacyUp, legacyDown, agreementUp, agreementDown] = await Promise.all([
     readFile(
-      new URL(`../migrations/${migrationName}.up.sql`, import.meta.url),
+      new URL(`../migrations/${legacyMigrationName}.up.sql`, import.meta.url),
       "utf8",
     ),
     readFile(
-      new URL(`../migrations/${migrationName}.down.sql`, import.meta.url),
+      new URL(`../migrations/${legacyMigrationName}.down.sql`, import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        `../migrations/${agreementMigrationName}.up.sql`,
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        `../migrations/${agreementMigrationName}.down.sql`,
+        import.meta.url,
+      ),
       "utf8",
     ),
   ]);
   return [
     {
       version: 1,
-      name: migrationName,
-      up,
-      down,
+      name: legacyMigrationName,
+      up: legacyUp,
+      down: legacyDown,
       destructiveDown: true,
       adoptIf: `
         SELECT
@@ -46,6 +61,21 @@ async function migrations() {
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_quorum_recovery_acceptors') IS NOT NULL
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_quorum_responses') IS NOT NULL
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_quorum_certificates') IS NOT NULL
+          AS present
+      `,
+    },
+    {
+      version: 2,
+      name: agreementMigrationName,
+      up: agreementUp,
+      down: agreementDown,
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.collective_agreement_states') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.collective_agreement_local_votes') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.collective_agreement_observed_votes') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.collective_agreement_commits') IS NOT NULL
           AS present
       `,
     },
@@ -77,7 +107,7 @@ export async function getMigrationStatus(
 
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 1,
+  version = 2,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

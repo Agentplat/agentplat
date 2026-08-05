@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_agreement_commits;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_agreement_observed_votes;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_agreement_local_votes;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_agreement_states;

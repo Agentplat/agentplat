@@ -2,6 +2,12 @@
 
 PostgreSQL durability for `@agentplat/collective-quorum`.
 
+Migration V2 also provides transactional vote, lock, observed-vote and commit
+storage for the opt-in `@agentplat/collective-quorum/agreement` protocol. Import
+`PostgresCollectiveAgreementRepositoryV1` from
+`@agentplat/collective-quorum-postgres/agreement`. Existing root repository
+contracts and tables remain available.
+
 The repository keeps these peer-local facts transactionally:
 
 - one non-equivocating semantic assignment value per lease slot;

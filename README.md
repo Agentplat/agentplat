@@ -82,7 +82,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/collective-runtime`             | Governed collectives, recovery and replicated execution checkpoints.                 |
 | `@agentplat/collective-membership`          | Joint-quorum membership epochs and overlapping signing-key rotation.                 |
 | `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.                 |
-| `@agentplat/collective-quorum`              | Signed peer quorum, semantic confirmations and recovery consensus.                   |
+| `@agentplat/collective-quorum`              | Signed peer quorum plus opt-in Byzantine-resilient collective agreement.             |
 | `@agentplat/collective-quorum-postgres`     | Durable peer promises, votes and certificates in PostgreSQL.                         |
 | `@agentplat/collective-sync`                | Signed causal anti-entropy, catch-up certificates and readiness gates.               |
 | `@agentplat/collective-sync-postgres`       | Durable causal sync and execution-checkpoint evidence in PostgreSQL.                 |

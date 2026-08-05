@@ -54,6 +54,19 @@ For a durable deployment, use
 `@agentplat/collective-quorum-postgres`. The in-memory repository has identical
 atomic semantics but loses promises and votes when the process exits.
 
+## Byzantine-resilient agreement (opt in)
+
+Deployments whose admitted-validator fault model includes arbitrary or
+malicious behavior can use the separate
+`@agentplat/collective-quorum/agreement` entry point. It adds `3f + 1`
+membership bindings, `2f + 1` prevote/precommit certificates, durable locks,
+equivocation evidence, joint reconfiguration and certified catch-up. Importing
+or using the root entry point does not enable or alter this protocol.
+
+See
+[Byzantine-resilient collective agreement V1](../../docs/agent-mesh/byzantine-resilient-collective-agreement-v1.md)
+for integration and operations guidance.
+
 ## Safety and availability
 
 - Witness thresholds must be strict majorities. Duplicate witnesses, owners or
@@ -73,10 +86,11 @@ atomic semantics but loses promises and votes when the process exits.
   value. The node treats those certificates as semantically equivalent while
   each port validates its own threshold evidence.
 
-This protocol tolerates crashes, restarts, message loss, reordering and
+The root protocol tolerates crashes, restarts, message loss, reordering and
 minority partitions under an authenticated non-Byzantine acceptor model. It is
-not a Byzantine-fault-tolerant consensus protocol, does not discover peer
-endpoints, and does not make external actions exactly once. Certified dynamic
+not itself a Byzantine-fault-tolerant consensus protocol; use the opt-in
+agreement entry point for that fault model. Neither protocol discovers peer
+endpoints or makes external actions exactly once. Certified dynamic
 membership and overlapping key rotation are available through the optional
 membership port implemented by `@agentplat/collective-membership`.
 
