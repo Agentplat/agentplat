@@ -165,7 +165,7 @@ export class CollectiveSyncPlanningArtifactAvailabilityV1 {
   ): Promise<boolean> {
     if (!input?.contentReference || !input.fragmentDigest) return false;
     const local = await this.options.repository.get(input.contentReference);
-    if (local) return recordMatchesRequest(local, input);
+    if (local) return planningArtifactRecordMatchesRequestV1(local, input);
     const resolved = await this.options.client.resolveRecord({
       peerId: input.sourcePeerId,
       syncDomain: PLANNING_ARTIFACT_SYNC_DOMAIN_V1,
@@ -175,7 +175,9 @@ export class CollectiveSyncPlanningArtifactAvailabilityV1 {
     });
     if (!resolved) return false;
     const stored = await this.options.repository.get(input.contentReference);
-    return stored ? recordMatchesRequest(stored, input) : false;
+    return stored
+      ? planningArtifactRecordMatchesRequestV1(stored, input)
+      : false;
   }
 }
 
@@ -248,7 +250,7 @@ function isPayload(value: unknown): value is PlanningArtifactSyncPayloadV1 {
   );
 }
 
-function recordMatchesRequest(
+export function planningArtifactRecordMatchesRequestV1(
   input: PlanningFragmentRepositoryRecordV1,
   request: PlanningArtifactAvailabilityRequestV1,
 ): boolean {

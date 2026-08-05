@@ -50,8 +50,8 @@ proofs are required so an intermediate cache cannot invent a producer record.
   well-formed plan. Local planning admission, Trust and downstream controls
   must reject or restrict it.
 - Permanent producer loss before another peer obtains the artifact can prevent
-  progress. Proactive replication and Byzantine availability certification are
-  later layers.
+  progress on the V1 source-only path. Applications that require proactive
+  threshold-signed custody can opt into the certified multi-source V2 profile.
 - HTTP authentication, TLS, endpoint discovery, rate limiting and deployment
   isolation remain host responsibilities.
 - PostgreSQL backup integrity and rollback detection remain operational

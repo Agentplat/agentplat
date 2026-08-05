@@ -9,12 +9,18 @@ import {
 import { PostgresCollectiveSyncRepositoryV1 } from "@agentplat/collective-sync-postgres";
 import { MESH_SIGNATURE_ALGORITHM } from "@agentplat/mesh-protocol";
 import {
-  CollectiveSyncPlanningArtifactAvailabilityV1,
+  CertifiedPlanningArtifactAvailabilityV2,
+  CertifiedReplicatedPlanningFragmentRepositoryV2,
   PLANNING_ARTIFACT_SYNC_DOMAIN_V1,
-  PlanningArtifactSyncAdapterV1,
-  ReplicatedPlanningFragmentRepositoryV1,
+  PlanningArtifactAvailabilitySyncAdapterV2,
+  PlanningArtifactReplicationHttpTransportV1,
+  PlanningArtifactReplicationPeerV1,
+  handlePlanningArtifactReplicationHttpRequestV1,
 } from "@agentplat/planning-artifacts";
-import { PostgresPlanningFragmentRepositoryV1 } from "@agentplat/planning-artifacts-postgres";
+import {
+  PostgresPlanningArtifactReplicationEvidenceRepositoryV1,
+  PostgresPlanningFragmentRepositoryV1,
+} from "@agentplat/planning-artifacts-postgres";
 import { Pool } from "pg";
 
 const peerId = required("PEER_ID");
@@ -25,7 +31,13 @@ const keyDefinitions = JSON.parse(required("PUBLIC_KEYS"));
 const privateDefinition = JSON.parse(required("PRIVATE_KEY"));
 const endpoints = JSON.parse(required("ENDPOINTS"));
 const pool = new Pool(databaseOptions());
-let logicalTimeMs = 100;
+const logicalTimeMs = 100;
+const replicationPolicy = Object.freeze({
+  schemaVersion: 1,
+  replicaCount: 2,
+  writeThreshold: 2,
+  receiptLifetimeMs: 10_000,
+});
 
 const syncRepository = new PostgresCollectiveSyncRepositoryV1(pool, {
   schema: required("DATABASE_SCHEMA"),
@@ -35,6 +47,13 @@ const artifacts = new PostgresPlanningFragmentRepositoryV1(pool, {
   schema: required("DATABASE_SCHEMA"),
   ...scope,
 });
+const evidence = new PostgresPlanningArtifactReplicationEvidenceRepositoryV1(
+  pool,
+  {
+    schema: required("DATABASE_SCHEMA"),
+    ...scope,
+  },
+);
 const publicKeys = new Map();
 for (const [memberPeerId, definition] of Object.entries(keyDefinitions)) {
   publicKeys.set(memberPeerId, {
@@ -88,7 +107,7 @@ const membership = {
 const clock = {
   now: () => ({
     wallTime: "2030-01-01T00:00:00.000Z",
-    logicalTimeMs: logicalTimeMs++,
+    logicalTimeMs,
   }),
 };
 const signing = {
@@ -96,15 +115,17 @@ const signing = {
   keyId: privateDefinition.keyId,
   algorithm: MESH_SIGNATURE_ALGORITHM,
 };
-const adapter = new PlanningArtifactSyncAdapterV1({
+const adapter = new PlanningArtifactAvailabilitySyncAdapterV2({
   scope: {
     tenantId: scope.tenantId,
     meshId: scope.meshId,
     policyDomainId: scope.policyDomainId,
   },
   repository: artifacts,
+  evidenceRepository: evidence,
   membership,
   clock,
+  replicationPolicy,
 });
 const responder = new CollectiveSyncPeerV1({
   scope,
@@ -125,17 +146,38 @@ const client = new CollectiveSyncClientV1({
   }),
   clock,
 });
-const availability = new CollectiveSyncPlanningArtifactAvailabilityV1({
-  repository: artifacts,
-  client,
-});
-const replicated = new ReplicatedPlanningFragmentRepositoryV1({
+const availability = new CertifiedPlanningArtifactAvailabilityV2({
   scope,
   repository: artifacts,
+  evidenceRepository: evidence,
+  client,
+  membership,
+  clock,
+  replicationPolicy,
+});
+const replicationPeer = new PlanningArtifactReplicationPeerV1({
+  scope,
+  repository: artifacts,
+  evidenceRepository: evidence,
   syncRepository,
   membership,
   signing,
   clock,
+  policy: replicationPolicy,
+});
+const replicated = new CertifiedReplicatedPlanningFragmentRepositoryV2({
+  scope,
+  repository: artifacts,
+  evidenceRepository: evidence,
+  syncRepository,
+  membership,
+  signing,
+  clock,
+  replicationTransport: new PlanningArtifactReplicationHttpTransportV1({
+    endpoints,
+    headers: { authorization: `Bearer ${required("CHANNEL_TOKEN")}` },
+  }),
+  replicationPolicy,
 });
 
 const server = createServer(async (incoming, outgoing) => {
@@ -156,10 +198,14 @@ const server = createServer(async (incoming, outgoing) => {
         body: Buffer.concat(chunks),
       },
     );
-    const response = await handleCollectiveSyncHttpRequestV1(
-      responder,
-      request,
-    );
+    const response = request.url.endsWith(
+      "/agentplat/planning-artifacts/v1/replicate",
+    )
+      ? await handlePlanningArtifactReplicationHttpRequestV1(
+          replicationPeer,
+          request,
+        )
+      : await handleCollectiveSyncHttpRequestV1(responder, request);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch (error) {
@@ -172,9 +218,16 @@ process.on("message", async (command) => {
   try {
     if (command?.kind === "publish") {
       const record = await replicated.put(command.record);
+      const certificate = await evidence.getCertificate({
+        fragmentDigest: record.fragmentDigest,
+        membershipConfigurationDigest: binding.configurationDigest,
+      });
       respond(command, {
         published: true,
         contentReference: record.contentReference,
+        certificateId: certificate?.certificateId ?? null,
+        certifiedReplicaPeerIds:
+          certificate?.receipts.map((receipt) => receipt.senderPeerId) ?? [],
       });
     } else if (command?.kind === "accept_offer") {
       const accepted = await availability.ensureAvailable({
@@ -194,9 +247,16 @@ process.on("message", async (command) => {
       });
     } else if (command?.kind === "inspect") {
       const record = await artifacts.get(command.contentReference);
+      const certificate = command.fragmentDigest
+        ? await evidence.getCertificate({
+            fragmentDigest: command.fragmentDigest,
+            membershipConfigurationDigest: binding.configurationDigest,
+          })
+        : null;
       respond(command, {
         available: record !== null,
         fragmentDigest: record?.fragmentDigest ?? null,
+        certificateId: certificate?.certificateId ?? null,
       });
     }
   } catch (error) {

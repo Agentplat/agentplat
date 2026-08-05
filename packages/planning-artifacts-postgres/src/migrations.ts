@@ -11,7 +11,8 @@ import {
 import type { Pool } from "pg";
 
 const applicationId = "@agentplat/planning-artifacts-postgres";
-const migrationName = "001_planning_artifacts";
+const artifactMigrationName = "001_planning_artifacts";
+const replicationMigrationName = "002_planning_artifact_replication";
 
 export const migrationDirectory = fileURLToPath(
   new URL("../migrations/", import.meta.url),
@@ -23,25 +24,60 @@ export interface PlanningArtifactsPostgresMigrationOptionsV1 {
 }
 
 async function migrations() {
-  const [up, down] = await Promise.all([
-    readFile(
-      new URL(`../migrations/${migrationName}.up.sql`, import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL(`../migrations/${migrationName}.down.sql`, import.meta.url),
-      "utf8",
-    ),
-  ]);
+  const [artifactUp, artifactDown, replicationUp, replicationDown] =
+    await Promise.all([
+      readFile(
+        new URL(
+          `../migrations/${artifactMigrationName}.up.sql`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      readFile(
+        new URL(
+          `../migrations/${artifactMigrationName}.down.sql`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      readFile(
+        new URL(
+          `../migrations/${replicationMigrationName}.up.sql`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      readFile(
+        new URL(
+          `../migrations/${replicationMigrationName}.down.sql`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ]);
   return [
     {
       version: 1,
-      name: migrationName,
-      up,
-      down,
+      name: artifactMigrationName,
+      up: artifactUp,
+      down: artifactDown,
       destructiveDown: true,
       adoptIf: `
         SELECT to_regclass('__AGENTPLAT_SCHEMA__.planning_artifacts') IS NOT NULL AS present
+      `,
+    },
+    {
+      version: 2,
+      name: replicationMigrationName,
+      up: replicationUp,
+      down: replicationDown,
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.planning_artifact_replica_receipts') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.planning_artifact_replication_certificates') IS NOT NULL
+          AND to_regclass('__AGENTPLAT_SCHEMA__.planning_artifact_certificate_acks') IS NOT NULL
+          AS present
       `,
     },
   ] as const;
@@ -72,7 +108,7 @@ export async function getMigrationStatus(
 
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 1,
+  version = 2,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

@@ -1,13 +1,17 @@
-# Replicated planning artifacts multiprocess scenario
+# Certified multi-source planning availability scenario
 
-This local scenario starts three independent Node.js peer processes with three
+This local scenario starts five independent Node.js peer processes with five
 independently scoped PostgreSQL schemas. A producer persists and signs one
-planning fragment, two receivers resolve only the artifact named by the offer,
-and one receiver restarts and restores the artifact from durable storage.
+planning fragment, deterministically places it on two replicas, collects two
+signed storage receipts, and distributes the resulting replication
+certificate. The producer process is then stopped permanently. A peer with no
+prior copy resolves the exact artifact from a certified replica and preserves
+both the artifact and certificate across restart.
 
-The point fetch intentionally creates no collective readiness certificate. The
-transport is local HTTP with authenticated protocol envelopes; no cloud service
-or package registry is used.
+Both replication and exact point resolution use bounded local HTTP with
+membership-bound authenticated envelopes. Point resolution intentionally
+creates no collective catch-up certificate. No cloud service or package
+registry is used.
 
 Run it with:
 
