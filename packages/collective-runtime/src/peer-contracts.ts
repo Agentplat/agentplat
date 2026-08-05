@@ -17,6 +17,7 @@ import type {
   PortableAgentAdapterRequirementsV1,
   PortableAgentObservationV1,
   PortableAgentSessionSnapshotV1,
+  PortableAgentCheckpointTransferV1,
   PortableAgentStepOptionsV1,
   PortableAgentStepOutcomeV1,
   PortableAgentStepRequestV1,
@@ -51,6 +52,30 @@ export interface CollectivePeerSessionRuntimePortV1 {
     options?: PortableAgentStepOptionsV1,
   ): Promise<PortableAgentStepOutcomeV1>;
   close(sessionId: AgentPlatID): Promise<PortableAgentSessionSnapshotV1>;
+  exportCheckpoint?(
+    sessionId: AgentPlatID,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentCheckpointTransferV1>;
+  importCheckpoint?(
+    sessionId: AgentPlatID,
+    transfer: PortableAgentCheckpointTransferV1,
+    expectedRevision: number,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentSessionSnapshotV1>;
+  resume?(
+    sessionId: AgentPlatID,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentSessionSnapshotV1>;
+}
+
+export interface CollectivePeerExecutionCheckpointImportV1 {
+  readonly tenant: TenantContext;
+  readonly agent: CollectivePeerAgentBindingV1;
+  readonly assignment: PlanningAdaptiveRoleResultV1;
+  readonly transfer: PortableAgentCheckpointTransferV1;
+  readonly signal?: AbortSignal;
+  readonly credentials?: Readonly<Record<string, string>>;
+  readonly metadata?: Metadata;
 }
 
 export interface CollectivePeerCurrentnessRequestV1 {

@@ -6,32 +6,32 @@ plan, bounded policies, observable execution state and revision-checked
 persistence.
 
 ```ts
-import { createCollective } from '@agentplat/collective-runtime';
-import { DefaultAgentRuntime } from '@agentplat/runtime';
+import { createCollective } from "@agentplat/collective-runtime";
+import { DefaultAgentRuntime } from "@agentplat/runtime";
 
 const runtime = new DefaultAgentRuntime();
-runtime.registerProvider('local', provider);
+runtime.registerProvider("local", provider);
 
 const collective = createCollective({
-  collectiveId: 'launch-team',
-  tenant: { tenantId: 'acme' },
+  collectiveId: "launch-team",
+  tenant: { tenantId: "acme" },
   runtime,
   objective: {
-    objectiveId: 'launch-brief',
-    summary: 'Produce a checked launch brief.',
+    objectiveId: "launch-brief",
+    summary: "Produce a checked launch brief.",
   },
   plan: {
     workItems: [
       {
-        workItemId: 'research',
-        summary: 'Collect the relevant facts.',
-        requiredCapabilityKeys: ['research'],
+        workItemId: "research",
+        summary: "Collect the relevant facts.",
+        requiredCapabilityKeys: ["research"],
       },
       {
-        workItemId: 'review',
-        summary: 'Review the facts and produce the final brief.',
-        requiredCapabilityKeys: ['writing'],
-        dependsOn: ['research'],
+        workItemId: "review",
+        summary: "Review the facts and produce the final brief.",
+        requiredCapabilityKeys: ["writing"],
+        dependsOn: ["research"],
       },
     ],
   },
@@ -40,17 +40,17 @@ const collective = createCollective({
 collective
   .register({
     agent: researcher,
-    capabilityKeys: ['research'],
-    roleKeys: ['analyst'],
+    capabilityKeys: ["research"],
+    roleKeys: ["analyst"],
   })
   .register({
     agent: writer,
-    capabilityKeys: ['writing'],
-    roleKeys: ['reviewer'],
+    capabilityKeys: ["writing"],
+    roleKeys: ["reviewer"],
   });
 
 collective.subscribe((event) => console.log(event.type, event.payload));
-const execution = await collective.run({ executionId: 'launch-run-1' });
+const execution = await collective.run({ executionId: "launch-run-1" });
 ```
 
 Every underlying `AgentRuntime.run` receives a stable attempt ID as `runId`.
@@ -199,11 +199,27 @@ The Work owner counts only votes bound to the same live decision, then issues a
 newly fenced recovery award. Certificate-to-award causality is fenced per
 recipient, without serializing unrelated recipients. The replacement accepts
 and executes through the same Work Contract, inference-control, action and
-commit boundaries as an initial assignee. When a checkpoint exists, its signed
-content reference is retained as recovery evidence; resolving the referenced
-application state remains the responsibility of the configured content/session
-adapter. If the election port cannot certify a round during a partition,
-recovery fails closed.
+commit boundaries as an initial assignee. When a checkpoint exists and
+`executionCheckpoints` is configured, acceptance waits for a membership-bound
+replication certificate and exact artifact resolution; the portable session
+imports and restores that state before its first step. If the election port
+cannot certify a round or the certified state is unavailable, recovery fails
+closed.
+
+## Replicated execution checkpoint handoff
+
+Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
+artifact, certificate, repository and HTTP boundaries. Producers publish a
+portable adapter checkpoint only after the selected current members return the
+configured storage and certificate-custody thresholds. Recovery peers discover
+the certificate from current members, fetch only from its signed receipt
+holders and verify every scope, membership, binding and digest before import.
+
+Checkpoint state is application state, never process memory, credentials,
+model prompts or hidden reasoning. The reference codec rejects common secret
+and hidden-reasoning keys and applies strict byte limits. Use independent
+durable repositories in production; the in-memory repositories are intended
+for local composition and tests.
 
 `execute()` remains explicit because observations, credentials and agent input
 are intentionally not persisted in the node snapshot. Its successful

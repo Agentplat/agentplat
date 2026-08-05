@@ -362,6 +362,9 @@ importers:
 
   packages/collective-sync-postgres:
     dependencies:
+      '@agentplat/collective-runtime':
+        specifier: workspace:^
+        version: link:../collective-runtime
       '@agentplat/collective-sync':
         specifier: workspace:^
         version: link:../collective-sync

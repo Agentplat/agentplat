@@ -62,6 +62,21 @@ export class PortableAgentAdapterRegistryV1 implements PortableAgentAdapterRegis
         "adapter restore implementation does not match its manifest",
       );
     }
+    const supportsCheckpointTransfer =
+      typeof input.adapter.exportCheckpoint === "function" ||
+      typeof input.adapter.importCheckpoint === "function";
+    if (
+      supportsCheckpointTransfer &&
+      (typeof input.adapter.exportCheckpoint !== "function" ||
+        typeof input.adapter.importCheckpoint !== "function" ||
+        !manifest.supportsCheckpoint ||
+        !manifest.supportsRestore)
+    ) {
+      throw new PortableAgentErrorV1(
+        "VALIDATION_ERROR",
+        "adapter checkpoint transfer requires export, import, checkpoint, and restore support",
+      );
+    }
     const key = adapterKey(manifest.adapterId, manifest.adapterVersion);
     if (this.adapters.has(key)) {
       throw new PortableAgentErrorV1(

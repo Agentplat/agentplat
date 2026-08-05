@@ -5,6 +5,7 @@ import type {
   PortableAgentAdapterManifestV1,
   PortableAgentAdapterRequirementsV1,
   PortableAgentCheckpointV1,
+  PortableAgentCheckpointTransferV1,
   PortableAgentControlDecisionV1,
   PortableAgentControlPointV1,
   PortableAgentInteractionModeV1,
@@ -620,6 +621,104 @@ export function normalizeCheckpointV1(
     stateReference: text(input.stateReference, "stateReference", 4_096),
     stateDigest: token(input.stateDigest, "stateDigest", 256),
     createdAt: timestamp(input.createdAt, "checkpoint.createdAt"),
+  });
+}
+
+export function normalizeCheckpointTransferV1(
+  input: PortableAgentCheckpointTransferV1,
+  options: { readonly maximumStateBytes?: number } = {},
+): PortableAgentCheckpointTransferV1 {
+  exactKeys(
+    input,
+    [
+      "schemaVersion",
+      "contentClass",
+      "tenantId",
+      "objectiveId",
+      "sourceSessionId",
+      "sourceAgentId",
+      "sourceSessionRevision",
+      "roleBindingId",
+      "adapterId",
+      "adapterVersion",
+      "implementationId",
+      "checkpoint",
+      "state",
+      "exportedAt",
+    ],
+    "checkpoint transfer",
+  );
+  if (
+    input.schemaVersion !== 1 ||
+    input.contentClass !== "portable_application_state"
+  ) {
+    invalid("checkpoint transfer header is invalid");
+  }
+  const adapterId = identifier(input.adapterId, "transfer.adapterId");
+  const adapterVersion = token(
+    input.adapterVersion,
+    "transfer.adapterVersion",
+    128,
+  );
+  const implementationId = identifier(
+    input.implementationId,
+    "transfer.implementationId",
+  );
+  const sourceSessionId = identifier(
+    input.sourceSessionId,
+    "transfer.sourceSessionId",
+  );
+  const checkpoint = normalizeCheckpointV1(input.checkpoint, {
+    sessionId: sourceSessionId,
+    manifest: {
+      schemaVersion: 1,
+      adapterId,
+      adapterVersion,
+      implementationId,
+      agentKinds: ["custom"],
+      inputModalities: ["structured"],
+      outputModalities: ["structured"],
+      interactionModes: ["invoke"],
+      controlPoints: ["pre_step"],
+      supportsCancellation: true,
+      supportsCheckpoint: true,
+      supportsRestore: true,
+      maximumObservationBytes: 1,
+      maximumOutputBytes: 1,
+      maximumActionBytes: 1,
+      maximumStepsPerSession: Number.MAX_SAFE_INTEGER,
+    },
+    maximumSequence: Number.MAX_SAFE_INTEGER,
+  });
+  const state = normalizeJson(input.state, "checkpoint transfer state");
+  const maximum = options.maximumStateBytes ?? 16 * 1_024 * 1_024;
+  if (
+    !Number.isSafeInteger(maximum) ||
+    maximum < 1_024 ||
+    maximum > 64 * 1_024 * 1_024 ||
+    jsonByteLength(state) > maximum
+  ) {
+    invalid("checkpoint transfer state exceeds its byte limit");
+  }
+  return cloneAndFreeze({
+    schemaVersion: 1 as const,
+    contentClass: "portable_application_state" as const,
+    tenantId: identifier(input.tenantId, "transfer.tenantId"),
+    objectiveId: identifier(input.objectiveId, "transfer.objectiveId"),
+    sourceSessionId,
+    sourceAgentId: identifier(input.sourceAgentId, "transfer.sourceAgentId"),
+    sourceSessionRevision: safeInteger(
+      input.sourceSessionRevision,
+      "transfer.sourceSessionRevision",
+      0,
+    ),
+    roleBindingId: identifier(input.roleBindingId, "transfer.roleBindingId"),
+    adapterId,
+    adapterVersion,
+    implementationId,
+    checkpoint,
+    state,
+    exportedAt: timestamp(input.exportedAt, "transfer.exportedAt"),
   });
 }
 

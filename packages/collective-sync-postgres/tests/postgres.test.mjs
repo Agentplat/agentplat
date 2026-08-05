@@ -8,6 +8,7 @@ import {
   getMigrationStatus,
   runMigrations,
 } from "../dist/index.js";
+import { PostgresExecutionCheckpointRepositoryV1 } from "../dist/checkpoints.js";
 
 const integration = process.env.AGENTPLAT_POSTGRES_TEST === "1";
 const binding = {
@@ -29,6 +30,13 @@ test("repository construction and migration import perform no I/O", async () => 
     () =>
       new PostgresCollectiveSyncRepositoryV1(pool, options("sync_import_test")),
   );
+  assert.doesNotThrow(
+    () =>
+      new PostgresExecutionCheckpointRepositoryV1(
+        pool,
+        options("sync_import_test"),
+      ),
+  );
   await pool.end();
 });
 
@@ -42,7 +50,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        1,
+        2,
       );
       assert.equal(
         (await getMigrationStatus(pool, { schema })).pendingVersions.length,

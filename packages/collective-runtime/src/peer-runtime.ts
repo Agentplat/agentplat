@@ -24,6 +24,7 @@ import type {
   CollectivePeerCurrentnessDecisionV1,
   CollectivePeerExecuteInputV1,
   CollectivePeerExecuteOutcomeV1,
+  CollectivePeerExecutionCheckpointImportV1,
   CollectivePeerPlanDraftV1,
   CollectivePeerPlanInputV1,
   CollectivePeerPlanOutcomeV1,
@@ -293,6 +294,58 @@ export class CollectivePeerRuntimeV1 {
       step: outcome.record,
       reasonCode: null,
     });
+  }
+
+  async exportExecutionCheckpoint(
+    sessionId: string,
+    options: Parameters<
+      NonNullable<
+        CollectivePeerRuntimeOptionsV1["sessions"]["exportCheckpoint"]
+      >
+    >[1] = {},
+  ) {
+    if (!this.sessions.exportCheckpoint)
+      throw new CollectivePeerRuntimeErrorV1(
+        "SESSION_BINDING_INVALID",
+        "portable session runtime does not support checkpoint export",
+      );
+    return this.sessions.exportCheckpoint(sessionId, options);
+  }
+
+  async importExecutionCheckpoint(
+    input: CollectivePeerExecutionCheckpointImportV1,
+  ): Promise<PortableAgentSessionSnapshotV1> {
+    if (!this.sessions.importCheckpoint || !this.sessions.resume)
+      throw new CollectivePeerRuntimeErrorV1(
+        "SESSION_BINDING_INVALID",
+        "portable session runtime does not support checkpoint import",
+      );
+    const workContract = validateWorkContractV1(input.assignment.workContract);
+    const role = validateAdaptiveRoleBindingV1(input.assignment.roleBinding);
+    const fragment = validatePlanFragmentV1(input.assignment.targetFragment);
+    const session = await this.ensureExecutionSession({
+      tenant: input.tenant,
+      agent: input.agent,
+      workContract,
+      role,
+      fragment,
+    });
+    if (
+      session.checkpoint?.stateDigest === input.transfer.checkpoint.stateDigest
+    ) {
+      return session.status === "paused"
+        ? this.sessions.resume(input.agent.sessionId, stepOptions(input))
+        : session;
+    }
+    const imported = await this.sessions.importCheckpoint(
+      input.agent.sessionId,
+      input.transfer,
+      session.revision,
+      stepOptions(input),
+    );
+    return imported.status === "paused"
+      ? this.sessions.resume(input.agent.sessionId, stepOptions(input))
+      : imported;
   }
 
   private async ensurePlanningSession(input: {

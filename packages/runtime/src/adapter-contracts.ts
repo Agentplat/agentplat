@@ -168,6 +168,54 @@ export interface PortableAgentCheckpointV1 {
   readonly createdAt: string;
 }
 
+/**
+ * Closed, JSON-safe state exported for transfer to another compatible session.
+ * The adapter is responsible for excluding credentials, prompts, hidden
+ * reasoning, private keys and any other non-transferable process state.
+ */
+export interface PortableAgentCheckpointTransferV1 {
+  readonly schemaVersion: 1;
+  readonly contentClass: "portable_application_state";
+  readonly tenantId: AgentPlatID;
+  readonly objectiveId: AgentPlatID;
+  readonly sourceSessionId: AgentPlatID;
+  readonly sourceAgentId: AgentPlatID;
+  readonly sourceSessionRevision: number;
+  readonly roleBindingId: AgentPlatID;
+  readonly adapterId: AgentPlatID;
+  readonly adapterVersion: string;
+  readonly implementationId: AgentPlatID;
+  readonly checkpoint: PortableAgentCheckpointV1;
+  readonly state: JsonValue;
+  readonly exportedAt: string;
+}
+
+export interface PortableAgentAdapterCheckpointExportInputV1 {
+  readonly schemaVersion: 1;
+  readonly tenantId: AgentPlatID;
+  readonly objectiveId: AgentPlatID;
+  readonly sessionId: AgentPlatID;
+  readonly agentId: AgentPlatID;
+  readonly role: PortableAgentRoleBindingV1;
+  readonly checkpoint: PortableAgentCheckpointV1;
+}
+
+export interface PortableAgentAdapterCheckpointExportResultV1 {
+  readonly schemaVersion: 1;
+  readonly contentClass: "portable_application_state";
+  readonly state: JsonValue;
+}
+
+export interface PortableAgentAdapterCheckpointImportInputV1 {
+  readonly schemaVersion: 1;
+  readonly tenantId: AgentPlatID;
+  readonly objectiveId: AgentPlatID;
+  readonly targetSessionId: AgentPlatID;
+  readonly targetAgentId: AgentPlatID;
+  readonly targetRole: PortableAgentRoleBindingV1;
+  readonly transfer: PortableAgentCheckpointTransferV1;
+}
+
 export interface PortableAgentStepResultV1 {
   readonly schemaVersion: 1;
   readonly sessionId: AgentPlatID;
@@ -233,6 +281,14 @@ export interface PortableAgentAdapterV1 {
     input: PortableAgentAdapterRestoreInputV1,
     context: PortableAgentAdapterContextV1,
   ): Promise<void>;
+  exportCheckpoint?(
+    input: PortableAgentAdapterCheckpointExportInputV1,
+    context: PortableAgentAdapterContextV1,
+  ): Promise<PortableAgentAdapterCheckpointExportResultV1>;
+  importCheckpoint?(
+    input: PortableAgentAdapterCheckpointImportInputV1,
+    context: PortableAgentAdapterContextV1,
+  ): Promise<PortableAgentCheckpointV1>;
 }
 
 export interface PortableAgentControlRequestV1 {
@@ -390,6 +446,24 @@ export interface PortableAgentSessionRuntimePortV1 {
     request: PortableAgentStepRequestV1,
     options?: PortableAgentStepOptionsV1,
   ): Promise<PortableAgentStepOutcomeV1>;
+}
+
+/** Optional transfer surface for runtimes that support cross-peer handoff. */
+export interface PortableAgentTransferSessionRuntimePortV1 extends PortableAgentSessionRuntimePortV1 {
+  exportCheckpoint(
+    sessionId: AgentPlatID,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentCheckpointTransferV1>;
+  importCheckpoint(
+    sessionId: AgentPlatID,
+    transfer: PortableAgentCheckpointTransferV1,
+    expectedRevision: number,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentSessionSnapshotV1>;
+  resume(
+    sessionId: AgentPlatID,
+    options?: PortableAgentStepOptionsV1,
+  ): Promise<PortableAgentSessionSnapshotV1>;
 }
 
 export type PortableAgentProviderV1 = AgentProvider;

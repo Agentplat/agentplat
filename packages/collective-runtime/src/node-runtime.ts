@@ -763,6 +763,57 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     const tenant = input.tenant ?? { tenantId: this.#scope.tenantId };
     if (tenant.tenantId !== this.#scope.tenantId)
       invalid("ephemeral tenant scope does not match the node");
+    const receivedAward =
+      initialSnapshot.state.runtime.mesh.allocation.receivedAwards[
+        initialAssignment.execution.awardId
+      ];
+    const resumeCheckpointId =
+      receivedAward?.envelope.payload.resumeCheckpointId;
+    if (resumeCheckpointId !== undefined) {
+      if (!this.#options.executionCheckpoints)
+        return withheldExecution(
+          "execution_checkpoint_handoff_unavailable",
+          initialSnapshot.durableRevision,
+        );
+      let artifact;
+      try {
+        artifact = await this.#options.executionCheckpoints.resolve({
+          checkpointId: resumeCheckpointId,
+          tenantId: this.#scope.tenantId,
+          meshId: this.#scope.meshId,
+          policyDomainId: this.#scope.policyDomainId,
+          objectiveId: initialAssignment.execution.objectiveId,
+          workItemId: initialAssignment.execution.workItemId,
+          workItemRevision: initialAssignment.execution.workItemRevision,
+          previousAssignmentEpoch:
+            initialAssignment.execution.assignmentEpoch - 1,
+          ...(input.signal ? { signal: input.signal } : {}),
+        });
+      } catch {
+        artifact = null;
+      }
+      if (!artifact)
+        return withheldExecution(
+          "execution_checkpoint_not_resolved",
+          initialSnapshot.durableRevision,
+        );
+      try {
+        await this.#options.peerRuntime.importExecutionCheckpoint({
+          tenant,
+          agent: initialAssignment.agent.binding,
+          assignment: initialAssignment.adaptiveRole,
+          transfer: artifact.transfer,
+          ...(input.signal ? { signal: input.signal } : {}),
+          ...(input.credentials ? { credentials: input.credentials } : {}),
+          ...(input.metadata ? { metadata: input.metadata } : {}),
+        });
+      } catch {
+        return withheldExecution(
+          "execution_checkpoint_import_failed",
+          initialSnapshot.durableRevision,
+        );
+      }
+    }
     const executed = await this.#options.peerRuntime.execute({
       tenant,
       agent: initialAssignment.agent.binding,
@@ -785,6 +836,53 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         durableRevision: initialSnapshot.durableRevision,
       });
     this.#assertControlBinding(executed.session.controlBinding);
+
+    let checkpointDigest = executed.step.result.checkpoint
+      ? await computeMeshDurableValueDigest(
+          executed.step.result.checkpoint as unknown as MeshJsonValue,
+        )
+      : null;
+    let checkpointReference =
+      executed.step.result.checkpoint?.stateReference ?? null;
+    if (
+      executed.step.result.checkpoint !== null &&
+      this.#options.executionCheckpoints
+    ) {
+      try {
+        const transfer =
+          await this.#options.peerRuntime.exportExecutionCheckpoint(
+            executed.session.sessionId,
+            {
+              ...(input.signal ? { signal: input.signal } : {}),
+              tenant,
+              ...(input.credentials ? { credentials: input.credentials } : {}),
+              ...(input.metadata ? { metadata: input.metadata } : {}),
+            },
+          );
+        const certificate = await this.#options.executionCheckpoints.publish({
+          transfer,
+          objectiveId: initialAssignment.execution.objectiveId,
+          workItemId: initialAssignment.execution.workItemId,
+          workItemRevision: initialAssignment.execution.workItemRevision,
+          assignmentEpoch: initialAssignment.execution.assignmentEpoch,
+          assignmentAuthorityId:
+            initialAssignment.execution.assignmentAuthorityId,
+          fencingToken: initialAssignment.execution.fencingToken,
+          workContractDigest:
+            initialAssignment.adaptiveRole.workContract.workContractDigest,
+          roleBindingDigest:
+            initialAssignment.adaptiveRole.roleBinding.roleBindingDigest,
+          ...(input.signal ? { signal: input.signal } : {}),
+        });
+        checkpointDigest = certificate.artifactDigest;
+        checkpointReference = certificate.contentReference;
+      } catch {
+        return withheldExecution(
+          "execution_checkpoint_replication_failed",
+          initialSnapshot.durableRevision,
+        );
+      }
+    }
 
     const actionResolutions: CollectivePeerNodeActionResolutionV1[] = [];
     for (const proposal of executed.step.result.actionProposals) {
@@ -878,11 +976,6 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       step: executed.step as unknown as MeshJsonValue,
       actions: actionResolutions as unknown as MeshJsonValue,
     });
-    const checkpointDigest = executed.step.result.checkpoint
-      ? await computeMeshDurableValueDigest(
-          executed.step.result.checkpoint as unknown as MeshJsonValue,
-        )
-      : null;
     for (let attempt = 0; attempt < this.#maximumCommitAttempts; attempt += 1) {
       const snapshot = await this.restore();
       const recovered = releaseForStep(snapshot.state, workItemId, stepId);
@@ -943,6 +1036,7 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         stepRecordDigest,
         checkpoint: executed.step.result.checkpoint,
         checkpointDigest,
+        checkpointReference,
         actions: Object.freeze(actionResolutions),
         resultDigest,
       });
@@ -1547,6 +1641,7 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     readonly stepRecordDigest: string;
     readonly checkpoint: PortableAgentCheckpointV1 | null;
     readonly checkpointDigest: string | null;
+    readonly checkpointReference: string | null;
     readonly actions: readonly CollectivePeerNodeActionResolutionV1[];
     readonly resultDigest: string;
   }): Promise<{
@@ -1680,7 +1775,8 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
               previousCheckpointId: assignment.execution.latestCheckpointId,
             }),
         checkpointDigest: input.checkpointDigest,
-        checkpointReference: input.checkpoint.stateReference,
+        checkpointReference:
+          input.checkpointReference ?? input.checkpoint.stateReference,
       };
       outboundSequence += 1;
       checkpointMessageId = meshMessageId({
@@ -4021,6 +4117,27 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       const payload = award.envelope.payload;
       const offer = mesh.allocation.receivedOffers[payload.offerId];
       if (!offer) continue;
+      if (payload.resumeCheckpointId !== undefined) {
+        if (!this.#options.executionCheckpoints) continue;
+        let recoverable = false;
+        try {
+          recoverable = Boolean(
+            await this.#options.executionCheckpoints.resolve({
+              checkpointId: payload.resumeCheckpointId,
+              tenantId: this.#scope.tenantId,
+              meshId: this.#scope.meshId,
+              policyDomainId: this.#scope.policyDomainId,
+              objectiveId: payload.objectiveId,
+              workItemId: payload.workItemId,
+              workItemRevision: payload.workItemRevision,
+              previousAssignmentEpoch: payload.assignmentEpoch - 1,
+            }),
+          );
+        } catch {
+          recoverable = false;
+        }
+        if (!recoverable) continue;
+      }
       const eligible = [...this.#agents.values()].some((candidate) =>
         offer.envelope.payload.requiredCapabilityKeys.every((key) =>
           candidate.capabilityKeys.includes(key),
