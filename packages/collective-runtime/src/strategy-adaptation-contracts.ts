@@ -301,6 +301,53 @@ export interface LocalStrategyProbabilityV1 {
   readonly strategyDigest: PlanningDigestV1;
   readonly probabilityBps: number;
   readonly signalDigests: readonly PlanningDigestV1[];
+  readonly priorDigests: readonly PlanningDigestV1[];
+}
+
+export type LocalStrategyCollectivePriorOutcomeV1 =
+  | "success"
+  | "failure"
+  | "unsafe"
+  | "indeterminate";
+
+/** Advisory, request-bound evidence. It is never a strategy or authority grant. */
+export interface LocalStrategyCollectivePriorV1 {
+  readonly schemaVersion: 1;
+  readonly requestId: AgentPlatID;
+  readonly requestDigest: PlanningDigestV1;
+  readonly operation: LocalStrategyOperationV1;
+  readonly strategyId: AgentPlatID;
+  readonly strategyDigest: PlanningDigestV1;
+  readonly sourceId: AgentPlatID;
+  readonly sourceVersion: number;
+  readonly sourceImplementationDigest: PlanningDigestV1;
+  readonly certificateDigest: PlanningDigestV1;
+  readonly outcome: LocalStrategyCollectivePriorOutcomeV1;
+  readonly scoreMicros: number;
+  readonly confidenceBps: number;
+  readonly requestedInfluenceBps: number;
+  readonly observedAtLogicalMs: number;
+  readonly expiresAtLogicalMs: number;
+  readonly priorDigest: PlanningDigestV1;
+}
+
+export interface LocalStrategyCollectivePriorConfigurationV1 {
+  readonly sourceId: AgentPlatID;
+  readonly sourceVersion: number;
+  readonly sourceImplementationDigest: PlanningDigestV1;
+  readonly minimumConfidenceBps: number;
+  readonly maximumInfluenceBps: number;
+  readonly maximumPriorTtlMs: number;
+}
+
+export interface LocalStrategyCollectivePriorSourceV1 {
+  readonly sourceId: AgentPlatID;
+  readonly sourceVersion: number;
+  readonly sourceImplementationDigest: PlanningDigestV1;
+  resolve(input: {
+    readonly request: LocalStrategySelectionRequestV1;
+    readonly strategies: readonly LocalStrategyDefinitionV1[];
+  }): Promise<readonly LocalStrategyCollectivePriorV1[]>;
 }
 
 export type LocalStrategySelectionModeV1 =
@@ -414,6 +461,8 @@ export interface LocalStrategySelectionReductionInputV1 {
   readonly catalog: LocalStrategyCatalogV1;
   readonly request: LocalStrategySelectionRequestV1;
   readonly safetySignals: readonly LocalStrategySafetySignalV1[];
+  readonly collectivePriorConfiguration: LocalStrategyCollectivePriorConfigurationV1 | null;
+  readonly collectivePriors: readonly LocalStrategyCollectivePriorV1[];
   readonly entropyDraw: LocalStrategyEntropyDrawV1 | null;
 }
 
@@ -444,6 +493,10 @@ export interface LocalStrategyAdaptationRuntimeOptionsV1 {
   readonly safety: LocalStrategySafetyResolutionPortV1;
   readonly entropy: LocalStrategyEntropyPortV1;
   readonly store: LocalStrategyAdaptationStoreV1;
+  readonly collectivePrior?: {
+    readonly configuration: LocalStrategyCollectivePriorConfigurationV1;
+    readonly source: LocalStrategyCollectivePriorSourceV1;
+  };
 }
 
 export interface LocalStrategyHandoffEnvelopeV1 {

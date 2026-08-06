@@ -332,6 +332,71 @@ Use a durable compare-and-swap store and unpredictable integrity-protected
 entropy in production. The in-memory store and deterministic entropy helper
 are intended for local composition, tests and reproducible simulation.
 
+## Peer-to-peer strategy evidence exchange
+
+Import `@agentplat/collective-runtime/strategy-evidence-exchange` when peers
+should exchange authenticated, content-free outcome evidence for their
+installed strategy catalogs. The exchange runtime validates signed identity,
+current membership and Trust eligibility, feedback schema, causal sequence,
+freshness and local retention policy before an attestation may participate in
+aggregation.
+
+```ts
+import {
+  PeerStrategyEvidenceExchangeRuntimeV1,
+  createPeerStrategyEvidenceExchangePolicyV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+
+const policy = createPeerStrategyEvidenceExchangePolicyV1({
+  schemaVersion: 1,
+  policyId: "strategy-evidence.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  feedbackSchemaDigest,
+  minimumDistinctPeers: 3,
+  minimumDistinctIndependenceGroups: 3,
+  minimumConfidenceBps: 7_500,
+  maximumPriorInfluenceBps: 2_000,
+  limits: {
+    maximumAttestations: 4_096,
+    maximumAttestationsPerPeer: 32,
+    maximumSourceHeads: 1_024,
+    maximumCertificates: 256,
+    maximumFeedbackSignalDigests: 16,
+    maximumAttestationTtlMs: 86_400_000,
+    maximumFutureSkewMs: 5_000,
+    maximumReasonCodesPerDecision: 8,
+    maximumCommitAttempts: 8,
+    maximumGossipFanout: 8,
+    maximumGossipHops: 12,
+  },
+});
+
+const exchange = new PeerStrategyEvidenceExchangeRuntimeV1({
+  stateKey: "peer-a.strategy-evidence",
+  exchangerId: "peer-strategy-evidence",
+  exchangerVersion: 1,
+  implementationId: "peer-strategy-evidence.default",
+  policy,
+  eligibility: membershipSignatureAndTrustGate,
+  independence: localIndependenceClassifier,
+  store: durableEvidenceExchangeStore,
+});
+```
+
+The runtime exchanges attestations, not strategy implementations, prompts,
+model outputs or model weights. A collective prior is advisory input to local
+strategy adaptation: it cannot directly select a strategy, increase an
+alternative's safety disposition, grant planning or assignment authority, or
+override the local baseline and control-plane vetoes. Missing, stale,
+equivocating or insufficiently independent evidence fails closed.
+
+Use a durable compare-and-swap store in production. The in-memory reference
+store and deterministic routing helpers are intended for local composition,
+tests and reproducible simulation. The optional CollectiveSync adapter maps
+the same signed attestation stream into the existing authenticated causal
+replication protocol; sparse-overlay gossip announces only content digests.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

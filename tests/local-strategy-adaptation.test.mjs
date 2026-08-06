@@ -12,6 +12,7 @@ import {
   createLocalStrategyCapabilitySafetySignalV1,
   createLocalStrategyCatalogV1,
   createLocalStrategyContextIntegritySafetySignalV1,
+  createLocalStrategyCollectivePriorV1,
   createLocalStrategyDefinitionV1,
   createLocalStrategyFeedbackBatchV1,
   createLocalStrategyFeedbackSignalV1,
@@ -237,6 +238,7 @@ function runtime({
     catalog,
     entropy,
   }),
+  collectivePrior,
 } = {}) {
   return new LocalStrategyAdaptationRuntimeV1({
     stateKey,
@@ -248,6 +250,7 @@ function runtime({
     safety,
     entropy,
     store,
+    ...(collectivePrior ? { collectivePrior } : {}),
   });
 }
 
@@ -339,6 +342,68 @@ test("selects from an exact bounded distribution and preserves a baseline floor"
       }),
     /absent from the probability distribution|digest is invalid/,
   );
+});
+
+test("applies a bounded collective prior without overriding the baseline floor", async () => {
+  const currentRequest = request();
+  const priorImplementationDigest = digestPlanningJsonV1(
+    "local-strategy-collective-prior",
+    { implementation: "collective-evidence-source" },
+  );
+  const prior = createLocalStrategyCollectivePriorV1({
+    schemaVersion: 1,
+    requestId: currentRequest.requestId,
+    requestDigest: currentRequest.requestDigest,
+    operation: currentRequest.operation,
+    strategyId: adaptive.strategyId,
+    strategyDigest: adaptive.strategyDigest,
+    sourceId: "collective-evidence",
+    sourceVersion: 1,
+    sourceImplementationDigest: priorImplementationDigest,
+    certificateDigest: digestPlanningJsonV1(
+      "peer-strategy-evidence-certificate",
+      { certificate: "adaptive" },
+    ),
+    outcome: "success",
+    scoreMicros: 1_000_000,
+    confidenceBps: 10_000,
+    requestedInfluenceBps: 4_000,
+    observedAtLogicalMs: 9,
+    expiresAtLogicalMs: 50,
+  });
+  const controller = runtime({
+    entropy: fixedEntropy(5_500),
+    collectivePrior: {
+      configuration: {
+        sourceId: "collective-evidence",
+        sourceVersion: 1,
+        sourceImplementationDigest: priorImplementationDigest,
+        minimumConfidenceBps: 8_000,
+        maximumInfluenceBps: 2_000,
+        maximumPriorTtlMs: 100,
+      },
+      source: {
+        sourceId: "collective-evidence",
+        sourceVersion: 1,
+        sourceImplementationDigest: priorImplementationDigest,
+        async resolve() {
+          return [prior];
+        },
+      },
+    },
+  });
+  const decision = await controller.select(currentRequest);
+  const adaptiveProbability = decision.probabilities.find(
+    ({ strategyId }) => strategyId === adaptive.strategyId,
+  );
+  const baselineProbability = decision.probabilities.find(
+    ({ strategyId }) => strategyId === baseline.strategyId,
+  );
+  assert.equal(decision.selectedStrategyId, adaptive.strategyId);
+  assert.equal(adaptiveProbability.probabilityBps, 6_000);
+  assert.equal(baselineProbability.probabilityBps, 4_000);
+  assert.deepEqual(adaptiveProbability.priorDigests, [prior.priorDigest]);
+  assert.ok(decision.reasonCodes.includes("collective_prior_applied"));
 });
 
 test("abstains when a required safety dimension cannot admit the baseline", async () => {

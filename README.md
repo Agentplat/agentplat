@@ -173,6 +173,34 @@ plan](./docs/collective-runtime/bounded-local-strategy-adaptation-v1-implementat
 and [threat
 model](./docs/security/bounded-local-strategy-adaptation-threat-model.md).
 
+### Peer-to-Peer Strategy Evidence Exchange V1
+
+The opt-in `@agentplat/collective-runtime/strategy-evidence-exchange`
+boundary lets peers share bounded, content-free evidence about outcomes of
+catalog-bound local coordination strategies. Evidence is authenticated,
+scope-bound and causal-sequence-checked before a peer can derive an optional
+collective prior for its own local adaptation controller.
+
+```js
+import {
+  PeerStrategyEvidenceExchangeRuntimeV1,
+  createPeerStrategyEvidenceExchangePolicyV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+```
+
+The exchange does not distribute prompts, model outputs, strategy code or
+model weights. Remote peers cannot select a local strategy, grant authority or
+override a local baseline. Membership, Trust, causal continuity, source
+independence, bounded gossip and robust aggregation only narrow what a local
+peer may consider; unavailable, equivocal, unsafe or non-favorable evidence
+cannot add positive local influence.
+
+See the [implementation
+plan](./docs/collective-runtime/peer-to-peer-strategy-evidence-exchange-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0022-peer-to-peer-strategy-evidence-exchange.md)
+and [threat
+model](./docs/security/peer-to-peer-strategy-evidence-exchange-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
