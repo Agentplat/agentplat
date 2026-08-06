@@ -74,6 +74,108 @@ signers count as role-certification witnesses. Agreement never transports role
 instructions or grants action authority. See [Adaptive Role Realignment
 V1](../../docs/inference-control/adaptive-role-realignment-v1.md).
 
+## Collective trust consensus (opt in)
+
+`@agentplat/collective-quorum/trust-consensus` certifies one scoped Trust
+decision through the Byzantine agreement protocol. A candidate binds exact
+subject, scope, policy, profile, fusion input, local eligibility, predecessor
+and validity digests. It contains no evidence content, prompts, instructions or
+action parameters.
+
+Every validator resolves the candidate against its own trusted local state
+before voting. A successful commit is projected into a
+`CertifiedCollectiveTrustDecisionV1` bound to the exact membership epoch,
+configuration and sorted precommit witnesses. Agreement proves that a quorum
+accepted the same bounded projection; it does not prove universal truth.
+
+```ts
+import {
+  InMemoryCollectiveTrustDecisionRepositoryV1,
+  createCollectiveTrustAgreementSemanticPortV1,
+  createCollectiveTrustCandidateV1,
+  createCollectiveTrustCertificationPortV1,
+} from "@agentplat/collective-quorum/trust-consensus";
+
+const decisions = new InMemoryCollectiveTrustDecisionRepositoryV1();
+const candidate = await createCollectiveTrustCandidateV1({
+  tenantId,
+  profile,
+  fusionDecision,
+  eligibilityDecision,
+  previousCertifiedDecisionDigest: null,
+  validUntilLogicalMs,
+});
+
+const semantics = createCollectiveTrustAgreementSemanticPortV1({
+  policyDomainId,
+  heads: decisions,
+  candidates: {
+    validate: ({ candidate }) => localCandidateResolver.validate(candidate),
+  },
+  fallback: otherAgreementSemantics,
+});
+
+const certification = createCollectiveTrustCertificationPortV1({
+  policyDomainId,
+  agreement,
+  membership,
+  coordinates,
+  repository: decisions,
+  resolver: keyResolver,
+  clock,
+});
+
+const certified = await certification.certify({
+  candidate,
+  logicalTimeMs,
+});
+```
+
+Each independently hosted validator installs `semantics` and calls
+`applyCollectiveTrustCommitV1` for observed commits. The latter verifies the
+complete certificate and reconstructs the same derived head after restart.
+
+Existing eligibility consumers can be wrapped without changing their input or
+return type:
+
+```ts
+import { createCollectiveTrustEligibilityFilterV1 } from "@agentplat/collective-quorum/trust-consensus";
+
+const filteredEligibility = createCollectiveTrustEligibilityFilterV1({
+  tenantId: (request) => request.tenantId,
+  logicalTimeMs: (request) => request.logicalTimeMs,
+  local: existingEligibilityPort,
+  collective: currentCertifiedDecisionResolver,
+  policy: { schemaVersion: 1, requireCertificate: true },
+});
+```
+
+The filter returns the original local decision only when both boundaries admit
+it. A collective decision may restrict or quarantine but can never promote a
+locally unavailable, restricted or quarantined subject. A
+`recovery_candidate` remains restricted until a separate local recovery policy
+succeeds.
+
+Mesh allocation and Inference Control perform their last eligibility lookup
+synchronously. Use `createCollectiveTrustMeshEligibilityResolverV1` and
+`createCollectiveTrustInferenceEligibilityResolverV1` with a locally refreshed
+cache of verified gate decisions. Neither adapter performs I/O in the final
+selection or pre-delegation checkpoint, and both preserve a stricter local
+result.
+
+See the [implementation
+plan](../../docs/trust/collective-trust-consensus-v1-implementation-plan.md),
+[acceptance
+checklist](../../docs/trust/collective-trust-consensus-v1-acceptance-checklist.md),
+[architecture decision](../../docs/adr/0018-collective-trust-consensus.md) and
+[threat model](../../docs/security/collective-trust-consensus-threat-model.md).
+
+Run the complete four-validator reference path locally with:
+
+```sh
+pnpm example:collective-trust-consensus
+```
+
 ## Safety and availability
 
 - Witness thresholds must be strict majorities. Duplicate witnesses, owners or

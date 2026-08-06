@@ -15,6 +15,7 @@ export type CollectiveAgreementValueKindV1 =
   | "recovery_selection"
   | "planning_slot_head"
   | "role_reconfiguration"
+  | "trust_decision"
   | "synchronization_watermark"
   | "membership_reconfiguration";
 

@@ -64,6 +64,30 @@ guide](./docs/inference-control/adaptive-role-realignment-v1.md), [architecture
 decision](./docs/adr/0016-adaptive-role-realignment.md) and [threat
 model](./docs/security/adaptive-role-realignment-threat-model.md).
 
+### Collective Trust Consensus V1
+
+The opt-in trust-consensus adapter turns one content-free, policy-bound Trust
+projection into a Byzantine-certified collective decision. Each validator
+resolves the exact candidate locally before voting; the certificate binds the
+subject, scope, profile, evidence-set digest, predecessor, validity window,
+membership epoch and precommit witnesses.
+
+```js
+import {
+  createCollectiveTrustCertificationPortV1,
+  createCollectiveTrustEligibilityFilterV1,
+} from "@agentplat/collective-quorum/trust-consensus";
+```
+
+Collective trust can only narrow an existing local decision. It does not create
+a global reputation score, establish universal truth or grant execution
+authority. See the [implementation
+plan](./docs/trust/collective-trust-consensus-v1-implementation-plan.md),
+[acceptance
+checklist](./docs/trust/collective-trust-consensus-v1-acceptance-checklist.md),
+[architecture decision](./docs/adr/0018-collective-trust-consensus.md) and
+[threat model](./docs/security/collective-trust-consensus-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
