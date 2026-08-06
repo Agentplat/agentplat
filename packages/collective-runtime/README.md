@@ -264,6 +264,74 @@ rolled-back inputs fail closed. Applications should use a durable
 compare-and-swap state store in production; the in-memory store is intended for
 local composition and tests.
 
+## Bounded local strategy adaptation
+
+Import `@agentplat/collective-runtime/strategy-adaptation` to select among an
+immutable catalog of local coordination strategies using bounded online
+feedback. The controller can be used at explicit plan decomposition, offer
+routing, bid submission, award selection and recovery selection seams.
+
+```ts
+import {
+  LocalStrategyAdaptationRuntimeV1,
+  createLocalStrategyAdaptationPolicyV1,
+  createLocalStrategyCatalogV1,
+} from "@agentplat/collective-runtime/strategy-adaptation";
+
+const catalog = createLocalStrategyCatalogV1({
+  schemaVersion: 1,
+  catalogId: "local-coordination-strategies",
+  catalogVersion: 1,
+  parentCatalogDigest: null,
+  strategies: [safeBaseline, adaptiveAlternative],
+  baselines: {
+    plan_decomposition: safeBaseline.strategyId,
+    offer_routing: safeBaseline.strategyId,
+    bid_submission: safeBaseline.strategyId,
+    award_selection: safeBaseline.strategyId,
+    recovery_selection: safeBaseline.strategyId,
+  },
+});
+
+const policy = createLocalStrategyAdaptationPolicyV1({
+  // Bind safety dimensions, feedback sources, metric weights, learning,
+  // exploration, baseline probability, quarantine and state limits here.
+});
+
+const adaptation = new LocalStrategyAdaptationRuntimeV1({
+  stateKey: "peer-a.local-strategy-state",
+  controllerId: "local-strategy-controller",
+  controllerVersion: 1,
+  implementationId: "local-strategy-controller.default",
+  policy,
+  catalog,
+  safety: safetyResolver,
+  entropy: productionEntropy,
+  store: durableStrategyStateStore,
+});
+```
+
+Every selection requires current policy-defined safety projections. Trust,
+role, capability-state, context-integrity and authority adapters can only keep
+or narrow their upstream disposition. The integer probability distribution
+always totals 10,000 basis points, caps exploration and preserves the safe
+baseline floor.
+
+Feedback binds one pending decision and an implementation-bound independent
+source cohort. The controller derives reward from policy-defined clipped
+metrics using a deterministic median; it never accepts a caller-provided
+scalar reward. Unsafe outcomes quarantine the selected alternative and roll
+the operation back to baseline. Unsafe baseline outcomes pause that operation.
+
+The dispatcher invokes only the selected catalog-bound implementation and
+exposes one method per supported coordination seam. Its result remains subject
+to existing planning acceptance, capability, assignment, recovery, action and
+effect controls. The feature is opt-in and does not alter existing selectors.
+
+Use a durable compare-and-swap store and unpredictable integrity-protected
+entropy in production. The in-memory store and deterministic entropy helper
+are intended for local composition, tests and reproducible simulation.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
