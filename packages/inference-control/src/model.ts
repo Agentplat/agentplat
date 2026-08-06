@@ -90,6 +90,25 @@ export interface ControlledModelAssessorV1 {
   ): Promise<ControlledModelAssessmentResultV1>;
 }
 
+export interface ControlledModelContextGateResultV1 {
+  readonly disposition: 'allow' | 'abstain' | 'deny';
+  readonly filterRequired: boolean;
+  readonly admittedContextEntryIds: readonly string[];
+  readonly decisionDigest: string;
+}
+
+/**
+ * A pre-provider context gate may only select entries from the immutable input
+ * set. The executor, rather than the gate, performs the physical filtering.
+ */
+export interface ControlledModelContextGateV1 {
+  readonly filterBindingDigest: string;
+  evaluate(input: {
+    readonly request: ControlledModelRequestV1;
+    readonly contextEntries: readonly ContextEntryV1[];
+  }): Promise<ControlledModelContextGateResultV1>;
+}
+
 export interface ControlledModelExecutorOptionsV1 {
   readonly adapter: ModelAdapter;
   readonly controlBoundary: InferenceControlBoundaryV1;
@@ -97,6 +116,7 @@ export interface ControlledModelExecutorOptionsV1 {
     ids: readonly string[],
   ) => readonly ContextEntryV1[];
   readonly assessor: ControlledModelAssessorV1;
+  readonly contextGate?: ControlledModelContextGateV1;
   readonly mode: 'observe' | 'buffered' | 'incremental';
   readonly outputRisk: 'low' | 'moderate' | 'high';
 }
@@ -253,6 +273,7 @@ export class ControlledModelExecutorV1 {
   readonly #mode: ControlledModelExecutorOptionsV1['mode'];
   readonly #risk: ControlledModelExecutorOptionsV1['outputRisk'];
   readonly #controlBoundary: InferenceControlBoundaryV1;
+  readonly #contextGate: ControlledModelContextGateV1 | null;
 
   constructor(options: ControlledModelExecutorOptionsV1) {
     if (options.outputRisk === 'high' && options.mode !== 'buffered') {
@@ -262,9 +283,20 @@ export class ControlledModelExecutorV1 {
       options.assessor.assessorBindingDigest,
       'assessorBindingDigest',
     );
+    if (options.contextGate)
+      assertDigest(
+        options.contextGate.filterBindingDigest,
+        'contextGate.filterBindingDigest',
+      );
     this.#adapter = options.adapter;
     this.#controlBoundary = options.controlBoundary;
     this.#resolveEntries = options.contextEntries;
+    this.#contextGate = options.contextGate
+      ? Object.freeze({
+          filterBindingDigest: options.contextGate.filterBindingDigest,
+          evaluate: options.contextGate.evaluate.bind(options.contextGate),
+        })
+      : null;
     this.#assessor = Object.freeze({
       assessorId: options.assessor.assessorId,
       assessorVersion: options.assessor.assessorVersion,
@@ -280,10 +312,7 @@ export class ControlledModelExecutorV1 {
     context: ModelExecutionContext,
   ): Promise<ControlledModelResultV1> {
     const boundary = this.#resolveBoundary(controlled);
-    const rendered = renderControlledModelRequestV1(
-      controlled,
-      this.#resolveEntries,
-    );
+    const rendered = await this.#render(controlled);
     assertContextAllowedByPolicyV1(boundary.policy, rendered.contextEntries);
     await this.#requireAllow(
       {
@@ -342,10 +371,7 @@ export class ControlledModelExecutorV1 {
   ): AsyncIterable<ControlledModelStreamEventV1> {
     if (!this.#adapter.stream) throw new Error('release_mode_incompatible');
     const boundary = this.#resolveBoundary(controlled);
-    const rendered = renderControlledModelRequestV1(
-      controlled,
-      this.#resolveEntries,
-    );
+    const rendered = await this.#render(controlled);
     assertContextAllowedByPolicyV1(boundary.policy, rendered.contextEntries);
     await this.#requireAllow(
       {
@@ -602,6 +628,81 @@ export class ControlledModelExecutorV1 {
       expectedMode: this.#mode,
       expectedOutputRisk: this.#risk,
     });
+  }
+
+  async #render(
+    controlled: ControlledModelRequestV1,
+  ): Promise<RenderedControlledModelRequestV1> {
+    if (!this.#contextGate)
+      return renderControlledModelRequestV1(controlled, this.#resolveEntries);
+    assertControlledModelRequest(controlled);
+    const original = renderControlledModelRequestV1(
+      controlled,
+      this.#resolveEntries,
+    );
+    const originalEntries = [...original.contextEntries];
+    const result = await this.#contextGate.evaluate({
+      request: controlled,
+      contextEntries: Object.freeze(originalEntries),
+    });
+    assertExactKeys(
+      result,
+      [
+        'admittedContextEntryIds',
+        'decisionDigest',
+        'disposition',
+        'filterRequired',
+      ],
+      'controlled model context gate result',
+    );
+    assertOneOf(
+      result.disposition,
+      ['allow', 'abstain', 'deny'],
+      'context gate disposition',
+    );
+    if (typeof result.filterRequired !== 'boolean')
+      throw new TypeError('context_integrity_gate_result_invalid');
+    assertDigest(result.decisionDigest, 'context gate decisionDigest');
+    if (!Array.isArray(result.admittedContextEntryIds))
+      throw new TypeError('context_integrity_gate_result_invalid');
+    const originalById = new Map(
+      originalEntries.map((entry) => [entry.contextEntryId, entry]),
+    );
+    const admittedIds = result.admittedContextEntryIds.map((entryId) => {
+      assertString(entryId, 'context gate admittedContextEntryId');
+      if (!originalById.has(entryId))
+        throw new TypeError('context_integrity_gate_scope_invalid');
+      return entryId;
+    });
+    if (new Set(admittedIds).size !== admittedIds.length)
+      throw new TypeError('context_integrity_gate_scope_invalid');
+    const expectedOrder = controlled.contextEntryIds.filter((entryId) =>
+      admittedIds.includes(entryId),
+    );
+    if (
+      expectedOrder.length !== admittedIds.length ||
+      admittedIds.some((entryId, index) => entryId !== expectedOrder[index])
+    )
+      throw new TypeError('context_integrity_gate_order_invalid');
+    if (result.disposition !== 'allow')
+      throw new Error(`context_integrity_${result.disposition}`);
+    if (
+      !result.filterRequired &&
+      admittedIds.length !== controlled.contextEntryIds.length
+    )
+      throw new TypeError('context_integrity_filter_binding_invalid');
+    if (admittedIds.length === 0)
+      throw new Error('context_integrity_empty_context');
+    const admittedEntries = admittedIds.map((entryId) =>
+      originalById.get(entryId)!,
+    );
+    const filteredRequest = Object.freeze({
+      ...controlled,
+      contextEntryIds: Object.freeze(admittedIds),
+    });
+    return renderControlledModelRequestV1(filteredRequest, () =>
+      Object.freeze(admittedEntries),
+    );
   }
 }
 

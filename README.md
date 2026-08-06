@@ -28,6 +28,24 @@ AgentPlat is a downloadable framework for building self-hosted agentic platforms
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
 
+### Long-Horizon Context Integrity V1
+
+The opt-in Context Integrity controller evaluates the complete context set,
+tracks bounded content-free risk across long sessions and physically withholds
+hostile, stale or contradictory items before a provider or heterogeneous agent
+adapter is invoked. Partial context can continue only through an exact
+policy-allowed filtering implementation; otherwise the operation fails closed.
+
+```js
+import { ContextIntegrityRuntimeV1 } from "@agentplat/inference-control/context-integrity";
+import { createContextIntegrityControlledModelGateV1 } from "@agentplat/inference-control/context-integrity/model";
+```
+
+State survives restart and explicit handoff without storing prompts, outputs or
+hidden reasoning. See the [implementation plan](./docs/inference-control/long-horizon-context-integrity-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0020-long-horizon-context-integrity.md) and
+[threat model](./docs/security/long-horizon-context-integrity-threat-model.md).
+
 ### Continuous Role Alignment V1
 
 The opt-in role-alignment controller extends Inference Control across long
@@ -206,7 +224,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                        |
 | `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                              |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                   |
-| `@agentplat/inference-control`              | Inference gates plus longitudinal role-alignment and handoff control.                |
+| `@agentplat/inference-control`              | Inference gates plus context integrity, role alignment and handoff control.          |
 | `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.                 |
 | `@agentplat/mesh`                           | Coordination plus opt-in sparse overlays through 100,000 local-view peers.           |
 | `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.                |

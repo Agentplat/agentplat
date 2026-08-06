@@ -4,6 +4,7 @@ import type {
   PortableAgentControlPortV1,
   PortableAgentControlRequestV1,
 } from "@agentplat/runtime/adapter";
+import { normalizeControlDecisionV1 } from "@agentplat/runtime/adapter";
 
 import {
   assessmentMatchesRequestV1,
@@ -65,6 +66,66 @@ export interface InferenceControlPortableAgentControlV1 extends PortableAgentCon
     readonly assessorBindingDigest: string;
     readonly implementationId: string;
   }>;
+}
+
+export interface CreateCompositePortableAgentControlV1 {
+  readonly controlId: string;
+  readonly controlVersion: number;
+  readonly implementationId: string;
+  readonly controls: readonly PortableAgentControlPortV1[];
+}
+
+/** Runs independent controls and returns the most conservative disposition. */
+export function createCompositePortableAgentControlV1(
+  options: CreateCompositePortableAgentControlV1,
+): PortableAgentControlPortV1 {
+  if (
+    !options ||
+    typeof options !== "object" ||
+    !identifier.test(options.controlId) ||
+    !identifier.test(options.implementationId) ||
+    !Number.isSafeInteger(options.controlVersion) ||
+    options.controlVersion < 1 ||
+    !Array.isArray(options.controls) ||
+    options.controls.length < 1 ||
+    options.controls.length > 16 ||
+    options.controls.some(
+      (control) => !control || typeof control.evaluate !== "function",
+    )
+  )
+    throw new TypeError("portable composite control options are invalid");
+  const keys = options.controls.map(
+    (control) =>
+      `${control.controlId}:${control.controlVersion}:${control.implementationId}`,
+  );
+  if (new Set(keys).size !== keys.length)
+    throw new TypeError("portable composite controls must be unique");
+  return Object.freeze({
+    controlId: options.controlId,
+    controlVersion: options.controlVersion,
+    implementationId: options.implementationId,
+    async evaluate(request: PortableAgentControlRequestV1) {
+      let selected: PortableAgentControlDecisionV1 = allow(
+        "composite_control_allowed",
+      );
+      try {
+        for (const control of options.controls) {
+          const decision = normalizeControlDecisionV1(
+            await control.evaluate(request),
+          );
+          if (decision.disposition === "deny") return decision;
+          if (
+            dispositionRank(decision.disposition) >
+            dispositionRank(selected.disposition)
+          )
+            selected = decision;
+        }
+        return selected;
+      } catch {
+        return deny("composite_control_unavailable");
+      }
+    },
+  });
 }
 
 /**
@@ -293,4 +354,12 @@ function allow(reasonCode: string): PortableAgentControlDecisionV1 {
 
 function deny(reasonCode: string): PortableAgentControlDecisionV1 {
   return Object.freeze({ disposition: "deny", reasonCode });
+}
+
+function dispositionRank(
+  disposition: PortableAgentControlDecisionV1["disposition"],
+): number {
+  if (disposition === "deny") return 3;
+  if (disposition === "escalate") return 2;
+  return disposition === "abstain" ? 1 : 0;
 }
