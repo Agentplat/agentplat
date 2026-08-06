@@ -147,6 +147,32 @@ plan](./docs/capability-state/capability-state-fusion-v1-implementation-plan.md)
 [architecture decision](./docs/adr/0019-capability-state-fusion.md) and
 [threat model](./docs/security/capability-state-fusion-threat-model.md).
 
+### Bounded Local Strategy Adaptation V1
+
+The opt-in `@agentplat/collective-runtime/strategy-adaptation` controller
+learns which pre-registered local coordination strategy to use from causal,
+source-bound outcome cohorts. Exploration, reward influence, state growth and
+unsafe-strategy cooling are policy bounded; Trust, role, capability-state,
+context-integrity and authority decisions remain conservative vetoes.
+
+```js
+import {
+  LocalStrategyAdaptationRuntimeV1,
+  LocalStrategyDispatcherV1,
+} from "@agentplat/collective-runtime/strategy-adaptation";
+```
+
+The controller cannot rewrite strategy code or create planning, assignment,
+recovery or effect authority. Unsafe outcomes roll an operation back to its
+safe baseline, and predecessor-bound handoff preserves learned state across a
+peer restart or transfer.
+
+See the [implementation
+plan](./docs/collective-runtime/bounded-local-strategy-adaptation-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0021-bounded-local-strategy-adaptation.md)
+and [threat
+model](./docs/security/bounded-local-strategy-adaptation-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,

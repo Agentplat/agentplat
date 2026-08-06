@@ -68,6 +68,20 @@ export type PlanningDigestDomainV1 =
   | "capability-state-signal"
   | "capability-state-head"
   | "capability-state-decision"
+  | "local-strategy-definition"
+  | "local-strategy-catalog"
+  | "local-strategy-adaptation-policy"
+  | "local-strategy-selection-request"
+  | "local-strategy-safety-signal"
+  | "local-strategy-feedback-signal"
+  | "local-strategy-feedback-batch"
+  | "local-strategy-adaptation-state"
+  | "local-strategy-selection-decision"
+  | "local-strategy-feedback-decision"
+  | "local-strategy-adaptation-handoff"
+  | "local-strategy-entropy-draw"
+  | "local-strategy-safety-head"
+  | "local-strategy-feedback-head"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {
