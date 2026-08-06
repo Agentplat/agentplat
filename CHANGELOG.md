@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added the opt-in `@agentplat/mesh/overlay` sparse collective runtime with
+  closed 500/5,000/100,000-peer profiles, deterministic `O(log N)` active and
+  reserve views, revision-bound neighbor recovery, digest-only incremental
+  dissemination, hop/deduplication limits and exact local interaction quotas.
+- Bound progressive scale execution tiers to the production overlay without
+  changing existing V1 campaign, topology, plan, result or report artifacts.
 - Added opt-in Continuous Role Alignment contracts and a deterministic
   longitudinal reducer with bounded coherence windows, recovery hysteresis,
   context challenges, role reinforcement, pause, realignment and protected

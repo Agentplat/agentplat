@@ -60,7 +60,8 @@ export type PlanningDigestDomainV1 =
   | "progressive-scale-plan-v1"
   | "progressive-scale-role-coherence-v1"
   | "progressive-scale-shard-result-v1"
-  | "progressive-scale-report-v1";
+  | "progressive-scale-report-v1"
+  | "progressive-scale-overlay-binding-v2";
 
 export interface PlanningLimitsV1 {
   readonly schemaVersion: 1;

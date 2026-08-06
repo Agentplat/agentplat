@@ -3,6 +3,15 @@
 Provider-neutral state, input and effect contracts for independently executing
 AgentPlat peers.
 
+The additive `@agentplat/mesh/overlay` subpath supplies the sparse collective
+scale V2 runtime. It derives `O(log N)` active and reserve peer views on demand,
+refreshes a local view from caller-certified exclusions, and propagates
+digest-only update references with bounded fanout, hop, deduplication and
+outbound-interaction budgets. Closed profiles cover 500, 5,000 and 100,000
+peers while preserving every existing Mesh wire and coordination contract.
+The overlay plans authenticated deliveries but performs no transport, grants
+no authority and never carries raw payloads.
+
 The package is additive to the existing Runtime, Sessions and Rooms surfaces.
 Its peer kernel is defined as a synchronous state transition:
 

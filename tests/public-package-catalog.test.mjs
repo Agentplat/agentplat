@@ -18,6 +18,7 @@ const alphaOneCatalogEntries = Object.freeze([
       './coordination',
       './durability',
       './loopback',
+      './overlay',
     ]),
     directory: 'packages/mesh',
     layer: 'collaboration',
