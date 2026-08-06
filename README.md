@@ -88,6 +88,26 @@ checklist](./docs/trust/collective-trust-consensus-v1-acceptance-checklist.md),
 [architecture decision](./docs/adr/0018-collective-trust-consensus.md) and
 [threat model](./docs/security/collective-trust-consensus-threat-model.md).
 
+### Sparse Collective Scale V2
+
+The opt-in `@agentplat/mesh/overlay` runtime derives bounded active and reserve
+peer views without allocating a global membership or edge list. It propagates
+digest-only update references with deterministic fanout, hop, deduplication
+and outbound-interaction limits. Closed profiles cover 500, 5,000 and 100,000
+peers, while the existing Mesh wire and V1 coordination surfaces remain
+unchanged.
+
+```js
+import {
+  createMeshSparsePeerViewV2,
+  createMeshSparseRoutingStateV2,
+  meshSparseOverlayProfileV2,
+} from "@agentplat/mesh/overlay";
+```
+
+See the [capability and integration
+contract](./docs/agent-mesh/sparse-collective-scale-v2.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
@@ -167,7 +187,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                   |
 | `@agentplat/inference-control`              | Inference gates plus longitudinal role-alignment and handoff control.                |
 | `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.                 |
-| `@agentplat/mesh`                           | Bounded peer coordination, allocation, leases, fencing and recovery.                 |
+| `@agentplat/mesh`                           | Coordination plus opt-in sparse overlays through 100,000 local-view peers.           |
 | `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.                |
 | `@agentplat/mesh-protocol`                  | Strict bounded wire parsing, validation and conformance fixtures.                    |
 | `@agentplat/mesh-sim`                       | Versioned faults, snapshots, invariants, trace digests and replay.                   |

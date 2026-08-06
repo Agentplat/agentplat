@@ -60,6 +60,7 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "progressive-scale-role-coherence-v1",
   "progressive-scale-shard-result-v1",
   "progressive-scale-report-v1",
+  "progressive-scale-overlay-binding-v2",
 ]);
 
 export class CollectivePlanningValidationError extends Error {

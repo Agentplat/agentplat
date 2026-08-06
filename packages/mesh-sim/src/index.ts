@@ -47,6 +47,7 @@ export * from './collective-statistical-campaign-normative-operation.js';
 export * from './collective-statistical-campaign-normative-registry.js';
 export * from './collective-statistical-campaign-registered-adapter.js';
 export * from './collective-progressive-scale.js';
+export * from './collective-progressive-scale-overlay.js';
 
 export type MeshSimulationPrngVersion = 'xorshift32-v1';
 export type MeshSimulationRecordingMode = 'full' | 'digest' | 'metrics';

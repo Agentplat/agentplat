@@ -329,3 +329,11 @@ complete affected population, restored mission success and the profile's
 quadratic, N log N or linear recovery ceiling. These APIs make large-scale
 execution pluggable and bounded; constructing a plan or a conformant-shaped
 report is not evidence that a large campaign was actually executed.
+
+`createCollectiveProgressiveScaleOverlayBindingV2()` connects each execution
+tier to the production `@agentplat/mesh/overlay` profile with the same peer,
+interaction and sparse-degree bounds. The additive
+`createCollectiveProgressiveScalePeerRoutingV2()` helper constructs one peer's
+bounded active/reserve view and exact outbound interaction quota without
+materializing the plan's global population or topology. Existing progressive
+scale V1 artifacts and digests are unchanged.
