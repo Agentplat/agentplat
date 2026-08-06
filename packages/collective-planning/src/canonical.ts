@@ -61,6 +61,13 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "progressive-scale-shard-result-v1",
   "progressive-scale-report-v1",
   "progressive-scale-overlay-binding-v2",
+  "capability-state-policy",
+  "capability-state-candidate",
+  "capability-state-request",
+  "capability-state-signal",
+  "capability-state-head",
+  "capability-state-decision",
+  "capability-state-state",
 ]);
 
 export class CollectivePlanningValidationError extends Error {

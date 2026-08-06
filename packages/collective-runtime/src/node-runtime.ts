@@ -72,6 +72,14 @@ import {
 import type { PortableAgentCheckpointV1 } from "@agentplat/runtime/adapter";
 
 import {
+  createCapabilityStateCandidateV1,
+  createCapabilityStateFusionRequestV1,
+  validateCapabilityStateFusionDecisionV1,
+  type CapabilityStateCandidateV1,
+  type CapabilityStateOperationV1,
+} from "./capability-state.js";
+
+import {
   COLLECTIVE_PEER_NODE_SCHEMA_VERSION,
   COLLECTIVE_PEER_NODE_SNAPSHOT_FORMAT,
   COLLECTIVE_PEER_OWNER_CONTINUITY_EXTENSION_V1,
@@ -112,7 +120,7 @@ const DEFAULT_PLANNING_ROLE_VALID_UNTIL = 86_400_000;
 const DEFAULT_RECOVERY_ENVELOPE_TTL_MS = 300_000;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/u;
 const AUTHORITY_DIGEST = /^sha256:[A-Za-z0-9_-]{43}$/u;
-const RECOVERY_ELECTION_DIGEST = /^sha256:[0-9a-f]{64}$/u;
+const PLANNING_DIGEST = /^sha256:[0-9a-f]{64}$/u;
 
 /**
  * Long-lived productive composition root for one concrete collective peer.
@@ -228,6 +236,27 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     });
     this.#agents = normalizeAgents(options.agents, this.#scope);
     normalizeControlBinding(options.expectedControlBinding);
+    if (options.capabilityState !== undefined) {
+      identifier(options.capabilityState.fusionId, "capabilityState.fusionId");
+      positiveInteger(
+        options.capabilityState.fusionVersion,
+        "capabilityState.fusionVersion",
+      );
+      identifier(
+        options.capabilityState.implementationId,
+        "capabilityState.implementationId",
+      );
+      identifier(options.capabilityState.policyId, "capabilityState.policyId");
+      positiveInteger(
+        options.capabilityState.policyVersion,
+        "capabilityState.policyVersion",
+      );
+      if (
+        !PLANNING_DIGEST.test(options.capabilityState.policyDigest) ||
+        typeof options.capabilityState.evaluate !== "function"
+      )
+        invalid("the capability state fusion port is invalid");
+    }
     this.#maximumCommitAttempts = boundedInteger(
       options.maximumCommitAttempts ?? DEFAULT_MAXIMUM_COMMIT_ATTEMPTS,
       "maximumCommitAttempts",
@@ -1283,19 +1312,22 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     const rawExtension =
       offer.envelope.extensions?.[PLANNING_WORK_EXTENSION_KEY_V1];
     const extension = validatePlanningWorkExtensionV1(rawExtension);
-    const agent = [...this.#agents.values()]
-      .sort((left, right) =>
-        left.binding.agentId < right.binding.agentId
-          ? -1
-          : left.binding.agentId > right.binding.agentId
-            ? 1
-            : 0,
-      )
-      .find((candidate) =>
-        offer.envelope.payload.requiredCapabilityKeys.every((key) =>
-          candidate.capabilityKeys.includes(key),
-        ),
-      );
+    const agent = [
+      ...(await this.#filterCapabilityStateLocalAgents({
+        operation: "assignment_acceptance",
+        objectiveId: execution.objectiveId,
+        workItemId: execution.workItemId,
+        workItemRevision: execution.workItemRevision,
+        requiredCapabilityKeys: offer.envelope.payload.requiredCapabilityKeys,
+        logicalTimeMs,
+      })),
+    ].sort((left, right) =>
+      left.binding.agentId < right.binding.agentId
+        ? -1
+        : left.binding.agentId > right.binding.agentId
+          ? 1
+          : 0,
+    )[0];
     if (!agent) return null;
     const capabilities = Object.values(mesh.discovery.capabilities);
     if (
@@ -2740,6 +2772,17 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         !this.#hasCurrentCapabilities(mesh, offer, logicalTimeMs)
       )
         continue;
+      if (this.#options.capabilityState) {
+        const recoveryAgents = await this.#filterCapabilityStateLocalAgents({
+          operation: "recovery",
+          objectiveId: lease.objectiveId,
+          workItemId: lease.workItemId,
+          workItemRevision: lease.workItemRevision,
+          requiredCapabilityKeys: offer.envelope.payload.requiredCapabilityKeys,
+          logicalTimeMs,
+        });
+        if (recoveryAgents.length === 0) continue;
+      }
       if (
         Object.values(mesh.allocation.takeoverProposals).some(
           ({ envelope }) =>
@@ -2937,17 +2980,9 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       proposed.assigneePeerId,
       objective.recoveryWitnessThreshold,
     );
-    const proposals = Object.values(mesh.allocation.takeoverProposals)
+    const proposalRecords = Object.values(mesh.allocation.takeoverProposals)
       .filter((candidate) =>
         sameRecoveryElection(candidate.envelope.payload, proposed),
-      )
-      .map((candidate) =>
-        Object.freeze({
-          takeoverProposalId: candidate.takeoverProposalId,
-          proposedAssigneePeerId:
-            candidate.envelope.payload.proposedAssigneePeerId,
-          acceptedAtLogicalMs: candidate.acceptedAt,
-        }),
       )
       .sort((left, right) =>
         left.takeoverProposalId < right.takeoverProposalId
@@ -2956,6 +2991,92 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
             ? 1
             : 0,
       );
+    let proposals = proposalRecords.map((candidate) =>
+      Object.freeze({
+        takeoverProposalId: candidate.takeoverProposalId,
+        proposedAssigneePeerId:
+          candidate.envelope.payload.proposedAssigneePeerId,
+        acceptedAtLogicalMs: candidate.acceptedAt,
+      }),
+    );
+    if (this.#options.capabilityState) {
+      const requiredCapabilityKeys = recoveryRequiredCapabilityKeys(
+        mesh,
+        proposed,
+      );
+      const proposalCandidates = proposalRecords.flatMap((record) => {
+        const payload = record.envelope.payload;
+        const peerCard =
+          mesh.discovery.peerCards[payload.proposedAssigneePeerId];
+        const instanceId =
+          peerCard?.instanceId ??
+          (record.envelope.sender.peerId === payload.proposedAssigneePeerId
+            ? record.envelope.sender.instanceId
+            : null);
+        if (!instanceId) return [];
+        const advertisedCapabilityKeys = [
+          ...new Set(
+            Object.values(mesh.discovery.capabilities)
+              .filter(
+                (capability) =>
+                  capability.ownerPeerId === payload.proposedAssigneePeerId &&
+                  capability.instanceId === instanceId &&
+                  capability.status === "active" &&
+                  capability.expiresAt > logicalTimeMs,
+              )
+              .map(({ capabilityKey }) => capabilityKey),
+          ),
+        ].sort();
+        if (
+          requiredCapabilityKeys.some(
+            (capabilityKey) =>
+              !advertisedCapabilityKeys.includes(capabilityKey),
+          )
+        )
+          return [];
+        return [
+          {
+            record,
+            candidate: this.#capabilityStateCandidate({
+              kind: "peer",
+              peerId: payload.proposedAssigneePeerId,
+              instanceId,
+              agentId: null,
+              requiredCapabilityKeys,
+              advertisedCapabilityKeys,
+              sourceRecordId: record.takeoverProposalId,
+              sourceRevision: payload.proposedAssignmentEpoch,
+              sourceEvidence: {
+                takeoverProposalId: record.takeoverProposalId,
+                proposedAssigneePeerId: payload.proposedAssigneePeerId,
+                proposedAssignmentEpoch: payload.proposedAssignmentEpoch,
+                acceptedAtLogicalMs: record.acceptedAt,
+              },
+            }),
+          },
+        ];
+      });
+      const fusionEligible = await this.#eligibleCapabilityStateCandidateIds({
+        operation: "recovery",
+        objectiveId: proposed.objectiveId,
+        workItemId: proposed.workItemId,
+        workItemRevision: proposed.workItemRevision,
+        requiredCapabilityKeys,
+        candidates: proposalCandidates.map(({ candidate }) => candidate),
+        logicalTimeMs,
+      });
+      proposals = proposalCandidates
+        .filter(({ candidate }) => fusionEligible.has(candidate.candidateId))
+        .map(({ record: candidate }) =>
+          Object.freeze({
+            takeoverProposalId: candidate.takeoverProposalId,
+            proposedAssigneePeerId:
+              candidate.envelope.payload.proposedAssigneePeerId,
+            acceptedAtLogicalMs: candidate.acceptedAt,
+          }),
+        );
+    }
+    if (proposals.length === 0) return null;
     const scopeDigest = recoveryElectionScopeDigest(proposed);
     const selected = await this.#options.recoveryElection.select({
       scopeDigest,
@@ -3592,13 +3713,22 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
           "STATE_CONFLICT",
           "ready planning Work no longer matches its content-addressed fragment",
         );
-      const recipients = selectPlanningOfferRecipientsV1({
+      let recipients = selectPlanningOfferRecipientsV1({
         discovery: mesh.discovery,
         logicalTimeMs,
         verifiedAt: wallTime,
         localSupportedCriticalExtensions: [PLANNING_WORK_EXTENSION_KEY_V1],
         requiredCapabilityKeys: candidate.work.requiredCapabilityKeys,
         maximumRecipients: this.#maximumOfferRecipients,
+      });
+      recipients = await this.#filterCapabilityStateRecipients({
+        recipients,
+        mesh,
+        objectiveId: candidate.objectiveId,
+        workItemId: candidate.work.workItemId,
+        workItemRevision: candidate.work.workItemRevision,
+        requiredCapabilityKeys: candidate.work.requiredCapabilityKeys,
+        logicalTimeMs,
       });
       if (recipients.length === 0) continue;
       const bidDeadline = earlierTimestamp(
@@ -3768,11 +3898,16 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         this.#scope.peerId,
         objectivePolicy.recoveryWitnessThreshold,
       );
-      const agent = [...this.#agents.values()].find((candidate) =>
-        payload.requiredCapabilityKeys.every((key) =>
-          candidate.capabilityKeys.includes(key),
-        ),
-      );
+      const agent = (
+        await this.#filterCapabilityStateLocalAgents({
+          operation: "bid",
+          objectiveId: payload.objectiveId,
+          workItemId: payload.workItemId,
+          workItemRevision: payload.workItemRevision,
+          requiredCapabilityKeys: payload.requiredCapabilityKeys,
+          logicalTimeMs,
+        })
+      )[0];
       if (!agent) continue;
       const capability = Object.values(mesh.discovery.capabilities)
         .filter(
@@ -3922,8 +4057,59 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       ].filter((peerId) => peerId !== this.#scope.peerId);
       if (eligibleWitnessPeerIds.length < objective.recoveryWitnessThreshold)
         continue;
+      const bidCandidates = Object.values(mesh.allocation.bidHeads)
+        .filter(
+          (bid) =>
+            bid.offerId === offer.offerId &&
+            bid.bidExpiresAtLogical > logicalTimeMs &&
+            !objective.recoveryWitnessPeerIds.includes(bid.bidderPeerId),
+        )
+        .flatMap((bid) => {
+          const accepted = mesh.allocation.acceptedBidEvidence[bid.bidId];
+          if (!accepted) return [];
+          return [
+            {
+              bid,
+              candidate: this.#capabilityStateCandidate({
+                kind: "peer",
+                peerId: bid.bidderPeerId,
+                instanceId: accepted.envelope.sender.instanceId,
+                agentId: null,
+                requiredCapabilityKeys: offer.work.requiredCapabilityKeys,
+                advertisedCapabilityKeys: offer.work.requiredCapabilityKeys,
+                sourceRecordId: bid.bidId,
+                sourceRevision: bid.bidRevision,
+                sourceEvidence: {
+                  bidId: bid.bidId,
+                  bidRevision: bid.bidRevision,
+                  acceptedMessageId: bid.acceptedMessageId,
+                  capacityReservationUnits: bid.capacityReservationUnits,
+                  expectedCompletionAt: bid.expectedCompletionAt,
+                },
+              }),
+            },
+          ];
+        });
+      const fusionEligible = await this.#eligibleCapabilityStateCandidateIds({
+        operation: "award",
+        objectiveId: offer.objectiveId,
+        workItemId: offer.work.workItemId,
+        workItemRevision: offer.work.workItemRevision,
+        requiredCapabilityKeys: offer.work.requiredCapabilityKeys,
+        candidates: bidCandidates.map(({ candidate }) => candidate),
+        logicalTimeMs,
+      });
       const excludedBidderPeerIds = Object.freeze(
-        [...new Set(objective.recoveryWitnessPeerIds)].sort(),
+        [
+          ...new Set([
+            ...objective.recoveryWitnessPeerIds,
+            ...bidCandidates
+              .filter(
+                ({ candidate }) => !fusionEligible.has(candidate.candidateId),
+              )
+              .map(({ bid }) => bid.bidderPeerId),
+          ]),
+        ].sort(),
       );
       const selection = selectMeshAllocationBid(allocationRuntime(mesh), {
         offerId: offer.offerId,
@@ -4138,12 +4324,15 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         }
         if (!recoverable) continue;
       }
-      const eligible = [...this.#agents.values()].some((candidate) =>
-        offer.envelope.payload.requiredCapabilityKeys.every((key) =>
-          candidate.capabilityKeys.includes(key),
-        ),
-      );
-      if (!eligible) continue;
+      const eligibleAgents = await this.#filterCapabilityStateLocalAgents({
+        operation: "assignment_acceptance",
+        objectiveId: payload.objectiveId,
+        workItemId: payload.workItemId,
+        workItemRevision: payload.workItemRevision,
+        requiredCapabilityKeys: offer.envelope.payload.requiredCapabilityKeys,
+        logicalTimeMs,
+      });
+      if (eligibleAgents.length === 0) continue;
       const acceptanceId = `node.acceptance.${shortDigest({
         awardId: award.awardId,
         peerId: this.#scope.peerId,
@@ -4413,13 +4602,22 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       current.runtime.mesh.allocation,
       current.runtime.mesh.inbound,
     );
-    const recipients = selectPlanningOfferRecipientsV1({
+    let recipients = selectPlanningOfferRecipientsV1({
       discovery: mesh.discovery,
       logicalTimeMs,
       verifiedAt: now.wallTime,
       localSupportedCriticalExtensions: [PLANNING_WORK_EXTENSION_KEY_V1],
       requiredCapabilityKeys: projection.work.requiredCapabilityKeys,
       maximumRecipients: this.#maximumOfferRecipients,
+    });
+    recipients = await this.#filterCapabilityStateRecipients({
+      recipients,
+      mesh,
+      objectiveId,
+      workItemId,
+      workItemRevision: projection.workItemRevision,
+      requiredCapabilityKeys: projection.work.requiredCapabilityKeys,
+      logicalTimeMs,
     });
     const recipientPeerIds = Object.freeze(
       recipients.map(({ peerId }) => peerId).sort(),
@@ -4573,6 +4771,237 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
       releases: current.releases,
       initialPlanningState: this.#initial.runtime.planning,
     });
+  }
+
+  #capabilityStateCandidate(input: {
+    readonly kind: "peer" | "local_agent";
+    readonly peerId: string;
+    readonly instanceId: string;
+    readonly agentId: string | null;
+    readonly requiredCapabilityKeys: readonly string[];
+    readonly advertisedCapabilityKeys: readonly string[];
+    readonly sourceRecordId: string | null;
+    readonly sourceRevision: number;
+    readonly sourceEvidence: PlanningJson;
+  }): CapabilityStateCandidateV1 {
+    const candidateId = `capability-state-candidate.${shortDigest({
+      kind: input.kind,
+      peerId: input.peerId,
+      instanceId: input.instanceId,
+      agentId: input.agentId,
+      sourceRecordId: input.sourceRecordId,
+    })}`;
+    return createCapabilityStateCandidateV1({
+      schemaVersion: 1,
+      candidateId,
+      kind: input.kind,
+      peerId: input.peerId,
+      instanceId: input.instanceId,
+      agentId: input.agentId,
+      requiredCapabilityKeys: Object.freeze(
+        [...new Set(input.requiredCapabilityKeys)].sort(),
+      ),
+      advertisedCapabilityKeys: Object.freeze(
+        [...new Set(input.advertisedCapabilityKeys)].sort(),
+      ),
+      sourceEvidenceDigest: digestPlanningJsonV1(
+        "capability-state-candidate",
+        input.sourceEvidence,
+      ),
+      sourceRecordId: input.sourceRecordId,
+      sourceRevision: input.sourceRevision,
+    });
+  }
+
+  async #eligibleCapabilityStateCandidateIds(input: {
+    readonly operation: CapabilityStateOperationV1;
+    readonly objectiveId: string;
+    readonly workItemId: string | null;
+    readonly workItemRevision: number | null;
+    readonly requiredCapabilityKeys: readonly string[];
+    readonly candidates: readonly CapabilityStateCandidateV1[];
+    readonly logicalTimeMs: number;
+  }): Promise<ReadonlySet<string>> {
+    if (input.candidates.length === 0) return new Set();
+    const ordered = Object.freeze(
+      [...input.candidates].sort((left, right) =>
+        left.candidateId < right.candidateId
+          ? -1
+          : left.candidateId > right.candidateId
+            ? 1
+            : 0,
+      ),
+    );
+    const port = this.#options.capabilityState;
+    if (!port) return new Set(ordered.map(({ candidateId }) => candidateId));
+    try {
+      const request = createCapabilityStateFusionRequestV1({
+        schemaVersion: 1,
+        requestId: `node.capability-state.${shortDigest({
+          operation: input.operation,
+          objectiveId: input.objectiveId,
+          workItemId: input.workItemId,
+          workItemRevision: input.workItemRevision,
+          logicalTimeMs: input.logicalTimeMs,
+          candidateDigests: ordered.map(
+            ({ candidateDigest }) => candidateDigest,
+          ),
+        })}`,
+        operation: input.operation,
+        scope: {
+          tenantId: this.#scope.tenantId,
+          meshId: this.#scope.meshId,
+          policyDomainId: this.#scope.policyDomainId,
+          missionIntentId: this.#scope.missionIntentId,
+          objectiveId: input.objectiveId,
+          workItemId: input.workItemId,
+          workItemRevision: input.workItemRevision,
+        },
+        logicalTimeMs: input.logicalTimeMs,
+        requiredCapabilityKeys: Object.freeze(
+          [...new Set(input.requiredCapabilityKeys)].sort(),
+        ),
+        candidates: ordered,
+      });
+      const decision = validateCapabilityStateFusionDecisionV1({
+        decision: await port.evaluate(request),
+        request,
+        expected: port,
+        logicalTimeMs: input.logicalTimeMs,
+      });
+      return new Set(
+        decision.candidates
+          .filter(({ disposition }) => disposition === "eligible")
+          .map(({ candidateId }) => candidateId),
+      );
+    } catch {
+      return new Set();
+    }
+  }
+
+  async #filterCapabilityStateRecipients(input: {
+    readonly recipients: readonly Readonly<{
+      readonly peerId: string;
+      readonly peerCardId: string;
+      readonly cardRevision: number;
+      readonly planningCapabilityId: string;
+      readonly planningCapabilityRevision: number;
+    }>[];
+    readonly mesh: MeshAllocationInboundRuntimeState;
+    readonly objectiveId: string;
+    readonly workItemId: string;
+    readonly workItemRevision: number;
+    readonly requiredCapabilityKeys: readonly string[];
+    readonly logicalTimeMs: number;
+  }) {
+    if (!this.#options.capabilityState) return input.recipients;
+    const pairs = input.recipients.flatMap((recipient) => {
+      const card = input.mesh.discovery.peerCards[recipient.peerId];
+      if (!card) return [];
+      const capabilities = Object.values(input.mesh.discovery.capabilities)
+        .filter(
+          (capability) =>
+            capability.ownerPeerId === recipient.peerId &&
+            capability.instanceId === card.instanceId &&
+            capability.status === "active" &&
+            capability.expiresAt > input.logicalTimeMs,
+        )
+        .sort((left, right) =>
+          left.capabilityId < right.capabilityId
+            ? -1
+            : left.capabilityId > right.capabilityId
+              ? 1
+              : 0,
+        );
+      const candidate = this.#capabilityStateCandidate({
+        kind: "peer",
+        peerId: recipient.peerId,
+        instanceId: card.instanceId,
+        agentId: null,
+        requiredCapabilityKeys: input.requiredCapabilityKeys,
+        advertisedCapabilityKeys: capabilities.map(
+          ({ capabilityKey }) => capabilityKey,
+        ),
+        sourceRecordId: recipient.peerCardId,
+        sourceRevision: recipient.cardRevision,
+        sourceEvidence: {
+          peerCardId: recipient.peerCardId,
+          cardRevision: recipient.cardRevision,
+          planningCapabilityId: recipient.planningCapabilityId,
+          planningCapabilityRevision: recipient.planningCapabilityRevision,
+          capabilityBindings: capabilities.map((capability) => ({
+            capabilityId: capability.capabilityId,
+            capabilityRevision: capability.capabilityRevision,
+            capabilityKey: capability.capabilityKey,
+          })),
+        },
+      });
+      return [{ recipient, candidate }];
+    });
+    const eligible = await this.#eligibleCapabilityStateCandidateIds({
+      operation: "offer_recipient",
+      objectiveId: input.objectiveId,
+      workItemId: input.workItemId,
+      workItemRevision: input.workItemRevision,
+      requiredCapabilityKeys: input.requiredCapabilityKeys,
+      candidates: pairs.map(({ candidate }) => candidate),
+      logicalTimeMs: input.logicalTimeMs,
+    });
+    return Object.freeze(
+      pairs
+        .filter(({ candidate }) => eligible.has(candidate.candidateId))
+        .map(({ recipient }) => recipient),
+    );
+  }
+
+  async #filterCapabilityStateLocalAgents(input: {
+    readonly operation: "bid" | "assignment_acceptance" | "recovery";
+    readonly objectiveId: string;
+    readonly workItemId: string;
+    readonly workItemRevision: number;
+    readonly requiredCapabilityKeys: readonly string[];
+    readonly logicalTimeMs: number;
+  }): Promise<readonly CollectivePeerNodeAgentRegistrationV1[]> {
+    const agents = [...this.#agents.values()].filter((agent) =>
+      input.requiredCapabilityKeys.every((capabilityKey) =>
+        agent.capabilityKeys.includes(capabilityKey),
+      ),
+    );
+    if (!this.#options.capabilityState) return Object.freeze(agents);
+    const pairs = agents.map((agent) => ({
+      agent,
+      candidate: this.#capabilityStateCandidate({
+        kind: "local_agent",
+        peerId: this.#scope.peerId,
+        instanceId: this.#scope.instanceId,
+        agentId: agent.binding.agentId,
+        requiredCapabilityKeys: input.requiredCapabilityKeys,
+        advertisedCapabilityKeys: agent.capabilityKeys,
+        sourceRecordId: agent.binding.agentId,
+        sourceRevision: 1,
+        sourceEvidence: {
+          agentId: agent.binding.agentId,
+          adapterId: agent.binding.adapterId,
+          adapterVersion: agent.binding.adapterVersion,
+          capabilityKeys: [...agent.capabilityKeys],
+          maximumConcurrency: agent.maximumConcurrency ?? 1,
+        },
+      }),
+    }));
+    const eligible = await this.#eligibleCapabilityStateCandidateIds({
+      operation: input.operation,
+      objectiveId: input.objectiveId,
+      workItemId: input.workItemId,
+      workItemRevision: input.workItemRevision,
+      requiredCapabilityKeys: input.requiredCapabilityKeys,
+      candidates: pairs.map(({ candidate }) => candidate),
+      logicalTimeMs: input.logicalTimeMs,
+    });
+    return Object.freeze(
+      pairs
+        .filter(({ candidate }) => eligible.has(candidate.candidateId))
+        .map(({ agent }) => agent),
+    );
   }
 
   #decodeSnapshot(snapshot: MeshDurablePeerSnapshot) {
@@ -4859,6 +5288,34 @@ function recoveryElectionScopeDigest(proposed: LeaseTakeoverProposalPayload) {
   });
 }
 
+function recoveryRequiredCapabilityKeys(
+  mesh: MeshAllocationInboundRuntimeState,
+  proposed: LeaseTakeoverProposalPayload,
+): readonly string[] {
+  const receivedAward = mesh.allocation.receivedAwards[proposed.awardId];
+  const receivedOffer = receivedAward
+    ? mesh.allocation.receivedOffers[receivedAward.offerId]
+    : undefined;
+  if (receivedOffer)
+    return Object.freeze(
+      [...receivedOffer.envelope.payload.requiredCapabilityKeys].sort(),
+    );
+  const localAward = mesh.allocation.localAwards[proposed.awardId];
+  const localOffer = localAward
+    ? mesh.allocation.localOffers[localAward.offerId]
+    : undefined;
+  if (localOffer)
+    return Object.freeze([...localOffer.work.requiredCapabilityKeys].sort());
+  const work = mesh.objectives.workItems[proposed.workItemId];
+  if (
+    work &&
+    work.objectiveId === proposed.objectiveId &&
+    work.workItemRevision === proposed.workItemRevision
+  )
+    return Object.freeze([...work.requiredCapabilityKeys].sort());
+  return Object.freeze([]);
+}
+
 function recoveryElectionExtension(
   decision: CollectivePeerNodeRecoveryElectionDecisionV1,
 ): MeshJsonValue {
@@ -4889,7 +5346,7 @@ function parseRecoveryElectionExtension(
     !IDENTIFIER.test(candidate.electionId) ||
     !Number.isSafeInteger(candidate.electionRound) ||
     candidate.electionRound < 1 ||
-    !RECOVERY_ELECTION_DIGEST.test(candidate.scopeDigest) ||
+    !PLANNING_DIGEST.test(candidate.scopeDigest) ||
     !IDENTIFIER.test(candidate.selectedProposalId) ||
     !IDENTIFIER.test(candidate.selectedAssigneePeerId) ||
     !Array.isArray(witnesses) ||

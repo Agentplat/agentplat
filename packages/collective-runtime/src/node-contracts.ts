@@ -44,6 +44,7 @@ import type {
 } from "./peer-contracts.js";
 import type { CollectivePeerRuntimeV1 } from "./peer-runtime.js";
 import type { ExecutionCheckpointAvailabilityPortV1 } from "./checkpoint-contracts.js";
+import type { CapabilityStateFusionPortV1 } from "./capability-state-contracts.js";
 
 export const COLLECTIVE_PEER_NODE_SCHEMA_VERSION = 1 as const;
 export const COLLECTIVE_PEER_NODE_SNAPSHOT_FORMAT =
@@ -369,6 +370,8 @@ export interface CollectivePeerNodeRuntimeConfigV1 {
   readonly peerRuntime: CollectivePeerRuntimeV1;
   readonly agents: readonly CollectivePeerNodeAgentRegistrationV1[];
   readonly expectedControlBinding: CollectivePeerNodeControlBindingV1;
+  /** Optional fail-closed local candidate fusion boundary. */
+  readonly capabilityState?: CapabilityStateFusionPortV1;
   readonly authority: {
     readonly mandate: DelegationMandateV1;
     readonly trustPolicyId: AgentPlatID;
