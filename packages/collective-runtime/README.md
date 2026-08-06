@@ -206,6 +206,64 @@ imports and restores that state before its first step. If the election port
 cannot certify a round or the certified state is unavailable, recovery fails
 closed.
 
+## Capability-state fusion
+
+Import `@agentplat/collective-runtime/capability-state` to combine local Trust,
+role coherence, capacity, sparse reachability and recovery projections before
+the peer node considers a candidate for productive work.
+
+```ts
+import {
+  CapabilityStateFusionRuntimeV1,
+  InMemoryCapabilityStateStoreV1,
+  createCapabilityStatePolicyV1,
+  createCapabilityStateResolutionPortV1,
+} from "@agentplat/collective-runtime/capability-state";
+
+const policy = createCapabilityStatePolicyV1({
+  schemaVersion: 1,
+  policyId: "local-candidate-policy",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  requiredDimensions: {
+    offer_recipient: ["trust", "reachability"],
+    bid: ["capacity", "role", "trust"],
+    award: ["capacity", "reachability", "trust"],
+    assignment_acceptance: ["capacity", "role", "trust"],
+    recovery: ["capacity", "reachability", "recovery", "trust"],
+  },
+  maximumCandidates: 64,
+  maximumReasonCodesPerSignal: 8,
+  maximumStateHeads: 4096,
+  maximumDecisionTtlMs: 30_000,
+  maximumCommitAttempts: 4,
+});
+
+const capabilityState = new CapabilityStateFusionRuntimeV1({
+  stateKey: "peer-a.capability-state",
+  fusionId: "local-capability-state",
+  fusionVersion: 1,
+  implementationId: "local-capability-state.default",
+  policy,
+  resolver: createCapabilityStateResolutionPortV1({
+    sources: [trustProjection, capacityProjection, reachabilityProjection],
+  }),
+  store: new InMemoryCapabilityStateStoreV1(policy),
+});
+```
+
+Pass `capabilityState` as the optional port when constructing
+`CollectivePeerNodeRuntimeV1`. The node uses exact `eligible` decisions only to
+narrow offer recipients, bid and award candidates, assignment acceptance,
+execution and recovery. The fusion boundary cannot grant assignment, action or
+recovery authority, and the existing selectors still run after filtering.
+
+Signals are content-free projections bound to candidate, operation, policy,
+source revision and logical time. Missing, expired, future, conflicting or
+rolled-back inputs fail closed. Applications should use a durable
+compare-and-swap state store in production; the in-memory store is intended for
+local composition and tests.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

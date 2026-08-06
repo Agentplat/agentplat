@@ -108,6 +108,27 @@ import {
 See the [capability and integration
 contract](./docs/agent-mesh/sparse-collective-scale-v2.md).
 
+### Capability-State Fusion V1
+
+The opt-in `@agentplat/collective-runtime/capability-state` boundary combines
+content-free local Trust, role, capacity, sparse reachability and recovery
+signals into one policy-bound candidate disposition. Its reducer preserves
+logical-time and source-revision high-water marks, while the productive peer
+node can use the result to narrow offers, bids, awards, acceptance, execution
+and recovery without introducing a global scheduler.
+
+```js
+import {
+  CapabilityStateFusionRuntimeV1,
+  createCapabilityStatePolicyV1,
+} from "@agentplat/collective-runtime/capability-state";
+```
+
+See the [implementation
+plan](./docs/capability-state/capability-state-fusion-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0019-capability-state-fusion.md) and
+[threat model](./docs/security/capability-state-fusion-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
