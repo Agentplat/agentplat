@@ -82,6 +82,19 @@ export type PlanningDigestDomainV1 =
   | "local-strategy-entropy-draw"
   | "local-strategy-safety-head"
   | "local-strategy-feedback-head"
+  | "local-strategy-collective-prior"
+  | "peer-strategy-evidence-admission"
+  | "peer-strategy-evidence-binding"
+  | "peer-strategy-evidence-certificate"
+  | "peer-strategy-evidence-certificate-decision"
+  | "peer-strategy-evidence-cohort"
+  | "peer-strategy-evidence-handoff"
+  | "peer-strategy-evidence-eligibility"
+  | "peer-strategy-evidence-policy"
+  | "peer-strategy-evidence-prior"
+  | "peer-strategy-evidence-source-head"
+  | "peer-strategy-evidence-state"
+  | "peer-strategy-outcome-attestation"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {

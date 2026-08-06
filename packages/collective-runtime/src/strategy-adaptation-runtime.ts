@@ -20,6 +20,9 @@ import {
   type LocalStrategyAdaptationStoreV1,
   type LocalStrategyArmStateV1,
   type LocalStrategyCatalogV1,
+  type LocalStrategyCollectivePriorConfigurationV1,
+  type LocalStrategyCollectivePriorSourceV1,
+  type LocalStrategyCollectivePriorV1,
   type LocalStrategyDefinitionV1,
   type LocalStrategyEntropyDrawV1,
   type LocalStrategyEntropyPortV1,
@@ -659,6 +662,7 @@ const stateKeys = [
   "stateKey",
 ];
 const probabilityKeys = [
+  "priorDigests",
   "probabilityBps",
   "schemaVersion",
   "signalDigests",
@@ -899,6 +903,17 @@ export function reduceLocalStrategySelectionV1(
     entropy: input.state,
   });
   const request = validateLocalStrategySelectionRequestV1(input.request);
+  const collectivePriorConfiguration =
+    input.collectivePriorConfiguration === null
+      ? null
+      : normalizeCollectivePriorConfiguration(
+          input.collectivePriorConfiguration,
+        );
+  const collectivePriors = normalizeCollectivePriors(
+    input.collectivePriors,
+    request,
+    collectivePriorConfiguration,
+  );
   if (
     request.availableStrategyIds.length > policy.policy.limits.maximumStrategies
   )
@@ -1037,7 +1052,7 @@ export function reduceLocalStrategySelectionV1(
     reasonsSet.add("safe_baseline_unavailable");
   }
 
-  const probabilities =
+  const localProbabilities =
     candidates.length === 0
       ? freeze([] as LocalStrategyProbabilityV1[])
       : computeProbabilities(
@@ -1048,6 +1063,21 @@ export function reduceLocalStrategySelectionV1(
           policy,
           eligibility,
         );
+  const priorMix = applyCollectivePriors(
+    localProbabilities,
+    candidates,
+    baselineStrategyId,
+    policy.policy.baselineProbabilityFloorBps,
+    collectivePriorConfiguration,
+    collectivePriors,
+  );
+  const probabilities = priorMix.probabilities;
+  if (priorMix.appliedInfluenceBps > 0) {
+    reasonsSet.add("collective_prior_applied");
+    reasonsSet.add(`collective_prior_influence_bps:${priorMix.appliedInfluenceBps}`);
+  } else if (collectivePriors.length > 0) {
+    reasonsSet.add("collective_prior_not_applicable");
+  }
   if (probabilities.length > 0 && input.entropyDraw === null)
     fail("entropy draw is required for an eligible selection");
   const entropyDraw =
@@ -1402,6 +1432,10 @@ export class LocalStrategyAdaptationRuntimeV1 implements LocalStrategyAdaptation
   readonly #safety: LocalStrategySafetyResolutionPortV1;
   readonly #entropy: LocalStrategyEntropyPortV1;
   readonly #store: LocalStrategyAdaptationStoreV1;
+  readonly #collectivePrior: {
+    readonly configuration: LocalStrategyCollectivePriorConfigurationV1;
+    readonly source: LocalStrategyCollectivePriorSourceV1;
+  } | null;
 
   constructor(options: LocalStrategyAdaptationRuntimeOptionsV1) {
     if (!options || typeof options !== "object")
@@ -1439,6 +1473,24 @@ export class LocalStrategyAdaptationRuntimeV1 implements LocalStrategyAdaptation
     this.#safety = options.safety;
     this.#entropy = options.entropy;
     this.#store = options.store;
+    if (options.collectivePrior) {
+      const configuration = normalizeCollectivePriorConfiguration(
+        options.collectivePrior.configuration,
+      );
+      const source = options.collectivePrior.source;
+      if (
+        !source ||
+        typeof source.resolve !== "function" ||
+        source.sourceId !== configuration.sourceId ||
+        source.sourceVersion !== configuration.sourceVersion ||
+        source.sourceImplementationDigest !==
+          configuration.sourceImplementationDigest
+      )
+        fail("collective strategy prior source binding is invalid");
+      this.#collectivePrior = freeze({ configuration, source });
+    } else {
+      this.#collectivePrior = null;
+    }
   }
 
   async select(
@@ -1457,6 +1509,9 @@ export class LocalStrategyAdaptationRuntimeV1 implements LocalStrategyAdaptation
       strategies,
       requiredDimensions,
     });
+    const collectivePriors = this.#collectivePrior
+      ? await this.#collectivePrior.source.resolve({ request, strategies })
+      : freeze([] as LocalStrategyCollectivePriorV1[]);
     for (
       let attempt = 0;
       attempt < this.#policy.policy.limits.maximumCommitAttempts;
@@ -1479,6 +1534,9 @@ export class LocalStrategyAdaptationRuntimeV1 implements LocalStrategyAdaptation
         catalog: this.#catalog,
         request,
         safetySignals: signals,
+        collectivePriorConfiguration:
+          this.#collectivePrior?.configuration ?? null,
+        collectivePriors,
         entropyDraw,
       });
       if (
@@ -1827,6 +1885,11 @@ export function validateLocalStrategySelectionDecisionV1(
       signalDigests: digests(
         probability.signalDigests,
         "probability.signalDigests",
+        16,
+      ),
+      priorDigests: digests(
+        probability.priorDigests,
+        "probability.priorDigests",
         16,
       ),
     });
@@ -2730,6 +2793,305 @@ function signalInvalidity(
   return null;
 }
 
+export function createLocalStrategyCollectivePriorV1(
+  input: Omit<LocalStrategyCollectivePriorV1, "priorDigest">,
+): LocalStrategyCollectivePriorV1 {
+  const value = record(
+    input,
+    [
+      "certificateDigest",
+      "confidenceBps",
+      "expiresAtLogicalMs",
+      "observedAtLogicalMs",
+      "operation",
+      "outcome",
+      "requestDigest",
+      "requestId",
+      "requestedInfluenceBps",
+      "schemaVersion",
+      "scoreMicros",
+      "sourceId",
+      "sourceImplementationDigest",
+      "sourceVersion",
+      "strategyDigest",
+      "strategyId",
+    ],
+    "collective strategy prior input",
+  );
+  schema(value.schemaVersion, "collective strategy prior");
+  const observedAtLogicalMs = nonNegative(
+    value.observedAtLogicalMs,
+    "prior.observedAtLogicalMs",
+  );
+  const expiresAtLogicalMs = positive(
+    value.expiresAtLogicalMs,
+    "prior.expiresAtLogicalMs",
+  );
+  if (expiresAtLogicalMs <= observedAtLogicalMs)
+    fail("collective strategy prior lifetime is invalid");
+  const body = freeze({
+    schemaVersion: LOCAL_STRATEGY_ADAPTATION_SCHEMA_VERSION_V1,
+    requestId: id(value.requestId, "prior.requestId"),
+    requestDigest: sha(value.requestDigest, "prior.requestDigest"),
+    operation: operation(value.operation),
+    strategyId: id(value.strategyId, "prior.strategyId"),
+    strategyDigest: sha(value.strategyDigest, "prior.strategyDigest"),
+    sourceId: id(value.sourceId, "prior.sourceId"),
+    sourceVersion: positive(value.sourceVersion, "prior.sourceVersion"),
+    sourceImplementationDigest: sha(
+      value.sourceImplementationDigest,
+      "prior.sourceImplementationDigest",
+    ),
+    certificateDigest: sha(
+      value.certificateDigest,
+      "prior.certificateDigest",
+    ),
+    outcome: oneOf(
+      value.outcome,
+      ["success", "failure", "unsafe", "indeterminate"],
+      "prior.outcome",
+    ) as LocalStrategyCollectivePriorV1["outcome"],
+    scoreMicros: integerRange(
+      value.scoreMicros,
+      "prior.scoreMicros",
+      0,
+      MICROS,
+    ),
+    confidenceBps: basisPoints(
+      value.confidenceBps,
+      "prior.confidenceBps",
+    ),
+    requestedInfluenceBps: basisPoints(
+      value.requestedInfluenceBps,
+      "prior.requestedInfluenceBps",
+    ),
+    observedAtLogicalMs,
+    expiresAtLogicalMs,
+  });
+  return freeze({
+    ...body,
+    priorDigest: digest("local-strategy-collective-prior", body),
+  });
+}
+
+export function validateLocalStrategyCollectivePriorV1(
+  input: unknown,
+): LocalStrategyCollectivePriorV1 {
+  const value = record(
+    input,
+    [
+      "certificateDigest",
+      "confidenceBps",
+      "expiresAtLogicalMs",
+      "observedAtLogicalMs",
+      "operation",
+      "outcome",
+      "priorDigest",
+      "requestDigest",
+      "requestId",
+      "requestedInfluenceBps",
+      "schemaVersion",
+      "scoreMicros",
+      "sourceId",
+      "sourceImplementationDigest",
+      "sourceVersion",
+      "strategyDigest",
+      "strategyId",
+    ],
+    "collective strategy prior",
+  );
+  const { priorDigest, ...body } = value;
+  const rebuilt = createLocalStrategyCollectivePriorV1(
+    body as unknown as Omit<LocalStrategyCollectivePriorV1, "priorDigest">,
+  );
+  if (priorDigest !== rebuilt.priorDigest)
+    fail("collective strategy prior digest is invalid");
+  return rebuilt;
+}
+
+function normalizeCollectivePriorConfiguration(
+  input: unknown,
+): LocalStrategyCollectivePriorConfigurationV1 {
+  const value = record(
+    input,
+    [
+      "maximumInfluenceBps",
+      "maximumPriorTtlMs",
+      "minimumConfidenceBps",
+      "sourceId",
+      "sourceImplementationDigest",
+      "sourceVersion",
+    ],
+    "collective strategy prior configuration",
+  );
+  return freeze({
+    sourceId: id(value.sourceId, "priorConfiguration.sourceId"),
+    sourceVersion: positive(
+      value.sourceVersion,
+      "priorConfiguration.sourceVersion",
+    ),
+    sourceImplementationDigest: sha(
+      value.sourceImplementationDigest,
+      "priorConfiguration.sourceImplementationDigest",
+    ),
+    minimumConfidenceBps: basisPoints(
+      value.minimumConfidenceBps,
+      "priorConfiguration.minimumConfidenceBps",
+    ),
+    maximumInfluenceBps: basisPoints(
+      value.maximumInfluenceBps,
+      "priorConfiguration.maximumInfluenceBps",
+    ),
+    maximumPriorTtlMs: bounded(
+      value.maximumPriorTtlMs,
+      "priorConfiguration.maximumPriorTtlMs",
+      30 * 86_400_000,
+    ),
+  });
+}
+
+function normalizeCollectivePriors(
+  input: readonly LocalStrategyCollectivePriorV1[],
+  request: LocalStrategySelectionRequestV1,
+  configuration: LocalStrategyCollectivePriorConfigurationV1 | null,
+): readonly LocalStrategyCollectivePriorV1[] {
+  if (!Array.isArray(input) || input.length > 16)
+    fail("collective strategy priors are invalid");
+  if (configuration === null) {
+    if (input.length > 0)
+      fail("collective strategy priors are not configured");
+    return freeze([]);
+  }
+  const values = input
+    .map(validateLocalStrategyCollectivePriorV1)
+    .sort((left, right) => compare(left.strategyId, right.strategyId));
+  unique(
+    values.map(({ strategyId }) => strategyId),
+    "collective prior strategy IDs",
+  );
+  for (const prior of values)
+    if (
+      prior.requestId !== request.requestId ||
+      prior.requestDigest !== request.requestDigest ||
+      prior.operation !== request.operation ||
+      prior.sourceId !== configuration.sourceId ||
+      prior.sourceVersion !== configuration.sourceVersion ||
+      prior.sourceImplementationDigest !==
+        configuration.sourceImplementationDigest ||
+      prior.observedAtLogicalMs > request.logicalTimeMs ||
+      prior.expiresAtLogicalMs <= request.logicalTimeMs ||
+      prior.expiresAtLogicalMs - prior.observedAtLogicalMs >
+        configuration.maximumPriorTtlMs
+    )
+      fail("collective strategy prior binding is invalid");
+  return freeze(values);
+}
+
+function applyCollectivePriors(
+  probabilities: readonly LocalStrategyProbabilityV1[],
+  strategies: readonly LocalStrategyDefinitionV1[],
+  baselineStrategyId: string,
+  baselineFloorBps: number,
+  configuration: LocalStrategyCollectivePriorConfigurationV1 | null,
+  priors: readonly LocalStrategyCollectivePriorV1[],
+): {
+  readonly probabilities: readonly LocalStrategyProbabilityV1[];
+  readonly appliedInfluenceBps: number;
+} {
+  if (!configuration || probabilities.length === 0 || priors.length === 0)
+    return freeze({ probabilities, appliedInfluenceBps: 0 });
+  const eligible = new Map(strategies.map((strategy) => [strategy.strategyId, strategy]));
+  const favorable = priors.filter((prior) => {
+    const strategy = eligible.get(prior.strategyId);
+    return (
+      prior.outcome === "success" &&
+      prior.scoreMicros > 0 &&
+      prior.confidenceBps >= configuration.minimumConfidenceBps &&
+      prior.requestedInfluenceBps > 0 &&
+      strategy?.strategyDigest === prior.strategyDigest
+    );
+  });
+  if (favorable.length === 0)
+    return freeze({ probabilities, appliedInfluenceBps: 0 });
+  const requestedInfluenceBps = Math.min(
+    configuration.maximumInfluenceBps,
+    ...favorable.map(({ requestedInfluenceBps }) => requestedInfluenceBps),
+  );
+  const confidenceBps = Math.min(
+    ...favorable.map(({ confidenceBps }) => confidenceBps),
+  );
+  const appliedInfluenceBps = Math.floor(
+    (requestedInfluenceBps * confidenceBps) / BPS,
+  );
+  if (appliedInfluenceBps === 0)
+    return freeze({ probabilities, appliedInfluenceBps: 0 });
+  const rawWeights = new Map(
+    favorable.map((prior) => [
+      prior.strategyId,
+      prior.scoreMicros * prior.confidenceBps,
+    ]),
+  );
+  const totalWeight = [...rawWeights.values()].reduce(
+    (sum, weight) => sum + weight,
+    0,
+  );
+  const entries = probabilities.map((probability) => {
+    const raw = rawWeights.get(probability.strategyId) ?? 0;
+    const targetNumerator = raw * BPS;
+    const targetBps = Math.floor(targetNumerator / totalWeight);
+    const mixedNumerator =
+      probability.probabilityBps * (BPS - appliedInfluenceBps) +
+      targetBps * appliedInfluenceBps;
+    return {
+      probability,
+      probabilityBps: Math.floor(mixedNumerator / BPS),
+      remainder: mixedNumerator % BPS,
+    };
+  });
+  let missing =
+    BPS - entries.reduce((sum, entry) => sum + entry.probabilityBps, 0);
+  for (const entry of [...entries].sort(
+    (left, right) =>
+      right.remainder - left.remainder ||
+      compare(left.probability.strategyId, right.probability.strategyId),
+  )) {
+    if (missing <= 0) break;
+    entry.probabilityBps += 1;
+    missing -= 1;
+  }
+  const baseline = entries.find(
+    ({ probability }) => probability.strategyId === baselineStrategyId,
+  );
+  if (!baseline) fail("collective strategy prior removed the safe baseline");
+  let deficit = Math.max(0, baselineFloorBps - baseline.probabilityBps);
+  for (const entry of [...entries]
+    .filter(({ probability }) => probability.strategyId !== baselineStrategyId)
+    .sort(
+      (left, right) =>
+        right.probabilityBps - left.probabilityBps ||
+        compare(left.probability.strategyId, right.probability.strategyId),
+    )) {
+    if (deficit <= 0) break;
+    const transfer = Math.min(deficit, entry.probabilityBps);
+    entry.probabilityBps -= transfer;
+    baseline.probabilityBps += transfer;
+    deficit -= transfer;
+  }
+  if (deficit > 0)
+    fail("collective strategy prior violates the baseline probability floor");
+  const priorDigests = freeze(
+    favorable.map(({ priorDigest }) => priorDigest).sort(compare),
+  );
+  return freeze({
+    appliedInfluenceBps,
+    probabilities: freeze(
+      entries.map(({ probability, probabilityBps }) =>
+        freeze({ ...probability, probabilityBps, priorDigests }),
+      ),
+    ),
+  });
+}
+
 function computeProbabilities(
   strategies: readonly LocalStrategyDefinitionV1[],
   arms: readonly LocalStrategyArmStateV1[],
@@ -2815,6 +3177,7 @@ function computeProbabilities(
         probabilityBps,
         signalDigests:
           eligibility.get(strategy.strategyId)?.signalDigests ?? freeze([]),
+        priorDigests: freeze([] as PlanningDigestV1[]),
       }),
     ),
   );
