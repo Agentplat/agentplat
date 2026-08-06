@@ -14,6 +14,12 @@ import type {
   RoleAlignmentAssessmentV1,
   RoleAlignmentPortableAgentControlV1,
 } from '@agentplat/inference-control/role-alignment/portable-agent';
+import type {
+  ContextIntegrityPolicyRecordV1,
+  ContextIntegrityStateV1,
+} from '@agentplat/inference-control/context-integrity';
+import type { ContextIntegrityControlledModelGateV1 } from '@agentplat/inference-control/context-integrity/model';
+import type { ContextIntegrityPortableAgentBundleV1 } from '@agentplat/inference-control/context-integrity/portable-agent';
 
 declare const entry: ContextEntryV1;
 declare const request: ControlledModelRequestV1;
@@ -26,6 +32,10 @@ declare const alignmentPolicy: RoleAlignmentPolicyV1;
 declare const alignmentState: RoleAlignmentStateV1;
 declare const alignmentAssessment: RoleAlignmentAssessmentV1;
 declare const alignmentControl: RoleAlignmentPortableAgentControlV1;
+declare const integrityPolicy: ContextIntegrityPolicyRecordV1;
+declare const integrityState: ContextIntegrityStateV1;
+declare const integrityModelGate: ContextIntegrityControlledModelGateV1;
+declare const integrityPortableBundle: ContextIntegrityPortableAgentBundleV1;
 
 const validator = createControlledAgentSseValidatorV1();
 validator.validate(envelope);
@@ -37,3 +47,7 @@ void alignmentPolicy.policyId;
 void alignmentState.stateDigest;
 void alignmentAssessment.targetDigest;
 void alignmentControl.binding.policyDigest;
+void integrityPolicy.policyDigest;
+void integrityState.stateDigest;
+void integrityModelGate.filterBinding.filterBindingDigest;
+void integrityPortableBundle.filterBinding.filterBindingDigest;

@@ -11,3 +11,4 @@ export * from './streams.js';
 export * from './telemetry.js';
 export * from './state.js';
 export * from './reducer.js';
+export * from './context-integrity.js';

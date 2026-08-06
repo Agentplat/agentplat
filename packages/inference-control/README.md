@@ -37,6 +37,13 @@ pnpm add @agentplat/inference-control@next
 - `@agentplat/inference-control/role-realignment/portable-agent` — restart-safe
   discovery-to-activation orchestration with Trust eligibility, exact Runtime
   role updates and checkpoint-handoff continuity.
+- `@agentplat/inference-control/context-integrity` — content-free longitudinal
+  context decisions, bounded CAS state, explainable reference analysis and
+  conservative analyzer composition.
+- `@agentplat/inference-control/context-integrity/model` — exact pre-provider
+  filtering for immutable controlled-model context entries.
+- `@agentplat/inference-control/context-integrity/portable-agent` — a
+  manifest-bound filtering wrapper for heterogeneous agents plus state handoff.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -94,6 +101,51 @@ const result = await executor.generate(
 Context entries are immutable and digest-bound. Only `policy`, `objective` and
 configured `local_trusted` entries may supply instructions; user, peer, tool,
 retrieval, provider and assessor content remains ordinary untrusted data.
+
+## Long-horizon context integrity
+
+Context Integrity evaluates the complete original input set and returns an
+item decision: `admit`, `restrict`, `isolate`, `require_corroboration` or
+`deny`. An inference may continue with a reduced set only when the request and
+policy contain the exact digest of the installed filtering implementation.
+
+```js
+import {
+  ContextIntegrityRuntimeV1,
+  createContextIntegrityReferenceAnalyzerV1,
+} from "@agentplat/inference-control/context-integrity";
+import { createContextIntegrityControlledModelGateV1 } from "@agentplat/inference-control/context-integrity/model";
+
+const controller = new ContextIntegrityRuntimeV1({
+  controllerId: "context-integrity:local",
+  controllerVersion: 1,
+  implementationId: "context-integrity:local:v1",
+  policy: localContextIntegrityPolicy,
+  analyzer: createContextIntegrityReferenceAnalyzerV1({
+    analyzerId: "context-analyzer:local",
+    analyzerVersion: 1,
+    assessmentTtlMs: 5_000,
+  }),
+  store: durableContextIntegrityStore,
+});
+
+const contextGate = createContextIntegrityControlledModelGateV1({
+  controller,
+  filterId: "context-filter:model",
+  filterVersion: 1,
+  filterImplementationDigest,
+  itemTtlMs: 60_000,
+  logicalTimeMs: trustedLogicalClock,
+});
+```
+
+The reference analyzer is a transparent baseline, not a universal injection
+detector. Applications can compose model, classifier, semantic-entropy or
+representation-probe analyzers. State and handoff envelopes retain only
+digests, revisions, bounded scores and reason codes; raw content remains
+ephemeral. See the [implementation plan](../../docs/inference-control/long-horizon-context-integrity-v1-implementation-plan.md),
+[ADR](../../docs/adr/0020-long-horizon-context-integrity.md) and [threat
+model](../../docs/security/long-horizon-context-integrity-threat-model.md).
 
 ## Continuous role alignment
 
