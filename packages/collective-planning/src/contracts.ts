@@ -95,6 +95,14 @@ export type PlanningDigestDomainV1 =
   | "peer-strategy-evidence-source-head"
   | "peer-strategy-evidence-state"
   | "peer-strategy-outcome-attestation"
+  | "strategy-convergence-scope"
+  | "strategy-convergence-observation"
+  | "strategy-convergence-policy"
+  | "strategy-convergence-cycle-request"
+  | "strategy-convergence-recommendation"
+  | "strategy-convergence-decision"
+  | "strategy-convergence-state"
+  | "strategy-convergence-handoff"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {
