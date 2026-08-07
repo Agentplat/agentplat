@@ -14,6 +14,7 @@ const alphaOneCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
       '.',
+      './adaptive-overlay',
       './continuity',
       './coordination',
       './durability',
@@ -60,6 +61,7 @@ const alphaThreeCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
       '.',
+      './assessor-ensemble',
       './context-integrity',
       './intervention',
       './role-alignment',

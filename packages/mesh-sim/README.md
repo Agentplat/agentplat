@@ -358,3 +358,29 @@ Failures, restarts, partitions, compromised or rogue actors and misleading or
 conflicting observations alter the simulated interaction path and every
 scheduled fault must be observed. External HTTP or gRPC bridges must return
 exact digest-bound envelopes and preserve durable checkpoint anchors.
+
+## Multi-domain environment adapters
+
+The root export includes open descriptors and manifests for physical, social,
+cyber and hybrid environments. A manifest binds implementation, schemas,
+scenario, profile, seed, population, topology/transition/visibility/fault
+policies and resource budgets. The reference bridge applies those scenario
+budgets and population bounds before runner-visible operations.
+
+`runMultiDomainAdapterConformanceV1()` rejects substitution of the requested
+definition and exercises deterministic observations, undeclared capability and
+stale-fence denial, checkpoint/restore after mutation, out-of-population
+actions and byte bounds. Passing black-box conformance is a contract signal,
+not proof of simulator fidelity or a completed scale run.
+
+## Verified benchmark registry
+
+Benchmark suites bind one exact multi-domain scenario, scale profile, seed,
+budget and centralized baseline. Candidate metrics are derived from trace
+facts; callers cannot submit a score. Verification additionally requires a
+trusted evaluator evidence port for candidate and baseline trace provenance.
+
+Leaderboards are suite-specific, deterministic and exclude invalid,
+over-budget, duplicate or replayed-trace submissions from ranking. Source,
+artifact and build locks are digest references: deployments remain responsible
+for custody, evaluator independence and environment relevance.
