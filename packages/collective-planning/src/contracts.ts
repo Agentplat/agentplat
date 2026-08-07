@@ -139,6 +139,10 @@ export type PlanningDigestDomainV1 =
   | "team-execution-handoff"
   | "team-execution-identity"
   | "team-execution-source-step-record"
+  | "team-execution-exchange-policy"
+  | "team-execution-exchange-payload"
+  | "team-execution-exchange-message"
+  | "team-execution-exchange-state"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {
