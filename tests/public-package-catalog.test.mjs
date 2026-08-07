@@ -61,6 +61,7 @@ const alphaThreeCatalogEntries = Object.freeze([
     browserEntrypoints: Object.freeze([
       '.',
       './context-integrity',
+      './intervention',
       './role-alignment',
       './tools',
     ]),

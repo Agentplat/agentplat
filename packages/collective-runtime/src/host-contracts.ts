@@ -20,6 +20,11 @@ import type {
   MechanismAllocationStateV1,
 } from "./mechanism-allocation-contracts.js";
 import type {
+  GovernedMissionLifecyclePortV1,
+  GovernedMissionRequestV1,
+  GovernedMissionStateV1,
+} from "./mission-lifecycle-contracts.js";
+import type {
   JointWorkContractV1,
   TeamActivationRequestV1,
   TeamFormationDecisionV1,
@@ -173,6 +178,7 @@ export interface CollectivePeerHostOptionsV1 {
   readonly decisions?: CollectiveDecisionPortV1;
   readonly allocation?: MechanismAllocationPortV1;
   readonly coordinationControl?: CoordinationControlPortV1;
+  readonly missionLifecycle?: GovernedMissionLifecyclePortV1;
 }
 
 export type CollectivePeerHostReceiveInputV1 =
@@ -222,6 +228,12 @@ export interface CollectivePeerHostFacadeV1 {
   dispatchControl(
     logicalTimeMs: number,
   ): Promise<CoordinationControlProposalV1 | null>;
+  advanceMission(
+    request: GovernedMissionRequestV1,
+  ): Promise<GovernedMissionStateV1>;
+  recoverMission(
+    request: GovernedMissionRequestV1,
+  ): Promise<GovernedMissionStateV1>;
   form(request: TeamFormationRequestV1): Promise<TeamFormationDecisionV1>;
   activate(request: TeamActivationRequestV1): Promise<JointWorkContractV1>;
   execute(request: TeamExecutionStartRequestV1): Promise<TeamExecutionRecordV1>;

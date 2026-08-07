@@ -44,6 +44,9 @@ pnpm add @agentplat/inference-control@next
   filtering for immutable controlled-model context entries.
 - `@agentplat/inference-control/context-integrity/portable-agent` — a
   manifest-bound filtering wrapper for heterogeneous agents plus state handoff.
+- `@agentplat/inference-control/intervention` — capability-negotiated,
+  content-free intervention gates for opaque APIs, token streams,
+  representation sidecars, portable agents and multimodal action agents.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -192,6 +195,26 @@ Definitions may narrow capabilities, resource classes, action budget or
 validity, but cannot widen the request's authority ceiling. Runtime-first
 activation is retryable: a process interruption after the role update does not
 create a second revision. See the [integration guide](../../docs/inference-control/adaptive-role-realignment-v1.md).
+
+## Heterogeneous inference intervention
+
+The `./intervention` subpath provides one provider-neutral policy boundary for
+pre-input and context assessment, trusted transformations, streamed token and
+window checks, final-output release, tool/action gating and optional
+representation-sidecar intervention. An adapter advertises a closed capability
+set; construction fails when the policy requires a hook that the adapter cannot
+enforce.
+
+Durable state contains only identities, digests, counters, logical-time heads
+and an invocation reservation. Raw inputs, context, multimodal payload handles,
+tokens and model output remain volatile. A `modify` decision requires a trusted
+transformation port and a verified receipt; otherwise the invocation is
+blocked. Stable invocation IDs and CAS reservations make retries explicit and
+prevent a conflicting request from reusing an invocation identity.
+
+This boundary controls only calls routed through it. Provider cancellation,
+distributed idempotency, monotonic storage anchors and downstream tool or
+action fencing remain application responsibilities.
 
 ## Security boundary
 
