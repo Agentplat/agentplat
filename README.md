@@ -227,6 +227,33 @@ plan](./docs/collective-runtime/decentralized-strategy-convergence-stability-v1-
 and [threat
 model](./docs/security/decentralized-strategy-convergence-threat-model.md).
 
+### Dynamic Team Formation and Joint Work Contracts V1
+
+The opt-in `@agentplat/collective-runtime/team-formation` runtime forms an ad
+hoc roster when one Work domain needs several complementary roles or
+capabilities. It evaluates complete combinations under local coverage,
+diversity, budget and bounded-search policy instead of independently choosing
+one assignee at a time.
+
+```js
+import {
+  TeamFormationRuntimeV1,
+  createTeamFormationPolicyV1,
+} from "@agentplat/collective-runtime/team-formation";
+```
+
+A team proposal grants no authority. Activation requires an exact active
+individual Work Contract for every selected position, and the resulting joint
+contract never replaces those member leases, epochs or fencing tokens at an
+action boundary. Failed members are replaced under a predecessor-bound team
+epoch, while exact outcomes determine joint completion or failure.
+
+See the [implementation
+plan](./docs/collective-runtime/dynamic-team-formation-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0024-dynamic-team-formation-and-joint-work-contracts.md)
+and [threat
+model](./docs/security/dynamic-team-formation-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
@@ -278,7 +305,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | ------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `@agentplat/core`                           | IDs, metadata, lifecycle states, tenant context, envelopes and errors.               |
 | `@agentplat/framework`                      | High-level composition, safe local defaults and ephemeral quick runs.                |
-| `@agentplat/collective-runtime`             | Governed collectives, recovery and replicated execution checkpoints.                 |
+| `@agentplat/collective-runtime`             | Governed collectives, dynamic teams, recovery and replicated execution checkpoints.  |
 | `@agentplat/collective-membership`          | Joint-quorum membership epochs and overlapping signing-key rotation.                 |
 | `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.                 |
 | `@agentplat/collective-quorum`              | Signed peer quorum plus opt-in Byzantine-resilient collective agreement.             |
