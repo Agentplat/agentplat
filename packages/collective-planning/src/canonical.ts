@@ -143,6 +143,20 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "team-execution-exchange-payload",
   "team-execution-exchange-message",
   "team-execution-exchange-state",
+  "team-execution-continuity-availability",
+  "team-execution-continuity-checkpoint",
+  "team-execution-continuity-state",
+  "team-structure-template-position",
+  "team-structure-template",
+  "team-structure-template-catalog",
+  "team-structure-adaptation-policy",
+  "team-structure-observation",
+  "team-structure-adaptation-request",
+  "team-structure-adaptation-decision",
+  "team-structure-adaptation-state",
+  "team-structure-adaptation-handoff",
+  "team-structure-materialization",
+  "collective-peer-host-envelope",
 ]);
 
 export class CollectivePlanningValidationError extends Error {

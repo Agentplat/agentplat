@@ -626,6 +626,52 @@ Work Contracts, leases, epochs, fencing tokens and action controls remain
 mandatory at the effect boundary. Use the in-memory store only for tests and
 deterministic local simulations.
 
+## Team execution ownership continuity
+
+Import `@agentplat/collective-runtime/team-execution-continuity` when a team
+execution must survive permanent coordinator loss. The runtime binds each
+prepared execution checkpoint to the exact current `work_owner` holder,
+instance, generation, authority head and fencing token. Publication requires an
+availability certificate tied to the same membership configuration.
+
+A successor resolves and validates the latest certified checkpoint before
+import. Pending dispatches retain their existing identifiers, so a member or
+effect gateway can return the same durable result instead of repeating work.
+The injected execution and state ports must apply the supplied fence atomically
+at every durable CAS and effect boundary. With those fence-aware ports,
+ownership changes prevent a stale coordinator from committing new progress.
+The runtime consumes authority but does not elect an owner, move credentials or
+make an execution checkpoint an effect grant.
+
+## Outcome-driven team structure adaptation
+
+Import `@agentplat/collective-runtime/team-structure-adaptation` to choose the
+shape of a future team from an immutable local catalog. Observations are derived
+from validated execution state and contain bounded outcome metrics rather than
+raw model output or an arbitrary caller-provided reward.
+
+Deterministic integer updates, minimum evidence, exploration caps, cooldown,
+hysteresis and quarantine prevent one result from causing an unbounded change.
+The resulting selection is advisory for a future adaptation cycle. Its
+positions still pass through a fresh formation runtime at team epoch 1, which
+rechecks coverage, diversity, budget, eligibility and individual Work
+Contracts. Active teams are never changed in place.
+
+## Integrated collective peer host
+
+Import `@agentplat/collective-runtime/host` as the transport-neutral composition
+root for an operational peer. The host verifies or accepts verified Mesh
+envelopes, classifies them once and admits each message to exactly one durable
+subsystem. Unknown or ambiguous critical semantics fail closed, and an inbound
+message is acknowledged only after admission succeeds.
+
+`restore()`, bounded `runOnce()`, `start()`, `drain()` and `status()` control the
+host scheduler without taking ownership of subsystem lifecycle or CAS state.
+Optional command ports expose formation, execution, continuity and structure
+adaptation through one facade. Directory and topology freshness may pause
+dispatch but never replace membership or Work authority. HTTP, databases,
+provider SDKs and effect gateways remain outside this browser-safe package.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
