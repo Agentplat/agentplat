@@ -368,3 +368,16 @@ drains already accepted work.
 Importing any entrypoint performs no network, clock, storage or key
 operations. Clocks, message-ID sources, signers, keys and verification policy
 are supplied explicitly when a peer is registered.
+
+## Governed adaptive sparse overlay
+
+Import `@agentplat/mesh/adaptive-overlay` to refresh one peer's bounded sparse
+view from authenticated, content-free evidence. The locally installed policy
+binds eligible observers, independence groups, evidence lifetime and exclusion
+limits. A remote proposal or certificate cannot replace that policy.
+
+Only a current certificate whose signal/peer/group tuples cover the exact
+proposal may exclude a neighbor. The replacement view is regenerated locally
+from the existing topology seed; no global graph is accepted or retained.
+Revision-and-digest CAS, future/stale checks and an external monotonic head
+reject races, rollback and deleted-snapshot reinitialization.

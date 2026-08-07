@@ -838,3 +838,29 @@ evidence and return the rehydrated runtime state; the node processes the
 original envelope again through the normal inbound reducer. No synchronization
 payload bypasses admission or authority checks. `@agentplat/collective-sync`
 provides the reference operational adapter.
+
+## Replicated mission lifecycle continuity
+
+Import `@agentplat/collective-runtime/mission-continuity` to persist an exact
+governed mission state through `snapshot → replicate → checkpoint → takeover`.
+Stable operation IDs, certified replica availability, checkpoint lineage,
+authority epoch/fence bindings, revision-and-digest CAS and an external
+monotonic head make interrupted retries and rollback explicit. Takeover copies
+prepared and applied lifecycle receipts exactly; it never invokes an effect
+port or replays a confirmed effect.
+
+Production adapters provide immutable artifact custody, authenticated current
+authority, availability verification, atomic CAS plus monotonic-head advance,
+and destination restore CAS. The in-memory ports are local composition aids.
+
+## Attested mission-control continuity
+
+Import `@agentplat/collective-runtime/attested-mission-control` when the mission
+lifecycle should consume a long, externally verified health sequence. The
+adapter implements the ordinary control port and emits `continue` only after
+the configured contiguous healthy threshold, up to 10,000 decisions. Gaps,
+replay, equivocation, expiry, source changes, mission/epoch/fence changes and
+rollback reset progress to a conservative advisory pause or replan.
+
+The adapter stores only identifiers, counters and digests. It never executes
+the proposal, and source authentication remains an application-provided port.

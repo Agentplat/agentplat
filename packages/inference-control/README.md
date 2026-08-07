@@ -47,6 +47,8 @@ pnpm add @agentplat/inference-control@next
 - `@agentplat/inference-control/intervention` — capability-negotiated,
   content-free intervention gates for opaque APIs, token streams,
   representation sidecars, portable agents and multimodal action agents.
+- `@agentplat/inference-control/assessor-ensemble` — request-bound,
+  independent-group assessment across heterogeneous surfaces and modalities.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
@@ -265,3 +267,17 @@ These gates remain opt-in and point-in-time. They do not issue assessments or
 grants, replace idempotency/fencing, or claim atomic revocation after an
 external effect has started. The legacy synchronous-resolver helpers remain
 available unchanged for Alpha 3 compatibility.
+
+## Heterogeneous assessor ensemble
+
+Import `@agentplat/inference-control/assessor-ensemble` to combine bounded,
+request-bound votes from rule, model, classifier, representation and multimodal
+assessors. Policy requires both vote count and independent-group coverage for
+the requested surface and modalities. Missing, timed-out, conflicting,
+same-group divergent or uncovered evidence produces `unresolved`; the supplied
+operation gate dispatches only on an exact `allow` verdict.
+
+Invocations are prepared durably before assessor calls. Exact retries preserve
+their reservation, completed verdicts are idempotent, and an external
+monotonic anchor detects rollback. Independence labels and assessor quality
+remain deployment attestations rather than facts inferred by the runtime.

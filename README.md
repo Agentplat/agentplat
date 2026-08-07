@@ -419,6 +419,62 @@ evidence that a scale run occurred. See [ADR
 0035](./docs/adr/0035-sharded-simulation-scale-interoperability.md) and its
 [threat model](./docs/security/sharded-simulation-scale-interoperability-threat-model.md).
 
+### Replicated Mission Lifecycle Continuity V1
+
+`@agentplat/collective-runtime/mission-continuity` adds a durable
+`snapshot → replicate → checkpoint → takeover` path for the governed mission
+saga. Certified availability, exact authority/epoch/fence binding, checkpoint
+lineage, CAS and an external monotonic head preserve prepared and applied
+receipts without replaying effects. See [ADR
+0036](./docs/adr/0036-replicated-mission-lifecycle-continuity.md) and its
+[threat model](./docs/security/replicated-mission-lifecycle-continuity-threat-model.md).
+
+### Governed Adaptive Sparse Overlay V1
+
+`@agentplat/mesh/adaptive-overlay` refreshes one bounded local view only after
+locally governed, independently witnessed evidence is certified. Remote
+partitions cannot replace the local quorum policy, and future, stale,
+rolled-back or equivocal certificates fail closed. See [ADR
+0037](./docs/adr/0037-governed-adaptive-sparse-overlay.md) and its [threat
+model](./docs/security/governed-adaptive-sparse-overlay-threat-model.md).
+
+### Heterogeneous Assessor Ensemble V1
+
+`@agentplat/inference-control/assessor-ensemble` combines request-bound votes
+from heterogeneous evaluators with independent-group and modality coverage.
+Missing, conflicting, timed-out or uncovered evidence remains unresolved, and
+the supplied operation gate dispatches only on `allow`. See [ADR
+0038](./docs/adr/0038-heterogeneous-assessor-ensemble.md) and its [threat
+model](./docs/security/heterogeneous-assessor-ensemble-threat-model.md).
+
+### Attested Mission-Control Continuity V1
+
+`@agentplat/collective-runtime/attested-mission-control` requires as many as
+10,000 contiguous, verified, content-free health decisions before producing an
+advisory `continue`. Durable high-water state and a monotonic anchor reset
+safely across gaps, replay, restarts and authority changes. See [ADR
+0040](./docs/adr/0040-attested-mission-control-continuity.md) and its [threat
+model](./docs/security/attested-mission-control-continuity-threat-model.md).
+
+### Multi-Domain Environment Adapter Kit V1
+
+`@agentplat/mesh-sim` now registers physical, social, cyber and hybrid
+environment descriptors and exact scenario manifests. Its conformance runner
+checks requested-definition identity, deterministic observations, fenced
+effects, restore behavior and resource/population bounds without receiving
+evaluator verdicts. See [ADR
+0039](./docs/adr/0039-multi-domain-environment-adapter-kit.md) and its [threat
+model](./docs/security/multi-domain-environment-adapter-threat-model.md).
+
+### Verified Benchmark Registry and Leaderboard V1
+
+The simulation package also provides suite-specific, evaluator-verified
+benchmark submissions with source/artifact/build locks, paired baselines and
+derived metrics. Invalid, over-budget, duplicate and replayed-trace submissions
+are never ranked. See [ADR
+0041](./docs/adr/0041-verified-benchmark-registry-leaderboard.md) and its [threat
+model](./docs/security/verified-benchmark-registry-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
@@ -470,7 +526,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | ------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `@agentplat/core`                           | IDs, metadata, lifecycle states, tenant context, envelopes and errors.               |
 | `@agentplat/framework`                      | High-level composition, safe local defaults and ephemeral quick runs.                |
-| `@agentplat/collective-runtime`             | Governed collectives, dynamic teams, recovery and replicated execution checkpoints.  |
+| `@agentplat/collective-runtime`             | Governed missions, replicated continuity, attested control, teams and recovery.      |
 | `@agentplat/collective-membership`          | Joint-quorum membership epochs and overlapping signing-key rotation.                 |
 | `@agentplat/collective-membership-postgres` | Durable peer membership heads, votes and certificates in PostgreSQL.                 |
 | `@agentplat/collective-quorum`              | Signed peer quorum plus opt-in Byzantine-resilient collective agreement.             |
@@ -496,12 +552,12 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                        |
 | `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                              |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                   |
-| `@agentplat/inference-control`              | Inference gates plus context integrity, role alignment and handoff control.          |
+| `@agentplat/inference-control`              | Inference gates, heterogeneous assessor ensembles, context and role continuity.      |
 | `@agentplat/trust`                          | Scoped Evidence, deterministic Profiles, eligibility and quarantine.                 |
-| `@agentplat/mesh`                           | Coordination plus opt-in sparse overlays through 100,000 local-view peers.           |
+| `@agentplat/mesh`                           | Coordination plus governed adaptive sparse views through 100,000 peers.              |
 | `@agentplat/mesh-crypto`                    | SHA-256 and Ed25519 signing, verification and bounded key resolution.                |
 | `@agentplat/mesh-protocol`                  | Strict bounded wire parsing, validation and conformance fixtures.                    |
-| `@agentplat/mesh-sim`                       | Versioned faults, snapshots, invariants, trace digests and replay.                   |
+| `@agentplat/mesh-sim`                       | Multi-domain simulation, scale adapters, verified benchmarks, faults and replay.     |
 | `@agentplat/mesh-sim-local`                 | Node-local immutable campaign artifacts, slot commits and locks.                     |
 | `@agentplat/mesh-sim-postgres`              | Cross-host campaign custody with transactional leases and fencing.                   |
 | `@agentplat/tools`                          | Tool contracts and an in-memory tool registry.                                       |
