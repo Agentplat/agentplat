@@ -337,3 +337,24 @@ interaction and sparse-degree bounds. The additive
 bounded active/reserve view and exact outbound interaction quota without
 materializing the plan's global population or topology. Existing progressive
 scale V1 artifacts and digests are unchanged.
+
+## Sharded simulation and scale interoperability
+
+The root package also exports a transport-neutral environment bridge and three
+closed logical-peer profiles: 500/5,000 interactions, 5,000/50,000 and
+100,000/1,000,000. `createShardedSimulationAssignmentsV1()` partitions peers
+and interactions without materializing a global topology, while
+`shardedSimulationAssignmentForPeerV1()` resolves a peer's shard in constant
+time.
+
+Runner-visible ports cover partial observations, fenced effects, cross-shard
+message batches and opaque evaluator-owned checkpoints. Success, recovery and
+role-coherence metrics are available only through the separate evaluator port;
+a runner cannot supply those verdicts. The in-memory bridge is a reference
+composition surface, not a distributed deployment or scale claim.
+
+Fault schedules are closed, bounded inputs interpreted at the driver boundary.
+Failures, restarts, partitions, compromised or rogue actors and misleading or
+conflicting observations alter the simulated interaction path and every
+scheduled fault must be observed. External HTTP or gRPC bridges must return
+exact digest-bound envelopes and preserve durable checkpoint anchors.

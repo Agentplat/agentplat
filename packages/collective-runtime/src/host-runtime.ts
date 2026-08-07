@@ -12,6 +12,10 @@ import type {
   MechanismAllocationStateV1,
 } from "./mechanism-allocation-contracts.js";
 import type {
+  GovernedMissionRequestV1,
+  GovernedMissionStateV1,
+} from "./mission-lifecycle-contracts.js";
+import type {
   JointWorkContractV1,
   TeamActivationRequestV1,
   TeamFormationDecisionV1,
@@ -176,6 +180,12 @@ export class CollectivePeerHostRuntimeV1 implements CollectivePeerHostFacadeV1 {
         typeof options.coordinationControl.dispatchPending !== "function")
     )
       throw new TypeError("peer host coordination control port is invalid");
+    if (
+      options.missionLifecycle &&
+      (typeof options.missionLifecycle.advance !== "function" ||
+        typeof options.missionLifecycle.recover !== "function")
+    )
+      throw new TypeError("peer host mission lifecycle port is invalid");
 
     const known = options.knownCriticalExtensions ?? [...exchangeExtensions];
     if (new Set(known).size !== known.length)
@@ -267,6 +277,22 @@ export class CollectivePeerHostRuntimeV1 implements CollectivePeerHostFacadeV1 {
     if (!this.#options.coordinationControl)
       throw new Error("coordination_control_port_unavailable");
     return this.#options.coordinationControl.dispatchPending(logicalTimeMs);
+  }
+
+  async advanceMission(
+    request: GovernedMissionRequestV1,
+  ): Promise<GovernedMissionStateV1> {
+    if (!this.#options.missionLifecycle)
+      throw new Error("mission_lifecycle_port_unavailable");
+    return this.#options.missionLifecycle.advance(request);
+  }
+
+  async recoverMission(
+    request: GovernedMissionRequestV1,
+  ): Promise<GovernedMissionStateV1> {
+    if (!this.#options.missionLifecycle)
+      throw new Error("mission_lifecycle_port_unavailable");
+    return this.#options.missionLifecycle.recover(request);
   }
 
   async form(

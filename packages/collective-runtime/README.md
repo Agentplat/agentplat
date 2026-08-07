@@ -742,6 +742,27 @@ decision, assignment and effect-authority checks needed to enact the request.
 Production control stores require the same revision-and-digest CAS plus an
 external monotonic head; the in-memory store is not a rollback anchor.
 
+## Governed autonomous mission lifecycle
+
+Import `@agentplat/collective-runtime/mission-lifecycle` to compose planning,
+allocation, formation, execution observation and coordination control as one
+durable, bounded mission saga. The state is content-free: it retains exact
+scope, policy, request, operation, authorization and result digests rather than
+mission prompts or model output.
+
+Every external operation is prepared durably before invocation and carries a
+stable operation ID plus exact authority epoch and fencing coordinates. Restore
+reauthenticates applied authorizations and resumes pending operations through
+application-provided idempotent ports. Control output remains advisory until a
+separate reconfiguration port enacts the approved pause, restriction, role
+transition, reassignment, team adaptation or replanning action.
+
+The runtime enforces action, reconfiguration, transition and CAS budgets.
+Replanning, formation and execution changes return to their corresponding
+phase instead of being reported as completed. The optional peer-host facade
+exposes `advanceMission()` and `recoverMission()` without taking ownership of
+the underlying subsystem state or widening its authority.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

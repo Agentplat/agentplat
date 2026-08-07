@@ -383,6 +383,42 @@ output. See [ADR
 0032](./docs/adr/0032-integrated-coordination-control-loop.md) and its [threat
 model](./docs/security/integrated-coordination-control-loop-threat-model.md).
 
+### Governed Autonomous Mission Lifecycle V1
+
+The opt-in `@agentplat/collective-runtime/mission-lifecycle` runtime composes
+planning, allocation, team formation, execution observation, control and
+reconfiguration as one durable mission saga. Stable operation IDs,
+authorization verification, revision-and-digest CAS, logical-time monotonicity
+and bounded transition budgets make restart and retry behavior explicit.
+
+Control proposals remain advisory until an injected, fenced reconfiguration
+port enacts them. Pause, participation restriction, role transition,
+reassignment, team adaptation and replanning return the saga to the appropriate
+phase rather than silently completing it. The peer host exposes optional
+advance and recovery methods without becoming an authority source. See [ADR
+0033](./docs/adr/0033-governed-autonomous-mission-lifecycle.md) and its [threat
+model](./docs/security/governed-autonomous-mission-lifecycle-threat-model.md).
+
+### Heterogeneous Inference Intervention SDK V1
+
+The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact
+control capabilities across opaque API models, token streams, representation
+sidecars, portable agents and multimodal action agents. Trusted transformations
+and sidecar work require verified receipts; durable CAS reservations bind
+retries to one invocation while raw payloads remain volatile. See [ADR
+0034](./docs/adr/0034-heterogeneous-inference-intervention-sdk.md) and its
+[threat model](./docs/security/heterogeneous-inference-intervention-threat-model.md).
+
+### Sharded Simulation and Scale Interoperability V1
+
+`@agentplat/mesh-sim` exports sparse sharding, evaluator-owned checkpoint
+restore, cross-shard delivery and bounded fault injection for closed profiles
+up to 100,000 logical peers and 1,000,000 interactions. These contracts make
+external simulation engines pluggable; constructing a conformant plan is not
+evidence that a scale run occurred. See [ADR
+0035](./docs/adr/0035-sharded-simulation-scale-interoperability.md) and its
+[threat model](./docs/security/sharded-simulation-scale-interoperability-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
