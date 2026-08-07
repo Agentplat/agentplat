@@ -532,6 +532,75 @@ Use durable compare-and-swap storage in production. Formation requests, bids,
 rosters, outcomes and epoch history are bounded and contain no prompts, model
 outputs, credentials or hidden reasoning.
 
+## Autonomous team execution and causal replanning
+
+Import `@agentplat/collective-runtime/team-execution` to execute an activated
+team's position dependency graph without a central scheduler.
+
+```ts
+import {
+  InMemoryTeamExecutionArtifactPortV1,
+  InMemoryTeamExecutionStoreV1,
+  TeamExecutionRuntimeV1,
+  createTeamExecutionPolicyV1,
+} from "@agentplat/collective-runtime/team-execution";
+
+const executionPolicy = createTeamExecutionPolicyV1({
+  schemaVersion: 1,
+  policyId: "team-execution.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  requireReferencedCompletionArtifact: true,
+  requireAllowedControlForProgress: true,
+  limits: {
+    maximumPositions: 16,
+    maximumStepsPerPosition: 64,
+    maximumArtifactsPerStep: 8,
+    maximumArtifactsPerPosition: 64,
+    maximumArtifactDependencies: 64,
+    maximumArtifactBytes: 16_777_216,
+    maximumPeerMessagesPerStep: 64,
+    maximumTotalPeerMessages: 4_096,
+    maximumRecoveryCount: 8,
+    maximumHistoryEntries: 16,
+    maximumExecutionDurationMs: 86_400_000,
+    maximumStepTtlMs: 300_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const execution = new TeamExecutionRuntimeV1({
+  stateKey: "peer-a.team-execution",
+  runtimeId: "team-execution",
+  runtimeVersion: 1,
+  implementationId: "team-execution.default",
+  policy: executionPolicy,
+  executor: controlledPortableMemberExecutor,
+  artifacts: new InMemoryTeamExecutionArtifactPortV1(),
+  store: new InMemoryTeamExecutionStoreV1(),
+});
+```
+
+`start()` requires an exact active `TeamProposalV1` and
+`JointWorkContractV1`. `runStep()` first commits a content-addressed dispatch,
+checks every predecessor artifact locally, delegates to the configured member
+executor, publishes only durable artifact references and then settles the
+result. The portable-agent adapter composes existing provider-neutral sessions
+and their pre-step, post-output and pre-action controls.
+
+Failed, unsafe and expired steps produce a recovery signal that can be adapted
+into the existing team-reconfiguration flow. After a replacement is selected
+and activated, `rebind()` advances the execution epoch, retains the unaffected
+completed dependency subgraph and resets the failed position and all causal
+successors.
+
+The runtime does not execute tools or grant effect authority. A dispatch and a
+joint contract remain coordination data; action gateways must continue to
+validate the member's individual Work Contract, lease, epoch and fence. Use a
+durable compare-and-swap store and durable content-addressed artifact service
+in production. The included in-memory ports are for composition, tests and
+deterministic simulation.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
