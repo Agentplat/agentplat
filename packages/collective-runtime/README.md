@@ -462,6 +462,76 @@ The in-memory store is intended for composition, tests and deterministic
 simulation. Use a durable compare-and-swap store and a trustworthy local
 connectivity classifier in production.
 
+## Dynamic team formation and joint work contracts
+
+Import `@agentplat/collective-runtime/team-formation` when one unit of work
+requires several complementary roles or capabilities. The runtime selects a
+complete roster from bounded, locally eligible position bids without a global
+candidate registry or a central scheduler.
+
+```ts
+import {
+  InMemoryTeamFormationStoreV1,
+  TeamFormationRuntimeV1,
+  createTeamFormationPolicyV1,
+} from "@agentplat/collective-runtime/team-formation";
+
+const teamPolicy = createTeamFormationPolicyV1({
+  schemaVersion: 1,
+  policyId: "dynamic-teams.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  minimumDistinctPeers: 2,
+  minimumIndependenceGroups: 2,
+  maximumTotalBudgetUnits: 1_000,
+  requireDistinctPeerPerPosition: true,
+  limits: {
+    maximumPositions: 16,
+    maximumBidsPerPosition: 32,
+    maximumMembers: 16,
+    maximumSearchNodes: 100_000,
+    maximumReasonCodesPerDecision: 12,
+    maximumHistoryEntries: 32,
+    maximumRequestTtlMs: 300_000,
+    maximumTeamDurationMs: 86_400_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const teams = new TeamFormationRuntimeV1({
+  stateKey: "peer-a.team-formation",
+  formationId: "dynamic-team-formation",
+  formationVersion: 1,
+  implementationId: "dynamic-team-formation.default",
+  policy: teamPolicy,
+  store: new InMemoryTeamFormationStoreV1(),
+});
+```
+
+Capability-state decisions can be projected into team candidates, and
+authenticated Mesh bids can be projected into local position bids. Selection
+is an exhaustive deterministic search inside a policy-defined node budget. It
+optimizes the complete roster rather than independently choosing the highest
+bid for every position; if the bounded search cannot prove a result it emits no
+proposal.
+
+A `TeamProposalV1` is inert coordination data. `activate()` succeeds only when
+every selected position is backed by an exact, current individual
+`WorkContractV1`. The resulting `JointWorkContractV1` composes those bindings
+but never replaces them at an action boundary. Existing per-member assignment
+epochs, leases, fencing tokens and action budgets remain authoritative.
+
+Member failure is handled as a new team epoch. Unaffected members may retain
+their current individual contracts, while the replacement must complete the
+ordinary Mesh offer, award and acceptance flow. The new proposal names the
+previous joint contract and cannot reuse a failed member's authority. Member
+outcomes are content-free and result-bound; the team completes only when every
+current member reports success and fails closed on a failed or unsafe result.
+
+Use durable compare-and-swap storage in production. Formation requests, bids,
+rosters, outcomes and epoch history are bounded and contain no prompts, model
+outputs, credentials or hidden reasoning.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

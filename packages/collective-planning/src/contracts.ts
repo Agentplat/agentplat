@@ -103,6 +103,23 @@ export type PlanningDigestDomainV1 =
   | "strategy-convergence-decision"
   | "strategy-convergence-state"
   | "strategy-convergence-handoff"
+  | "team-formation-policy"
+  | "team-formation-scope"
+  | "team-position"
+  | "team-candidate"
+  | "team-position-bid"
+  | "team-formation-request"
+  | "team-identity"
+  | "team-member-identity"
+  | "team-member-selection"
+  | "team-proposal"
+  | "team-member-contract-binding"
+  | "joint-work-contract"
+  | "team-member-outcome"
+  | "team-formation-decision"
+  | "team-formation-state"
+  | "team-reconfiguration-request"
+  | "team-formation-handoff"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {
