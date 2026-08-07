@@ -601,6 +601,31 @@ durable compare-and-swap store and durable content-addressed artifact service
 in production. The included in-memory ports are for composition, tests and
 deterministic simulation.
 
+## Distributed team execution exchange
+
+Import `@agentplat/collective-runtime/team-execution-exchange` to carry team
+dispatches, artifact availability, results and recovery signals across peers.
+The exchange record is embedded in a signed Mesh envelope under the critical
+extension `agentplat.team-execution-exchange.v1`. Inbound extraction accepts
+only `VerifiedMeshEnvelope` values and then applies a separate local membership
+decision; a transport signature alone never grants team membership.
+
+Each sender owns an append-only causal stream. Out-of-order records remain in a
+bounded pending set, exact replay is idempotent, forks fail closed and a narrow
+recovery port can fetch missing authenticated predecessors after a partition.
+The runtime persists `ready`/`handled` inbox and `pending`/`sent` outbox states
+with compare-and-swap storage. Handlers and outbound publishers must use
+`messageId` as their durable idempotency key because a crash can repeat either
+external call before its local acknowledgement is committed.
+
+The member adapter resolves dependency artifacts, executes through the existing
+controlled member port and announces durable references before returning a
+result. The coordinator adapter verifies reference availability before calling
+`settleStep()`. Neither adapter grants tool or action authority: individual
+Work Contracts, leases, epochs, fencing tokens and action controls remain
+mandatory at the effect boundary. Use the in-memory store only for tests and
+deterministic local simulations.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
