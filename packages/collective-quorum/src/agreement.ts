@@ -9,3 +9,4 @@ export * from "./agreement-client.js";
 export * from "./agreement-transport.js";
 export * from "./agreement-http.js";
 export * from "./agreement-integrations.js";
+export * from "./collective-decision.js";

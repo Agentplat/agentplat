@@ -23,7 +23,10 @@ configured subsystems fairly; `restore`, `start`, `drain` and `status` provide a
 single scheduler lifecycle and status surface. Subsystem restoration and
 readiness remain the responsibility of their injected ports. Formation,
 execution, continuity and structure adaptation remain replaceable structural
-ports with their original authority semantics.
+ports with their original authority semantics. Certified decisions,
+mechanism-aware allocation and coordination control are additive optional ports
+exposed by the same facade; the host delegates to them without converting
+advisory output into assignment or effect authority.
 
 The host does not own a global plan, peer directory, keys, transport, database,
 model provider or effect authority.
