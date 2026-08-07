@@ -3,6 +3,22 @@ import type {
   VerifiedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
 import type { PlanningDigestV1 } from "@agentplat/collective-planning";
+import type { AgentPlatID } from "@agentplat/core";
+import type {
+  CollectiveDecisionCandidateV1,
+  CollectiveDecisionPortV1,
+  CollectiveDecisionV1,
+} from "./collective-decision-contracts.js";
+import type {
+  CoordinationControlEvidenceV1,
+  CoordinationControlPortV1,
+  CoordinationControlProposalV1,
+} from "./coordination-control-contracts.js";
+import type {
+  MechanismAllocationAdmittedEventV1,
+  MechanismAllocationPortV1,
+  MechanismAllocationStateV1,
+} from "./mechanism-allocation-contracts.js";
 import type {
   JointWorkContractV1,
   TeamActivationRequestV1,
@@ -154,6 +170,9 @@ export interface CollectivePeerHostOptionsV1 {
   readonly execution?: TeamExecutionPortV1;
   readonly continuity?: TeamExecutionContinuityPortV1;
   readonly structure?: CollectivePeerHostStructurePortsV1;
+  readonly decisions?: CollectiveDecisionPortV1;
+  readonly allocation?: MechanismAllocationPortV1;
+  readonly coordinationControl?: CoordinationControlPortV1;
 }
 
 export type CollectivePeerHostReceiveInputV1 =
@@ -187,6 +206,22 @@ export interface CollectivePeerHostDrainOutcomeV1 {
 }
 
 export interface CollectivePeerHostFacadeV1 {
+  decide(input: {
+    readonly decisionId: AgentPlatID;
+    readonly candidate: Omit<CollectiveDecisionCandidateV1, "candidateDigest">;
+    readonly logicalTimeMs: number;
+  }): Promise<CollectiveDecisionV1>;
+  allocate(
+    input: MechanismAllocationAdmittedEventV1,
+  ): Promise<MechanismAllocationStateV1>;
+  loadAllocationState(): Promise<MechanismAllocationStateV1>;
+  evaluateControl(input: {
+    readonly logicalTimeMs: number;
+    readonly evidence: readonly CoordinationControlEvidenceV1[];
+  }): Promise<CoordinationControlProposalV1>;
+  dispatchControl(
+    logicalTimeMs: number,
+  ): Promise<CoordinationControlProposalV1 | null>;
   form(request: TeamFormationRequestV1): Promise<TeamFormationDecisionV1>;
   activate(request: TeamActivationRequestV1): Promise<JointWorkContractV1>;
   execute(request: TeamExecutionStartRequestV1): Promise<TeamExecutionRecordV1>;

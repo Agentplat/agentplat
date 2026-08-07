@@ -329,6 +329,60 @@ plan](./docs/collective-runtime/integrated-collective-peer-host-v1-implementatio
 [architecture decision](./docs/adr/0029-integrated-collective-peer-host.md) and
 [threat model](./docs/security/integrated-collective-peer-host-threat-model.md).
 
+### Certified Collective Decision Plane V1
+
+The opt-in `@agentplat/collective-runtime/collective-decision` boundary applies
+one policy to plan, roster, takeover, structure, role and strategy decisions.
+Candidates bind scope, epoch, membership and payload digest; accepted heads use
+durable CAS and reject rollback or a conflicting value for the same decision
+slot. Local, evidence-backed and Byzantine-agreement certification modes are
+explicit and fail closed. Active heads and replay-protection tombstones are
+separately policy bounded.
+
+`@agentplat/collective-quorum/collective-decision` adapts the existing signed
+agreement protocol. It verifies the commit and current membership before
+issuing a portable decision certificate that retains the original proof digest.
+The decision remains coordination authority only and never becomes an action
+grant, lease or fencing token. See [ADR 0030](./docs/adr/0030-certified-collective-decision-plane.md)
+and its [threat model](./docs/security/certified-collective-decision-plane-threat-model.md).
+
+### Mechanism-Aware Mission Allocation V1
+
+The opt-in `@agentplat/collective-runtime/mechanism-allocation` runtime turns a
+peer-local accepted planning view into bounded semantic work slots and clears a
+distributed, non-monetary commit/reveal auction. Slot eligibility, dependencies,
+resource use, declared cost and budget, per-peer concentration and independence
+groups are enforced deterministically. Every event carries authenticated,
+membership-bound admission evidence and is reverified after restore.
+Equivocating bidders are excluded.
+
+The allocation is advisory. A complete result can be projected into the normal
+team-formation request, which still requires authenticated candidate evidence
+and individual Work Contracts. The projection rechecks both allocation and
+formation policy plus the original admissions. The limited incentive claim is
+anti-front-running under authenticated identities and binding commitments; V1
+does not claim strategy-proofness or universal collusion resistance. See [ADR
+0031](./docs/adr/0031-mechanism-aware-mission-allocation.md) and its [threat
+model](./docs/security/mechanism-aware-mission-allocation-threat-model.md).
+
+### Integrated Coordination-Control Loop V1
+
+The opt-in `@agentplat/collective-runtime/coordination-control` loop converts
+fresh, source-bound projections of role alignment, context integrity,
+uncertainty, Trust, capability and execution outcomes into typed proposals:
+continue, pause, restrict, realign, reassign, adapt the team or replan. Missing,
+stale, rolled-back or equivocating evidence produces a fail-closed pause.
+
+Cooldown and hysteresis limit oscillation while a recovery margin preserves
+bounded operational agility. Its durable outbox never treats expiry as delivery:
+unacknowledged expiry is recorded explicitly. `@agentplat/collective-runtime/host`
+exposes control, allocation and certified-decision ports through independent
+opt-in facade methods; applications explicitly route a proposal through the
+approval gate appropriate to that action. The host never auto-enacts advisory
+output. See [ADR
+0032](./docs/adr/0032-integrated-coordination-control-loop.md) and its [threat
+model](./docs/security/integrated-coordination-control-loop-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,

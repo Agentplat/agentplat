@@ -1,5 +1,17 @@
 import type { VerifiedMeshEnvelope } from "@agentplat/mesh-protocol";
 import type {
+  CollectiveDecisionCandidateV1,
+  CollectiveDecisionV1,
+} from "./collective-decision-contracts.js";
+import type {
+  CoordinationControlEvidenceV1,
+  CoordinationControlProposalV1,
+} from "./coordination-control-contracts.js";
+import type {
+  MechanismAllocationAdmittedEventV1,
+  MechanismAllocationStateV1,
+} from "./mechanism-allocation-contracts.js";
+import type {
   JointWorkContractV1,
   TeamActivationRequestV1,
   TeamFormationDecisionV1,
@@ -143,6 +155,27 @@ export class CollectivePeerHostRuntimeV1 implements CollectivePeerHostFacadeV1 {
       throw new TypeError(
         "peer host structure adaptation catalog binding is invalid",
       );
+    if (
+      options.decisions &&
+      (typeof options.decisions.prepare !== "function" ||
+        typeof options.decisions.certify !== "function" ||
+        typeof options.decisions.verify !== "function" ||
+        typeof options.decisions.commit !== "function" ||
+        typeof options.decisions.decide !== "function")
+    )
+      throw new TypeError("peer host collective decision port is invalid");
+    if (
+      options.allocation &&
+      (typeof options.allocation.submit !== "function" ||
+        typeof options.allocation.loadState !== "function")
+    )
+      throw new TypeError("peer host mechanism allocation port is invalid");
+    if (
+      options.coordinationControl &&
+      (typeof options.coordinationControl.evaluate !== "function" ||
+        typeof options.coordinationControl.dispatchPending !== "function")
+    )
+      throw new TypeError("peer host coordination control port is invalid");
 
     const known = options.knownCriticalExtensions ?? [...exchangeExtensions];
     if (new Set(known).size !== known.length)
@@ -193,6 +226,47 @@ export class CollectivePeerHostRuntimeV1 implements CollectivePeerHostFacadeV1 {
   async stop(): Promise<CollectivePeerHostStatusV1> {
     this.#lifecycle = "stopped";
     return this.status();
+  }
+
+  async decide(input: {
+    readonly decisionId: string;
+    readonly candidate: Omit<CollectiveDecisionCandidateV1, "candidateDigest">;
+    readonly logicalTimeMs: number;
+  }): Promise<CollectiveDecisionV1> {
+    if (!this.#options.decisions)
+      throw new Error("collective_decision_port_unavailable");
+    return this.#options.decisions.decide(input);
+  }
+
+  async allocate(
+    input: MechanismAllocationAdmittedEventV1,
+  ): Promise<MechanismAllocationStateV1> {
+    if (!this.#options.allocation)
+      throw new Error("mechanism_allocation_port_unavailable");
+    return this.#options.allocation.submit(input);
+  }
+
+  async loadAllocationState(): Promise<MechanismAllocationStateV1> {
+    if (!this.#options.allocation)
+      throw new Error("mechanism_allocation_port_unavailable");
+    return this.#options.allocation.loadState();
+  }
+
+  async evaluateControl(input: {
+    readonly logicalTimeMs: number;
+    readonly evidence: readonly CoordinationControlEvidenceV1[];
+  }): Promise<CoordinationControlProposalV1> {
+    if (!this.#options.coordinationControl)
+      throw new Error("coordination_control_port_unavailable");
+    return this.#options.coordinationControl.evaluate(input);
+  }
+
+  async dispatchControl(
+    logicalTimeMs: number,
+  ): Promise<CoordinationControlProposalV1 | null> {
+    if (!this.#options.coordinationControl)
+      throw new Error("coordination_control_port_unavailable");
+    return this.#options.coordinationControl.dispatchPending(logicalTimeMs);
   }
 
   async form(

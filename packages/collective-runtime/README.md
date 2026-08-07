@@ -672,6 +672,76 @@ adaptation through one facade. Directory and topology freshness may pause
 dispatch but never replace membership or Work authority. HTTP, databases,
 provider SDKs and effect gateways remain outside this browser-safe package.
 
+The host also accepts optional decision, mechanism-allocation and
+coordination-control ports. Their facade methods preserve the authority of the
+underlying subsystem: allocation and control remain advisory, while a certified
+collective decision remains coordination authority rather than an action grant,
+lease or fencing token. Facade methods are independent: the application must
+explicitly route each advisory proposal through its applicable approval gate.
+
+## Certified collective decisions
+
+Import `@agentplat/collective-runtime/collective-decision` to prepare, certify
+and durably accept content-free decisions for plan fragments, team rosters,
+execution takeovers, team structures, role transitions and strategy changes.
+Every candidate binds its scope, causal epoch, exact membership and external
+payload digest. Policy selects local, trusted-evidence or Byzantine-agreement
+certification independently for each decision kind.
+
+The runtime revalidates certificate bindings before an append-only CAS commit,
+requires the injected certification port to authenticate externally retained
+proofs, rejects a conflicting value for an accepted slot and preserves a
+logical-time high-water mark. Restore reauthenticates retained certificates;
+expired full records become permanent digest-bound tombstones. Policy bounds
+both active heads and tombstones and fails closed at either limit. Production
+stores must add a durable rollback-resistant integrity anchor; archival or state
+generation rotation must preserve replay protection for every compacted slot.
+The in-memory store is only for local composition and tests. The concrete
+signed-agreement adapter is exported by
+`@agentplat/collective-quorum/collective-decision`.
+
+## Mechanism-aware mission allocation
+
+Import `@agentplat/collective-runtime/mechanism-allocation` for bounded,
+non-monetary commit/reveal allocation over semantic work slots. The deterministic
+clear enforces capability eligibility, dependency readiness, declared cost and
+budget, resource limits, per-peer concentration and independence-group policy.
+Every event must carry an admission from the required provider-neutral verifier,
+binding actor peer, process instance, independence group, membership,
+capabilities and logical validity. Exact admitted events are retained so restore
+can reauthenticate them. Equivocating bidders are excluded, and a withdrawal
+reopens only affected slots in the next causal round.
+
+Production allocation stores must atomically compare the expected revision and
+state digest and retain a monotonic rollback-resistant head outside the mutable
+snapshot. The in-memory store is only for local composition and tests.
+
+`createMechanismDecompositionFromPlanningStateV1()` projects one peer's accepted
+planning view into an allocation proposal.
+`createTeamFormationRequestFromMechanismAllocationV1()` projects a complete
+allocation into the ordinary team-formation gate after rechecking the allocation
+policy, formation policy and every persisted admission. Neither adapter creates
+an assignment or effect authority; formation and individual Work Contracts
+remain mandatory.
+
+## Integrated coordination-control loop
+
+Import `@agentplat/collective-runtime/coordination-control` to reduce fresh,
+source-bound projections of role alignment, context integrity, uncertainty,
+Trust, capability and execution outcomes into a bounded advisory proposal. The
+closed action set can continue, pause dispatch, restrict participation, or
+request role transition, work reassignment, team adaptation or replanning.
+
+Missing, stale, rolled-back or equivocating evidence fails closed. Cooldown and
+hysteresis reduce oscillation. Policy pins a source-registry digest and a
+required resolution port authenticates every projection before use. The durable
+outbox retains a live pending proposal until its injected delivery port
+acknowledges it. An expired proposal becomes an explicit `expired` non-delivery
+record and is never reported as delivered. The recipient still owns the
+decision, assignment and effect-authority checks needed to enact the request.
+Production control stores require the same revision-and-digest CAS plus an
+external monotonic head; the in-memory store is not a rollback anchor.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

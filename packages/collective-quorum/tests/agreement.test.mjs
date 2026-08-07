@@ -22,7 +22,15 @@ import {
   verifyCollectiveAgreementCommitCertificateV1,
   verifyCollectiveAgreementJointReconfigurationCertificateV1,
   createCollectiveRoleRealignmentCertificationPortV1,
+  createCollectiveDecisionAgreementCertificationPortV1,
 } from "../dist/agreement.js";
+import {
+  createCollectiveDecisionCandidateV1,
+  createCollectiveDecisionCertificateV1,
+  createCollectiveDecisionPolicyV1,
+  createCollectiveDecisionScopeV1,
+  verifyCollectiveDecisionCertificateV1,
+} from "../../collective-runtime/dist/collective-decision.js";
 import {
   createRoleAlignmentRoleAnchorV1,
   createRoleAlignmentStateV1,
@@ -165,6 +173,134 @@ test("role realignment adapter verifies agreement and counts only Trust-eligible
   );
   assert.deepEqual(certificate.witnessIds, ["p0", "p1", "p2", "p3", "p4"]);
   assert.match(certificate.sourceCertificateDigest, /^sha256:[0-9a-f]{64}$/u);
+});
+
+test("collective decision adapter binds a verified agreement proof", async () => {
+  const fixture = await createFixture({
+    activePeerIds: ["p0", "p1", "p2", "p3", "p4"],
+  });
+  const kinds = [
+    "plan_fragment",
+    "team_roster",
+    "execution_takeover",
+    "team_structure",
+    "role_transition",
+    "strategy_change",
+  ];
+  const certificationModes = Object.fromEntries(
+    kinds.map((kind) => [kind, "byzantine_agreement"]),
+  );
+  const zeros = Object.fromEntries(kinds.map((kind) => [kind, 0]));
+  const minimumAttesters = Object.fromEntries(kinds.map((kind) => [kind, 5]));
+  const policy = createCollectiveDecisionPolicyV1({
+    schemaVersion: 1,
+    policyId: "collective.policy.1",
+    policyVersion: 1,
+    parentPolicyDigest: null,
+    certificationModes,
+    minimumTrustedEvidenceByKind: zeros,
+    minimumByzantineAttestersByKind: minimumAttesters,
+    trustedEvidenceSources: [],
+    maximumCandidateTtlMs: 1_000,
+    maximumCertificateTtlMs: 500,
+    maximumAcceptedHeads: 16,
+    maximumCompactedHeads: 64,
+    maximumCommitAttempts: 4,
+  });
+  const scope = createCollectiveDecisionScopeV1({
+    tenantId: "tenant.1",
+    meshId: "mesh.1",
+    policyDomainId: "policy.1",
+    missionIntentId: "mission.1",
+    objectiveId: "objective.1",
+    workItemId: "work.1",
+    workItemRevision: 1,
+  });
+  const candidate = createCollectiveDecisionCandidateV1({
+    schemaVersion: 1,
+    candidateId: "candidate.1",
+    decisionKind: "team_roster",
+    scope,
+    epoch: 1,
+    membershipDigest: fixture.membership.configurationDigest,
+    membershipMemberIds: fixture.membership.validators
+      .map((validator) => validator.peerId)
+      .sort(),
+    proposerId: "p0",
+    payloadDigest: digest("a"),
+    preparedAtLogicalMs: 90,
+    expiresAtLogicalMs: 500,
+  });
+  const certification = createCollectiveDecisionAgreementCertificationPortV1({
+    policyDomainId: "policy.1",
+    issuerId: "p0",
+    agreement: fixture.client("p0"),
+    repository: fixture.repositories.p0,
+    membership: fixture.membershipPort,
+    resolver: fixture.resolver,
+    clock: { now: () => ({ wallTime, logicalTimeMs: 100 }) },
+    coordinates: {
+      resolve: () => ({ height: 1, round: 0, previousCommitDigest: null }),
+    },
+  });
+
+  const certificate = await certification.certify({ candidate, policy });
+  assert.equal(certificate.certificationMode, "byzantine_agreement");
+  assert.equal(
+    certificate.certificationProofDigest.startsWith("sha256:"),
+    true,
+  );
+  assert.deepEqual(certificate.attesterIds, ["p0", "p1", "p2", "p3", "p4"]);
+  assert.equal(
+    verifyCollectiveDecisionCertificateV1({
+      candidate,
+      certificate,
+      policy,
+      logicalTimeMs: 100,
+    }).certificateDigest,
+    certificate.certificateDigest,
+  );
+  assert.equal(
+    await certification.verify({
+      candidate,
+      certificate,
+      policy,
+      logicalTimeMs: 100,
+    }),
+    true,
+  );
+  const tamperedInput = {
+    ...certificate,
+    certificationProofDigest: digest("b"),
+  };
+  delete tamperedInput.certificateDigest;
+  const tampered = createCollectiveDecisionCertificateV1(tamperedInput);
+  assert.equal(
+    await certification.verify({
+      candidate,
+      certificate: tampered,
+      policy,
+      logicalTimeMs: 100,
+    }),
+    false,
+  );
+  const forgedEnvelopeInput = {
+    ...certificate,
+    issuerId: "p1",
+    expiresAtLogicalMs: certificate.expiresAtLogicalMs + 1,
+  };
+  delete forgedEnvelopeInput.certificateDigest;
+  const forgedEnvelope =
+    createCollectiveDecisionCertificateV1(forgedEnvelopeInput);
+  assert.equal(
+    await certification.verify({
+      candidate,
+      certificate: forgedEnvelope,
+      policy,
+      logicalTimeMs: 100,
+    }),
+    false,
+  );
 });
 
 test("fewer than 2f+1 validators cannot manufacture a commit", async () => {

@@ -74,6 +74,16 @@ signers count as role-certification witnesses. Agreement never transports role
 instructions or grants action authority. See [Adaptive Role Realignment
 V1](../../docs/inference-control/adaptive-role-realignment-v1.md).
 
+The `@agentplat/collective-quorum/collective-decision` entry point adapts a
+cryptographically verified agreement commit to the generic certified-decision
+port in `@agentplat/collective-runtime`. It requires an exact current membership
+match, derives the decision slot from scope, kind and epoch, and retains the
+agreement certificate digest plus sorted precommit attesters. The adapter never
+loads the external decision payload and does not grant effect authority. Its
+required agreement repository re-resolves the exact persisted commit whenever a
+decision is committed or restored, so a caller-supplied proof digest cannot
+bypass cryptographic verification.
+
 ## Collective trust consensus (opt in)
 
 `@agentplat/collective-quorum/trust-consensus` certifies one scoped Trust

@@ -352,6 +352,78 @@ test("concrete continuity and adaptation ports are invoked and their failures pr
   await assert.rejects(failing.select(selection), /selection_failed/);
 });
 
+test("decision, admitted allocation, and control ports remain explicit host facade calls", async () => {
+  const calls = [];
+  const decisionInput = {
+    decisionId: "decision-a",
+    candidate: { candidateId: "candidate-a" },
+    logicalTimeMs: 10,
+  };
+  const admittedAllocation = {
+    event: {
+      kind: "clear",
+      clearingPeerId: "peer-a",
+      clearingInstanceId: "peer-a-1",
+      clearingIndependenceGroupId: "group-a",
+      logicalTimeMs: 11,
+    },
+    admission: { admissionId: "admission-a" },
+  };
+  const evidence = [{ evidenceId: "evidence-a" }];
+  const runtime = host({
+    decisions: {
+      prepare: (input) => input,
+      certify: async () => ({}),
+      verify: async () => ({}),
+      commit: async () => ({}),
+      decide: async (input) => {
+        calls.push(["decide", input]);
+        return { decisionId: input.decisionId };
+      },
+    },
+    allocation: {
+      allocationId: "allocation-a",
+      allocationVersion: 1,
+      implementationId: "allocation.default",
+      policyDigest: sha("d"),
+      submit: async (input) => {
+        calls.push(["allocate", input]);
+        return { revision: 1 };
+      },
+      loadState: async () => ({ revision: 1 }),
+    },
+    coordinationControl: {
+      evaluate: async (input) => {
+        calls.push(["control", input]);
+        return { proposalId: "proposal-a" };
+      },
+      dispatchPending: async (logicalTimeMs) => {
+        calls.push(["dispatch-control", logicalTimeMs]);
+        return { proposalId: "proposal-a" };
+      },
+    },
+  });
+
+  assert.deepEqual(await runtime.decide(decisionInput), {
+    decisionId: "decision-a",
+  });
+  assert.deepEqual(await runtime.allocate(admittedAllocation), { revision: 1 });
+  assert.deepEqual(await runtime.loadAllocationState(), { revision: 1 });
+  assert.deepEqual(
+    await runtime.evaluateControl({ logicalTimeMs: 12, evidence }),
+    { proposalId: "proposal-a" },
+  );
+  assert.deepEqual(await runtime.dispatchControl(13), {
+    proposalId: "proposal-a",
+  });
+  assert.deepEqual(calls, [
+    ["decide", decisionInput],
+    ["allocate", admittedAllocation],
+    ["control", { logicalTimeMs: 12, evidence }],
+    ["dispatch-control", 13],
+  ]);
+});
+
 test("typed structure selection materializes an approved template into real formation", async () => {
   const template = createTeamStructureTemplateV1({
     schemaVersion: 1,
