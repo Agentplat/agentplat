@@ -281,6 +281,54 @@ plan](./docs/collective-runtime/autonomous-team-execution-v1-implementation-plan
 and [threat
 model](./docs/security/autonomous-team-execution-threat-model.md).
 
+### Team Execution Ownership Continuity V1
+
+The opt-in `@agentplat/collective-runtime/team-execution-continuity` runtime
+binds coordinator progress to the current Work owner and a certified,
+content-addressed execution checkpoint. A successor can import that exact state
+and replay pending dispatches with their original identifiers, while stale
+coordinators and forked checkpoints fail closed.
+
+The capability adds no leader election or effect authority. Applications
+provide the current authority decision, durable checkpoint availability and
+shared effect idempotency.
+
+See the [implementation
+plan](./docs/collective-runtime/team-execution-ownership-continuity-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0027-team-execution-ownership-continuity.md)
+and [threat
+model](./docs/security/team-execution-ownership-continuity-threat-model.md).
+
+### Outcome-Driven Team Structure Adaptation V1
+
+The opt-in `@agentplat/collective-runtime/team-structure-adaptation` runtime
+learns a bounded local preference among policy-approved team structures from
+validated execution outcomes. It can change the positions and dependency shape
+proposed for a future team, but cannot mutate an active team or bypass ordinary
+formation, eligibility, budget or Work Contract checks.
+
+See the [implementation
+plan](./docs/collective-runtime/outcome-driven-team-structure-adaptation-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0028-outcome-driven-team-structure-adaptation.md)
+and [threat
+model](./docs/security/team-structure-adaptation-threat-model.md).
+
+### Integrated Collective Peer Host V1
+
+The opt-in `@agentplat/collective-runtime/host` facade gives one peer a single
+routing and worker lifecycle around independent collective runtimes. Verified
+messages follow exactly one durable route, per-cycle limits prevent starvation
+and stale topology pauses dispatch without granting or widening authority.
+Subsystem restoration and readiness remain owned by their injected ports.
+
+Transport, discovery, persistence, model providers and effect execution remain
+application-owned ports.
+
+See the [implementation
+plan](./docs/collective-runtime/integrated-collective-peer-host-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0029-integrated-collective-peer-host.md) and
+[threat model](./docs/security/integrated-collective-peer-host-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
