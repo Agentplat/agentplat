@@ -254,6 +254,33 @@ plan](./docs/collective-runtime/dynamic-team-formation-v1-implementation-plan.md
 and [threat
 model](./docs/security/dynamic-team-formation-threat-model.md).
 
+### Autonomous Team Execution and Causal Replanning V1
+
+The opt-in `@agentplat/collective-runtime/team-execution` runtime executes an
+activated team's dependency graph through controlled portable-agent sessions.
+It persists an idempotent dispatch before external work, exchanges only durable
+content references, and unlocks a position only after its dependencies are
+complete and locally available.
+
+```js
+import {
+  TeamExecutionRuntimeV1,
+  createTeamExecutionPolicyV1,
+} from "@agentplat/collective-runtime/team-execution";
+```
+
+A failed, unsafe or expired position emits an exact causal recovery signal.
+The existing formation runtime can replace that member under a new team epoch;
+rebind retains unaffected completed work and invalidates the failed downstream
+closure. Dispatches and joint contracts remain coordination data and never
+replace an individual Work Contract at an action gateway.
+
+See the [implementation
+plan](./docs/collective-runtime/autonomous-team-execution-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0025-autonomous-team-execution-and-causal-replanning.md)
+and [threat
+model](./docs/security/autonomous-team-execution-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,

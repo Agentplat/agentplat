@@ -72,6 +72,7 @@
     "verify:collective-planning-closed-loop": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop.mjs",
     "verify:collective-closed-loop-resilience": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop-resilience.mjs",
     "verify:team-formation-pack": "node scripts/pack-consumers/team-formation.mjs",
+    "verify:team-execution-pack": "node scripts/pack-consumers/team-execution.mjs",
     "verify:registry-consumer": "node scripts/verify-registry-consumer.mjs",
     "verify:packed-postgres-consumer": "pnpm --filter @agentplat/collective-control-postgres... --filter @agentplat/mesh-conformance... build && node scripts/verify-packed-postgres-consumer.mjs",
     "version:set": "node scripts/set-version.mjs",
