@@ -397,6 +397,71 @@ tests and reproducible simulation. The optional CollectiveSync adapter maps
 the same signed attestation stream into the existing authenticated causal
 replication protocol; sparse-overlay gossip announces only content digests.
 
+## Decentralized strategy convergence and stability
+
+Import `@agentplat/collective-runtime/strategy-convergence` to turn locally
+validated evidence certificates into stable, short-lived recommendations for
+local strategy adaptation.
+
+```ts
+import {
+  InMemoryStrategyConvergenceStoreV1,
+  StrategyConvergenceRuntimeV1,
+  createStrategyConvergencePolicyV1,
+} from "@agentplat/collective-runtime/strategy-convergence";
+
+const convergencePolicy = createStrategyConvergencePolicyV1({
+  schemaVersion: 1,
+  policyId: "strategy-convergence.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  minimumConfidenceBps: 7_500,
+  minimumDistinctPeers: 3,
+  minimumDistinctIndependenceGroups: 3,
+  minimumStableCycles: 3,
+  recoveryStableCycles: 5,
+  improvementMarginBps: 750,
+  diversityPreservationMarginBps: 500,
+  minimumCycleIntervalMs: 30_000,
+  cooldownDurationMs: 300_000,
+  oscillationWindowMs: 900_000,
+  maximumTransitionsPerOscillationWindow: 3,
+  maximumPriorInfluenceBps: 2_000,
+  recommendationTtlMs: 60_000,
+  limits: {
+    maximumScopes: 256,
+    maximumStrategiesPerScope: 16,
+    maximumObservationsPerCycle: 128,
+    maximumHistoryPerScope: 64,
+    maximumSourceIdsPerObservation: 128,
+    maximumReasonCodesPerDecision: 12,
+    maximumObservationTtlMs: 86_400_000,
+    maximumFutureSkewMs: 5_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const convergence = new StrategyConvergenceRuntimeV1({
+  stateKey: "peer-a.strategy-convergence",
+  controllerId: "strategy-convergence",
+  controllerVersion: 1,
+  implementationId: "strategy-convergence.default",
+  policy: convergencePolicy,
+  store: new InMemoryStrategyConvergenceStoreV1(),
+});
+```
+
+Applications project certificates from the evidence exchange into a cycle and
+provide only strategies already eligible under local catalog and safety
+policy. Partitioned, divergent, oscillating, unsafe and insufficient views do
+not emit a prior. A credible current strategy inside the diversity margin is
+retained, and a different leader must survive the configured time, hysteresis
+and recovery windows before it can be recommended.
+
+The in-memory store is intended for composition, tests and deterministic
+simulation. Use a durable compare-and-swap store and a trustworthy local
+connectivity classifier in production.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral

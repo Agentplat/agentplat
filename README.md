@@ -201,6 +201,32 @@ plan](./docs/collective-runtime/peer-to-peer-strategy-evidence-exchange-v1-imple
 and [threat
 model](./docs/security/peer-to-peer-strategy-evidence-exchange-threat-model.md).
 
+### Decentralized Strategy Convergence and Stability V1
+
+The opt-in `@agentplat/collective-runtime/strategy-convergence` controller
+turns compatible evidence certificates into stable local recommendations.
+Hysteresis, minimum cycle intervals, improvement margins, cooldown, oscillation
+guards and partition recovery prevent transient collective signals from
+causing uncontrolled strategy churn.
+
+```js
+import {
+  StrategyConvergenceRuntimeV1,
+  createStrategyConvergencePolicyV1,
+} from "@agentplat/collective-runtime/strategy-convergence";
+```
+
+Every recommendation remains advisory and is limited to a strategy already
+admitted by the local catalog and safety policy. Credible near-optimal local
+strategies are preserved to retain diversity; partitioned, divergent,
+oscillating, unsafe or insufficient views provide no positive prior.
+
+See the [implementation
+plan](./docs/collective-runtime/decentralized-strategy-convergence-stability-v1-implementation-plan.md),
+[architecture decision](./docs/adr/0023-decentralized-strategy-convergence-and-stability.md)
+and [threat
+model](./docs/security/decentralized-strategy-convergence-threat-model.md).
+
 ### Evidence and Trust Alpha 4
 
 `0.3.0-alpha.4` adds provider-neutral, deterministic Evidence lifecycle,
