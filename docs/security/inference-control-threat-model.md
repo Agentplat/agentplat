@@ -113,6 +113,8 @@ storage access control and encryption. Redacted projections are not restorable.
 | Context instruction injection  | Closed zones; untrusted content is data; explicit local promotion only              | Hostile user/peer/tool/retrieval fixtures      |
 | Policy or Objective escalation | Local immutable ceilings; remote constraints may narrow only                        | Expansion and revision tests                   |
 | Capability confusion           | Separate control capabilities; pure fail-closed negotiation                         | Full policy/capability matrix                  |
+| Gate rebinding                 | Capture checkpoint/operation invokers at controller construction                    | Patch and options-rebinding adversarial tests  |
+| Horizon ignored or refilled    | Non-refilling shortened budget consumed adjacent to inference/dispatch/effect        | Exact-limit and limit-plus-one tests           |
 | Native-tool bypass             | Declare unavailable interception; reject before provider invocation                 | Provider-native tool scenario                  |
 | Premature output release       | Buffered high-risk mode and causal release heads                                    | Unsafe output and late-assessment scenarios    |
 | Irretractable incremental leak | Prospective semantics, accepted-prefix ledger, effective local interruption         | Token-before-deny and ignored-cancel scenarios |
@@ -140,6 +142,11 @@ storage access control and encryption. Redacted projections are not restorable.
   promotion that creates a new provenance-bound entry.
 - No missing provider capability degrades silently into weaker enforcement.
 - No provider invocation occurs before every required pre-run check accepts.
+- No construction-bound intervention gate can be replaced by later property,
+  options-object or subclass rebinding.
+- No inference, tool dispatch or protected-effect attempt proceeds after an
+  active shortened semantic horizon reaches zero; repeated shortened decisions
+  cannot refill the remaining budget.
 - No buffered output or tool call is released before its exact current
   assessment accepts.
 - No late event can release output after cancellation or another terminal head.

@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_telemetry_delivery_receipts;

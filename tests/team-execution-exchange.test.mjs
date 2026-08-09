@@ -532,6 +532,7 @@ test("member and coordinator bridges preserve artifact-before-result settlement"
     reasonCode: "controls_allowed",
     sourceEvidenceDigest: digest("control-source"),
     evaluatedAtLogicalMs: 22,
+    validUntilLogicalMs: dispatch.validUntilLogicalMs,
   });
   const result = createTeamExecutionStepResultV1({
     dispatch,

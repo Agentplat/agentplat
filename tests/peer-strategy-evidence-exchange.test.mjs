@@ -119,10 +119,16 @@ async function attestation({
     binding: bindingInput,
     catalogDigest: digest(`catalog-${peerId}`),
     localPolicyDigest: digest(`local-policy-${peerId}`),
-    selectionDecisionDigest: digest(`selection-${peerId}-${sequence}-${metricValue}`),
+    selectionDecisionDigest: digest(
+      `selection-${peerId}-${sequence}-${metricValue}`,
+    ),
     feedbackBatchDigest: digest(`batch-${peerId}-${sequence}-${metricValue}`),
-    feedbackDecisionDigest: digest(`feedback-${peerId}-${sequence}-${metricValue}`),
-    feedbackSignalDigests: [digest(`signal-${peerId}-${sequence}-${metricValue}`)],
+    feedbackDecisionDigest: digest(
+      `feedback-${peerId}-${sequence}-${metricValue}`,
+    ),
+    feedbackSignalDigests: [
+      digest(`signal-${peerId}-${sequence}-${metricValue}`),
+    ],
     outcome,
     metrics: metrics(metricValue),
     confidenceBps,
@@ -133,7 +139,12 @@ async function attestation({
   });
 }
 
-function runtime({ currentEligibility, groupFor, stateKey = "evidence-state", policyRecord = policy() } = {}) {
+function runtime({
+  currentEligibility,
+  groupFor,
+  stateKey = "evidence-state",
+  policyRecord = policy(),
+} = {}) {
   const store = new InMemoryPeerStrategyEvidenceStoreV1(policyRecord);
   const eligible = currentEligibility ?? new Set();
   return {
@@ -146,12 +157,15 @@ function runtime({ currentEligibility, groupFor, stateKey = "evidence-state", po
       policy: policyRecord,
       eligibility: {
         async evaluate({ attestation: current }) {
-          const admitted = eligible.size === 0 || eligible.has(current.issuerPeerId);
+          const admitted =
+            eligible.size === 0 || eligible.has(current.issuerPeerId);
           return {
             schemaVersion: 1,
             attestationDigest: current.attestationDigest,
             disposition: admitted ? "eligible" : "restricted",
-            decisionDigest: digest(`eligibility-${current.attestationDigest}-${admitted}`),
+            decisionDigest: digest(
+              `eligibility-${current.attestationDigest}-${admitted}`,
+            ),
             expiresAtLogicalMs: 200,
           };
         },
@@ -172,28 +186,51 @@ function runtime({ currentEligibility, groupFor, stateKey = "evidence-state", po
 }
 
 test("creates canonical cohort, binding and policy records", () => {
-  assert.equal(cohort.cohortDigest, createPeerStrategyEvidenceCohortV1({
-    tenantId: "tenant", meshId: "mesh", policyDomainId: "policy-domain",
-    missionIntentId: "mission", objectiveId: "objective", contextClassDigest: digest("context-class"),
-  }).cohortDigest);
+  assert.equal(
+    cohort.cohortDigest,
+    createPeerStrategyEvidenceCohortV1({
+      tenantId: "tenant",
+      meshId: "mesh",
+      policyDomainId: "policy-domain",
+      missionIntentId: "mission",
+      objectiveId: "objective",
+      contextClassDigest: digest("context-class"),
+    }).cohortDigest,
+  );
   assert.equal(binding.operation, "offer_routing");
   assert.equal(policy().policy.feedbackSchemaDigest, feedbackSchemaDigest);
   const { bindingDigest, ...bindingInput } = binding;
-  assert.throws(() => createPeerStrategyEvidenceBindingV1({
-    ...bindingInput,
-    feedbackSchemaDigest: "sha256:not-a-digest",
-  }), /invalid/u);
+  assert.throws(
+    () =>
+      createPeerStrategyEvidenceBindingV1({
+        ...bindingInput,
+        feedbackSchemaDigest: "sha256:not-a-digest",
+      }),
+    /invalid/u,
+  );
 });
 
 test("Ed25519 attestations verify and tampering is rejected", async () => {
   const keys = await keyPair();
   const signed = await attestation({ keys });
-  assert.equal((await verifySignedPeerStrategyOutcomeAttestationV1({
-    attestation: signed, publicKey: keys.publicKey, crypto,
-  }))?.attestationDigest, signed.attestationDigest);
-  assert.equal(await verifySignedPeerStrategyOutcomeAttestationV1({
-    attestation: { ...signed, confidenceBps: 1 }, publicKey: keys.publicKey, crypto,
-  }), null);
+  assert.equal(
+    (
+      await verifySignedPeerStrategyOutcomeAttestationV1({
+        attestation: signed,
+        publicKey: keys.publicKey,
+        crypto,
+      })
+    )?.attestationDigest,
+    signed.attestationDigest,
+  );
+  assert.equal(
+    await verifySignedPeerStrategyOutcomeAttestationV1({
+      attestation: { ...signed, confidenceBps: 1 },
+      publicKey: keys.publicKey,
+      crypto,
+    }),
+    null,
+  );
 });
 
 test("the reference eligibility gate binds membership, signature, and local Trust", async () => {
@@ -234,10 +271,12 @@ test("the reference eligibility gate binds membership, signature, and local Trus
     },
   };
   assert.equal(
-    (await gate.evaluate({
-      attestation: invalidSignature,
-      logicalTimeMs: 20,
-    })).disposition,
+    (
+      await gate.evaluate({
+        attestation: invalidSignature,
+        logicalTimeMs: 20,
+      })
+    ).disposition,
     "ineligible",
   );
 });
@@ -246,37 +285,91 @@ test("admission is causal, replay-safe, bounded by TTL and rejects equivocation"
   const keys = await keyPair();
   const { exchange } = runtime();
   const first = await attestation({ keys, peerId: "peer-a" });
-  assert.equal((await exchange.admit({ attestation: first, logicalTimeMs: 20 })).status, "admitted");
-  assert.equal((await exchange.admit({ attestation: first, logicalTimeMs: 20 })).status, "duplicate");
+  assert.equal(
+    (await exchange.admit({ attestation: first, logicalTimeMs: 20 })).status,
+    "admitted",
+  );
+  assert.equal(
+    (await exchange.admit({ attestation: first, logicalTimeMs: 20 })).status,
+    "duplicate",
+  );
 
-  const second = await attestation({ keys, peerId: "peer-a", sequence: 2, predecessorAttestationDigest: first.attestationDigest });
-  const gap = await attestation({ keys, peerId: "peer-a", sequence: 3, predecessorAttestationDigest: second.attestationDigest });
-  assert.equal((await exchange.admit({ attestation: gap, logicalTimeMs: 20 })).status, "pending_predecessor");
+  const second = await attestation({
+    keys,
+    peerId: "peer-a",
+    sequence: 2,
+    predecessorAttestationDigest: first.attestationDigest,
+  });
+  const gap = await attestation({
+    keys,
+    peerId: "peer-a",
+    sequence: 3,
+    predecessorAttestationDigest: second.attestationDigest,
+  });
+  assert.equal(
+    (await exchange.admit({ attestation: gap, logicalTimeMs: 20 })).status,
+    "pending_predecessor",
+  );
   assert.equal((await exchange.loadState()).pendingAttestations.length, 1);
 
-  assert.equal((await exchange.admit({ attestation: second, logicalTimeMs: 20 })).status, "admitted");
+  assert.equal(
+    (await exchange.admit({ attestation: second, logicalTimeMs: 20 })).status,
+    "admitted",
+  );
   const converged = await exchange.loadState();
   assert.equal(converged.pendingAttestations.length, 0);
   assert.equal(converged.sourceHeads[0].issuerSequence, 3);
-  const fork = await attestation({ keys, peerId: "peer-a", sequence: 2, predecessorAttestationDigest: first.attestationDigest, metricValue: 800_000 });
-  assert.equal((await exchange.admit({ attestation: fork, logicalTimeMs: 20 })).status, "rejected");
+  const fork = await attestation({
+    keys,
+    peerId: "peer-a",
+    sequence: 2,
+    predecessorAttestationDigest: first.attestationDigest,
+    metricValue: 800_000,
+  });
+  assert.equal(
+    (await exchange.admit({ attestation: fork, logicalTimeMs: 20 })).status,
+    "rejected",
+  );
   const quarantined = await exchange.loadState();
   assert.equal(quarantined.sourceHeads[0].equivocated, true);
   assert.equal(
-    quarantined.attestations.some(({ issuerPeerId }) => issuerPeerId === "peer-a"),
+    quarantined.attestations.some(
+      ({ issuerPeerId }) => issuerPeerId === "peer-a",
+    ),
     false,
   );
 
-  const expired = await attestation({ keys, peerId: "peer-b", expiresAtLogicalMs: 19 });
-  const expiredDecision = await exchange.admit({ attestation: expired, logicalTimeMs: 20 });
+  const expired = await attestation({
+    keys,
+    peerId: "peer-b",
+    expiresAtLogicalMs: 19,
+  });
+  const expiredDecision = await exchange.admit({
+    attestation: expired,
+    logicalTimeMs: 20,
+  });
   assert.equal(expiredDecision.status, "rejected");
   assert.ok(expiredDecision.reasonCodes.includes("expired"));
 
-  await assert.rejects(attestation({ keys, peerId: "peer-schema", schemaVersion: 2 }), /schema/u);
+  await assert.rejects(
+    attestation({ keys, peerId: "peer-schema", schemaVersion: 2 }),
+    /schema/u,
+  );
   const { bindingDigest, ...bindingInput } = binding;
-  const otherBinding = createPeerStrategyEvidenceBindingV1({ ...bindingInput, feedbackSchemaDigest: digest("other-schema") });
-  const mismatched = await attestation({ keys, peerId: "peer-c", bindingInput: otherBinding });
-  assert.equal((await exchange.admit({ attestation: mismatched, logicalTimeMs: 20 })).status, "rejected");
+  const otherBinding = createPeerStrategyEvidenceBindingV1({
+    ...bindingInput,
+    feedbackSchemaDigest: digest("other-schema"),
+  });
+  const mismatched = await attestation({
+    keys,
+    peerId: "peer-c",
+    bindingInput: otherBinding,
+  });
+  assert.equal(
+    (await exchange.admit({ attestation: mismatched, logicalTimeMs: 20 }))
+      .status,
+    "rejected",
+  );
 });
 
 test("duplicate replay drains a durable ready successor after restart", async () => {
@@ -314,7 +407,10 @@ test("duplicate replay drains a durable ready successor after restart", async ()
     predecessorStateDigest: current.predecessorStateDigest,
   });
   assert.equal(
-    await store.save({ state: interrupted, expectedRevision: current.revision }),
+    await store.save({
+      state: interrupted,
+      expectedRevision: current.revision,
+    }),
     true,
   );
   assert.equal(
@@ -355,6 +451,53 @@ test("one authenticated instance cannot rotate streams to exhaust source heads",
     assert.ok(decision.reasonCodes.includes("source_stream_changed"));
   }
   assert.equal((await exchange.loadState()).sourceHeads.length, 1);
+});
+
+test("pending predecessor evidence does not reserve an undocumented source-head slot", async () => {
+  const [firstKeys, pendingKeys] = await Promise.all([keyPair(), keyPair()]);
+  const { exchange } = runtime({
+    policyRecord: policy({
+      limits: {
+        ...policy().policy.limits,
+        maximumSourceHeads: 1,
+      },
+    }),
+  });
+  const first = await attestation({ keys: firstKeys, peerId: "peer-a" });
+  assert.equal(
+    (await exchange.admit({ attestation: first, logicalTimeMs: 20 })).status,
+    "admitted",
+  );
+
+  const pending = await attestation({
+    keys: pendingKeys,
+    peerId: "peer-b",
+    sequence: 2,
+    predecessorAttestationDigest: digest("peer-b-missing-predecessor"),
+  });
+  const pendingDecision = await exchange.admit({
+    attestation: pending,
+    logicalTimeMs: 20,
+  });
+  assert.equal(pendingDecision.status, "pending_predecessor");
+  assert.ok(pendingDecision.reasonCodes.includes("predecessor_missing"));
+  assert.equal((await exchange.loadState()).sourceHeads.length, 1);
+
+  const predecessor = await attestation({
+    keys: pendingKeys,
+    peerId: "peer-b",
+  });
+  const capacityDecision = await exchange.admit({
+    attestation: predecessor,
+    logicalTimeMs: 21,
+  });
+  assert.equal(capacityDecision.status, "rejected");
+  assert.ok(
+    capacityDecision.reasonCodes.includes("source_head_capacity_exceeded"),
+  );
+  const state = await exchange.loadState();
+  assert.equal(state.sourceHeads.length, 1);
+  assert.equal(state.pendingAttestations.length, 1);
 });
 
 test("a newer membership epoch rotates one peer head without consuming churn capacity", async () => {
@@ -403,32 +546,65 @@ test("certificates require independent peers, use lower medians, and priors are 
   const { exchange } = runtime({ currentEligibility: admitted });
   const values = [200_000, 500_000, 900_000];
   for (let index = 0; index < keys.length; index += 1) {
-    const current = await attestation({ keys: keys[index], peerId: `peer-${String.fromCharCode(97 + index)}`, metricValue: values[index], confidenceBps: 6_000 + index * 1_000 });
-    assert.equal((await exchange.admit({ attestation: current, logicalTimeMs: 20 })).status, "admitted");
+    const current = await attestation({
+      keys: keys[index],
+      peerId: `peer-${String.fromCharCode(97 + index)}`,
+      metricValue: values[index],
+      confidenceBps: 6_000 + index * 1_000,
+    });
+    assert.equal(
+      (await exchange.admit({ attestation: current, logicalTimeMs: 20 }))
+        .status,
+      "admitted",
+    );
   }
-  const certificate = await exchange.certify({ cohort, binding, logicalTimeMs: 30 });
+  const certificate = await exchange.certify({
+    cohort,
+    binding,
+    logicalTimeMs: 30,
+  });
   assert.equal(certificate.status, "certified");
   assert.equal(certificate.certificate.metrics[0].valueMicros, 500_000);
   assert.equal(certificate.certificate.confidenceBps, 7_000);
-  const priors = await exchange.resolvePriors({ cohort, binding, logicalTimeMs: 30 });
+  const priors = await exchange.resolvePriors({
+    cohort,
+    binding,
+    logicalTimeMs: 30,
+  });
   assert.equal(priors.length, 1);
   assert.equal(priors[0].influenceBps, 2_800);
 
   admitted.delete("peer-c");
-  const reevaluated = await exchange.resolvePriors({ cohort, binding, logicalTimeMs: 31 });
+  const reevaluated = await exchange.resolvePriors({
+    cohort,
+    binding,
+    logicalTimeMs: 31,
+  });
   assert.deepEqual(reevaluated, []);
 });
 
 test("independence-group threshold does not count correlated peers twice", async () => {
   const keys = await Promise.all([keyPair(), keyPair(), keyPair()]);
-  const { exchange } = runtime({ groupFor: (current) => current.issuerPeerId === "peer-c" ? "group-c" : "group-shared" });
+  const { exchange } = runtime({
+    groupFor: (current) =>
+      current.issuerPeerId === "peer-c" ? "group-c" : "group-shared",
+  });
   for (let index = 0; index < keys.length; index += 1) {
-    const current = await attestation({ keys: keys[index], peerId: `peer-${String.fromCharCode(97 + index)}` });
+    const current = await attestation({
+      keys: keys[index],
+      peerId: `peer-${String.fromCharCode(97 + index)}`,
+    });
     await exchange.admit({ attestation: current, logicalTimeMs: 20 });
   }
-  const certificate = await exchange.certify({ cohort, binding, logicalTimeMs: 30 });
+  const certificate = await exchange.certify({
+    cohort,
+    binding,
+    logicalTimeMs: 30,
+  });
   assert.equal(certificate.status, "insufficient_evidence");
-  assert.ok(certificate.reasonCodes.includes("insufficient_independence_groups"));
+  assert.ok(
+    certificate.reasonCodes.includes("insufficient_independence_groups"),
+  );
 });
 
 test("stores use CAS and handoff is predecessor-bound and idempotent", async () => {
@@ -437,34 +613,63 @@ test("stores use CAS and handoff is predecessor-bound and idempotent", async () 
   const first = await attestation({ keys });
   await source.exchange.admit({ attestation: first, logicalTimeMs: 20 });
   const sourceState = await source.exchange.loadState();
-  assert.equal(await source.store.save({ state: sourceState, expectedRevision: 99 }), false);
-  const handoff = await source.exchange.exportHandoff({ targetStateKey: "target", logicalTimeMs: 30 });
+  assert.equal(
+    await source.store.save({ state: sourceState, expectedRevision: 99 }),
+    false,
+  );
+  const handoff = await source.exchange.exportHandoff({
+    targetStateKey: "target",
+    logicalTimeMs: 30,
+  });
   const target = runtime({ stateKey: "target" });
-  const restored = await target.exchange.importHandoff({ handoff, logicalTimeMs: 31 });
+  const restored = await target.exchange.importHandoff({
+    handoff,
+    logicalTimeMs: 31,
+  });
   assert.equal(restored.predecessorStateDigest, handoff.sourceStateDigest);
-  assert.equal((await target.exchange.importHandoff({ handoff, logicalTimeMs: 31 })).stateDigest, restored.stateDigest);
+  assert.equal(
+    (await target.exchange.importHandoff({ handoff, logicalTimeMs: 31 }))
+      .stateDigest,
+    restored.stateDigest,
+  );
 });
 
 test("collective-sync adapter preserves causal record binding and detects tampering", async () => {
   const keys = await keyPair();
   const signed = await attestation({ keys });
   const adapter = createPeerStrategyEvidenceCollectiveSyncAdapterV1({
-    scope: { tenantId: "tenant", meshId: "mesh", policyDomainId: "policy-domain" },
+    scope: {
+      tenantId: "tenant",
+      meshId: "mesh",
+      policyDomainId: "policy-domain",
+    },
     crypto,
   });
   const record = await adapter.toRecord({
     attestation: signed,
     predecessorRecordDigest: null,
   });
-  assert.equal((await adapter.fromRecord({ record }))?.attestationDigest, signed.attestationDigest);
-  assert.equal(await adapter.fromRecord({ record: { ...record, payloadDigest: digest("tampered") } }), null);
+  assert.equal(
+    (await adapter.fromRecord({ record }))?.attestationDigest,
+    signed.attestationDigest,
+  );
+  assert.equal(
+    await adapter.fromRecord({
+      record: { ...record, payloadDigest: digest("tampered") },
+    }),
+    null,
+  );
 });
 
 test("collective-sync adapter records append through the collective-sync repository", async () => {
   const keys = await keyPair();
   const signed = await attestation({ keys });
   const adapter = createPeerStrategyEvidenceCollectiveSyncAdapterV1({
-    scope: { tenantId: "tenant", meshId: "mesh", policyDomainId: "policy-domain" },
+    scope: {
+      tenantId: "tenant",
+      meshId: "mesh",
+      policyDomainId: "policy-domain",
+    },
     crypto,
   });
   const record = await adapter.toRecord({
@@ -507,21 +712,49 @@ test("collective-sync adapter records append through the collective-sync reposit
 
 test("gossip converts digest representations and bounds fanout and hops", () => {
   const profile = meshSparseOverlayProfileV2("large-5000");
-  const makeState = (peerIndex) => createMeshSparseRoutingStateV2({
-    schemaVersion: 2,
-    profile,
-    view: createMeshSparsePeerViewV2({ schemaVersion: 2, profile, topologySeed: 19, peerIndex }),
-  });
+  const makeState = (peerIndex) =>
+    createMeshSparseRoutingStateV2({
+      schemaVersion: 2,
+      profile,
+      view: createMeshSparsePeerViewV2({
+        schemaVersion: 2,
+        profile,
+        topologySeed: 19,
+        peerIndex,
+      }),
+    });
   const payloadDigest = digest("gossip-payload");
-  assert.equal(fromMeshSparseDigestV2(toMeshSparseDigestV2(payloadDigest)), payloadDigest);
+  assert.equal(
+    fromMeshSparseDigestV2(toMeshSparseDigestV2(payloadDigest)),
+    payloadDigest,
+  );
   const published = publishPeerStrategyEvidenceGossipV1({
-    profile, state: makeState(0), payloadDigest, logicalTimeMs: 1, lifetimeMs: 50,
-    policy: { maximumFanout: profile.maximumFanout, maximumHops: 1, maximumLifetimeMs: 100 },
+    profile,
+    state: makeState(0),
+    payloadDigest,
+    logicalTimeMs: 1,
+    lifetimeMs: 50,
+    policy: {
+      maximumFanout: profile.maximumFanout,
+      maximumHops: 1,
+      maximumLifetimeMs: 100,
+    },
   });
   assert.ok(published.deliveries.length <= profile.maximumFanout);
   const delivery = published.deliveries[0];
-  assert.throws(() => receivePeerStrategyEvidenceGossipV1({
-    profile, state: makeState(delivery.recipientPeerIndex), delivery: { ...delivery, hop: 2 }, logicalTimeMs: 2,
-    policy: { maximumFanout: profile.maximumFanout, maximumHops: 1, maximumLifetimeMs: 100 },
-  }), /hop_limit/u);
+  assert.throws(
+    () =>
+      receivePeerStrategyEvidenceGossipV1({
+        profile,
+        state: makeState(delivery.recipientPeerIndex),
+        delivery: { ...delivery, hop: 2 },
+        logicalTimeMs: 2,
+        policy: {
+          maximumFanout: profile.maximumFanout,
+          maximumHops: 1,
+          maximumLifetimeMs: 100,
+        },
+      }),
+    /hop_limit/u,
+  );
 });

@@ -11,12 +11,17 @@ import {
   startCollectiveEvaluationRunV1,
 } from '../../collective-planning/dist/evaluation.js';
 import {
+  createScalableEvaluationRunnerCheckpointV1,
+  createScalableEvaluationTeamDescriptorV1,
   createCollectiveStatisticalCampaignExecutionArtifactsV1,
   digestCollectiveStatisticalCampaignArtifactV1,
+  scalableEvaluationDigestV1,
+  shardedSimulationDigestV1,
 } from '../../mesh-sim/dist/index.js';
 import { createPostgresPool } from '../../postgres/dist/index.js';
 import {
   PostgresCollectiveStatisticalCampaignStoreV1,
+  PostgresScalableEvaluationCheckpointStoreV1,
   runMeshSimPostgresMigrationsV1,
 } from '../dist/index.js';
 
@@ -121,6 +126,7 @@ async function databaseNow(pool) {
 
 async function cleanup(pool, namespace) {
   for (const table of [
+    'mesh_sim_scalable_evaluation_checkpoints',
     'mesh_sim_slot_commits',
     'mesh_sim_execution_states',
     'mesh_sim_artifact_bindings',
@@ -133,6 +139,184 @@ async function cleanup(pool, namespace) {
 
 async function* oneChunk(value) {
   yield new TextEncoder().encode(JSON.stringify(value));
+}
+
+function runnerCheckpoint(runId, revision, previousCheckpointDigest = null) {
+  const d = (label, value = {}) => scalableEvaluationDigestV1(label, value);
+  const definitionDigest = d('pg-definition');
+  const adapterDescriptorDigest = d('pg-adapter');
+  const logicalTime = 1;
+  const descriptors = ['team:left', 'team:right'].map((teamId) =>
+    createScalableEvaluationTeamDescriptorV1({
+      teamId,
+      architecture: teamId.endsWith('left') ? 'distributed' : 'centralized',
+      implementationId: `pg-implementation:${teamId}`,
+      implementationVersion: '1',
+      implementationDigest: d('pg-implementation', { teamId }),
+    }),
+  );
+  const teamEnvironments = descriptors.map((descriptor) => {
+    const teamId = descriptor.teamId;
+    const teamBody = {
+      schemaVersion: 1,
+      operationId: d('runner-operation', {
+        runId,
+        phase: 'team-checkpoint',
+        scope: { revision, teamId },
+      }),
+      teamId,
+      definitionDigest,
+      descriptorDigest: descriptor.descriptorDigest,
+      revision,
+      logicalTime,
+      previousCheckpointDigest:
+        revision === 1 ? null : d('pg-prior-team', { teamId, revision }),
+      snapshotHandle: `pg-snapshot:${teamId}:${revision}`,
+      snapshotDigest: d('pg-team-snapshot', { teamId, revision }),
+    };
+    const session = {
+      schemaVersion: 1,
+      sessionId: `pg-session:${teamId}`,
+      environmentId: 'pg-environment',
+      createdAtLogicalTime: 0,
+      sessionDigest: '',
+    };
+    session.sessionDigest = shardedSimulationDigestV1(
+      'sharded-simulation-session-v1',
+      {
+        schemaVersion: session.schemaVersion,
+        sessionId: session.sessionId,
+        environmentId: session.environmentId,
+        createdAtLogicalTime: session.createdAtLogicalTime,
+      },
+    );
+    const episode = {
+      schemaVersion: 1,
+      sessionId: session.sessionId,
+      episodeId: `pg-episode:${teamId}`,
+      seed: 1,
+      startedAtLogicalTime: 0,
+      episodeDigest: '',
+    };
+    episode.episodeDigest = shardedSimulationDigestV1(
+      'sharded-simulation-episode-v1',
+      {
+        schemaVersion: episode.schemaVersion,
+        sessionId: episode.sessionId,
+        episodeId: episode.episodeId,
+        seed: episode.seed,
+        startedAtLogicalTime: episode.startedAtLogicalTime,
+      },
+    );
+    const anchorBody = {
+      schemaVersion: 1,
+      anchorId: `pg-anchor:${teamId}:${revision}`,
+      revision,
+      previousAnchorDigest:
+        revision === 1 ? null : d('pg-prior-anchor', { teamId, revision }),
+    };
+    const anchor = {
+      ...anchorBody,
+      anchorDigest: shardedSimulationDigestV1(
+        'sharded-simulation-durable-anchor-v1',
+        anchorBody,
+      ),
+    };
+    const environmentCheckpointBody = {
+      schemaVersion: 1,
+      checkpointId: `pg-environment-checkpoint:${teamId}:${revision}`,
+      sessionId: session.sessionId,
+      episodeId: episode.episodeId,
+      revision,
+      logicalTime,
+      snapshotHandle: `pg-environment-snapshot:${teamId}:${revision}`,
+      snapshotDigest: d('pg-environment-snapshot', { teamId, revision }),
+      anchor,
+    };
+    return {
+      teamId,
+      session,
+      episode,
+      environmentCheckpoint: {
+        ...environmentCheckpointBody,
+        checkpointDigest: shardedSimulationDigestV1(
+          'sharded-simulation-checkpoint-v1',
+          environmentCheckpointBody,
+        ),
+      },
+      teamCheckpoint: {
+        ...teamBody,
+        checkpointDigest: d('team-durable-checkpoint', teamBody),
+      },
+    };
+  });
+  const scheduleDigest = d('pg-schedule');
+  const portsDigest = d('pg-ports');
+  const configurationDigest = d('pg-configuration');
+  const zeroCounters = () => ({
+    interactions: 0,
+    messages: 0,
+    messageBytes: 0,
+    observations: 0,
+    actions: 0,
+    successfulOutcomes: 0,
+    failedOutcomes: 0,
+  });
+  const runtimeStateBody = {
+    schemaVersion: 1,
+    definitionDigest,
+    adapterDescriptorDigest,
+    revision,
+    predecessorStateDigest: d('pg-runtime-prior', { revision }),
+    teams: descriptors.map((descriptor) => ({
+      schemaVersion: 1,
+      descriptor,
+      sequence: 0,
+      lastLogicalTime: 0,
+      chainDigest: d('pg-accounting-chain', { teamId: descriptor.teamId }),
+      counters: zeroCounters(),
+      countersByDomain: {
+        physical: zeroCounters(),
+        social: zeroCounters(),
+        cyber: zeroCounters(),
+      },
+    })),
+    baselines: [],
+    perturbationObservations: [],
+    recoveries: [],
+    environmentBindings: teamEnvironments.map((entry) => ({
+      teamId: entry.teamId,
+      sessionId: entry.session.sessionId,
+      episodeId: entry.episode.episodeId,
+    })),
+    recordTail: [],
+    recordTailCursor: 0,
+  };
+  return createScalableEvaluationRunnerCheckpointV1({
+    schemaVersion: 1,
+    runId,
+    revision,
+    previousCheckpointDigest,
+    definitionDigest,
+    adapterDescriptorDigest,
+    scheduleDigest,
+    portsDigest,
+    configurationDigest,
+    phase: revision === 1 ? 'observation' : 'complete',
+    stepIndex: revision === 1 ? 0 : 1,
+    teamIndex: 0,
+    phaseCursor: 0,
+    processedSteps: revision === 1 ? 0 : 1,
+    logicalTime,
+    traceDigest: d('pg-trace', { revision }),
+    activeRecoveries: [],
+    runtimeState: {
+      ...runtimeStateBody,
+      stateDigest: d('runtime-state', runtimeStateBody),
+    },
+    teamEnvironments,
+    saga: {},
+  });
 }
 
 test(
@@ -326,6 +510,74 @@ test(
       assert.equal(await waiting, 'stale_fence');
     } finally {
       for (const namespace of namespaces) await cleanup(pool, namespace);
+      await pool.end();
+    }
+  },
+);
+
+test(
+  'PostgreSQL scalable evaluation checkpoint head survives reconstruction and rejects tampering',
+  { skip: !enabled, timeout: 30_000 },
+  async () => {
+    const pool = createPostgresPool({ max: 4 });
+    const namespace = `test:${randomUUID()}`;
+    const runId = `run:postgres:${randomUUID()}`;
+    try {
+      await runMeshSimPostgresMigrationsV1(pool);
+      const first = runnerCheckpoint(runId, 1);
+      const initialStore = new PostgresScalableEvaluationCheckpointStoreV1(
+        pool,
+        { namespace },
+      );
+      assert.equal(
+        (
+          await initialStore.compareAndSwapV1({
+            runId,
+            expectedRevision: null,
+            checkpoint: first,
+          })
+        ).status,
+        'stored',
+      );
+      const reconstructed = new PostgresScalableEvaluationCheckpointStoreV1(
+        pool,
+        { namespace },
+      );
+      assert.deepEqual(await reconstructed.loadV1({ runId }), first);
+      assert.equal(
+        (
+          await reconstructed.compareAndSwapV1({
+            runId,
+            expectedRevision: null,
+            checkpoint: first,
+          })
+        ).status,
+        'duplicate',
+      );
+      const second = runnerCheckpoint(runId, 2, first.checkpointDigest);
+      assert.equal(
+        (
+          await reconstructed.compareAndSwapV1({
+            runId,
+            expectedRevision: 1,
+            checkpoint: second,
+          })
+        ).status,
+        'stored',
+      );
+      assert.equal((await reconstructed.loadV1({ runId })).revision, 2);
+      await pool.query(
+        `UPDATE public.mesh_sim_scalable_evaluation_checkpoints
+            SET checkpoint_sha256=$3
+          WHERE namespace=$1 AND run_id=$2`,
+        [namespace, runId, '0'.repeat(64)],
+      );
+      await assert.rejects(
+        reconstructed.loadV1({ runId }),
+        /checkpoint content hash mismatch/,
+      );
+    } finally {
+      await cleanup(pool, namespace);
       await pool.end();
     }
   },

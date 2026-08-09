@@ -34,6 +34,7 @@ const policy = createTeamFormationPolicyV1({
     maximumSearchNodes: 1_000,
     maximumReasonCodesPerDecision: 8,
     maximumHistoryEntries: 8,
+    maximumRequestInvalidations: 16,
     maximumRequestTtlMs: 1_000,
     maximumTeamDurationMs: 1_000,
     maximumCommitAttempts: 4,

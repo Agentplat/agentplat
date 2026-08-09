@@ -6,6 +6,12 @@ export type PlanningJson = JsonValue;
 export type PlanningDigestV1 = `sha256:${string}`;
 
 export type PlanningDigestDomainV1 =
+  | "development-source-tree-v1"
+  | "development-capability-manifest-v1"
+  | "development-capability-policy-v1"
+  | "development-capability-receipt-v1"
+  | "development-capability-attestation-v1"
+  | "development-capability-assessment-v1"
   | "mission-intent"
   | "mission-observation"
   | "proposal-identity"
@@ -109,6 +115,7 @@ export type PlanningDigestDomainV1 =
   | "team-candidate"
   | "team-position-bid"
   | "team-formation-request"
+  | "team-formation-request-invalidation"
   | "team-identity"
   | "team-member-identity"
   | "team-member-selection"
@@ -157,6 +164,17 @@ export type PlanningDigestDomainV1 =
   | "team-structure-adaptation-handoff"
   | "team-structure-materialization"
   | "collective-peer-host-envelope"
+  | "distributed-decomposition-policy"
+  | "mission-decomposition-request"
+  | "mission-task-node"
+  | "mission-decomposition-graph"
+  | "mission-decomposition-merge"
+  | "mission-repair-decision"
+  | "strategic-allocation-policy"
+  | "strategic-bid-commitment"
+  | "strategic-bid-reveal"
+  | "strategic-allocation-plan"
+  | "strategic-allocation-settlement"
   | "capability-state-state";
 
 export interface PlanningLimitsV1 {

@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_outbound_sequence_allocations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_outbound_sequence_heads;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_governed_sessions;

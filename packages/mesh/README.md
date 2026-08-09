@@ -12,6 +12,28 @@ peers while preserving every existing Mesh wire and coordination contract.
 The overlay plans authenticated deliveries but performs no transport, grants
 no authority and never carries raw payloads.
 
+The `@agentplat/mesh/overlay-transport` subpath additionally includes an
+optional authenticated next-hop boundary. `MeshAuthenticatedSparseOverlayNextHopTransportV1`
+wraps the durable sparse transport's existing `nextHop` port; its companion
+endpoint validates signed, content-free request and response envelopes before
+the durable overlay processes them. Every envelope binds the overlay, sender
+and recipient peer identities, membership epoch, signing-key ID, sequence,
+logical time, operation and payload digest. The boundary receives membership
+and public-key truth through caller-provided ports, so it neither creates a
+global PKI nor carries private keys in state or evidence.
+
+The durable state port performs one atomic compare-and-set for both replay
+state and its monotonic anti-rollback anchor. Production adapters must keep
+that anchor independently protected and never expose a partially committed
+state/anchor pair. It retains only outbound sequence allocation and per-peer
+epoch cursors,
+rejecting replay, implausibly future sequences, wrong epochs, invalid
+signatures, revoked keys and keys outside their explicit rotation window.
+`WebCryptoMeshAuthenticatedOverlaySignerV1` and the in-memory state/network
+adapters are local reference implementations; production deployments supply
+their own key custody, membership authority, atomic durable state/anchor and
+network ports.
+
 The package is additive to the existing Runtime, Sessions and Rooms surfaces.
 Its peer kernel is defined as a synchronous state transition:
 
@@ -381,3 +403,40 @@ proposal may exclude a neighbor. The replacement view is regenerated locally
 from the existing topology seed; no global graph is accepted or retained.
 Revision-and-digest CAS, future/stale checks and an external monotonic head
 reject races, rollback and deleted-snapshot reinitialization.
+
+Application replay is keyed by the certified certificate digest. If a caller
+crashes after the adaptive CAS but before persisting its own receipt, retrying
+with the original expected revision returns the retained application as a
+duplicate before rejecting that now-stale revision. It does not authorize a
+different certificate or bypass the original certification boundary.
+
+## Collective capability closure
+
+Operational Sparse Peer Plane V1 is the communication substrate for the
+collective capability closure. It supplies bounded local peer views and
+authenticated, digest-bound dissemination inputs to planning, context,
+allocation and recovery adapters. It does not expose a global membership
+oracle, global topology graph, central scheduler or execution authority.
+
+Production drivers must provide authenticated ingress, replay protection,
+durable CAS/high-water persistence, bounded queues and current identity/key
+resolution. A local peer view is a routing and eligibility input only; team
+assignment, Work Contracts and effects remain separate fenced boundaries. See
+[ADR 0042](../../docs/adr/0042-collective-capability-closure.md) and the
+[architecture and threat model](../../docs/security/collective-capability-closure-v1.md).
+
+### Durable sparse-overlay transport
+
+`@agentplat/mesh/overlay-transport` supplies the portable next-hop data plane
+for the Sparse Peer Plane. Each runtime owns only one peer's bounded inbox,
+outbox, application updates, causal history and neighbor cursors. Delivery and
+update identities are idempotent; bounded queues apply backpressure; retry
+state survives restart through a CAS store.
+
+`MeshSparseDirectNextHopTransportV1` connects only explicitly supplied local
+neighbors and never creates a process-global peer directory. A partition keeps
+the durable outbox intact. On rejoin, the peer requests bounded deltas from
+current active/reserve neighbors, detects a truncated history gap, and fetches
+the exact causal predecessor before handing a recovered delivery to the peer
+plane. Deployments can persist the state with
+`MeshDurableSparseTransportStoreV1` using a dedicated durable repository scope.

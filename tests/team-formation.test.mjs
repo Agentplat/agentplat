@@ -19,9 +19,11 @@ import {
   createTeamFormationPolicyV1,
   createTeamFormationRequestV1,
   createTeamFormationScopeV1,
+  createTeamMemberSelectionV1,
   createTeamMemberOutcomeV1,
   createTeamPositionBidV1,
   createTeamPositionV1,
+  createTeamProposalV1,
   createTeamPositionWorkProjectionsV1,
   createTeamReconfigurationRequestV1,
   validateJointWorkContractV1,
@@ -48,6 +50,7 @@ function policy(overrides = {}) {
       maximumSearchNodes: 1_000,
       maximumReasonCodesPerDecision: 8,
       maximumHistoryEntries: 8,
+      maximumRequestInvalidations: 16,
       maximumRequestTtlMs: 1_000,
       maximumTeamDurationMs: 1_000,
       maximumCommitAttempts: 4,
@@ -255,6 +258,157 @@ function normalBids() {
   ];
 }
 
+test("rejects self-consistent member digests derived from the wrong team identity", () => {
+  const formationRequest = request({ bids: normalBids() });
+  const selected = [normalBids()[0], normalBids()[2]];
+  const members = selected.map((selectedBid) => {
+    const position = positions.find(
+      (value) => value.positionId === selectedBid.positionId,
+    );
+    return createTeamMemberSelectionV1({
+      schemaVersion: 1,
+      teamId: "team.wrong-but-internally-consistent",
+      teamEpoch: 1,
+      positionId: selectedBid.positionId,
+      positionDigest: position.positionDigest,
+      candidateId: selectedBid.candidate.candidateId,
+      candidateDigest: selectedBid.candidate.candidateDigest,
+      peerId: selectedBid.candidate.peerId,
+      instanceId: selectedBid.candidate.instanceId,
+      independenceGroupId: selectedBid.candidate.independenceGroupId,
+      bidId: selectedBid.bidId,
+      bidDigest: selectedBid.bidDigest,
+      sourceBidDigest: selectedBid.sourceBidDigest,
+      budgetUnits: selectedBid.budgetUnits,
+      expectedCompletionAtLogicalMs:
+        selectedBid.expectedCompletionAtLogicalMs,
+      locallyEvaluatedScoreMicros:
+        selectedBid.locallyEvaluatedScoreMicros,
+    });
+  });
+  assert.throws(
+    () => createTeamProposalV1({
+      schemaVersion: 1,
+      teamEpoch: 1,
+      scope: formationRequest.scope,
+      policyDigest: policy().policyDigest,
+      membershipEpoch: formationRequest.membershipEpoch,
+      membershipConfigurationDigest:
+        formationRequest.membershipConfigurationDigest,
+      formationRequestDigest: formationRequest.requestDigest,
+      predecessorJointWorkContractDigest: null,
+      positions: formationRequest.positions,
+      members,
+      totalBudgetUnits: members.reduce(
+        (total, member) => total + member.budgetUnits,
+        0,
+      ),
+      expectedCompletionAtLogicalMs: Math.max(
+        ...members.map((member) => member.expectedCompletionAtLogicalMs),
+      ),
+      proposedAtLogicalMs: formationRequest.logicalTimeMs,
+      validUntilLogicalMs: formationRequest.validUntilLogicalMs,
+    }),
+    /member identity is not canonical/,
+  );
+});
+
+test("a durable request invalidation wins a concurrent late formation CAS", async () => {
+  const backing = new InMemoryTeamFormationStoreV1();
+  let releaseFormationSave;
+  let formationSaveObserved;
+  const released = new Promise((resolve) => { releaseFormationSave = resolve; });
+  const observed = new Promise((resolve) => { formationSaveObserved = resolve; });
+  let intercepted = false;
+  const store = {
+    async load(stateKey) { return backing.load(stateKey); },
+    async save(input) {
+      if (!intercepted && input.state.team && input.state.requestInvalidations.length === 0) {
+        intercepted = true;
+        formationSaveObserved();
+        await released;
+      }
+      return backing.save(input);
+    },
+  };
+  const { controller } = runtime({ stateKey: "invalidation-race", store });
+  const formationRequest = request({
+    id: "formation-invalidation-race",
+    bids: normalBids(),
+  });
+  const authorizationDigest = digest("formation-authorization-race");
+  const pendingForm = controller.form(formationRequest);
+  await observed;
+  const invalidation = await controller.invalidate({
+    formationRequestDigest: formationRequest.requestDigest,
+    formationAuthorizationDigest: authorizationDigest,
+    reasonCode: "allocation_fence_advanced",
+    logicalTimeMs: 11,
+    requestValidUntilLogicalMs: formationRequest.validUntilLogicalMs,
+  });
+  const replay = await controller.invalidate({
+    formationRequestDigest: formationRequest.requestDigest,
+    formationAuthorizationDigest: authorizationDigest,
+    reasonCode: "planning_expired",
+    logicalTimeMs: 12,
+    requestValidUntilLogicalMs: formationRequest.validUntilLogicalMs,
+  });
+  assert.equal(replay.invalidationDigest, invalidation.invalidationDigest);
+  releaseFormationSave();
+  await assert.rejects(pendingForm, /request is invalidated/);
+  const state = await controller.loadState();
+  assert.equal(state.team, null);
+  assert.equal(state.revision, 1);
+  assert.deepEqual(state.requestInvalidations, [invalidation]);
+});
+
+test("request invalidation capacity fails closed and compacts only expired tombstones", async () => {
+  const { controller } = runtime({
+    stateKey: "invalidation-capacity",
+    policyRecord: policy({
+      limits: {
+        ...policy().policy.limits,
+        maximumRequestInvalidations: 1,
+      },
+    }),
+  });
+  const firstRequest = request({ id: "formation-tombstone-first", bids: normalBids() });
+  const secondRequest = request({
+    id: "formation-tombstone-second",
+    bids: normalBids(),
+    valid: 300,
+  });
+  await controller.invalidate({
+    formationRequestDigest: firstRequest.requestDigest,
+    formationAuthorizationDigest: digest("formation-authorization-first"),
+    reasonCode: "allocation_fence_advanced",
+    logicalTimeMs: 11,
+    requestValidUntilLogicalMs: firstRequest.validUntilLogicalMs,
+  });
+  await assert.rejects(
+    controller.invalidate({
+      formationRequestDigest: secondRequest.requestDigest,
+      formationAuthorizationDigest: digest("formation-authorization-second"),
+      reasonCode: "allocation_fence_advanced",
+      logicalTimeMs: 12,
+      requestValidUntilLogicalMs: secondRequest.validUntilLogicalMs,
+    }),
+    /invalidation capacity is exhausted/,
+  );
+  const second = await controller.invalidate({
+    formationRequestDigest: secondRequest.requestDigest,
+    formationAuthorizationDigest: digest("formation-authorization-second"),
+    reasonCode: "planning_expired",
+    logicalTimeMs: firstRequest.validUntilLogicalMs,
+    requestValidUntilLogicalMs: secondRequest.validUntilLogicalMs,
+  });
+  const state = await controller.loadState();
+  assert.deepEqual(state.requestInvalidations, [second]);
+  const late = await controller.form(firstRequest);
+  assert.equal(late.status, "policy_denied");
+  assert.equal((await controller.loadState()).team, null);
+});
+
 test("forms a complete diverse roster instead of selecting incompatible local maxima", async () => {
   const { controller } = runtime();
   const formationRequest = request({ bids: normalBids() });
@@ -271,6 +425,15 @@ test("forms a complete diverse roster instead of selecting incompatible local ma
   const replay = await controller.form(formationRequest);
   assert.equal(replay.decisionDigest, decision.decisionDigest);
   assert.equal((await controller.loadState()).revision, 1);
+  await assert.rejects(
+    controller.cancel({
+      reasonCode: "allocation_fence_advanced",
+      logicalTimeMs: 11,
+      expectedProposalDigest: digest("replacement-proposal"),
+    }),
+    /cancellation proposal is not current/,
+  );
+  assert.equal((await controller.loadState()).team.status, "awaiting_member_contracts");
 
   const projections = createTeamPositionWorkProjectionsV1({
     proposal: decision.proposal,
@@ -569,9 +732,8 @@ test("rejects contract and request tampering without invoking accessors", () => 
 
 test("handoff preserves the exact active team and state predecessor", async () => {
   const source = runtime({ stateKey: "handoff-source" });
-  const decision = await source.controller.form(
-    request({ bids: normalBids() }),
-  );
+  const formationRequest = request({ bids: normalBids() });
+  const decision = await source.controller.form(formationRequest);
   const contracts = decision.proposal.members.map((member, index) =>
     workContract(
       decision.proposal,
@@ -585,6 +747,13 @@ test("handoff preserves the exact active team and state predecessor", async () =
     workContracts: contracts,
     logicalTimeMs: 30,
   });
+  const invalidation = await source.controller.invalidate({
+    formationRequestDigest: formationRequest.requestDigest,
+    formationAuthorizationDigest: digest("handoff-formation-authorization"),
+    reasonCode: "allocation_fence_advanced",
+    logicalTimeMs: 35,
+    requestValidUntilLogicalMs: formationRequest.validUntilLogicalMs,
+  });
   const handoff = await source.controller.exportHandoff({
     targetStateKey: "handoff-target",
     logicalTimeMs: 40,
@@ -597,6 +766,11 @@ test("handoff preserves the exact active team and state predecessor", async () =
 
   assert.equal(restored.team.status, "active");
   assert.equal(restored.team.teamId, decision.proposal.teamId);
+  assert.deepEqual(restored.requestInvalidations, [invalidation]);
+  await assert.rejects(
+    target.controller.form(formationRequest),
+    /request is invalidated/,
+  );
   assert.equal(restored.predecessorStateDigest, handoff.sourceStateDigest);
   assert.equal(
     validateTeamFormationStateV1(restored, { policy: policy() }).stateDigest,

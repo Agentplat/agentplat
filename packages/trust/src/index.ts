@@ -10,3 +10,4 @@ export * from "./eligibility.js";
 export * from "./quarantine.js";
 export * from "./state.js";
 export * from "./lifecycle.js";
+export * from "./peer-credibility.js";

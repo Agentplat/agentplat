@@ -609,6 +609,61 @@ export function validateMeshSparseDeliveryV2(
   return rebuilt;
 }
 
+/**
+ * Builds one bounded relay delivery for recovery or an explicitly connected
+ * next hop. The sender view remains peer-local and the predecessor preserves
+ * the original causal chain.
+ */
+export function createMeshSparseRelayDeliveryV2(input: {
+  readonly schemaVersion: 2;
+  readonly profile: MeshSparseOverlayProfileV2;
+  readonly senderView: MeshSparsePeerViewV2;
+  readonly recipientPeerIndex: number;
+  readonly predecessor: MeshSparseDeliveryV2;
+}): MeshSparseDeliveryV2 {
+  exactRecord(
+    input,
+    [
+      'predecessor',
+      'profile',
+      'recipientPeerIndex',
+      'schemaVersion',
+      'senderView',
+    ],
+    [],
+    'sparse relay input'
+  );
+  if (input.schemaVersion !== 2) fail('sparse relay schema is invalid');
+  const profile = validateMeshSparseOverlayProfileV2(input.profile);
+  const senderView = validateMeshSparsePeerViewV2(profile, input.senderView);
+  const predecessor = validateMeshSparseDeliveryV2(
+    profile,
+    input.predecessor
+  );
+  safeInteger(
+    input.recipientPeerIndex,
+    'recipientPeerIndex',
+    0,
+    profile.maximumPeers - 1
+  );
+  if (input.recipientPeerIndex === senderView.peerIndex)
+    fail('sparse relay cannot target its sender');
+  if (
+    !senderView.activeNeighborIndexes.includes(input.recipientPeerIndex) &&
+    !senderView.reserveNeighborIndexes.includes(input.recipientPeerIndex)
+  )
+    fail('sparse relay recipient is outside the local sparse view');
+  if (predecessor.hop >= predecessor.update.maximumHops)
+    fail('sparse relay hop limit is exhausted');
+  return buildDelivery({
+    update: predecessor.update,
+    senderView,
+    recipientPeerIndex: input.recipientPeerIndex,
+    hop: predecessor.hop + 1,
+    previousDeliveryDigest: predecessor.deliveryDigest,
+  });
+}
+
 /** Accepts one authenticated transport delivery and plans bounded forwarding. */
 export function receiveMeshSparseDeliveryV2(input: {
   readonly schemaVersion: 2;

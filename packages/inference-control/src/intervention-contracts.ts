@@ -269,7 +269,7 @@ export interface InferenceInterventionTerminalV1 {
   readonly outputDigest: string | null;
 }
 export interface InferenceInterventionUnresolvedEffectV1 {
-  readonly kind: "prepared_crash" | "sidecar_ambiguous";
+  readonly kind: "prepared_crash" | "sidecar_ambiguous" | "retry_authorized";
   readonly invocationId: string;
   readonly invocationDigest: string;
   readonly executionDomain: "inference" | "tool" | "action";
@@ -359,4 +359,12 @@ export interface InferenceInterventionOperationGateResultV1 {
   readonly allowed: boolean;
   readonly assessments: readonly InferenceInterventionAssessmentV1[];
   readonly state: InferenceInterventionStateV1;
+}
+
+export interface InferenceInterventionCheckpointGateRequestV1 {
+  readonly operationId: string;
+  readonly kind: "input" | "output";
+  readonly step: number;
+  readonly logicalTimeMs: number;
+  readonly payload: string;
 }

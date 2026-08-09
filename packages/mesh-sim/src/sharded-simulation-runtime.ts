@@ -281,6 +281,7 @@ export class InMemoryShardedSimulationBridgeV1
     const body = {
       schemaVersion: 1 as const,
       batchId: batch.batchId,
+      batchDigest: batch.batchDigest,
       accepted: true,
       duplicate: false,
       deliveredEventIds: Object.freeze(delivered),
@@ -637,7 +638,7 @@ export async function runShardedSimulationLogicalPeersV1(
         ...actionBody,
         actionDigest: shardedSimulationFencedActionDigestV1(actionBody),
       };
-      const receipt = validateReceipt(
+      const receipt = validateShardedSimulationEffectReceiptV1(
         await bridge.requestEffect(request),
         request,
       );
@@ -666,9 +667,10 @@ export async function runShardedSimulationLogicalPeersV1(
           logicalTime,
           messages: [message],
         });
-        validateAck(
+        validateShardedSimulationCrossShardMessageAckV1(
           await bridge.deliverCrossShardBatch(batch),
           batch.batchId,
+          batch.batchDigest,
           batch.messages.map((entry) => entry.eventId),
         );
       }
@@ -951,13 +953,14 @@ function validateDelivery(
     throw new TypeError("sharded_simulation_delivery_digest_invalid");
   return v as unknown as ShardedSimulationPartialObservationDeliveryV1;
 }
-function validateReceipt(
+export function validateShardedSimulationEffectReceiptV1(
   value: unknown,
   request: {
     readonly actionId: string;
     readonly logicalTime: number;
     readonly executionEpoch: number;
     readonly fenceToken: string;
+    readonly actionDigest: PlanningDigestV1;
   },
 ): ShardedSimulationEffectReceiptV1 {
   const v = exact(
@@ -985,14 +988,23 @@ function validateReceipt(
     !digestValue(v.receiptDigest)
   )
     throw new TypeError("sharded_simulation_receipt_invalid");
+  const expectedEffectDigest = digest("sharded-simulation-effect-v1", {
+    actionDigest: request.actionDigest,
+    accepted: v.accepted,
+    executionEpoch: request.executionEpoch,
+    fenceToken: request.fenceToken,
+  });
+  if (v.effectDigest !== expectedEffectDigest)
+    throw new TypeError("sharded_simulation_effect_digest_invalid");
   const { receiptDigest: ignored, ...body } = v;
   if (digest("sharded-simulation-effect-receipt-v1", body) !== v.receiptDigest)
     throw new TypeError("sharded_simulation_receipt_digest_invalid");
   return v as unknown as ShardedSimulationEffectReceiptV1;
 }
-function validateAck(
+export function validateShardedSimulationCrossShardMessageAckV1(
   value: unknown,
   batchId: string,
+  batchDigest: PlanningDigestV1,
   expectedDeliveredEventIds: readonly string[],
 ): void {
   const v = exact(
@@ -1000,6 +1012,7 @@ function validateAck(
     [
       "schemaVersion",
       "batchId",
+      "batchDigest",
       "accepted",
       "duplicate",
       "deliveredEventIds",
@@ -1010,6 +1023,7 @@ function validateAck(
   if (
     v.schemaVersion !== 1 ||
     v.batchId !== batchId ||
+    v.batchDigest !== batchDigest ||
     v.accepted !== true ||
     typeof v.duplicate !== "boolean" ||
     !Array.isArray(v.deliveredEventIds) ||

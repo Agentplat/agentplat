@@ -22,6 +22,12 @@ const digestDomains = new Set<CollectiveDigestDomainV1>([
   "mission",
   "evaluation-sample",
   "evaluation-report",
+  "local-rule-policy",
+  "local-rule-definition",
+  "local-rule-program",
+  "local-rule-proposal",
+  "local-rule-state",
+  "local-rule-decision",
   "room-proposal",
 ]);
 

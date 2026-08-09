@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_semantic_horizon_budget_anchors;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_semantic_horizon_budget_states;

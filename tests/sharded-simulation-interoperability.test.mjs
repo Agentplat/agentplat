@@ -420,6 +420,7 @@ test("runner rejects incomplete accepted acknowledgements and skips failed targe
       const body = {
         schemaVersion: 1,
         batchId: batch.batchId,
+        batchDigest: batch.batchDigest,
         accepted: true,
         duplicate: false,
         deliveredEventIds: [],

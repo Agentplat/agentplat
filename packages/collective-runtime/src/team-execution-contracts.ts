@@ -153,6 +153,8 @@ export interface TeamExecutionControlEvidenceV1 {
   readonly reasonCode: string;
   readonly sourceEvidenceDigest: PlanningDigestV1;
   readonly evaluatedAtLogicalMs: number;
+  /** Exclusive validity boundary for this control decision. */
+  readonly validUntilLogicalMs: number;
   readonly evidenceDigest: PlanningDigestV1;
 }
 

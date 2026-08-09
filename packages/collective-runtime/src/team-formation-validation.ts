@@ -17,6 +17,7 @@ import {
   type TeamFormationPolicyRecordV1,
   type TeamFormationPolicyV1,
   type TeamFormationRequestV1,
+  type TeamFormationRequestInvalidationV1,
   type TeamFormationScopeV1,
   type TeamFormationStateV1,
   type TeamLifecycleStatusV1,
@@ -455,6 +456,67 @@ export function validateTeamFormationRequestV1(
   });
   if (value.requestDigest !== result.requestDigest)
     fail("team formation request digest is invalid");
+  return result;
+}
+
+export function createTeamFormationRequestInvalidationV1(
+  input: Omit<TeamFormationRequestInvalidationV1, "invalidationDigest">,
+): TeamFormationRequestInvalidationV1 {
+  schema(input.schemaVersion, "team formation request invalidation");
+  const body = freeze({
+    schemaVersion: 1 as const,
+    formationRequestDigest: sha(
+      input.formationRequestDigest,
+      "invalidation.formationRequestDigest",
+    ),
+    formationAuthorizationDigest: sha(
+      input.formationAuthorizationDigest,
+      "invalidation.formationAuthorizationDigest",
+    ),
+    reasonCode: identifier(input.reasonCode, "invalidation.reasonCode"),
+    invalidatedAtLogicalMs: nonNegative(
+      input.invalidatedAtLogicalMs,
+      "invalidation.invalidatedAtLogicalMs",
+    ),
+    requestValidUntilLogicalMs: positive(
+      input.requestValidUntilLogicalMs,
+      "invalidation.requestValidUntilLogicalMs",
+    ),
+  });
+  return freeze({
+    ...body,
+    invalidationDigest: digest("team-formation-request-invalidation", body),
+  });
+}
+
+export function validateTeamFormationRequestInvalidationV1(
+  input: unknown,
+): TeamFormationRequestInvalidationV1 {
+  const value = exact(
+    input,
+    [
+      "formationAuthorizationDigest",
+      "formationRequestDigest",
+      "invalidatedAtLogicalMs",
+      "invalidationDigest",
+      "reasonCode",
+      "requestValidUntilLogicalMs",
+      "schemaVersion",
+    ],
+    "team formation request invalidation",
+  );
+  const result = createTeamFormationRequestInvalidationV1({
+    schemaVersion: value.schemaVersion as 1,
+    formationRequestDigest: value.formationRequestDigest as PlanningDigestV1,
+    formationAuthorizationDigest:
+      value.formationAuthorizationDigest as PlanningDigestV1,
+    reasonCode: value.reasonCode as string,
+    invalidatedAtLogicalMs: value.invalidatedAtLogicalMs as number,
+    requestValidUntilLogicalMs:
+      value.requestValidUntilLogicalMs as number,
+  });
+  if (value.invalidationDigest !== result.invalidationDigest)
+    fail("team formation request invalidation digest is invalid");
   return result;
 }
 
@@ -1143,9 +1205,33 @@ export function createTeamFormationStateV1(input: {
   readonly logicalTimeHighWaterMs?: number;
   readonly team?: TeamRecordV1 | null;
   readonly lastDecision?: TeamFormationDecisionV1 | null;
+  readonly requestInvalidations?: readonly TeamFormationRequestInvalidationV1[];
   readonly predecessorStateDigest?: PlanningDigestV1 | null;
 }): TeamFormationStateV1 {
   const policy = validateTeamFormationPolicyV1(input.policy);
+  const logicalTimeHighWaterMs = nonNegative(
+    input.logicalTimeHighWaterMs ?? 0,
+    "state.logicalTimeHighWaterMs",
+  );
+  const requestInvalidations = sortedRecords(
+    safeArray(
+      input.requestInvalidations ?? [],
+      "state.requestInvalidations",
+      65_536,
+    )
+      .map(validateTeamFormationRequestInvalidationV1)
+      .filter(
+        (invalidation) =>
+          invalidation.requestValidUntilLogicalMs > logicalTimeHighWaterMs,
+      ),
+    (invalidation) => invalidation.formationRequestDigest,
+    "state request invalidations",
+  );
+  if (
+    requestInvalidations.length >
+    policy.policy.limits.maximumRequestInvalidations
+  )
+    fail("team formation request invalidation capacity is exhausted");
   const body = freeze({
     format: TEAM_FORMATION_STATE_FORMAT_V1,
     schemaVersion: 1 as const,
@@ -1163,14 +1249,12 @@ export function createTeamFormationStateV1(input: {
     policyVersion: policy.policy.policyVersion,
     policyDigest: policy.policyDigest,
     revision: nonNegative(input.revision ?? 0, "state.revision"),
-    logicalTimeHighWaterMs: nonNegative(
-      input.logicalTimeHighWaterMs ?? 0,
-      "state.logicalTimeHighWaterMs",
-    ),
+    logicalTimeHighWaterMs,
     team: input.team ? validateTeamRecordV1(input.team) : null,
     lastDecision: input.lastDecision
       ? validateTeamFormationDecisionV1(input.lastDecision)
       : null,
+    requestInvalidations,
     predecessorStateDigest:
       input.predecessorStateDigest === undefined ||
       input.predecessorStateDigest === null
@@ -1208,6 +1292,7 @@ export function validateTeamFormationStateV1(
       "policyId",
       "policyVersion",
       "predecessorStateDigest",
+      "requestInvalidations",
       "revision",
       "schemaVersion",
       "stateDigest",
@@ -1229,6 +1314,8 @@ export function validateTeamFormationStateV1(
     logicalTimeHighWaterMs: value.logicalTimeHighWaterMs as number,
     team: value.team as TeamRecordV1 | null,
     lastDecision: value.lastDecision as TeamFormationDecisionV1 | null,
+    requestInvalidations:
+      value.requestInvalidations as readonly TeamFormationRequestInvalidationV1[],
     predecessorStateDigest:
       value.predecessorStateDigest as PlanningDigestV1 | null,
   });
@@ -1446,6 +1533,7 @@ function normalizePolicy(input: TeamFormationPolicyV1): TeamFormationPolicyV1 {
       "maximumBidsPerPosition",
       "maximumCommitAttempts",
       "maximumHistoryEntries",
+      "maximumRequestInvalidations",
       "maximumMembers",
       "maximumPositions",
       "maximumReasonCodesPerDecision",
@@ -1485,6 +1573,11 @@ function normalizePolicy(input: TeamFormationPolicyV1): TeamFormationPolicyV1 {
       limitValue.maximumHistoryEntries,
       "limits.maximumHistoryEntries",
       1024,
+    ),
+    maximumRequestInvalidations: bounded(
+      limitValue.maximumRequestInvalidations,
+      "limits.maximumRequestInvalidations",
+      65_536,
     ),
     maximumRequestTtlMs: bounded(
       limitValue.maximumRequestTtlMs,
@@ -1707,6 +1800,29 @@ function validateProposalRelations(
     const position = positions.get(member.positionId);
     if (!position || position.positionDigest !== member.positionDigest)
       fail("team proposal member position binding is invalid");
+    const canonical = createTeamMemberSelectionV1({
+      schemaVersion: 1,
+      teamId: proposal.teamId,
+      teamEpoch: proposal.teamEpoch,
+      positionId: member.positionId,
+      positionDigest: member.positionDigest,
+      candidateId: member.candidateId,
+      candidateDigest: member.candidateDigest,
+      peerId: member.peerId,
+      instanceId: member.instanceId,
+      independenceGroupId: member.independenceGroupId,
+      bidId: member.bidId,
+      bidDigest: member.bidDigest,
+      sourceBidDigest: member.sourceBidDigest,
+      budgetUnits: member.budgetUnits,
+      expectedCompletionAtLogicalMs: member.expectedCompletionAtLogicalMs,
+      locallyEvaluatedScoreMicros: member.locallyEvaluatedScoreMicros,
+    });
+    if (
+      canonical.memberId !== member.memberId ||
+      canonical.selectionDigest !== member.selectionDigest
+    )
+      fail("team proposal member identity is not canonical");
     budget = safeAdd(budget, member.budgetUnits, "proposal budget");
     latest = Math.max(latest, member.expectedCompletionAtLogicalMs);
   }
@@ -1772,6 +1888,7 @@ function validateStateRelations(
     if (
       state.team !== null ||
       state.lastDecision !== null ||
+      state.requestInvalidations.length !== 0 ||
       state.predecessorStateDigest !== null
     )
       fail("initial team formation state is invalid");
@@ -1789,6 +1906,13 @@ function validateStateRelations(
     state.team.updatedAtLogicalMs > state.logicalTimeHighWaterMs
   )
     fail("team formation state logical time is invalid");
+  if (
+    state.requestInvalidations.some(
+      (invalidation) =>
+        invalidation.invalidatedAtLogicalMs > state.logicalTimeHighWaterMs,
+    )
+  )
+    fail("team formation invalidation logical time is invalid");
 }
 
 function assertAcyclic(positions: readonly TeamPositionV1[]): void {

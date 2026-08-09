@@ -12,6 +12,7 @@ import {
   createTeamFormationHandoffV1,
   createTeamFormationPolicyV1,
   createTeamFormationRequestV1,
+  createTeamFormationRequestInvalidationV1,
   createTeamFormationScopeV1,
   createTeamFormationStateV1,
   createTeamMemberContractBindingFromWorkContractV1,
@@ -26,6 +27,7 @@ import {
   createTeamReconfigurationRequestV1,
   recordTeamMemberOutcomeV1,
   reduceTeamFormationV1,
+  invalidateTeamFormationRequestV1,
   reduceTeamReconfigurationV1,
   validateJointWorkContractV1,
   validateTeamCandidateV1,
@@ -33,6 +35,7 @@ import {
   validateTeamFormationHandoffV1,
   validateTeamFormationPolicyV1,
   validateTeamFormationRequestV1,
+  validateTeamFormationRequestInvalidationV1,
   validateTeamFormationScopeV1,
   validateTeamFormationStateV1,
   validateTeamMemberContractBindingV1,
@@ -47,6 +50,7 @@ import {
   type TeamFormationPolicyRecordV1,
   type TeamFormationPortV1,
   type TeamFormationRequestV1,
+  type TeamFormationRequestInvalidationV1,
   type TeamFormationRuntimeOptionsV1,
   type TeamFormationStateV1,
   type TeamMemberOutcomeV1,
@@ -67,6 +71,7 @@ void createTeamCandidateV1;
 void createTeamFormationHandoffV1;
 void createTeamFormationPolicyV1;
 void createTeamFormationRequestV1;
+void createTeamFormationRequestInvalidationV1;
 void createTeamFormationScopeV1;
 void createTeamFormationStateV1;
 void createTeamMemberContractBindingFromWorkContractV1;
@@ -81,6 +86,7 @@ void createTeamProposalV1;
 void createTeamReconfigurationRequestV1;
 void recordTeamMemberOutcomeV1;
 void reduceTeamFormationV1;
+void invalidateTeamFormationRequestV1;
 void reduceTeamReconfigurationV1;
 void validateJointWorkContractV1;
 void validateTeamCandidateV1;
@@ -88,6 +94,7 @@ void validateTeamFormationDecisionV1;
 void validateTeamFormationHandoffV1;
 void validateTeamFormationPolicyV1;
 void validateTeamFormationRequestV1;
+void validateTeamFormationRequestInvalidationV1;
 void validateTeamFormationScopeV1;
 void validateTeamFormationStateV1;
 void validateTeamMemberContractBindingV1;
@@ -99,6 +106,7 @@ void validateTeamReconfigurationRequestV1;
 
 declare const controller: TeamFormationPortV1;
 declare const request: TeamFormationRequestV1;
+declare const invalidation: TeamFormationRequestInvalidationV1;
 declare const decision: TeamFormationDecisionV1;
 declare const proposal: TeamProposalV1;
 declare const contract: JointWorkContractV1;
@@ -115,6 +123,19 @@ const activated: Promise<JointWorkContractV1> = controller.activate({
   logicalTimeMs: 1,
 });
 const recorded = controller.recordOutcome(outcome);
+const invalidated: Promise<TeamFormationRequestInvalidationV1> =
+  controller.invalidate({
+    formationRequestDigest: request.requestDigest,
+    formationAuthorizationDigest: proposal.proposalDigest,
+    reasonCode: "allocation_fence_advanced",
+    logicalTimeMs: 1,
+    requestValidUntilLogicalMs: request.validUntilLogicalMs,
+  });
+const cancelled = controller.cancel({
+  reasonCode: "allocation_fence_advanced",
+  logicalTimeMs: 1,
+  expectedProposalDigest: proposal.proposalDigest,
+});
 const loaded: Promise<TeamFormationStateV1> = controller.loadState();
 const projections: readonly TeamPositionWorkProjectionV1[] =
   createTeamPositionWorkProjectionsV1({ proposal });
@@ -122,11 +143,14 @@ const projections: readonly TeamPositionWorkProjectionV1[] =
 void formed;
 void activated;
 void recorded;
+void invalidated;
+void cancelled;
 void loaded;
 void projections;
 void decision;
 void contract;
 void state;
+void invalidation;
 void handoff;
 void policy;
 void options;

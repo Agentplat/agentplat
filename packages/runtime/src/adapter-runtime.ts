@@ -538,6 +538,7 @@ export class PortableAgentSessionRuntimeV1 {
   ): Promise<PortableAgentStepResultV1> {
     const preStep = await this.evaluateControl(
       "pre_step",
+      0,
       snapshot,
       request,
       null,
@@ -580,9 +581,10 @@ export class PortableAgentSessionRuntimeV1 {
     if (result.status !== "completed") {
       return cloneAndFreeze({ ...result, outputs: [], actionProposals: [] });
     }
-    for (const output of result.outputs) {
+    for (const [outputIndex, output] of result.outputs.entries()) {
       const decision = await this.evaluateControl(
         "post_output",
+        outputIndex,
         snapshot,
         request,
         output,
@@ -592,9 +594,10 @@ export class PortableAgentSessionRuntimeV1 {
         return this.refusedResult(snapshot, request, decision.reasonCode);
       }
     }
-    for (const action of result.actionProposals) {
+    for (const [actionIndex, action] of result.actionProposals.entries()) {
       const decision = await this.evaluateControl(
         "pre_action",
+        actionIndex,
         snapshot,
         request,
         null,
@@ -609,6 +612,7 @@ export class PortableAgentSessionRuntimeV1 {
 
   private async evaluateControl(
     checkpoint: PortableAgentControlPointV1,
+    checkpointItemIndex: number,
     snapshot: PortableAgentSessionSnapshotV1,
     request: PortableAgentStepRequestV1,
     output: Parameters<
@@ -623,6 +627,8 @@ export class PortableAgentSessionRuntimeV1 {
         await this.control.evaluate({
           schemaVersion: 1,
           checkpoint,
+          stepSequence: snapshot.nextStepSequence,
+          checkpointItemIndex,
           manifest: snapshot.manifest,
           sessionId: snapshot.sessionId,
           tenantId: snapshot.tenantId,

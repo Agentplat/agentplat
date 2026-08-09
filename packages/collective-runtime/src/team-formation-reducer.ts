@@ -10,6 +10,7 @@ import type {
   TeamFormationPolicyRecordV1,
   TeamFormationReductionInputV1,
   TeamFormationReductionResultV1,
+  TeamFormationRequestInvalidationV1,
   TeamFormationStateV1,
   TeamMemberContractBindingV1,
   TeamMemberOutcomeV1,
@@ -22,6 +23,7 @@ import type {
 import {
   createJointWorkContractV1,
   createTeamFormationDecisionV1,
+  createTeamFormationRequestInvalidationV1,
   createTeamFormationStateV1,
   createTeamMemberSelectionV1,
   createTeamProposalV1,
@@ -46,6 +48,13 @@ export function reduceTeamFormationV1(
   const policy = validateTeamFormationPolicyV1(input.policy);
   const state = validateTeamFormationStateV1(input.state, { policy });
   const request = validateTeamFormationRequestV1(input.request);
+  if (
+    state.requestInvalidations.some(
+      (invalidation) =>
+        invalidation.formationRequestDigest === request.requestDigest,
+    )
+  )
+    fail("team formation request is invalidated");
   if (state.lastDecision?.requestDigest === request.requestDigest)
     return freeze({ state, decision: state.lastDecision });
 
@@ -95,6 +104,65 @@ export function reduceTeamFormationV1(
     reasonCodes: boundedReasons(reasons, policy),
     priorHistory: freeze([]),
   });
+}
+
+export function invalidateTeamFormationRequestV1(input: {
+  readonly state: TeamFormationStateV1;
+  readonly policy: TeamFormationPolicyRecordV1;
+  readonly formationRequestDigest: PlanningDigestV1;
+  readonly formationAuthorizationDigest: PlanningDigestV1;
+  readonly reasonCode: string;
+  readonly logicalTimeMs: number;
+  readonly requestValidUntilLogicalMs: number;
+}): {
+  readonly state: TeamFormationStateV1;
+  readonly invalidation: TeamFormationRequestInvalidationV1;
+} {
+  const policy = validateTeamFormationPolicyV1(input.policy);
+  const state = validateTeamFormationStateV1(input.state, { policy });
+  const invalidation = createTeamFormationRequestInvalidationV1({
+    schemaVersion: 1,
+    formationRequestDigest: input.formationRequestDigest,
+    formationAuthorizationDigest: input.formationAuthorizationDigest,
+    reasonCode: input.reasonCode,
+    invalidatedAtLogicalMs: input.logicalTimeMs,
+    requestValidUntilLogicalMs: input.requestValidUntilLogicalMs,
+  });
+  const existing = state.requestInvalidations.find(
+    (value) =>
+      value.formationRequestDigest === invalidation.formationRequestDigest,
+  );
+  if (existing) {
+    if (
+      existing.formationAuthorizationDigest !==
+        invalidation.formationAuthorizationDigest ||
+      existing.requestValidUntilLogicalMs !==
+        invalidation.requestValidUntilLogicalMs
+    )
+      fail("team formation invalidation authorization changed");
+    return freeze({ state, invalidation: existing });
+  }
+  if (
+    invalidation.requestValidUntilLogicalMs <= state.logicalTimeHighWaterMs
+  )
+    return freeze({ state, invalidation });
+  const next = createTeamFormationStateV1({
+    stateKey: state.stateKey,
+    formationId: state.formationId,
+    formationVersion: state.formationVersion,
+    implementationId: state.implementationId,
+    policy,
+    revision: state.revision + 1,
+    logicalTimeHighWaterMs: Math.max(
+      state.logicalTimeHighWaterMs,
+      invalidation.invalidatedAtLogicalMs,
+    ),
+    team: state.team,
+    lastDecision: state.lastDecision,
+    requestInvalidations: [...state.requestInvalidations, invalidation],
+    predecessorStateDigest: state.stateDigest,
+  });
+  return freeze({ state: next, invalidation });
 }
 
 export function reduceTeamReconfigurationV1(input: {
@@ -682,6 +750,7 @@ function commitFormationDecision(input: {
     ),
     team,
     lastDecision: decision,
+    requestInvalidations: input.state.requestInvalidations,
     predecessorStateDigest: input.state.stateDigest,
   });
   return freeze({ state: next, decision });
@@ -706,6 +775,7 @@ function successorState(
     ),
     team,
     lastDecision: state.lastDecision,
+    requestInvalidations: state.requestInvalidations,
     predecessorStateDigest: state.stateDigest,
   });
 }

@@ -187,6 +187,7 @@ export function createPortableAgentTeamMemberExecutionPortV1(
         reasonCode: classification.controlReasonCode,
         sourceEvidenceDigest: sourceStepRecordDigest,
         evaluatedAtLogicalMs: completedAtLogicalMs,
+        validUntilLogicalMs: dispatch.validUntilLogicalMs,
       });
       const artifacts = options
         .collectArtifacts({

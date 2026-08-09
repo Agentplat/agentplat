@@ -34,6 +34,25 @@ const migrations = Object.freeze([
     ),
     destructiveDown: true,
   }),
+  Object.freeze({
+    version: 2,
+    name: 'scalable_evaluation_checkpoints',
+    up: readFileSync(
+      new URL(
+        '../migrations/002_scalable_evaluation_checkpoints.up.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    down: readFileSync(
+      new URL(
+        '../migrations/002_scalable_evaluation_checkpoints.down.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    destructiveDown: true,
+  }),
 ] satisfies readonly PostgresMigration[]);
 
 export interface MeshSimPostgresMigrationOptionsV1 {

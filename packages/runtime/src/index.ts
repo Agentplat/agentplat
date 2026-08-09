@@ -197,3 +197,5 @@ export class DefaultAgentRuntime implements AgentRuntime {
     return provider;
   }
 }
+
+export * from './cognitive-adapter.js';

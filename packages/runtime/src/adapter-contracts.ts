@@ -294,6 +294,10 @@ export interface PortableAgentAdapterV1 {
 export interface PortableAgentControlRequestV1 {
   readonly schemaVersion: 1;
   readonly checkpoint: PortableAgentControlPointV1;
+  /** One-based execution ordinal; unlike session revision, lifecycle changes do not advance it. */
+  readonly stepSequence: number;
+  /** Zero-based item ordinal within this checkpoint; pre_step is always zero. */
+  readonly checkpointItemIndex?: number;
   readonly manifest: PortableAgentAdapterManifestV1;
   readonly sessionId: AgentPlatID;
   readonly tenantId: AgentPlatID;

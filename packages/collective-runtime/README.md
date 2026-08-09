@@ -390,6 +390,9 @@ strategy adaptation: it cannot directly select a strategy, increase an
 alternative's safety disposition, grant planning or assignment authority, or
 override the local baseline and control-plane vetoes. Missing, stale,
 equivocating or insufficiently independent evidence fails closed.
+Out-of-order evidence consumes the bounded pending-attestation budget but does
+not reserve a source-head slot; that capacity is checked only when a complete
+predecessor chain becomes admissible.
 
 Use a durable compare-and-swap store in production. The in-memory reference
 store and deterministic routing helpers are intended for local composition,
@@ -492,6 +495,7 @@ const teamPolicy = createTeamFormationPolicyV1({
     maximumSearchNodes: 100_000,
     maximumReasonCodesPerDecision: 12,
     maximumHistoryEntries: 32,
+    maximumRequestInvalidations: 1_024,
     maximumRequestTtlMs: 300_000,
     maximumTeamDurationMs: 86_400_000,
     maximumCommitAttempts: 8,
@@ -515,11 +519,29 @@ optimizes the complete roster rather than independently choosing the highest
 bid for every position; if the bounded search cannot prove a result it emits no
 proposal.
 
+Proposal validation reconstructs every member identity and selection digest
+from the proposal's exact Team ID and epoch. For an initial proposal, the Team
+ID is derived from scope plus formation-request digest, the epoch is exactly 1,
+and the predecessor joint contract is null.
+
 A `TeamProposalV1` is inert coordination data. `activate()` succeeds only when
 every selected position is backed by an exact, current individual
 `WorkContractV1`. The resulting `JointWorkContractV1` composes those bindings
 but never replaces them at an action boundary. Existing per-member assignment
 epochs, leases, fencing tokens and action budgets remain authoritative.
+Fenced coordinators should pass `expectedProposalDigest` to `cancel()`; the
+runtime checks it inside the cancellation CAS and will not cancel a replacement
+team that became current concurrently.
+
+`invalidate()` commits a durable negative fence for a formation-request digest,
+bound to the coordinator's formation authorization and the request validity
+window. `form()` checks that tombstone inside its Team-creation CAS, before
+decision replay, so an invocation already in flight must either commit first or
+lose its CAS and observe the invalidation. Tombstones remain in state and
+handoffs while their request can still arrive. Only entries whose
+`requestValidUntilLogicalMs` is at or below the durable logical-time high-water
+may be compacted; exhausting `maximumRequestInvalidations` with unexpired
+entries fails closed.
 
 Member failure is handled as a new team epoch. Unaffected members may retain
 their current individual contracts, while the replacement must complete the
@@ -724,6 +746,48 @@ policy, formation policy and every persisted admission. Neither adapter creates
 an assignment or effect authority; formation and individual Work Contracts
 remain mandatory.
 
+`@agentplat/collective-runtime/distributed-team-allocation` composes those
+boundaries as a durable saga. It retains the complete certified roster decision
+and the exact formation command before dispatch. A canonical authorization
+digest binds the planning state, allocation plan, decision candidate and
+certificate, exact allocation-state/auction/round fence, request identity,
+membership and validity window. A retained plan is rejected unless its
+proposal, auction digest and round still match the current allocation state.
+
+Every retry reauthenticates the retained decision and reconstructs the exact
+plan-to-bid-to-member binding before `form()` or activation. Activation crosses
+an application-provided boundary that must atomically consume the exact fence.
+That boundary also provides idempotent reconcile and cancel operations: after a
+crash, the saga adopts a matching activation or cancels it before clearing a
+stale authorization. A changed/retired plan, expired or invalid certificate,
+altered command, or stale Work Contract fails closed and returns the affected
+positions to a fresh allocation round.
+
+Formation replay is discovered from the current durable Team proposal, not
+from `lastDecision`, because a concurrent request may overwrite the latter
+while leaving the Team non-terminal. Before the saga persists a proposal
+digest, discovery requires its exact formation-request digest and canonical
+request-to-roster binding; afterwards it requires the exact recorded proposal
+digest. `lastDecision` is consulted only to compare a freshly returned `form()`
+response that has no Team proposal to reconcile. A crash after Team Formation
+commits is therefore adopted without encountering `non_terminal_team_exists`.
+Before any later fence-clear or withdrawal, that exact awaiting/active proposal
+is cancelled through the CAS-bound `expectedProposalDigest`; a replacement
+proposal is never cancelled.
+Initial rosters are accepted only as epoch 1 with no predecessor and with the
+canonical team ID, member IDs and selection digests reconstructed from the
+retained bids.
+
+For activation-pending or active cleanup, the saga first cancels the exact
+activation-boundary contract and only then cancels the exact Formation Team;
+this removes effect authority before closing the Team while still preventing a
+later round from failing with `non_terminal_team_exists`.
+
+Before clearing a formation authorization or emitting a withdrawal, the saga
+first persists the request invalidation and then reconciles/cancels any exact
+proposal. This closes the no-Team-yet race: a delayed `form()` cannot create a
+Team after cleanup has already observed an empty Formation state.
+
 ## Integrated coordination-control loop
 
 Import `@agentplat/collective-runtime/coordination-control` to reduce fresh,
@@ -864,3 +928,155 @@ rollback reset progress to a conservative advisory pause or replan.
 
 The adapter stores only identifiers, counters and digests. It never executes
 the proposal, and source authentication remains an application-provided port.
+
+## Collective capability closure
+
+The additive collective capability closure composes autonomous mission planning,
+certified context fusion, distributed team allocation, compromise-aware
+recovery, semantic alignment/agility control, coordination-control guarantees
+and heterogeneous agent execution through provider-neutral ports. Each module
+retains its own policy, scope, CAS state and authority boundary.
+
+`DistributedTeamAllocationRuntimeV2` advances planning positions through
+authenticated mechanism events, a certified team-roster decision, formation
+and Work-Contract activation. Formation rejection or activation expiry is
+reported through an authenticated withdrawal port for a later allocation round.
+`CoordinationControlGuaranteeRuntimeV1` intersects a verified local control
+guarantee with a planning target and emits an allow/deny dispatch gate with a
+bounded effective planning window. Its dispatch sink returns a durable receipt
+that binds the exact proposal, scope, delivery time and configured team-control
+identity. `createAuthenticatedGuaranteeTeamExecutionControlPortV1` accepts only
+a proposal digest and obtains the proposal plus receipt through an
+application-owned authenticated lookup. It cannot accept inline proposal bytes
+or a caller-selected `controlId`, version or implementation identity.
+
+`CompromiseAwareRecoveryRuntimeV1` requires its store to advance the saga
+snapshot and rollback-resistant anchor atomically. It never repairs an anchor
+from a newer snapshot. Certified recovery chooses exactly one of checkpoint,
+reauction or replanning; a checkpoint decision without an exact checkpoint
+digest is invalid. The store reads snapshot+anchor as one consistent pair, and
+the production anchor must live on a monotonic/non-reversible boundary that is
+not rolled back with ordinary state backups. The in-memory adapter demonstrates
+atomic semantics only and is not that production boundary.
+
+The saga is a nominal capability. Its state/anchor store, verdict verifier and
+all exclusion, fencing, activation and restoration effect methods are captured
+with their original receiver at construction, while module-owned invokers bypass
+replaceable public methods. Structural clones, prototype fabrication, monkey
+patches and dependency rebinding cannot acquire or redirect the durable saga.
+
+Import the same subpath to use `AutonomousCompromiseRecoveryRuntimeV1` as the
+bounded bridge from certified incident delivery to those durable, scope-local
+sagas. Its source is an at-least-once certificate inbox, not a raw anomaly
+detector: an application-owned verifier remains inside each recovery runtime,
+and an application-owned request planner derives the current assignment epoch,
+fencing token, takeover candidates, witness policy and restoration choice from
+authoritative repositories. Callers pass only logical time to `tick()`; they do
+not inject a verdict or recovery request on each scheduling cycle.
+
+The runtime resolves one saga per full recovery scope, resumes a retained saga
+before a later out-of-order delivery, bounds both certificates and saga steps,
+and acknowledges a certificate only after its terminal state is durable. A
+missing runtime, unavailable request, rejected boundary, incomplete saga or
+exhausted batch prevents ordinary node progress. Even a completed recovery
+returns `nodeProgressAllowed: false`; a subsequent empty delivery is the clean
+tick that permits work to resume. Source acknowledgement is idempotent and may
+refer to a certificate delivered to the same consumer in an earlier pull.
+
+A blocked incident may be superseded only for the same subject. Its complete
+ancestor chain remains non-terminal while the successor is blocked, so an
+ancestor redelivery is rejected before planning or saga submission and remains
+unacknowledged. When a successor completes, the saga atomically records every
+ancestor's durable disposition to that terminal certificate; after a restart,
+those redeliveries can be acknowledged without rerunning recovery. Completed
+and superseded identities share one fail-closed capacity bound and are never
+evicted.
+
+`scopeAdmission` authenticates the complete tenant/mesh/mission/objective/work
+scope before a registry lookup. The required coordinator store persists a
+mission-wide logical-time high-water and the canonical set of admitted scopes
+with monotonic CAS; it therefore rejects time rollback and fails closed at
+`maximumScopes` across restarts before an unknown runtime can be initialized.
+No in-memory coordinator store is provided. Its production implementation must
+prevent rollback of both the high-water and retained scope set.
+
+`BoundedLifecycleCompromiseRecoveryRuntimeRegistryV1` is the reference safe
+composition for the integrated host. It accepts a fixed-capacity list of known
+scope configurations and constructs every `CompromiseAwareRecoveryRuntimeV1`
+itself. Each saga is wrapped with the exact same governed lifecycle and the
+same assignment authority used to install fences; an inbox certificate cannot
+create a new scope or substitute either authority boundary.
+
+The bounded registry is nominal and owns its resolve/admission invokers. The
+autonomous supervisor captures the exact source, planner, registry resolution,
+scope admission and coordinator-store methods at construction, then pins the
+first resolved saga identity for every full scope. Returning a different object
+for an already retained scope is treated as registry substitution and fails
+closed. Closed host composition additionally requires resolution and admission
+to be the same nominal bounded-registry instance, preventing split-brain scope
+admission or a structurally forged registry from satisfying authority closure.
+
+Compose each saga with
+`createCompromiseRecoveryLifecycleExclusionPortV1()` so sparse exclusion also
+retires the subject from governed membership, and with
+`createCompromiseRecoveryFencingPortV1()` so assignment authority advances
+before takeover. Work-Contract execution paths additionally wrap their normal
+pre/post currentness check with
+`createCompromiseRecoveryCurrentnessPortV1()`; the effect sink must share the
+same durable assignment/fence repository and idempotency identity. Integrated
+assurance execution additionally binds scope, objective, work item, assignment
+epoch/token and membership generation into execution finality and submits that
+exact fence to the same repository for atomic compare-and-commit. These ports
+do not create detector, membership, election, planning or effect authority.
+
+The open-core intentionally provides no in-memory certified-verdict inbox and
+no production saga or coordinator store. The source must retain unacknowledged
+certificates across process loss. The saga store must atomically commit snapshot
+and rollback-resistant anchor on a protection boundary that ordinary backup
+restoration cannot rewind. The coordinator store must preserve its monotonic
+time and never evict admitted scope identities. `InMemoryCompromiseRecoveryStoreV1`
+remains a local saga composition aid only.
+
+`AutonomousMissionLoopRuntimeV1` likewise reads one consistent state/anchor
+pair and requires every CAS to advance both atomically. Its production anchor
+is independently keyed and lives on a monotonic protection boundary outside
+the replaceable Mesh snapshot. A missing or divergent half fails closed: the
+runtime and `MeshDurableAutonomousMissionLoopStoreV1` neither derive an anchor
+from state nor repair one after an interrupted or rolled-back write. The
+Mesh-backed adapter therefore requires an atomic repository that owns both the
+snapshot transaction and the independent anchor advance.
+
+Compromise-aware sparse exclusion is replay-safe by certificate. A retry keeps
+the original adaptive revision fence, but an already-applied locally certified
+certificate is recognized before that stale revision is rejected. The sparse
+view is then reconciled if the crash occurred between adaptive application and
+local routing persistence, and the recovery receipt retains the original
+application time.
+
+Applications provide durable stores, authenticated event/certificate sources,
+current Work Contract resolution, logical time and fenced effect boundaries.
+These runtimes do not provide a central scheduler, global plan graph, transport
+or execution authority. See [ADR 0042](../../docs/adr/0042-collective-capability-closure.md)
+and the [architecture and threat model](../../docs/security/collective-capability-closure-v1.md).
+
+## Cross-capability invariant guard
+
+Import `@agentplat/collective-runtime/collective-invariants` to enforce portable,
+content-free invariants immediately before a protected effect. The guard
+requires an application-owned evidence verifier and rejects an effect unless
+authorization, finality and an admissible semantic decision are all bound to
+the exact observation. The same state machine prevents conflicting finality in
+one scope/epoch, checks budget conservation and lineage attenuation, and
+advances epoch, fence and checkpoint coordinates monotonically.
+
+Decisions produce content-addressed receipts and advance a CAS snapshot plus a
+monotonic anchor. Observation identifiers are durable idempotency keys; bounded
+receipt capacity fails closed instead of evicting replay protection. The
+runtime is created asynchronously with `CollectiveInvariantRuntimeV1.create`,
+which recomputes the complete policy digest, including trusted lineage roots
+and admissible semantic dispositions. Its evidence verifier must attest the
+entire observation digest and the exact claim-specific binding; independently
+valid but unrelated certificates cannot be mixed into an effect permit. The
+in-memory store is a composition aid only. Production stores must atomically
+commit the state with an independently protected rollback witness, and effect
+sinks must deduplicate by effect identity plus the exact invariant receipt.

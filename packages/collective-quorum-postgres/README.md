@@ -8,6 +8,11 @@ storage for the opt-in `@agentplat/collective-quorum/agreement` protocol. Import
 `@agentplat/collective-quorum-postgres/agreement`. Existing root repository
 contracts and tables remain available.
 
+Migration V3 adds compare-and-swap state for the live sparse round/view engine
+and bounded partial-view convergence. The root entry point exports
+`PostgresSparseAgreementRoundStoreV1` and
+`PostgresPartialViewAgreementStoreV1`.
+
 The repository keeps these peer-local facts transactionally:
 
 - one non-equivocating semantic assignment value per lease slot;

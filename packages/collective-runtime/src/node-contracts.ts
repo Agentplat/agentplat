@@ -45,6 +45,7 @@ import type {
 import type { CollectivePeerRuntimeV1 } from "./peer-runtime.js";
 import type { ExecutionCheckpointAvailabilityPortV1 } from "./checkpoint-contracts.js";
 import type { CapabilityStateFusionPortV1 } from "./capability-state-contracts.js";
+import type { CollectiveSparsePeerPlaneLifecyclePortV1 } from "./sparse-peer-contracts.js";
 
 export const COLLECTIVE_PEER_NODE_SCHEMA_VERSION = 1 as const;
 export const COLLECTIVE_PEER_NODE_SNAPSHOT_FORMAT =
@@ -382,6 +383,8 @@ export interface CollectivePeerNodeRuntimeConfigV1 {
   readonly assignmentConfirmation: CollectivePeerNodeAssignmentConfirmationPortV1;
   readonly recoveryElection: CollectivePeerNodeRecoveryElectionPortV1;
   readonly synchronization?: CollectivePeerNodeSynchronizationPortV1;
+  /** Peer-local sparse delivery, topology freshness and membership catch-up. */
+  readonly sparsePeerPlane?: CollectiveSparsePeerPlaneLifecyclePortV1;
   readonly actions: CollectivePeerNodeActionPortV1;
   readonly signing: CollectivePeerNodeSigningV1;
   readonly clock: CollectivePeerNodeClockV1;

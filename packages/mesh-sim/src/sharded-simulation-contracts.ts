@@ -172,6 +172,7 @@ export interface ShardedSimulationCrossShardMessageBatchV1 {
 export interface ShardedSimulationCrossShardMessageAckV1 {
   readonly schemaVersion: 1;
   readonly batchId: string;
+  readonly batchDigest: PlanningDigestV1;
   readonly accepted: boolean;
   readonly duplicate: boolean;
   readonly deliveredEventIds: readonly string[];

@@ -228,3 +228,155 @@ test("conformance rejects an adapter that substitutes the requested scenario", a
     /conformance_definition_substitution/,
   );
 });
+
+test("conformance rejects a restore receipt that does not restore mutated state", async () => {
+  const reference = environment.createReferenceMultiDomainEnvironmentAdapterV1({
+    domain: "cyber",
+  });
+  const definition = environment.createReferenceMultiDomainScenarioDefinitionV1(
+    {
+      adapter: reference,
+      scenarioId: "scenario:no-op-restore",
+      scaleProfileId: "peers-500-interactions-5000",
+      seed: 37,
+    },
+  );
+  const noOpRestore = {
+    descriptor: reference.descriptor,
+    createScenario(candidate) {
+      return reference.createScenario(candidate);
+    },
+    async openScenario(input) {
+      const bridge = await reference.openScenario(input);
+      return new Proxy(bridge, {
+        get(target, property, receiver) {
+          if (property === "restore") {
+            return (request) => {
+              const body = {
+                schemaVersion: 1,
+                checkpointId: request.checkpoint.checkpointId,
+                restoredRevision: request.checkpoint.revision,
+                restoredLogicalTime: request.checkpoint.logicalTime,
+              };
+              return Object.freeze({
+                ...body,
+                receiptDigest: sharded.shardedSimulationDigestV1(
+                  "sharded-simulation-restore-receipt-v1",
+                  body,
+                ),
+              });
+            };
+          }
+          const value = Reflect.get(target, property, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    },
+  };
+  const report = await environment.runMultiDomainAdapterConformanceV1({
+    adapter: noOpRestore,
+    definition,
+  });
+  assert.equal(report.checkpointRestoreStable, false);
+  assert.equal(report.conformant, false);
+});
+
+test("scenario budgets count logical interactions and reject checkpoint overflow before mutation", async () => {
+  const adapter = environment.createReferenceMultiDomainEnvironmentAdapterV1({
+    domain: "physical",
+  });
+  const base = environment.createReferenceMultiDomainScenarioDefinitionV1({
+    adapter,
+    scenarioId: "scenario:tight-budgets",
+    scaleProfileId: "peers-500-interactions-5000",
+    seed: 17,
+    entityCount: 2,
+  });
+  const definition = {
+    ...base,
+    resourceBudget: {
+      ...base.resourceBudget,
+      maximumInteractions: 1,
+      maximumCheckpointBytes: 1,
+    },
+  };
+  const manifest = await adapter.createScenario(definition);
+  const bridge = await adapter.openScenario({ manifest });
+  const session = await bridge.createSession({
+    environmentId: adapter.descriptor.adapterId,
+    logicalTime: 0,
+  });
+  const episode = await bridge.startEpisode({
+    session,
+    episodeId: "episode:tight-budgets",
+    seed: definition.seed,
+    logicalTime: 0,
+  });
+  const profile = sharded.shardedSimulationScaleProfileV1(
+    definition.scaleProfileId,
+  );
+  const assignments = sharded.createShardedSimulationAssignmentsV1({
+    profile,
+    shardCount: 1,
+  });
+  await bridge.bindShardAssignments({ session, episode, profile, assignments });
+  await bridge.pullPartialObservation({
+    schemaVersion: 1,
+    sessionId: session.sessionId,
+    episodeId: episode.episodeId,
+    peerIndex: 0,
+    logicalTime: 1,
+    cursor: null,
+    requestId: "tight:observation:0",
+  });
+  const schema = adapter.descriptor.actionSchemas[0];
+  const action = {
+    schemaVersion: 1,
+    domain: schema.domain,
+    entityId: "entity:0",
+    capability: schema.capability,
+    schemaDigest: schema.schemaDigest,
+    payload: { requested: true },
+  };
+  const actionBody = {
+    schemaVersion: 1,
+    actionId: "tight:action:0",
+    sessionId: session.sessionId,
+    episodeId: episode.episodeId,
+    peerIndex: 0,
+    logicalTime: 1,
+    executionEpoch: 1,
+    fenceToken: `fence:${session.sessionId}:${episode.episodeId}:0:1`,
+    action,
+  };
+  const receipt = await bridge.requestEffect({
+    ...actionBody,
+    actionDigest: sharded.shardedSimulationFencedActionDigestV1(actionBody),
+  });
+  assert.equal(receipt.accepted, true);
+  assert.throws(
+    () =>
+      bridge.pullPartialObservation({
+        schemaVersion: 1,
+        sessionId: session.sessionId,
+        episodeId: episode.episodeId,
+        peerIndex: 1,
+        logicalTime: 2,
+        cursor: null,
+        requestId: "tight:observation:1",
+      }),
+    /interaction_budget_exceeded/,
+  );
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    assert.throws(
+      () =>
+        bridge.checkpoint({
+          session,
+          episode,
+          expectedRevision: 0,
+          logicalTime: 2,
+        }),
+      /checkpoint_scenario_budget_exceeded/,
+    );
+  }
+});

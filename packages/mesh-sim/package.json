@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./scalable-evaluation": {
+      "types": "./dist/scalable-evaluation.d.ts",
+      "import": "./dist/scalable-evaluation.js"
     }
   },
   "files": [
@@ -20,11 +24,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
+    "test:scalable-evaluation": "pnpm run build && node --test tests/scalable-evaluation*.test.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "@agentplat/collective-host": "workspace:^",
     "@agentplat/collective-control": "workspace:^",
     "@agentplat/collective-planning": "workspace:^",
+    "@agentplat/collective-quorum": "workspace:^",
     "@agentplat/inference-control": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-crypto": "workspace:^",

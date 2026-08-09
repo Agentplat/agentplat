@@ -54,6 +54,79 @@ For a durable deployment, use
 `@agentplat/collective-quorum-postgres`. The in-memory repository has identical
 atomic semantics but loses promises and votes when the process exits.
 
+## Browser-safe cryptographic helpers
+
+`@agentplat/collective-quorum/crypto` is the browser-safe subpath for canonical
+SHA-256 digests and signed quorum envelopes. It requires the standard Web
+Crypto API (or an injected compatible implementation); it does not import Node
+APIs. Use it when composing browser, worker, edge, or host runtimes that need
+the same quorum digest format:
+
+```ts
+import { collectiveQuorumDigestV1 } from "@agentplat/collective-quorum/crypto";
+
+const digest = await collectiveQuorumDigestV1({ kind: "mission", revision: 1 });
+```
+
+## Certified mission context fusion
+
+The `@agentplat/collective-quorum/mission-context-fusion` entry point turns an
+already validated Trust fusion/profile/eligibility projection into a bounded,
+certified planning context. It does not ingest raw evidence and it does not
+grant execution authority. A missing certificate, stale clock, conflicting
+head, non-admitted disposition or scope mismatch fails closed.
+
+Construction requires a trusted monotonic logical clock and a
+`MissionContextFusionScopeBindingPortV1`. The canonical scope adapter accepts
+an application-owned authenticated projection of the current mission intent
+and compares its Trust scope digest; remote input cannot choose that mapping.
+Only `createCertifiedMissionContextPlanningPortV1` converts an admitted,
+unexpired resolution into a planning observation. The caller supplies only the
+opaque `resolutionDigest`. The adapter reloads and hashes the retained
+resolution, requires it to be the current repository head, reloads the exact
+collective Trust decision, rechecks every scope/policy/membership/time binding,
+and invokes an application-owned certificate reauthentication port. A digest by
+itself is never treated as certification.
+
+```ts
+import {
+  MissionContextFusionRuntimeV1,
+  createCanonicalMissionContextFusionScopeBindingPortV1,
+  createCertifiedMissionContextPlanningPortV1,
+} from "@agentplat/collective-quorum/mission-context-fusion";
+
+const scopeBinding = createCanonicalMissionContextFusionScopeBindingPortV1({
+  project: (missionScope) => authenticatedTrustScopeFor(missionScope),
+});
+const fusion = new MissionContextFusionRuntimeV1({
+  policy,
+  certification,
+  repository,
+  clock,
+  scopeBinding,
+});
+const planningContext = createCertifiedMissionContextPlanningPortV1({
+  repository,
+  certifiedDecisions,
+  scopeBinding,
+  certification: {
+    reauthenticate: ({ resolution, decision, logicalTimeMs }) =>
+      authenticateCurrentTrustCertificate({
+        resolution,
+        decision,
+        logicalTimeMs,
+      }),
+  },
+});
+
+const observation = await planningContext.observation({
+  resolutionDigest: certifiedResolution.resolutionDigest,
+  observationId: "planning.context.1",
+  observationKind: "certified-context",
+  logicalTimeMs: clock.now().logicalTimeMs,
+});
+```
+
 ## Byzantine-resilient agreement (opt in)
 
 Deployments whose admitted-validator fault model includes arbitrary or
@@ -185,6 +258,31 @@ Run the complete four-validator reference path locally with:
 ```sh
 pnpm example:collective-trust-consensus
 ```
+
+## Sparse agreement runtime and partial views
+
+The `./sparse-agreement-runtime` entry point provides a durable round/view
+engine for prepare, commit, reconciliation, timeout-driven view change,
+equivocation evidence and certificate assembly. `SparseFinalityAssemblyRuntimeV1`
+combines independently certified shards only when their coordinates and
+reconciliation root agree.
+
+The `./partial-view-agreement` entry point derives a deterministic committee
+from bounded validator claims rather than enumerating global membership. It
+limits candidates and validators per independence group, seals a local snapshot
+and requires an independent witness quorum before exposing agreement
+membership. The resulting certificate proves convergence on that bounded
+snapshot; it does not claim complete network knowledge.
+
+The `./webcrypto-ports` entry point supplies Ed25519 multi-signature, validator
+claim and witness adapters. Durable round and partial-view state is available
+from `@agentplat/collective-quorum-postgres`.
+
+Authenticated equivocation evidence can be verified independently and routed
+through `./equivocation-response`. The response bridge records a scope-local
+credibility violation and returns an actionable agreement eligibility
+decision. It does not create a global reputation score, and an accusation
+without two valid conflicting signatures is rejected.
 
 ## Safety and availability
 

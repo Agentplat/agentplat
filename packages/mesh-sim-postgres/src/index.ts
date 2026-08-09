@@ -24,6 +24,7 @@ import {
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
 export const MESH_SIM_POSTGRES_SCHEMA_VERSION_V1 = 1 as const;
+export const MESH_SIM_POSTGRES_MIGRATION_VERSION_V1 = 2 as const;
 export const DEFAULT_MESH_SIM_POSTGRES_LIMITS_V1 = Object.freeze({
   maximumArtifactBytes: 16 * 1024 * 1024,
   maximumArtifacts: 16_384,
@@ -842,3 +843,4 @@ export {
   runMeshSimPostgresMigrationsV1,
 } from './migrations.js';
 export type { MeshSimPostgresMigrationOptionsV1 } from './migrations.js';
+export * from './scalable-evaluation-checkpoint-store.js';

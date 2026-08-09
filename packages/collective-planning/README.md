@@ -8,6 +8,21 @@ with the existing Mesh coordination and Collective Control contracts. The
 browser-safe `@agentplat/collective-planning/evaluation` entry point defines a
 separate runner/environment boundary and replay-derived evidence contracts.
 
+The browser-safe `@agentplat/collective-planning/development-evidence` entry
+point closes a fixed source-development inventory only from signed capability
+attestations. Each receipt must resolve to the exact manifest authorized by the
+local policy, match its public-surface, integration-boundary and threat-model
+digests, bind one source commit and tree, and verify under the authorized issuer
+and key. The required artifact resolver returns the ordered frozen source tree
+and every file's exact bytes; the assessor recomputes the tree digest, byte
+lengths and raw SHA-256 content digests before covering any capability. Closure
+also requires the construction-bound
+`WebCryptoDevelopmentEvidenceAttestationVerifierV1`; a caller-authored boolean
+verifier is rejected. Caller-supplied hashes or an unsigned receipt therefore
+cannot close a capability. This remains source evidence rather than an
+evaluation: empirical validation stays `pending` and `executionPermitted` is
+always `false`.
+
 ## What this increment contains
 
 - closed immutable mission-intent, observation, proposal, selection, decision,

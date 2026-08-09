@@ -299,6 +299,8 @@ function targetFor(request: PortableAgentControlRequestV1): JsonValue {
   return {
     schemaVersion: 1,
     checkpoint: request.checkpoint,
+    stepSequence: request.stepSequence,
+    checkpointItemIndex: request.checkpointItemIndex ?? 0,
     manifest: request.manifest,
     sessionId: request.sessionId,
     tenantId: request.tenantId,
@@ -311,12 +313,19 @@ function targetFor(request: PortableAgentControlRequestV1): JsonValue {
 }
 
 function assertPortableRequest(request: PortableAgentControlRequestV1): void {
+  const checkpointItemIndex = request?.checkpointItemIndex ?? 0;
   if (
     !request ||
     request.schemaVersion !== 1 ||
     !identifier.test(request.sessionId) ||
     !identifier.test(request.tenantId) ||
     !identifier.test(request.agentId) ||
+    !Number.isSafeInteger(request.stepSequence) ||
+    request.stepSequence < 1 ||
+    !Number.isSafeInteger(checkpointItemIndex) ||
+    checkpointItemIndex < 0 ||
+    checkpointItemIndex > 4_095 ||
+    (request.checkpoint === "pre_step" && checkpointItemIndex !== 0) ||
     !Number.isSafeInteger(request.request.logicalTimeMs) ||
     request.request.logicalTimeMs < 0
   )

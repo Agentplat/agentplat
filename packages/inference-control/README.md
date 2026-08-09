@@ -47,12 +47,29 @@ pnpm add @agentplat/inference-control@next
 - `@agentplat/inference-control/intervention` — capability-negotiated,
   content-free intervention gates for opaque APIs, token streams,
   representation sidecars, portable agents and multimodal action agents.
+- `@agentplat/inference-control/cognitive-adapters` — concrete cognitive-agent
+  adapters for black-box and representation-aware local inference, plus a
+  bounded HTTP chat-completions port for locally operated endpoints.
+- `@agentplat/inference-control/operational-control` — executable cognitive
+  control loop for black-box and representation-aware inference, anytime
+  observations, safe stopping and immediate pre-tool/pre-effect fencing.
 - `@agentplat/inference-control/assessor-ensemble` — request-bound,
   independent-group assessment across heterogeneous surfaces and modalities.
+- `@agentplat/inference-control/semantic-metrics` — provider-neutral vector
+  metrics and fixed-horizon descriptive bounds.
+- `@agentplat/inference-control/semantic-guarantees` — durable, anytime-valid
+  confidence sequences with explicit error spending, missingness policies and
+  horizon/replanning decisions.
 
 The root entry point has no Node runtime dependency and imports only
 `@agentplat/core`. Adapter subpaths depend only on public AgentPlat contracts
 and never import a vendor SDK.
+
+The cognitive adapters keep context, memory and tool use behind the reference
+control boundary. Representation-aware execution applies the configured
+representation intervention before the embedded engine runs. Both forms emit
+content-bound receipts for the collective cognitive runtime; neither model
+output nor a transport response grants action authority.
 
 ## Minimal controlled model
 
@@ -277,7 +294,198 @@ the requested surface and modalities. Missing, timed-out, conflicting,
 same-group divergent or uncovered evidence produces `unresolved`; the supplied
 operation gate dispatches only on an exact `allow` verdict.
 
-Invocations are prepared durably before assessor calls. Exact retries preserve
-their reservation, completed verdicts are idempotent, and an external
-monotonic anchor detects rollback. Independence labels and assessor quality
-remain deployment attestations rather than facts inferred by the runtime.
+Invocations are prepared durably before assessor calls. An exact retry of an
+active reservation never masquerades as a blocked verdict: it requires an
+authenticated reconciliation. A `confirmed_not_applied` receipt durably
+authorizes only that same invocation digest to reclaim the reservation and
+retry; any competing or changed invocation still fails closed. Completed
+verdicts are idempotent, and an external monotonic anchor detects rollback.
+Independence labels and assessor quality remain deployment attestations rather
+than facts inferred by the runtime.
+
+Governed role catalogs are nominal runtimes. Closed host currentness paths use
+the catalog's module-owned resolver and its construction-time mission identity;
+plain structural adapters, prototype-only objects, instance method replacement,
+subclass overrides and later option rebinding cannot create an active role
+binding.
+
+## Anytime semantic guarantees
+
+Import `@agentplat/inference-control/semantic-guarantees` when a control loop
+will inspect semantic or coherence evidence repeatedly. The engine allocates a
+separate absolute error budget to every metric and an inverse-quadratic budget
+to every observation count. Its intervals therefore remain simultaneous over
+all configured metrics and all emitted observation counts, subject to the
+digested bounded-martingale and pre-observation selection assumptions.
+
+State contains integer accumulators, counters and evidence digests only. A CAS
+store plus a monotonically anchored state digest makes restart, exact retry,
+equivocation and rollback behavior explicit. `createSemanticHorizonControlV1`
+binds to the exact guarantee-policy and assumption digests, then emits
+`continue`, `shorten_horizon`, `replan` or `safe_stop` with a bounded horizon.
+The concrete engine and horizon control are nominal, construction-time-bound
+runtimes. Their module-owned invokers and ECMAScript-private state transitions
+ignore instance replacement and subclass overrides. Exhaustive output
+validation rejects unknown directives, malformed bounds, inconsistent error
+budgets and mismatched state/policy/assumption bindings before control can
+authorize a tool or effect.
+
+Null metrics are never silently discarded. `fail_closed` permanently stops
+the bound from authorizing continued operation after a missing observation;
+`worst_case_imputation` inserts zero for benefit metrics and 10,000 for risk
+metrics; `predictable_skip` requires an assumption-evidence digest and is valid
+only when the skip decision is fixed before the unavailable value could be
+observed. These confidence sequences target the average conditional mean, not
+a stationary population mean, causal effect, future outcome or proof that an
+assessor is calibrated. See the [statistical contract and limits](../../docs/inference-control/anytime-semantic-guarantees-v1.md).
+
+## Operational cognitive control
+
+`OperationalCognitiveControllerV1` closes the provider-neutral control loop by
+composing the existing black-box controller, optional representation controller,
+heterogeneous intervention runtime and anytime guarantee engine. Four explicit
+observer ports report role coherence, objective alignment, context conflict and
+uncertainty at `pre_turn`, `post_turn`, `pre_tool` and `pre_effect` checkpoints.
+Their content-free metric sample is committed to the configured confidence
+sequence before the associated operation can continue.
+
+`runTurn` applies memory, context and tool constraints before the inference port
+is called. In representation-aware mode it also verifies and controls the
+activation before execution. Output remains withheld when the horizon controller
+requires `replan` or `safe_stop`, or when the output intervention gate blocks it.
+`runPreTool` and `runPreEffect` accept callbacks and invoke them only after the
+final gate, keeping the check adjacent to dispatch instead of returning a
+detached authorization boolean.
+
+The controller snapshots both intervention gate functions at construction, so
+later mutation or rebinding cannot replace them with allow-all callbacks. A
+`shorten_horizon` decision installs a non-refilling operational budget. Actual
+inference, tool dispatch and effect commit each consume one step; repeated
+shortening decisions can reduce but never refill it. Exhaustion blocks the
+callback and returns `replan_required` or `semantic_horizon_exhausted` while
+preserving immediate `replan` and `safe_stop` behavior.
+
+The budget is a hash-chained CAS ledger bound to the guarantee state, control
+policy, assumptions and directive. Supplying `horizonBudgetStore`,
+`horizonBudgetMonotonicAnchor` and `horizonBudgetStateKey` preserves the exact
+remaining count across process reconstruction and detects rollback. The
+in-memory implementations support local composition and restart tests; closed
+reference stacks require explicit durable state and anchor repositories.
+Consumption tombstones are retained as an exact retry window. When a newer
+guarantee creates a new consumption epoch and that window reaches its bound,
+older epochs are folded into a hash-chained count/digest accumulator. Exact
+retries remain idempotent while present in the window and fail closed after
+compaction; new current-epoch work can continue without refilling a finite
+horizon.
+
+Pre-effect consumption IDs include the checkpoint kind, preventing an earlier
+tool debit from authorizing an effect with the same operation ID. A durable
+effect saga can reconcile an exact retained pre-effect debit and resume only
+its callback after a crash, even if the guarantee sequence has since advanced.
+If the required tombstone has already been compacted, replay is ambiguous and
+fails closed instead of re-observing an old sequence.
+
+Generic operational compositions may still install provider ports, but every
+guarantee and decision is exhaustively validated and malformed output fails
+closed. `isOperationalCognitiveControllerBoundToSemanticGuaranteesV1` is true
+only when the controller captured the concrete engine and horizon identities;
+the closed reference host requires this stronger nominal binding.
+
+```js
+import { OperationalCognitiveControllerV1 } from "@agentplat/inference-control/operational-control";
+
+const control = new OperationalCognitiveControllerV1({
+  controlId: "cognitive-control:primary",
+  mode: "black_box",
+  guaranteeStateKey: "semantic-guarantees:session-42",
+  blackBoxPolicy,
+  observers: { coherence, objective, context, uncertainty },
+  intervention,
+  guarantee,
+  horizonControl,
+  inference,
+  observationSink,
+});
+
+const turn = await control.runTurn(turnRequest);
+const tool = await control.runPreTool(toolRequest, () =>
+  toolDispatcher(toolRequest),
+);
+const effect = await control.runPreEffect(effectRequest, () =>
+  effectSink(effectRequest),
+);
+```
+
+Observation sequences are caller-supplied so durable deployments can preserve
+ordering across restarts. A turn consumes its declared sequence at `pre_turn`
+and the following sequence at `post_turn`; later tool and effect checkpoints
+must use strictly later values. The in-memory guarantee store is development
+support. Production use still requires a durable CAS store, external monotonic
+anchor and downstream-atomic effect fencing.
+
+## Collective capability closure
+
+Semantic Alignment & Agility Control V1 and Heterogeneous Agent Composition V1
+are control-plane inputs to the collective capability closure. They publish
+bounded, provider-neutral assessment and intervention evidence; neither a
+model result, assessor vote nor provider adapter can create assignment or
+effect authority. Unresolved, stale, unsupported or conflicting results must
+remain restrictive at the receiving control gate.
+
+Semantic requests retain no provider material or action payload, but their
+canonical digest includes `materialDigest` and the exact pre-action payload
+digest. A replay with different material or payload is rejected before a
+cached decision can be returned. Successful action dispatch receives a
+`SemanticActionAuthorizationV1` receipt binding the allow decision, current
+policy and assessor set, authority, effect consumer, exact `sinkId` and
+`sinkKeyDigest`, full action target, material, payload, committed revision and
+a bounded logical-time window. A raw
+SHA is not authority: the runtime resolves and authenticates the receipt through
+the configured `SemanticActionAuthorizationAuthorityV1` immediately before the
+effect. Dispatch requires a `SemanticActionEffectSinkV1` that atomically keys
+the external effect by `authorizationDigest`; an exact retry returns the
+original authenticated `SemanticActionEffectReceiptV1` without repeating the
+effect. A sink with a different ID or key digest is rejected. Replicas using
+the authorized sink identity must share the same atomic idempotency store. The
+included in-memory
+authority is process-local development support; production deployments need a
+durable signed or MAC-authenticated lookup.
+
+Authorization windows are inclusive at `validUntilLogicalTimeMs`. Verification
+rejects a caller clock below the semantic state's logical-time high-water and
+requires the exact allow request/decision record to remain in bounded state.
+Later decisions do not revoke a retained receipt by themselves; policy,
+assessor-set, binding, consumer or sink-identity change, receipt eviction,
+explicit authority revocation, or expiry does. Size
+`maximumRetainedDecisions` for the maximum
+delay and number of simultaneously dispatchable proposals.
+
+Action payload bytes are bounded before hashing or assessor work. Exploration
+requests with candidates or a selected course fail closed when diversity or
+novelty lacks configured independent-group coverage, and course history
+advances only for a pre-step course that may actually proceed.
+
+Heterogeneous composition derives checkpoint ordering from the portable
+session's bounded `stepSequence`, not its lifecycle revision. Construction
+therefore rejects manifests whose maximum step count cannot fit both semantic
+and intervention policy ceilings, and requires an explicit logical-time ceiling
+that fits the semantic policy. Output/action item indexes are bounded and form
+disjoint sequence ranges within each step. The composed portable control runs
+role and intervention prerequisites before semantic authorization. Returned
+action proposals remain inert; dispatch them only through
+`composition.actionGateway`, which reauthenticates the stored receipt, checks
+expiry/current revision, proves the portable step and proposal were durably
+committed, and compares the canonically encoded full proposal (`actionId`,
+class, input, risk and metadata) at the effect boundary. Both the explicit
+`currentLogicalTimeMs` argument to `runtime.dispatchAction` and the gateway's
+`currentLogicalTimeMs` must come from a trusted monotonic source, never from
+`request.logicalTimeMs` or other caller-controlled request data. Exactly-once
+external effects require the sink
+to co-locate its authorization-digest compare-and-set with the effect; the
+gateway does not claim atomicity across an arbitrary downstream service.
+
+Production integrations own provider identity, input/output redaction,
+durable idempotency, logical time, current policy binding and any model-specific
+security properties. The package exposes no scheduler or global agent graph.
+See [ADR 0042](../../docs/adr/0042-collective-capability-closure.md) and the
+[architecture and threat model](../../docs/security/collective-capability-closure-v1.md).

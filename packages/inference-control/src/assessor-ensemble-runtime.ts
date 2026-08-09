@@ -109,6 +109,25 @@ export class HeterogeneousAssessorEnsembleRuntimeV1 {
     if (typeof this.anchor.readAnchor !== "function")
       throw new TypeError("external_monotonic_anchor_required");
   }
+  get bindingDigest(): string {
+    return this.options.bindingDigest;
+  }
+  get policyDigest(): string {
+    return this.options.policy.policyDigest;
+  }
+  async verifyVerdict(input: {
+    readonly requestDigest: string;
+    readonly verdictDigest: string;
+  }): Promise<boolean> {
+    const stateKey = keyFor(this.options.bindingDigest);
+    const state = await this.store.read(stateKey);
+    await this.assertState(state, stateKey);
+    return Boolean(
+      state?.lastInvocation?.requestDigest === input.requestDigest &&
+      state.lastInvocation.verdict.requestDigest === input.requestDigest &&
+      state.lastInvocation.verdict.verdictDigest === input.verdictDigest,
+    );
+  }
   async assess(
     input: Omit<
       AssessorEnsembleRequestV1,

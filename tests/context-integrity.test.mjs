@@ -420,6 +420,7 @@ test("portable wrapper reuses the exact decision and filters observations", asyn
   const target = {
     schemaVersion: 1,
     checkpoint: "pre_step",
+    stepSequence: 1,
     manifest: bundle.manifest,
     sessionId: "session:test",
     tenantId: "tenant:test",

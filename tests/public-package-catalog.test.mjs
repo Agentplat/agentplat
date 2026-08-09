@@ -1,5 +1,5 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import assert from "node:assert/strict";
+import test from "node:test";
 import {
   compareAscii,
   discoverWorkspacePackageManifests,
@@ -8,49 +8,50 @@ import {
   PUBLIC_PACKAGE_CATALOG_SCHEMA_VERSION,
   publishablePackages,
   validatePublicPackageCatalog,
-} from '../scripts/public-package-catalog.mjs';
+} from "../scripts/public-package-catalog.mjs";
 
 const alphaOneCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
-      '.',
-      './adaptive-overlay',
-      './continuity',
-      './coordination',
-      './durability',
-      './loopback',
-      './overlay',
+      ".",
+      "./adaptive-overlay",
+      "./continuity",
+      "./coordination",
+      "./durability",
+      "./loopback",
+      "./overlay",
+      "./overlay-transport",
     ]),
-    directory: 'packages/mesh',
-    layer: 'collaboration',
-    name: '@agentplat/mesh',
+    directory: "packages/mesh",
+    layer: "collaboration",
+    name: "@agentplat/mesh",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
-    directory: 'packages/mesh-crypto',
-    layer: 'foundation',
-    name: '@agentplat/mesh-crypto',
+    browserEntrypoints: Object.freeze(["."]),
+    directory: "packages/mesh-crypto",
+    layer: "foundation",
+    name: "@agentplat/mesh-crypto",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
-    directory: 'packages/mesh-protocol',
-    layer: 'transport',
-    name: '@agentplat/mesh-protocol',
+    browserEntrypoints: Object.freeze(["."]),
+    directory: "packages/mesh-protocol",
+    layer: "transport",
+    name: "@agentplat/mesh-protocol",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
-    directory: 'packages/mesh-sim',
-    layer: 'testing',
-    name: '@agentplat/mesh-sim',
+    browserEntrypoints: Object.freeze([".", "./scalable-evaluation"]),
+    directory: "packages/mesh-sim",
+    layer: "testing",
+    name: "@agentplat/mesh-sim",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
@@ -60,16 +61,23 @@ const alphaOneCatalogEntries = Object.freeze([
 const alphaThreeCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
-      '.',
-      './assessor-ensemble',
-      './context-integrity',
-      './intervention',
-      './role-alignment',
-      './tools',
+      ".",
+      "./assessor-ensemble",
+      "./cognitive-adapters",
+      "./context-integrity",
+      "./governed-role-evolution",
+      "./intervention",
+      "./operational-control",
+      "./reference-controllers",
+      "./role-alignment",
+      "./semantic-guarantees",
+      "./semantic-horizon-budget",
+      "./semantic-metrics",
+      "./tools",
     ]),
-    directory: 'packages/inference-control',
-    layer: 'runtime',
-    name: '@agentplat/inference-control',
+    directory: "packages/inference-control",
+    layer: "runtime",
+    name: "@agentplat/inference-control",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
@@ -78,10 +86,14 @@ const alphaThreeCatalogEntries = Object.freeze([
 
 const alphaFourCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.', './mesh-records']),
-    directory: 'packages/trust',
-    layer: 'foundation',
-    name: '@agentplat/trust',
+    browserEntrypoints: Object.freeze([
+      ".",
+      "./mesh-records",
+      "./peer-credibility",
+    ]),
+    directory: "packages/trust",
+    layer: "foundation",
+    name: "@agentplat/trust",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
@@ -90,28 +102,28 @@ const alphaFourCatalogEntries = Object.freeze([
 
 const alphaFiveCatalogEntries = Object.freeze([
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.']),
-    directory: 'packages/mesh-http',
-    layer: 'transport',
-    name: '@agentplat/mesh-http',
+    browserEntrypoints: Object.freeze(["."]),
+    directory: "packages/mesh-http",
+    layer: "transport",
+    name: "@agentplat/mesh-http",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
     browserEntrypoints: Object.freeze([]),
-    directory: 'packages/mesh-postgres',
-    layer: 'adapter',
-    name: '@agentplat/mesh-postgres',
+    directory: "packages/mesh-postgres",
+    layer: "adapter",
+    name: "@agentplat/mesh-postgres",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
     browserEntrypoints: Object.freeze([]),
-    directory: 'packages/rooms-mesh',
-    layer: 'adapter',
-    name: '@agentplat/rooms-mesh',
+    directory: "packages/rooms-mesh",
+    layer: "adapter",
+    name: "@agentplat/rooms-mesh",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
@@ -121,67 +133,76 @@ const alphaFiveCatalogEntries = Object.freeze([
 const betaThreeCatalogEntries = Object.freeze([
   Object.freeze({
     browserEntrypoints: Object.freeze([
-      '.',
-      './actions',
-      './evaluation',
-      './memory',
-      './mesh',
+      ".",
+      "./actions",
+      "./bounded-model",
+      "./bounded-progress-model",
+      "./evaluation",
+      "./local-rule-kernel",
+      "./memory",
+      "./mesh",
     ]),
-    directory: 'packages/collective-control',
-    layer: 'collaboration',
-    name: '@agentplat/collective-control',
+    directory: "packages/collective-control",
+    layer: "collaboration",
+    name: "@agentplat/collective-control",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
-    browserEntrypoints: Object.freeze(['.', './evaluation', './mesh']),
-    directory: 'packages/collective-planning',
-    layer: 'collaboration',
-    name: '@agentplat/collective-planning',
-    packSmoke: true,
-    providerNeutral: true,
-    publish: true,
-  }),
-  Object.freeze({
-    browserEntrypoints: Object.freeze([]),
-    directory: 'packages/planning-artifacts',
-    layer: 'collaboration',
-    name: '@agentplat/planning-artifacts',
-    packSmoke: true,
-    providerNeutral: true,
-    publish: true,
-  }),
-  Object.freeze({
-    browserEntrypoints: Object.freeze([]),
-    directory: 'packages/planning-artifacts-postgres',
-    layer: 'adapter',
-    name: '@agentplat/planning-artifacts-postgres',
+    browserEntrypoints: Object.freeze([
+      ".",
+      "./development-evidence",
+      "./distributed-decomposition",
+      "./evaluation",
+      "./mesh",
+    ]),
+    directory: "packages/collective-planning",
+    layer: "collaboration",
+    name: "@agentplat/collective-planning",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
     browserEntrypoints: Object.freeze([]),
-    directory: 'packages/mesh-sim-local',
-    layer: 'adapter',
-    name: '@agentplat/mesh-sim-local',
+    directory: "packages/planning-artifacts",
+    layer: "collaboration",
+    name: "@agentplat/planning-artifacts",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
   Object.freeze({
     browserEntrypoints: Object.freeze([]),
-    directory: 'packages/mesh-sim-postgres',
-    layer: 'adapter',
-    name: '@agentplat/mesh-sim-postgres',
+    directory: "packages/planning-artifacts-postgres",
+    layer: "adapter",
+    name: "@agentplat/planning-artifacts-postgres",
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze([]),
+    directory: "packages/mesh-sim-local",
+    layer: "adapter",
+    name: "@agentplat/mesh-sim-local",
+    packSmoke: true,
+    providerNeutral: true,
+    publish: true,
+  }),
+  Object.freeze({
+    browserEntrypoints: Object.freeze([]),
+    directory: "packages/mesh-sim-postgres",
+    layer: "adapter",
+    name: "@agentplat/mesh-sim-postgres",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
   }),
 ]);
 
-test('public package catalog is the ordered allowlist for release and pack smoke', async () => {
+test("public package catalog is the ordered allowlist for release and pack smoke", async () => {
   const catalog = await loadPublicPackageCatalog();
   const discovered = await discoverWorkspacePackageManifests();
   const publishable = publishablePackages(catalog);
@@ -201,70 +222,70 @@ test('public package catalog is the ordered allowlist for release and pack smoke
   assert.equal(catalog.schemaVersion, PUBLIC_PACKAGE_CATALOG_SCHEMA_VERSION);
   assert.deepEqual(
     catalog.packages.map((entry) => entry.name),
-    expectedPublicNames
+    expectedPublicNames,
   );
-  assert.equal(expectedPublicPackageCount, 48);
+  assert.equal(expectedPublicPackageCount, 52);
   assert.equal(catalog.packages.length, expectedPublicPackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),
-    publishable.map((entry) => entry.name)
+    publishable.map((entry) => entry.name),
   );
   assert.equal(
     new Set(catalog.packages.map((entry) => entry.name)).size,
-    catalog.packages.length
+    catalog.packages.length,
   );
   assert.equal(
     new Set(catalog.packages.map((entry) => entry.directory)).size,
-    catalog.packages.length
+    catalog.packages.length,
   );
   for (const expectedEntry of alphaOneCatalogEntries) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === expectedEntry.name),
-      expectedEntry
+      expectedEntry,
     );
   }
   assert.deepEqual(
-    catalog.packages.find((entry) => entry.name === '@agentplat/framework')
+    catalog.packages.find((entry) => entry.name === "@agentplat/framework")
       ?.browserEntrypoints,
-    ['./browser']
+    ["./browser"],
   );
   for (const expectedEntry of alphaThreeCatalogEntries) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === expectedEntry.name),
-      expectedEntry
+      expectedEntry,
     );
   }
   for (const expectedEntry of alphaFourCatalogEntries) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === expectedEntry.name),
-      expectedEntry
+      expectedEntry,
     );
   }
   for (const expectedEntry of alphaFiveCatalogEntries) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === expectedEntry.name),
-      expectedEntry
+      expectedEntry,
     );
   }
   for (const expectedEntry of betaThreeCatalogEntries) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === expectedEntry.name),
-      expectedEntry
+      expectedEntry,
     );
   }
   assert.deepEqual(
-    catalog.packages.find((entry) => entry.name === '@agentplat/rooms')
+    catalog.packages.find((entry) => entry.name === "@agentplat/rooms")
       ?.browserEntrypoints,
-    []
+    [],
   );
 });
 
-test('public package catalog rejects accidental fields and unsafe directories', () => {
+test("public package catalog rejects accidental fields and unsafe directories", () => {
   const validEntry = {
-    browserEntrypoints: ['.'],
-    name: '@agentplat/example',
-    directory: 'packages/example',
-    layer: 'foundation',
+    browserEntrypoints: ["."],
+    name: "@agentplat/example",
+    directory: "packages/example",
+    layer: "foundation",
     publish: true,
     providerNeutral: true,
     packSmoke: true,
@@ -276,7 +297,7 @@ test('public package catalog rejects accidental fields and unsafe directories', 
         schemaVersion: PUBLIC_PACKAGE_CATALOG_SCHEMA_VERSION,
         packages: [{ ...validEntry, unexpected: true }],
       }),
-    /Unexpected catalog fields/
+    /Unexpected catalog fields/,
   );
   assert.throws(
     () =>
@@ -285,15 +306,15 @@ test('public package catalog rejects accidental fields and unsafe directories', 
         packages: [
           {
             ...validEntry,
-            directory: 'packages/../private',
+            directory: "packages/../private",
           },
         ],
       }),
-    /Invalid public package directory/
+    /Invalid public package directory/,
   );
 });
 
-test('public package catalog requires pack smoke for every published package', () => {
+test("public package catalog requires pack smoke for every published package", () => {
   assert.throws(
     () =>
       validatePublicPackageCatalog({
@@ -301,25 +322,25 @@ test('public package catalog requires pack smoke for every published package', (
         packages: [
           {
             browserEntrypoints: [],
-            directory: 'packages/example',
-            layer: 'foundation',
-            name: '@agentplat/example',
+            directory: "packages/example",
+            layer: "foundation",
+            name: "@agentplat/example",
             packSmoke: false,
             providerNeutral: true,
             publish: true,
           },
         ],
       }),
-    /must enable packSmoke/
+    /must enable packSmoke/,
   );
 });
 
-test('public package catalog requires ASCII ordering for packages and browser entrypoints', () => {
+test("public package catalog requires ASCII ordering for packages and browser entrypoints", () => {
   const entry = {
-    browserEntrypoints: ['./z', './a'],
-    directory: 'packages/example',
-    layer: 'foundation',
-    name: '@agentplat/example',
+    browserEntrypoints: ["./z", "./a"],
+    directory: "packages/example",
+    layer: "foundation",
+    name: "@agentplat/example",
     packSmoke: true,
     providerNeutral: true,
     publish: true,
@@ -331,7 +352,7 @@ test('public package catalog requires ASCII ordering for packages and browser en
         schemaVersion: PUBLIC_PACKAGE_CATALOG_SCHEMA_VERSION,
         packages: [entry],
       }),
-    /browserEntrypoints must be sorted in ASCII order/
+    /browserEntrypoints must be sorted in ASCII order/,
   );
   assert.throws(
     () =>
@@ -341,17 +362,17 @@ test('public package catalog requires ASCII ordering for packages and browser en
           {
             ...entry,
             browserEntrypoints: [],
-            name: '@agentplat/zebra',
-            directory: 'packages/zebra',
+            name: "@agentplat/zebra",
+            directory: "packages/zebra",
           },
           {
             ...entry,
             browserEntrypoints: [],
-            name: '@agentplat/alpha',
-            directory: 'packages/alpha',
+            name: "@agentplat/alpha",
+            directory: "packages/alpha",
           },
         ],
       }),
-    /sorted by package name in ASCII order/
+    /sorted by package name in ASCII order/,
   );
 });

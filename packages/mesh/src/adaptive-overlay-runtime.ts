@@ -313,7 +313,7 @@ export class MeshAdaptiveOverlayRuntimeV1 {
     return result("certified", "certificate_issued", next, certificate);
   }
 
-  /** Applies only a current certificate; the new sparse view is generated locally in O(log N). */
+  /** Applies a current certificate or returns the exact retained application on replay. */
   async apply(input: {
     readonly certificate: MeshAdaptiveOverlayCertificateV1;
     readonly profile: MeshSparseOverlayProfileV2;
@@ -325,12 +325,10 @@ export class MeshAdaptiveOverlayRuntimeV1 {
       input.certificate,
     );
     const time = logical(input.logicalTimeMs);
-    const state = await this.requireState(
-      certificate.binding.overlayId,
-      input.expectedRevision,
+    const state = await this.loadState(certificate.binding.overlayId);
+    const known = state.certificates.find(
+      (item) => item.certificateDigest === certificate.certificateDigest,
     );
-    if (!sameBinding(certificate.binding, state.currentBinding))
-      return result("stale", "binding_stale", state);
     if (
       time < state.lastLogicalTimeMs ||
       time < certificate.issuedAtLogicalMs ||
@@ -341,12 +339,10 @@ export class MeshAdaptiveOverlayRuntimeV1 {
         "certificate_expired_future_or_clock_regressed",
         state,
       );
-    const known = state.certificates.find(
-      (item) => item.certificateDigest === certificate.certificateDigest,
-    );
-    if (!known)
-      return result("rejected", "certificate_not_certified_locally", state);
-    if (state.applied?.certificateDigest === certificate.certificateDigest)
+    if (
+      known &&
+      state.applied?.certificateDigest === certificate.certificateDigest
+    )
       return result(
         "duplicate",
         "application_duplicate",
@@ -354,6 +350,12 @@ export class MeshAdaptiveOverlayRuntimeV1 {
         certificate,
         state.applied,
       );
+    if (state.revision !== input.expectedRevision)
+      fail("state revision conflict");
+    if (!sameBinding(certificate.binding, state.currentBinding))
+      return result("stale", "binding_stale", state);
+    if (!known)
+      return result("rejected", "certificate_not_certified_locally", state);
     if (
       state.applied &&
       state.applied.binding.revision >= certificate.binding.revision
@@ -511,10 +513,13 @@ export class MeshAdaptiveOverlayRuntimeV1 {
     return result("certified", "certificate_reconciled", next, certificate);
   }
 
-  private async requireState(overlayId: string, expectedRevision: number) {
+  private async loadState(overlayId: string) {
     const loaded = await this.options.store.load(overlayId);
     if (!loaded) fail("state revision conflict");
-    const state = await this.assertCurrentState(loaded, overlayId);
+    return this.assertCurrentState(loaded, overlayId);
+  }
+  private async requireState(overlayId: string, expectedRevision: number) {
+    const state = await this.loadState(overlayId);
     if (state.revision !== expectedRevision) fail("state revision conflict");
     return state;
   }

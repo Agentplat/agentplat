@@ -1080,7 +1080,7 @@ test("invoke, tool, and action identities cannot replay across domains", async (
   );
 });
 
-test("prepared crash is reconciled explicitly without re-invoking the adapter", async () => {
+test("prepared crash resumes only the exact invocation after not-applied reconciliation", async () => {
   let calls = 0;
   let entered;
   const enteredPromise = new Promise((resolve) => {
@@ -1145,6 +1145,10 @@ test("prepared crash is reconciled explicitly without re-invoking the adapter", 
     "inference-intervention:mission:reconcile:agent:reconcile:session:reconcile:role:reconcile:adapter:reconcile",
   );
   assert.equal(prepared.unresolvedEffect.kind, "prepared_crash");
+  await assert.rejects(
+    runtime.invoke(invocation(1, 1)),
+    /intervention_reconciliation_required/,
+  );
   const effect = prepared.unresolvedEffect;
   const reconciled = await runtime.reconcile({
     invocationId: effect.invocationId,
@@ -1155,13 +1159,18 @@ test("prepared crash is reconciled explicitly without re-invoking the adapter", 
     authorizationDigest: digest("authorization", { operator: true }),
     logicalTimeMs: 2,
   });
-  assert.equal(reconciled.unresolvedEffect, null);
+  assert.equal(reconciled.unresolvedEffect.kind, "retry_authorized");
   assert.equal(calls, 1);
   assert.equal(
-    (await runtime.invoke(invocation(2, 3))).output,
+    (await runtime.invoke(invocation(1, 1))).output,
     "after-reconcile",
   );
   assert.equal(calls, 2);
+  const completed = await runtime.store.read(
+    "inference-intervention:mission:reconcile:agent:reconcile:session:reconcile:role:reconcile:adapter:reconcile",
+  );
+  assert.equal(completed.activeInvocation, null);
+  assert.equal(completed.unresolvedEffect, null);
 });
 
 test("buffered and streaming output limits fail closed", async () => {

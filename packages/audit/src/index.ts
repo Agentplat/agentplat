@@ -8,6 +8,8 @@ import type {
 } from '@agentplat/core';
 import type { SessionEventRecord, SessionEventSink } from '@agentplat/sessions';
 
+export * from './collective-telemetry.js';
+
 export interface AuditRecord extends TenantScoped {
   id: AgentPlatID;
   actorId?: AgentPlatID;

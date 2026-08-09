@@ -24,6 +24,7 @@ export interface TeamFormationLimitsV1 {
   readonly maximumSearchNodes: number;
   readonly maximumReasonCodesPerDecision: number;
   readonly maximumHistoryEntries: number;
+  readonly maximumRequestInvalidations: number;
   readonly maximumRequestTtlMs: number;
   readonly maximumTeamDurationMs: number;
   readonly maximumCommitAttempts: number;
@@ -117,6 +118,17 @@ export interface TeamFormationRequestV1 {
   readonly logicalTimeMs: number;
   readonly validUntilLogicalMs: number;
   readonly requestDigest: PlanningDigestV1;
+}
+
+/** Durable negative fence preventing a late form CAS from creating a Team. */
+export interface TeamFormationRequestInvalidationV1 {
+  readonly schemaVersion: 1;
+  readonly formationRequestDigest: PlanningDigestV1;
+  readonly formationAuthorizationDigest: PlanningDigestV1;
+  readonly reasonCode: string;
+  readonly invalidatedAtLogicalMs: number;
+  readonly requestValidUntilLogicalMs: number;
+  readonly invalidationDigest: PlanningDigestV1;
 }
 
 export interface TeamMemberSelectionV1 {
@@ -270,6 +282,8 @@ export interface TeamFormationStateV1 {
   readonly logicalTimeHighWaterMs: number;
   readonly team: TeamRecordV1 | null;
   readonly lastDecision: TeamFormationDecisionV1 | null;
+  /** Unexpired request tombstones; expired entries compact under high-water. */
+  readonly requestInvalidations: readonly TeamFormationRequestInvalidationV1[];
   readonly predecessorStateDigest: PlanningDigestV1 | null;
   readonly stateDigest: PlanningDigestV1;
 }
@@ -335,9 +349,18 @@ export interface TeamFormationPortV1 {
   reconfigure(
     request: TeamReconfigurationRequestV1,
   ): Promise<TeamFormationDecisionV1>;
+  invalidate(input: {
+    readonly formationRequestDigest: PlanningDigestV1;
+    readonly formationAuthorizationDigest: PlanningDigestV1;
+    readonly reasonCode: string;
+    readonly logicalTimeMs: number;
+    readonly requestValidUntilLogicalMs: number;
+  }): Promise<TeamFormationRequestInvalidationV1>;
   cancel(input: {
     readonly reasonCode: string;
     readonly logicalTimeMs: number;
+    /** Fails closed rather than cancelling a replacement Team epoch. */
+    readonly expectedProposalDigest?: PlanningDigestV1;
   }): Promise<TeamRecordV1>;
   loadState(): Promise<TeamFormationStateV1>;
   exportHandoff(input: {

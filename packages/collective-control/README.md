@@ -16,6 +16,12 @@ their direct behavior outside this opt-in boundary.
 
 - `@agentplat/collective-control` — closed contracts, canonical digests,
   validation and pure authority state transitions;
+- `./bounded-model` — executable finite-state specification and checker for
+  finality-bound effects, monotonic authority, budgets, attenuation, fencing
+  and fail-closed transitions;
+- `./bounded-progress-model` — executable finite fair-scheduler abstraction for
+  conditional causal delivery, quorum finality, successor recovery and
+  persistent-signal adaptation;
 - `./mesh` — governed Objective and Work adapters;
 - `./actions` — governed permits, budget reservations and Action Gateway
   composition;
@@ -41,3 +47,22 @@ Grant, budget and downstream fencing.
 
 In-memory repositories are intended for local use and deterministic tests.
 They do not make cross-process or crash-durability claims.
+
+The bounded model checker exhausts only the state values, commands and trace
+depth declared in its input. A completed proof receipt is reproducible evidence
+for that finite space, not a proof of a production deployment or its adapters.
+Receipts bind the transition implementation, malformed-input command corpus,
+bounded-space definition and actual explored state set. Active reservations and
+cumulative child consumption share one delegated budget ceiling. Custom pure
+transitions must declare a content digest and match reference-valid transitions;
+a reject-all implementation cannot produce proof.
+
+Protected effects additionally require an exact finalized allocation binding:
+membership epoch, assignment epoch/fence, assignee, capability/role and effect
+sink must all match. The checker covers the complete bounded Cartesian product
+of that tuple plus per-field malformed and boundary forms. A proof also requires
+positive effect-authorization coverage witnesses. The separate progress checker
+returns proof, counterexample or incomplete receipts for its four explicit
+antecedent-true scenarios. Its result is evidence about that finite abstraction,
+not a claim that a production network, quorum, successor, signal or scheduler
+is available.

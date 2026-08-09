@@ -27,23 +27,23 @@ existing safety inputs remain separate required boundaries.
 
 ## Threats and controls
 
-| Threat | Control | Failure behavior |
-| --- | --- | --- |
-| Sensitive payload disclosure | Closed content-free attestation schema and exact-key validation | Reject attestation |
-| Producer impersonation | Authentication binding, identity verification and current membership epoch | Reject attestation |
-| Cross-scope or cross-catalog replay | Exact scope, operation, catalog, policy and implementation bindings | Reject attestation |
-| Stale or future evidence | Logical-time freshness window and high-water marks | Reject attestation |
-| Duplicate or reordered propagation | Digest-bound idempotence plus bounded pending chains drained after predecessor admission | Retain once and converge |
-| Source sequence rollback | Durable per-instance source heads | Reject attestation |
-| Same-sequence equivocation | Durable active-incarnation quarantine and retained-source exclusion | No contribution until membership-mediated rotation |
-| Sybil concentration | Membership eligibility, Trust gate and policy-bound source independence | Keep prior unavailable |
-| Metric poisoning | Closed clipped metrics, confidence floor and deterministic robust reduction | Narrow or reject prior |
-| Gossip amplification | Policy-bounded fanout, hop, age, retention and commit attempts | Drop envelope |
-| State exhaustion | Bounded retained heads, suppression records and aggregate groups | Reject oversized input |
-| Instance churn exhaustion | One durable head per peer; only a newer membership epoch may rotate instance/stream in place | Preserve head capacity |
-| Restart rollback | CAS persistence, predecessor digest and logical-time high-water | Reject older state/input |
-| Handoff fork | Empty-target CAS import and exact predecessor binding | Idempotent import or conflict |
-| Remote control escalation | Advisory-only adapter; local catalog, baseline and safety controls remain final | Existing local control vetoes |
+| Threat                              | Control                                                                                                                                                               | Failure behavior                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Sensitive payload disclosure        | Closed content-free attestation schema and exact-key validation                                                                                                       | Reject attestation                                 |
+| Producer impersonation              | Authentication binding, identity verification and current membership epoch                                                                                            | Reject attestation                                 |
+| Cross-scope or cross-catalog replay | Exact scope, operation, catalog, policy and implementation bindings                                                                                                   | Reject attestation                                 |
+| Stale or future evidence            | Logical-time freshness window and high-water marks                                                                                                                    | Reject attestation                                 |
+| Duplicate or reordered propagation  | Digest-bound idempotence plus bounded pending chains drained after predecessor admission; pending chains consume attestation capacity but reserve no source-head slot | Retain once and converge                           |
+| Source sequence rollback            | Durable per-instance source heads                                                                                                                                     | Reject attestation                                 |
+| Same-sequence equivocation          | Durable active-incarnation quarantine and retained-source exclusion                                                                                                   | No contribution until membership-mediated rotation |
+| Sybil concentration                 | Membership eligibility, Trust gate and policy-bound source independence                                                                                               | Keep prior unavailable                             |
+| Metric poisoning                    | Closed clipped metrics, confidence floor and deterministic robust reduction                                                                                           | Narrow or reject prior                             |
+| Gossip amplification                | Policy-bounded fanout, hop, age, retention and commit attempts                                                                                                        | Drop envelope                                      |
+| State exhaustion                    | Bounded retained heads, suppression records and aggregate groups                                                                                                      | Reject oversized input                             |
+| Instance churn exhaustion           | One durable head per peer; only a newer membership epoch may rotate instance/stream in place                                                                          | Preserve head capacity                             |
+| Restart rollback                    | CAS persistence, predecessor digest and logical-time high-water                                                                                                       | Reject older state/input                           |
+| Handoff fork                        | Empty-target CAS import and exact predecessor binding                                                                                                                 | Idempotent import or conflict                      |
+| Remote control escalation           | Advisory-only adapter; local catalog, baseline and safety controls remain final                                                                                       | Existing local control vetoes                      |
 
 ## Safety properties
 

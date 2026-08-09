@@ -491,7 +491,13 @@ export function createTeamExecutionControlEvidenceV1(
       input.evaluatedAtLogicalMs,
       "control.evaluatedAtLogicalMs",
     ),
+    validUntilLogicalMs: positive(
+      input.validUntilLogicalMs,
+      "control.validUntilLogicalMs",
+    ),
   });
+  if (body.validUntilLogicalMs <= body.evaluatedAtLogicalMs)
+    fail("team execution control evidence validity window is invalid");
   return freeze({
     ...body,
     evidenceDigest: digest("team-execution-control-evidence", body),
@@ -513,6 +519,7 @@ export function validateTeamExecutionControlEvidenceV1(
       "reasonCode",
       "schemaVersion",
       "sourceEvidenceDigest",
+      "validUntilLogicalMs",
     ],
     "team execution control evidence",
   );
@@ -525,6 +532,7 @@ export function validateTeamExecutionControlEvidenceV1(
     reasonCode: value.reasonCode as string,
     sourceEvidenceDigest: value.sourceEvidenceDigest as PlanningDigestV1,
     evaluatedAtLogicalMs: value.evaluatedAtLogicalMs as number,
+    validUntilLogicalMs: value.validUntilLogicalMs as number,
   });
   if (value.evidenceDigest !== result.evidenceDigest)
     fail("team execution control evidence digest is invalid");
@@ -561,7 +569,8 @@ export function createTeamExecutionStepResultV1(input: {
     fail("team execution step result time rolled back");
   if (
     control.evaluatedAtLogicalMs < dispatch.preparedAtLogicalMs ||
-    control.evaluatedAtLogicalMs > completedAtLogicalMs
+    control.evaluatedAtLogicalMs > completedAtLogicalMs ||
+    completedAtLogicalMs >= control.validUntilLogicalMs
   )
     fail("team execution control evidence is outside the step window");
   for (const artifact of artifacts) {

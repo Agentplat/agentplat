@@ -35,7 +35,11 @@ It never receives the evaluator port or a success metric.
 
 The reference bridge enforces scenario interaction and byte budgets in
 addition to descriptor ceilings, and rejects observation, action and
-cross-shard peer indexes outside the manifest population.
+cross-shard peer indexes outside the manifest population. Observation, action
+and cross-shard calls for the same peer and logical time consume one logical
+interaction slot. Checkpoints preflight their public-envelope bound before
+mutating delegate state, and restore also restores the adapter's private budget
+and idempotency snapshot.
 
 ## Consequences
 

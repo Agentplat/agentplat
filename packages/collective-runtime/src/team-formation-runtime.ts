@@ -7,6 +7,7 @@ import {
   type TeamFormationPolicyRecordV1,
   type TeamFormationPortV1,
   type TeamFormationRequestV1,
+  type TeamFormationRequestInvalidationV1,
   type TeamFormationRuntimeOptionsV1,
   type TeamFormationStateV1,
   type TeamFormationStoreV1,
@@ -17,6 +18,7 @@ import {
 import {
   activateTeamProposalV1,
   cancelTeamV1,
+  invalidateTeamFormationRequestV1,
   recordTeamMemberOutcomeV1,
   reduceTeamFormationV1,
   reduceTeamReconfigurationV1,
@@ -171,11 +173,17 @@ export class TeamFormationRuntimeV1 implements TeamFormationPortV1 {
   async cancel(input: {
     readonly reasonCode: string;
     readonly logicalTimeMs: number;
+    readonly expectedProposalDigest?: PlanningDigestV1;
   }): Promise<TeamRecordV1> {
     for (let attempt = 0; attempt < this.#maximumAttempts(); attempt += 1) {
       const loaded = await this.#store.load(this.#stateKey);
       const state = loaded ? this.#validated(loaded) : this.#initialState();
       this.#assertBinding(state);
+      if (
+        input.expectedProposalDigest !== undefined &&
+        state.team?.proposal.proposalDigest !== input.expectedProposalDigest
+      )
+        fail("team cancellation proposal is not current");
       const result = cancelTeamV1({
         state,
         policy: this.#policy,
@@ -190,6 +198,35 @@ export class TeamFormationRuntimeV1 implements TeamFormationPortV1 {
         })
       )
         return result.team;
+    }
+    throw new Error("team_formation_commit_conflict");
+  }
+
+  async invalidate(input: {
+    readonly formationRequestDigest: PlanningDigestV1;
+    readonly formationAuthorizationDigest: PlanningDigestV1;
+    readonly reasonCode: string;
+    readonly logicalTimeMs: number;
+    readonly requestValidUntilLogicalMs: number;
+  }): Promise<TeamFormationRequestInvalidationV1> {
+    for (let attempt = 0; attempt < this.#maximumAttempts(); attempt += 1) {
+      const loaded = await this.#store.load(this.#stateKey);
+      const state = loaded ? this.#validated(loaded) : this.#initialState();
+      this.#assertBinding(state);
+      const result = invalidateTeamFormationRequestV1({
+        state,
+        policy: this.#policy,
+        ...input,
+      });
+      if (result.state.revision === state.revision)
+        return result.invalidation;
+      if (
+        await this.#store.save({
+          state: result.state,
+          expectedRevision: loaded ? state.revision : null,
+        })
+      )
+        return result.invalidation;
     }
     throw new Error("team_formation_commit_conflict");
   }
@@ -256,6 +293,7 @@ export class TeamFormationRuntimeV1 implements TeamFormationPortV1 {
       ),
       team: source.team,
       lastDecision: source.lastDecision,
+      requestInvalidations: source.requestInvalidations,
       predecessorStateDigest: source.stateDigest,
     });
     if (await this.#store.save({ state: restored, expectedRevision: null }))

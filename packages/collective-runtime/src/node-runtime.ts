@@ -196,6 +196,13 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
         typeof options.synchronization.recoverPredecessor !== "function")
     )
       invalid("the synchronization port is invalid");
+    if (
+      options.sparsePeerPlane !== undefined &&
+      (typeof options.sparsePeerPlane.topologyFreshness !== "function" ||
+        typeof options.sparsePeerPlane.catchUpMembership !== "function" ||
+        typeof options.sparsePeerPlane.drain !== "function")
+    )
+      invalid("the sparse peer plane is invalid");
     if (!options.actions || typeof options.actions.execute !== "function")
       invalid("an action execution port is required");
     if (!options.authority || typeof options.authority !== "object")
@@ -543,6 +550,11 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
           durableRevision: (await this.restore()).durableRevision,
         })
       : await this.reconcile();
+    if (!signal?.aborted && this.#options.sparsePeerPlane)
+      await this.#options.sparsePeerPlane.drain({
+        logicalTime: normalizeClockReading(this.#options.clock.now())
+          .logicalTimeMs,
+      });
     return Object.freeze({ transport, reconciliation });
   }
 
@@ -1206,6 +1218,34 @@ export class CollectivePeerNodeRuntimeV1 implements CollectivePeerNodeRuntimePor
     operation: CollectivePeerNodeSynchronizationOperationV1,
     logicalTimeMs: number,
   ): Promise<{ readonly ready: boolean; readonly reasonCode: string }> {
+    if (this.#options.sparsePeerPlane) {
+      try {
+        let freshness = await this.#options.sparsePeerPlane.topologyFreshness(
+          logicalTimeMs,
+        );
+        if (
+          freshness === "stale" &&
+          (await this.#options.sparsePeerPlane.catchUpMembership(logicalTimeMs))
+        )
+          freshness =
+            await this.#options.sparsePeerPlane.topologyFreshness(
+              logicalTimeMs,
+            );
+        if (freshness !== "fresh")
+          return Object.freeze({
+            ready: false,
+            reasonCode:
+              freshness === "unknown"
+                ? "sparse_topology_unknown"
+                : "sparse_topology_stale",
+          });
+      } catch {
+        return Object.freeze({
+          ready: false,
+          reasonCode: "sparse_topology_unavailable",
+        });
+      }
+    }
     if (!this.#options.synchronization)
       return Object.freeze({
         ready: true,

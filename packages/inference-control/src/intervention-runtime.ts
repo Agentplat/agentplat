@@ -5,6 +5,7 @@ import {
   type InferenceInterventionAssessmentV1,
   type InferenceInterventionAssessorPortV1,
   type InferenceInterventionBindingV1,
+  type InferenceInterventionCheckpointGateRequestV1,
   type InferenceInterventionInvocationV1,
   type InferenceInterventionModalityPartV1,
   type InferenceInterventionMonotonicAnchorV1,
@@ -176,6 +177,50 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
       throw new TypeError("required_representation_sidecar_unavailable");
   }
 
+  get bindingDigest(): string {
+    return this.options.binding.bindingDigest;
+  }
+
+  get policyDigest(): string {
+    return this.options.policy.policyDigest;
+  }
+
+  async verifyOperationGate(input: {
+    readonly operationId: string;
+    readonly step: number;
+    readonly logicalTimeMs: number;
+    readonly payload: string;
+    readonly stateDigest: string;
+    readonly allowed: boolean;
+  }): Promise<boolean> {
+    const invocation = this.makeInvocation(
+      {
+        invocationId: input.operationId,
+        step: input.step,
+        logicalTimeMs: input.logicalTimeMs,
+        input: input.payload,
+        context: [],
+        roleReinforcement: null,
+        requireRepresentationReceipt: false,
+      },
+      "action",
+    );
+    const state = await this.store.read(keyFor(this.options.binding));
+    await this.validateState(state, invocation);
+    const invocationDigest = this.invocationDigest(invocation);
+    return Boolean(
+      state &&
+      state.stateDigest === input.stateDigest &&
+      state.activeInvocation === null &&
+      state.unresolvedEffect === null &&
+      state.lastInvocation?.invocationId === input.operationId &&
+      state.lastInvocation.invocationDigest === invocationDigest &&
+      state.lastInvocation.executionDomain === "action" &&
+      state.lastInvocation.step === input.step &&
+      (state.lastInvocation.decision === "allowed") === input.allowed,
+    );
+  }
+
   async invoke(
     raw: Omit<
       InferenceInterventionInvocationV1,
@@ -320,6 +365,87 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
     });
   }
 
+  async gateCheckpoint(
+    input: InferenceInterventionCheckpointGateRequestV1,
+  ): Promise<InferenceInterventionOperationGateResultV1> {
+    const capability =
+      input.kind === "input" ? "pre_input_filter" : "output_gate";
+    if (!this.options.adapter.descriptor.capabilities.includes(capability))
+      throw new TypeError(`${capability}_unavailable_at_checkpoint`);
+    const representation =
+      input.kind === "input" &&
+      this.options.adapter.descriptor.capabilities.includes(
+        "representation_intervention",
+      );
+    const original = this.makeInvocation(
+      {
+        invocationId: input.operationId,
+        step: input.step,
+        logicalTimeMs: input.logicalTimeMs,
+        input: input.payload,
+        context: [],
+        roleReinforcement: null,
+        requireRepresentationReceipt: representation,
+      },
+      "inference",
+    );
+    const reserved = await this.prepare(original, representation, input.kind);
+    if ("result" in reserved)
+      return Object.freeze({
+        allowed: reserved.result.decision === "allowed",
+        assessments: reserved.result.assessments,
+        state: reserved.result.state,
+      });
+    let receipt: RepresentationInterventionReceiptV1 | null = null;
+    try {
+      if (representation) receipt = await this.requestRepresentation(original);
+    } catch (error) {
+      if (error instanceof SidecarAmbiguousError) {
+        const blocked = await this.finishAmbiguous(
+          reserved.prepared,
+          original,
+          reserved.plan.assessments,
+          error.requestDigest,
+        );
+        return Object.freeze({
+          allowed: false,
+          assessments: blocked.assessments,
+          state: blocked.state,
+        });
+      }
+      const blocked = await this.finish(
+        reserved.prepared,
+        original,
+        [...reserved.plan.assessments],
+        null,
+        null,
+        true,
+        false,
+        0,
+      );
+      return Object.freeze({
+        allowed: false,
+        assessments: blocked.assessments,
+        state: blocked.state,
+      });
+    }
+    const result = await this.finish(
+      reserved.prepared,
+      original,
+      [...reserved.plan.assessments],
+      null,
+      receipt,
+      reserved.plan.trigger !== null,
+      representation,
+      0,
+    );
+    return Object.freeze({
+      allowed: result.decision === "allowed",
+      assessments: result.assessments,
+      state: result.state,
+    });
+  }
+
   async reconcile(
     input: InferenceInterventionReconcileInputV1,
   ): Promise<InferenceInterventionStateV1> {
@@ -343,6 +469,8 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
     await this.validateState(prior, validationInvocation);
     if (!prior?.unresolvedEffect) throw new TypeError("no_unresolved_effect");
     const effect = prior.unresolvedEffect;
+    if (effect.kind === "retry_authorized")
+      throw new TypeError("intervention_retry_already_authorized");
     if (
       effect.invocationId !== input.invocationId ||
       effect.invocationDigest !== input.invocationDigest ||
@@ -372,22 +500,43 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
     });
     const receipt = await port.reconcile(request);
     verifyInferenceInterventionReconciliationReceiptV1(request, receipt, port);
-    const unsigned = {
-      ...prior,
-      revision: prior.revision + 1,
-      logicalTimeHighWaterMs: input.logicalTimeMs,
-      lastInvocationDigest: effect.invocationDigest,
-      activeInvocation: null,
-      lastInvocation: {
-        invocationId: effect.invocationId,
-        invocationDigest: effect.invocationDigest,
-        executionDomain: effect.executionDomain,
-        step: effect.step,
-        decision: "blocked" as const,
-        outputDigest: null,
-      },
-      unresolvedEffect: null,
-    };
+    const retryAuthorized = input.resolution === "confirmed_not_applied";
+    const unsigned = retryAuthorized
+      ? {
+          ...prior,
+          revision: prior.revision + 1,
+          logicalTimeHighWaterMs: input.logicalTimeMs,
+          lastInvocationDigest:
+            prior.activeInvocation === null ? null : prior.lastInvocationDigest,
+          activeInvocation: {
+            invocationId: effect.invocationId,
+            invocationDigest: effect.invocationDigest,
+            executionDomain: effect.executionDomain,
+            step: effect.step,
+          },
+          lastInvocation:
+            prior.activeInvocation === null ? null : prior.lastInvocation,
+          unresolvedEffect: {
+            ...effect,
+            kind: "retry_authorized" as const,
+          },
+        }
+      : {
+          ...prior,
+          revision: prior.revision + 1,
+          logicalTimeHighWaterMs: input.logicalTimeMs,
+          lastInvocationDigest: effect.invocationDigest,
+          activeInvocation: null,
+          lastInvocation: {
+            invocationId: effect.invocationId,
+            invocationDigest: effect.invocationDigest,
+            executionDomain: effect.executionDomain,
+            step: effect.step,
+            decision: "blocked" as const,
+            outputDigest: null,
+          },
+          unresolvedEffect: null,
+        };
     const { stateDigest: _oldDigest, ...withoutDigest } = unsigned;
     const next = Object.freeze({
       ...withoutDigest,
@@ -401,7 +550,7 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
   private async prepare(
     original: InferenceInterventionInvocationV1,
     representation: boolean,
-    operationKind?: "tool" | "action",
+    operationKind?: "input" | "output" | "tool" | "action",
   ): Promise<
     | { prepared: InferenceInterventionStateV1; plan: Plan }
     | { result: InferenceInterventionResultV1 }
@@ -416,9 +565,26 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
       await this.validateState(prior, original);
       const replay = this.replay(prior, original);
       if (replay) return { result: replay };
-      if (prior?.unresolvedEffect)
-        throw new TypeError("intervention_reconciliation_required");
-      this.assertFresh(prior, original);
+      const isAuthorizedRetry =
+        prior?.unresolvedEffect?.kind === "retry_authorized";
+      let preparedPrior = prior;
+      if (isAuthorizedRetry) {
+        const reclaimed = this.state(
+          prior,
+          original,
+          0,
+          0,
+          0,
+          prior.activeInvocation,
+          null,
+        );
+        if (!(await this.cas(prior, reclaimed))) continue;
+        preparedPrior = reclaimed;
+      } else {
+        if (prior?.unresolvedEffect)
+          throw new TypeError("intervention_reconciliation_required");
+        this.assertFresh(prior, original);
+      }
       const plan = operationKind
         ? await this.assessOperation(original, operationKind)
         : await this.assessInvocation(original);
@@ -431,12 +597,13 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
           ));
       const interventionUnavailable =
         plan.trigger &&
-        ((prior?.interventionsUsed ?? 0) >=
+        ((preparedPrior?.interventionsUsed ?? 0) >=
           original.policy.budget.maximumInterventions ||
-          (prior?.cooldownUntilLogicalMs ?? 0) > original.logicalTimeMs);
+          (preparedPrior?.cooldownUntilLogicalMs ?? 0) >
+            original.logicalTimeMs);
       const representationUnavailable =
         representation &&
-        ((prior?.representationRequestsUsed ?? 0) >=
+        ((preparedPrior?.representationRequestsUsed ?? 0) >=
           original.policy.budget.maximumRepresentationRequests ||
           !this.options.sidecar ||
           !this.options.adapter.descriptor.capabilities.includes(
@@ -448,11 +615,19 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
         interventionUnavailable ||
         representationUnavailable
       ) {
-        const terminal = this.state(prior, original, 0, 0, plan.clear, null, {
-          decision: "blocked",
-          outputDigest: null,
-        });
-        if (await this.cas(prior, terminal))
+        const terminal = this.state(
+          preparedPrior,
+          original,
+          0,
+          0,
+          plan.clear,
+          null,
+          {
+            decision: "blocked",
+            outputDigest: null,
+          },
+        );
+        if (await this.cas(preparedPrior, terminal))
           return {
             result: Object.freeze({
               decision: "blocked",
@@ -465,8 +640,9 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
           };
         continue;
       }
+      if (isAuthorizedRetry) return { prepared: preparedPrior!, plan };
       const prepared = this.state(
-        prior,
+        preparedPrior,
         original,
         plan.trigger ? 1 : 0,
         representation ? 1 : 0,
@@ -479,14 +655,14 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
         },
         null,
       );
-      if (await this.cas(prior, prepared)) return { prepared, plan };
+      if (await this.cas(preparedPrior, prepared)) return { prepared, plan };
     }
     throw new Error("inference_intervention_cas_retry_exhausted");
   }
 
   private async assessOperation(
     invocation: InferenceInterventionInvocationV1,
-    kind: "tool" | "action",
+    kind: "input" | "output" | "tool" | "action",
   ): Promise<Plan> {
     const signal: InferenceInterventionSignalV1 = {
       kind,
@@ -968,14 +1144,8 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
         prior.activeInvocation.executionDomain !== invocation.executionDomain
       )
         throw new TypeError("conflicting_invocation_id");
-      return Object.freeze({
-        decision: "blocked",
-        output: null,
-        outputDigest: null,
-        receipt: null,
-        assessments: Object.freeze([]),
-        state: prior,
-      });
+      if (prior.unresolvedEffect?.kind === "retry_authorized") return null;
+      throw new TypeError("intervention_reconciliation_required");
     }
     if (prior?.lastInvocation?.invocationId === invocation.invocationId) {
       if (
@@ -1080,7 +1250,7 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
       prior.unresolvedEffect === null ||
       (Object.keys(prior.unresolvedEffect).sort().join("|") ===
         "executionDomain|invocationDigest|invocationId|kind|sidecarRequestDigest|step" &&
-        ["prepared_crash", "sidecar_ambiguous"].includes(
+        ["prepared_crash", "sidecar_ambiguous", "retry_authorized"].includes(
           prior.unresolvedEffect.kind,
         ) &&
         ["inference", "tool", "action"].includes(
@@ -1113,7 +1283,8 @@ export class HeterogeneousInferenceInterventionRuntimeV1 {
       prior.lastInvocationDigest !==
         (prior.lastInvocation?.invocationDigest ?? null) ||
       (prior.activeInvocation !== null) !==
-        (prior.unresolvedEffect?.kind === "prepared_crash") ||
+        (prior.unresolvedEffect?.kind === "prepared_crash" ||
+          prior.unresolvedEffect?.kind === "retry_authorized") ||
       prior.interventionsUsed > invocation.policy.budget.maximumInterventions ||
       prior.representationRequestsUsed >
         invocation.policy.budget.maximumRepresentationRequests ||

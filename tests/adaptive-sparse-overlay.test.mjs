@@ -253,6 +253,22 @@ test("applies a certified refresh locally with no global graph materialization",
   assert.equal(applied.decision, "applied");
   assert.equal(applied.state.currentBinding.revision, 1);
   assert.ok(applied.applied.resultingViewDigest.startsWith("sha256:"));
+  const replayed = await runtime.apply({
+    certificate: certified.certificate,
+    profile,
+    view,
+    // A recovery retry retains the revision that authorized the original
+    // application. The already-applied certificate wins over that stale CAS.
+    expectedRevision: 3,
+    logicalTimeMs: 4,
+  });
+  assert.equal(replayed.decision, "duplicate");
+  assert.equal(replayed.reasonCode, "application_duplicate");
+  assert.equal(
+    replayed.applied.applicationDigest,
+    applied.applied.applicationDigest,
+  );
+  assert.equal(replayed.applied.appliedAtLogicalMs, 3);
   assert.ok(profile.activeNeighborCount <= 17);
   assert.equal("globalGraph" in applied, false);
   assert.equal(

@@ -1,0 +1,67 @@
+import {
+  ReferenceIntegratedScalableEvaluationEgressRuntimeV1,
+  REFERENCE_INTEGRATED_SCALABLE_EVALUATION_IMPLEMENTATION_ID_V1,
+  WebCryptoScalableEvaluationEvidenceVerifierV1,
+  bindReferenceIntegratedScalableEvaluationPeerV1,
+  createReferenceIntegratedScalableEvaluationTeamPortV1,
+  createScalableEvaluationEvidenceProviderAuthorizationV1,
+  inspectReferenceIntegratedScalableEvaluationEgressV1,
+  issueScalableEvaluationPerturbationInjectionReceiptV1,
+  issueScalableEvaluationRecoveryMeasurementReceiptV1,
+  verifyScalableEvaluationPerturbationInjectionReceiptV1,
+  verifyScalableEvaluationRecoveryMeasurementReceiptV1,
+  type ReferenceIntegratedScalableEvaluationEgressOptionsV1,
+  type ReferenceIntegratedScalableEvaluationEgressSnapshotV1,
+  type ReferenceIntegratedScalableEvaluationPeerV1,
+  type ScalableEvaluationEvidenceAuthorizationResolverV1,
+  type ScalableEvaluationEvidenceProviderAuthorizationV1,
+  type ScalableEvaluationEvidencePublicKeyResolverV1,
+  type ScalableEvaluationEvidenceSignerV1,
+  type ScalableEvaluationEvidenceVerifierV1,
+  type ScalableEvaluationPerturbationInjectionReceiptV1,
+  type ScalableEvaluationRecoveryMeasurementReceiptV1,
+  type ScalableEvaluationTeamPortV1,
+  type ScalableEvaluationTeamStepInputV1,
+} from "@agentplat/mesh-sim/scalable-evaluation";
+
+void ReferenceIntegratedScalableEvaluationEgressRuntimeV1;
+void REFERENCE_INTEGRATED_SCALABLE_EVALUATION_IMPLEMENTATION_ID_V1;
+void WebCryptoScalableEvaluationEvidenceVerifierV1;
+void bindReferenceIntegratedScalableEvaluationPeerV1;
+void createReferenceIntegratedScalableEvaluationTeamPortV1;
+void createScalableEvaluationEvidenceProviderAuthorizationV1;
+void inspectReferenceIntegratedScalableEvaluationEgressV1;
+void issueScalableEvaluationPerturbationInjectionReceiptV1;
+void issueScalableEvaluationRecoveryMeasurementReceiptV1;
+void verifyScalableEvaluationPerturbationInjectionReceiptV1;
+void verifyScalableEvaluationRecoveryMeasurementReceiptV1;
+
+type PublicContracts =
+  | ReferenceIntegratedScalableEvaluationEgressOptionsV1
+  | ReferenceIntegratedScalableEvaluationEgressSnapshotV1
+  | ReferenceIntegratedScalableEvaluationPeerV1
+  | ScalableEvaluationEvidenceAuthorizationResolverV1
+  | ScalableEvaluationEvidenceProviderAuthorizationV1
+  | ScalableEvaluationEvidencePublicKeyResolverV1
+  | ScalableEvaluationEvidenceSignerV1
+  | ScalableEvaluationEvidenceVerifierV1
+  | ScalableEvaluationPerturbationInjectionReceiptV1
+  | ScalableEvaluationRecoveryMeasurementReceiptV1
+  | ScalableEvaluationTeamPortV1;
+
+declare const contracts: PublicContracts;
+void contracts;
+
+declare const authorizations: ScalableEvaluationEvidenceAuthorizationResolverV1;
+declare const keys: ScalableEvaluationEvidencePublicKeyResolverV1;
+new WebCryptoScalableEvaluationEvidenceVerifierV1({ authorizations, keys });
+new WebCryptoScalableEvaluationEvidenceVerifierV1({
+  authorizations,
+  keys,
+  // @ts-expect-error The authoritative verifier never accepts caller-supplied crypto.
+  crypto: globalThis.crypto,
+});
+
+declare const step: ScalableEvaluationTeamStepInputV1;
+const remainingMessageBytes: number = step.remainingMessageBytes;
+void remainingMessageBytes;

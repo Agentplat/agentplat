@@ -10,3 +10,6 @@ export * from "./client.js";
 export * from "./transport.js";
 export * from "./http.js";
 export * from "./host.js";
+export * from "./agent-lineage.js";
+export * from "./reference-agent-factory.js";
+export * from "./governed-agent-lifecycle.js";

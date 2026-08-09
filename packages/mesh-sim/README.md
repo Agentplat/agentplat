@@ -2,6 +2,37 @@
 
 Deterministic simulation kernel for AgentPlat Mesh peers.
 
+## Scalable provider-neutral evaluation runner
+
+`runScalableEvaluationV1()` is the executable counterpart to the scalable
+evaluation contracts. It opens a multi-domain environment, starts a sharded
+session and episode, binds a sparse schedule to both team ports, validates and
+accounts public observations, forwards cross-shard messages, and requests
+fenced effects for declared actions. The runner keeps only bounded accounting
+state, recovery state, and a configured record tail; it never materializes the
+declared 500, 5K, or 100K peer population.
+
+Each compared team receives an isolated session and episode with the same
+scenario seed, so effects or targeted perturbations from one side cannot alter
+the other side's state. Environment effect receipts and cross-shard
+acknowledgements are accepted only after exact request/batch binding and digest
+recomputation.
+
+The embedding application supplies team implementations. Scheduled
+perturbations require a `ScalableEvaluationPerturbationPortV1` and a recovery
+metric port, plus an evaluator baseline for every affected team/domain pair.
+The simulation provider must return a content-bound injection receipt before
+the runtime records the occurrence; a plan entry alone is never reported as an
+injected fault. Active recovery is sampled on subsequent logical steps until
+its baseline tolerance is actually restored. Declared actions require an
+application-owned `ScalableEvaluationActionAuthorityV1`; the runner does not
+synthesize fencing authority.
+
+Runs are local and transport-neutral: this package does not start a service,
+create a campaign, or deploy infrastructure. An `AbortSignal`-compatible
+object returns a `cancelled` result between external calls; budget exhaustion
+prevents the next team step before it can create effects or messages.
+
 The kernel uses the production `reduceMeshPeer` function for local commands and
 the production `processMeshEnvelope` boundary for every remote delivery. There
 is no simulation-only accepted-message path.
@@ -384,3 +415,140 @@ Leaderboards are suite-specific, deterministic and exclude invalid,
 over-budget, duplicate or replayed-trace submissions from ranking. Source,
 artifact and build locks are digest references: deployments remain responsible
 for custody, evaluator independence and environment relevance.
+
+## Scalable evaluation runtime
+
+The `./scalable-evaluation` export provides a provider-neutral configuration
+and accounting layer over the existing sharded simulation and multi-domain
+environment contracts. Its `standard-500`, `large-5000`, and
+`frontier-100000` profiles bind 500/5,000, 5,000/50,000, and
+100,000/1,000,000 agent/interaction envelopes. Message count, message bytes,
+interaction count, and the bounded retained-record tail are explicit budgets;
+creating these values does not allocate agents or start a run.
+
+Definitions bind physical, social, or cyber scenario manifests to an explicit
+partial-observation policy and the benign, Byzantine, rogue, or context
+poisoning perturbations selected by the evaluator. Target selectors stay
+private and are represented publicly by cardinality and digest, preventing a
+100,000-agent profile from materializing a global target list.
+
+`InMemoryScalableEvaluationRuntimeV1` accepts strictly sequenced accounting
+records and keeps aggregate counters by team and domain. The full history is
+committed by a chain digest while only the configured tail remains in memory.
+With the closed two-team, three-domain contract, retained state is
+O(teams + domains + perturbations + tail) and is independent of the declared
+agent population.
+Recovery episodes compare provider-measured basis-point samples with a
+pre-perturbation baseline and report the accounted interactions and messages
+needed to return within tolerance. Injection and recovery receipts are signed
+with Ed25519 and bind the exact definition, scenario, environment adapter,
+provider authorization, team, session, episode, perturbation schedule and
+sample identity. `WebCryptoScalableEvaluationEvidenceVerifierV1` captures the
+platform verifier and its authorization/key resolvers at construction; caller
+supplied crypto, structural boolean verifiers and non-canonical signatures are
+rejected. The accounting runtime accepts only receipts branded by that verified
+path, so a provider cannot turn an unsigned metric array into recovery evidence.
+
+Both sides of a `team-vs-team` matchup implement the same
+`ScalableEvaluationTeamPortV1`. A centralized controller can occupy either
+side as a replaceable reference without receiving hidden environment state,
+and the comparison output contains signed deltas rather than an inferred
+winner. Environment binding validates the exact multi-domain scenario before
+returning its bridge; it does not start sessions, invoke team callbacks, or
+execute an evaluation campaign.
+
+`runScalableEvaluationV1()` routes every team message through the environment
+delivery ingress, including messages whose source and destination currently
+share a shard. Accounting advances only after an exact digest-bound ACK names
+every expected event; there is no local synthetic-delivery shortcut. A message
+also carries a complete bounded `transportEnvelope` and its digest. The batch
+commits that envelope digest, the ACK commits the exact `batchDigest`, and only
+after validating that complete binding does the runner hand the envelope to
+the team's acknowledged-message ingress. A port that emits messages but
+supplies no ingress fails closed.
+
+The reference integrated adapter connects genuine
+`@agentplat/collective-host/reference-integrated-stack` instances to the same
+team port. `ReferenceIntegratedScalableEvaluationEgressRuntimeV1` installs a
+real sparse peer plane with a nominal delivery queue, preserving the exact
+recipient indexes chosen by the overlay. The same egress is the stack's
+recovery-aware assignment authority: protected commits stop in an idempotent
+action outbox, and the outer runner is the only component that applies those
+actions to the evaluation environment. Peer binding checks the stack's private
+construction brand and exact plane/authority object identities; callback-shaped
+lookalikes, effect mappers and invented routing targets are not accepted. The
+reserved implementation ID
+`agentplat.reference-integrated-collective-stack.v1` is accepted only from this
+nominal factory path.
+
+The delivery capture and action outbox in this reference egress are bounded,
+in-memory state for one evaluation process. They are not a production durable
+transport or protected-effect sink, so this particular port remains suitable
+only for the non-durable runner path. `runScalableEvaluationV1()` also has an
+explicit restart-durable mode: supply both `durableStore` and `runId`, plus
+restart-durable environment, team, perturbation, recovery and action-authority
+ports. The runner rejects a partial declaration or a callback-shaped claim.
+Providers opt in with a module-created
+`ScalableEvaluationRestartDurabilityDeclarationV1`; the declaration identity
+and the exact definition, adapter descriptor, sparse schedule, assignments,
+shard count, baselines and team descriptors are bound into the checkpoint
+configuration digest.
+
+`ScalableEvaluationDurableCheckpointStoreV1` is provider-neutral and advances
+one run by revision-and-digest CAS. A checkpoint carries the exact phase,
+logical step/team/cursor, trace predecessor, active recoveries, a bounded
+one-step saga, both environment checkpoints, both team checkpoints and the
+canonical `ScalableEvaluationRuntimeStateV1`. Runtime state is independently
+hash-chained by revision and predecessor and includes the two team states,
+global and per-domain counters, baselines, perturbation observations,
+recoveries, environment bindings and the configured accounting-record ring
+with its physical cursor. Restore validates the definition and adapter binding
+before installing any state.
+
+The durable phase journal covers perturbation, observation, team step, each
+action, each message, accounting, recovery and trace advance. Every external
+operation has a stable content-derived operation ID and is reconciled before
+the next phase is committed. Durable environment and team providers must be
+able to restore the last committed checkpoint even if a newer orphan
+checkpoint was created before a process failed, and must return the same
+idempotent receipt when that operation is reconciled. Missing continuity,
+restore or reconciliation fails closed; the runner never assumes process
+memory or repeats an unreceipted effect.
+
+The nominal transport envelope contains the exact `MeshSparseDeliveryV2` and
+its authenticated content-addressed collective artifact; no callback rebuilds
+either value. Post-ACK ingress validates their complete binding, stores and
+re-reads the artifact through the genuine destination stack, then admits the
+delivery to a bounded peer inbox. At the next peer step, ingress always calls
+`MeshSparsePeerPlaneRuntimeV1.receive()` first, so routing, expiry, deduplication
+and relay semantics run before `node.receive()` performs protocol and artifact
+admission. Deferred causal predecessors remain queued rather than being
+reported as delivered protocol state.
+
+Each peer is owned by exactly one nominal team port, and mission binding checks
+tenant, mesh, mission intent and objective together. A bounded per-step journal
+records `prepared`, `node_mutated`, `output_staged`, `settled` or
+`indeterminate`: exact retries return the staged output, while any mutation
+that cannot be reconciled fails closed and is never executed again. Delivery
+captures are released only after the target ingress receipt is bound to the
+exact batch and ACK; effect captures are released only after the corresponding
+terminal fenced environment request and receipt. This makes pending outbox
+capacity reusable. The pending inbox and admitted-message idempotency window
+are each capped at 65,536 entries, while each peer retains 64 step journals.
+Terminal journals and their settlement records are pruned as the window rolls;
+retries older than that window fail closed instead of re-executing. Egress
+settlement retention is also explicitly bounded by `maximumSettledReceipts`.
+These reference journals and receipts provide exact retry only inside one
+evaluation process. Cross-process recovery uses the opt-in durable runner path
+above and therefore requires implementations of its explicit checkpoint,
+restore and reconciliation ports; the in-memory reference egress does not
+claim those capabilities.
+
+Durable state does not expand the declared population. A run remains limited
+to two teams, three accounting domains, at most 16,384 sparse schedule steps,
+1,024 actions and 1,024 messages (16 MiB total message bytes) per step, and a
+single retained step saga. Public metadata remains capped at 64 KiB, depth 32
+and 16,384 nodes. Runtime record retention is exactly
+`maximumRetainedRecords`; durability declarations may advertise at most 64 MiB
+per checkpoint, and the runner enforces the smallest capacity declared by the
+store, environment bridge and either team port.

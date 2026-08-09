@@ -377,7 +377,7 @@ async function mapPortableTarget(input: {
         itemId: target.output.outputId,
         sourceZone,
         sourceId: target.manifest.adapterId,
-        sourceRevision: target.request.expectedSessionRevision,
+        sourceRevision: target.stepSequence,
         observedAtLogicalMs: logicalTimeMs,
         provenanceDigest: digestControlJsonV1("provenance", {
           adapterId: target.manifest.adapterId,
@@ -412,7 +412,7 @@ async function mapPortableTarget(input: {
         itemId: target.actionProposal.actionId,
         sourceZone,
         sourceId: target.manifest.adapterId,
-        sourceRevision: target.request.expectedSessionRevision,
+        sourceRevision: target.stepSequence,
         observedAtLogicalMs: logicalTimeMs,
         provenanceDigest: digestControlJsonV1("provenance", {
           adapterId: target.manifest.adapterId,
@@ -451,6 +451,8 @@ async function mapPortableTarget(input: {
     checkpoint === "pre_step" ? input.filterBinding.filterBindingDigest : null;
   const requestSeed = deepFreeze({
     checkpoint,
+    stepSequence: target.stepSequence,
+    checkpointItemIndex: target.checkpointItemIndex ?? 0,
     targetKind,
     scope,
     logicalTimeMs,
@@ -545,6 +547,7 @@ function createFilteringAdapter(input: {
       const target: PortableAgentControlRequestV1 = {
         schemaVersion: 1,
         checkpoint: "pre_step",
+        stepSequence: stepInput.stepSequence,
         manifest: input.manifest,
         sessionId: stepInput.sessionId,
         tenantId: stepInput.tenantId,
@@ -701,6 +704,16 @@ function assertPortableBinding(
   identifier(target.tenantId, "target.tenantId");
   identifier(target.agentId, "target.agentId");
   identifier(target.role.objectiveId, "target.role.objectiveId");
+  positive(target.stepSequence, "target.stepSequence");
+  const checkpointItemIndex = nonNegative(
+    target.checkpointItemIndex ?? 0,
+    "target.checkpointItemIndex",
+  );
+  if (
+    checkpointItemIndex > 4_095 ||
+    (target.checkpoint === "pre_step" && checkpointItemIndex !== 0)
+  )
+    fail("context_integrity_checkpoint_item_index_invalid");
   nonNegative(target.request.logicalTimeMs, "target.request.logicalTimeMs");
 }
 

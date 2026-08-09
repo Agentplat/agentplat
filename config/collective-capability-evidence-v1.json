@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "agentplat-collective-capability-evidence-v1",
+  "baselineId": "agentplat-collective-capabilities-v1",
+  "baselineDigest": "sha256:3767fd5b660f6ecc82dee249dbf67bcbd79ebc63160f7795f0f43519389b746e",
+  "capabilities": [
+    {
+      "capabilityId": "autonomous-local-peer-host",
+      "publicSurfacePaths": [
+        "packages/collective-host/src/autonomous-collective-node.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/reference-integrated-stack.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/integrated-collective-peer-host-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "sparse-peer-discovery-routing",
+      "publicSurfacePaths": ["packages/mesh/src/sparse-overlay.ts"],
+      "integrationBoundaryPaths": [
+        "packages/mesh/src/sparse-overlay-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/governed-adaptive-sparse-overlay-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "durable-causal-delivery-catch-up",
+      "publicSurfacePaths": ["packages/mesh/src/overlay-transport.ts"],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/distributed-collective-protocol.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/authenticated-causal-state-sync-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "membership-epochs-attenuated-lineage",
+      "publicSurfacePaths": [
+        "packages/collective-membership/src/agent-lineage.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-membership/src/governed-agent-lifecycle.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/governed-autonomous-mission-lifecycle-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "authenticated-rotation-aware-overlay-transport",
+      "publicSurfacePaths": [
+        "packages/mesh/src/authenticated-overlay-transport.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/mesh/src/sparse-overlay-transport.ts"
+      ],
+      "threatModelPaths": ["docs/security/agent-mesh-threat-model.md"]
+    },
+    {
+      "capabilityId": "distributed-mission-decomposition",
+      "publicSurfacePaths": [
+        "packages/collective-planning/src/distributed-decomposition.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/distributed-planning-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/certified-planning-availability-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "decentralized-allocation-team-formation",
+      "publicSurfacePaths": [
+        "packages/collective-runtime/src/distributed-team-allocation.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/distributed-planning-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/dynamic-team-formation-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "sparse-adversarial-agreement",
+      "publicSurfacePaths": [
+        "packages/collective-quorum/src/sparse-agreement.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/in-process-sparse-bft-gateway.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/byzantine-resilient-collective-agreement-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "adversarial-context-fusion-local-credibility",
+      "publicSurfacePaths": [
+        "packages/collective-quorum/src/mission-context-fusion.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-quorum/src/mission-context-fusion-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/capability-state-fusion-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "mission-execution-continuity-compromise-recovery",
+      "publicSurfacePaths": [
+        "packages/collective-runtime/src/compromise-aware-recovery.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-runtime/src/compromise-aware-recovery-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/replicated-mission-lifecycle-continuity-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "autonomous-adaptation-local-replanning",
+      "publicSurfacePaths": [
+        "packages/collective-host/src/autonomous-adaptation-runtime.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/autonomous-collective-node.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/adaptive-mission-runtime-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "role-objective-context-drift-detection",
+      "publicSurfacePaths": [
+        "packages/inference-control/src/semantic-metric-engine.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/inference-control/src/semantic-alignment-runtime.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/continuous-role-alignment-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "inference-time-intervention",
+      "publicSurfacePaths": ["packages/inference-control/src/intervention.ts"],
+      "integrationBoundaryPaths": [
+        "packages/inference-control/src/operational-cognitive-control.ts"
+      ],
+      "threatModelPaths": ["docs/security/inference-control-threat-model.md"]
+    },
+    {
+      "capabilityId": "heterogeneous-open-black-box-adapters",
+      "publicSurfacePaths": ["packages/runtime/src/cognitive-adapter.ts"],
+      "integrationBoundaryPaths": [
+        "packages/inference-control/src/cognitive-adapters.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/heterogeneous-inference-intervention-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "semantic-agility-governed-role-evolution",
+      "publicSurfacePaths": [
+        "packages/inference-control/src/governed-role-evolution.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/inference-control/src/role-alignment-portable-agent.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/adaptive-role-realignment-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "anytime-statistical-guarantees-coupled-planning",
+      "publicSurfacePaths": [
+        "packages/inference-control/src/anytime-semantic-guarantees.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-host/src/semantic-horizon-coupling.ts"
+      ],
+      "threatModelPaths": ["docs/security/inference-control-threat-model.md"]
+    },
+    {
+      "capabilityId": "governed-agent-creation-termination",
+      "publicSurfacePaths": [
+        "packages/collective-membership/src/reference-agent-factory.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/collective-membership/src/governed-agent-lifecycle.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/governed-autonomous-mission-lifecycle-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "versioned-agent-simulation-interoperability",
+      "publicSurfacePaths": ["packages/interop/src/index.ts"],
+      "integrationBoundaryPaths": ["packages/interop/src/http.ts"],
+      "threatModelPaths": [
+        "docs/security/multi-domain-environment-adapter-threat-model.md"
+      ]
+    },
+    {
+      "capabilityId": "scale-safe-telemetry-executable-invariants",
+      "publicSurfacePaths": [
+        "packages/collective-runtime/src/collective-invariants.ts"
+      ],
+      "integrationBoundaryPaths": [
+        "packages/audit/src/collective-telemetry.ts",
+        "packages/collective-host/src/collective-telemetry.ts"
+      ],
+      "threatModelPaths": [
+        "docs/security/sharded-simulation-scale-interoperability-threat-model.md"
+      ]
+    }
+  ]
+}

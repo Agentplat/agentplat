@@ -277,7 +277,14 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
   readonly #manifest: MultiDomainScenarioManifestV1;
   readonly #domain: ConcreteDomain;
   readonly #interactionFingerprints = new Map<string, string>();
-  #interactionCount = 0;
+  readonly #interactionSlots = new Set<string>();
+  readonly #budgetSnapshots = new Map<
+    string,
+    {
+      readonly interactionFingerprints: readonly (readonly [string, string])[];
+      readonly interactionSlots: readonly string[];
+    }
+  >();
 
   constructor(
     descriptor: MultiDomainEnvironmentDescriptorV1,
@@ -363,6 +370,7 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
     this.#admitInteraction(
       `observation:${input.requestId}`,
       shardedSimulationDigestV1("multi-domain-observation-request-v1", input),
+      [`${input.peerIndex}:${input.logicalTime}`],
     );
     this.#delegate.pullPartialObservation(input);
     return delivery;
@@ -381,7 +389,9 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
       fail("action_entity_binding_mismatch");
     if (jsonBytes(action) > this.#manifest.resourceBudget.maximumActionBytes)
       fail("action_scenario_budget_exceeded");
-    this.#admitInteraction(`action:${input.actionId}`, input.actionDigest);
+    this.#admitInteraction(`action:${input.actionId}`, input.actionDigest, [
+      `${input.peerIndex}:${input.logicalTime}`,
+    ]);
     return this.#delegate.requestEffect(input);
   }
 
@@ -399,7 +409,9 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
     this.#admitInteraction(
       `batch:${input.batchId}`,
       input.batchDigest,
-      input.messages.length,
+      input.messages.map(
+        (message) => `${message.sourcePeerIndex}:${message.logicalTime}`,
+      ),
     );
     return this.#delegate.deliverCrossShardBatch(input);
   }
@@ -410,12 +422,21 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
     readonly expectedRevision: number;
     readonly logicalTime: number;
   }): ShardedSimulationCheckpointV1 {
+    if (
+      referenceCheckpointEnvelopeBytes(input) >
+      this.#manifest.resourceBudget.maximumCheckpointBytes
+    )
+      fail("checkpoint_scenario_budget_exceeded");
     const checkpoint = this.#delegate.checkpoint(input);
     if (
       jsonBytes(checkpoint) >
       this.#manifest.resourceBudget.maximumCheckpointBytes
     )
       fail("checkpoint_scenario_budget_exceeded");
+    this.#budgetSnapshots.set(checkpoint.checkpointId, {
+      interactionFingerprints: [...this.#interactionFingerprints],
+      interactionSlots: [...this.#interactionSlots],
+    });
     return checkpoint;
   }
 
@@ -427,22 +448,37 @@ class ReferenceMultiDomainBridgeV1 implements ShardedSimulationEnvironmentBridge
       this.#manifest.resourceBudget.maximumCheckpointBytes
     )
       fail("restore_checkpoint_scenario_budget_exceeded");
-    return this.#delegate.restore(input);
+    const snapshot = this.#budgetSnapshots.get(input.checkpoint.checkpointId);
+    if (!snapshot) fail("restore_budget_snapshot_missing");
+    const restored = this.#delegate.restore(input);
+    this.#interactionFingerprints.clear();
+    for (const [key, fingerprint] of snapshot.interactionFingerprints)
+      this.#interactionFingerprints.set(key, fingerprint);
+    this.#interactionSlots.clear();
+    for (const slot of snapshot.interactionSlots) this.#interactionSlots.add(slot);
+    return restored;
   }
 
-  #admitInteraction(key: string, fingerprint: string, amount = 1): void {
+  #admitInteraction(
+    key: string,
+    fingerprint: string,
+    slots: readonly string[],
+  ): void {
     const previous = this.#interactionFingerprints.get(key);
     if (previous) {
       if (previous !== fingerprint) fail("interaction_identity_equivocation");
       return;
     }
+    const addedSlots = [...new Set(slots)].filter(
+      (slot) => !this.#interactionSlots.has(slot),
+    );
     if (
-      this.#interactionCount + amount >
+      this.#interactionSlots.size + addedSlots.length >
       this.#manifest.resourceBudget.maximumInteractions
     )
       fail("scenario_interaction_budget_exceeded");
     this.#interactionFingerprints.set(key, fingerprint);
-    this.#interactionCount += amount;
+    for (const slot of addedSlots) this.#interactionSlots.add(slot);
   }
 }
 
@@ -553,15 +589,16 @@ async function exerciseAdapter(
       logicalTime: 3,
     }),
   );
+  const postCheckpointRequest = actionRequest(
+    session,
+    episode,
+    validAction,
+    "conformance:post-checkpoint-action",
+    `fence:${session.sessionId}:${episode.episodeId}:0:1`,
+    4,
+  );
   const acceptedAfterCheckpoint = await bridge.requestEffect(
-    actionRequest(
-      session,
-      episode,
-      validAction,
-      "conformance:post-checkpoint-action",
-      `fence:${session.sessionId}:${episode.episodeId}:0:1`,
-      4,
-    ),
+    postCheckpointRequest,
   );
   if (!acceptedAfterCheckpoint.accepted)
     fail("conformance_post_checkpoint_mutation_rejected");
@@ -583,6 +620,28 @@ async function exerciseAdapter(
       )
   )
     fail("conformance_restore_receipt_invalid");
+  let restoreProbePassed = false;
+  try {
+    const changedAction = {
+      ...validAction,
+      payload: { requested: false },
+    };
+    const replayedAfterRestore = await bridge.requestEffect(
+      actionRequest(
+        session,
+        episode,
+        changedAction,
+        postCheckpointRequest.actionId,
+        postCheckpointRequest.fenceToken,
+        postCheckpointRequest.logicalTime,
+      ),
+    );
+    restoreProbePassed =
+      replayedAfterRestore.accepted &&
+      replayedAfterRestore.receiptDigest !== acceptedAfterCheckpoint.receiptDigest;
+  } catch {
+    restoreProbePassed = false;
+  }
 
   let outOfScopeEntityRejected = false;
   try {
@@ -634,7 +693,7 @@ async function exerciseAdapter(
     capabilityFailClosed,
     staleFenceRejected: staleReceipt.accepted === false,
     checkpointRevision: checkpoint.revision,
-    restoreProbePassed: true,
+    restoreProbePassed,
     boundsObserved,
   });
 }
@@ -703,6 +762,34 @@ function presetFor(domain: ConcreteDomain): {
 
 function jsonBytes(value: unknown): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+}
+
+function referenceCheckpointEnvelopeBytes(input: {
+  readonly session: ShardedSimulationEnvironmentSessionV1;
+  readonly episode: ShardedSimulationEpisodeV1;
+  readonly expectedRevision: number;
+  readonly logicalTime: number;
+}): number {
+  const revision = input.expectedRevision + 1;
+  const digest = `sha256:${"0".repeat(64)}`;
+  return jsonBytes({
+    schemaVersion: 1,
+    checkpointId: `${input.session.sessionId}:${input.episode.episodeId}:checkpoint:${revision}`,
+    sessionId: input.session.sessionId,
+    episodeId: input.episode.episodeId,
+    revision,
+    logicalTime: input.logicalTime,
+    snapshotHandle: `local-snapshot:${revision}`,
+    snapshotDigest: digest,
+    anchor: {
+      schemaVersion: 1,
+      anchorId: `${input.session.sessionId}:${input.episode.episodeId}:anchor:${revision}`,
+      revision,
+      previousAnchorDigest: input.expectedRevision === 0 ? null : digest,
+      anchorDigest: digest,
+    },
+    checkpointDigest: digest,
+  });
 }
 
 function fail(code: string): never {

@@ -221,6 +221,7 @@ function executor(statusByPosition = {}) {
           status === "completed" ? "controls_allowed" : "control_refused",
         sourceEvidenceDigest: digest(`control.${dispatch.dispatchDigest}`),
         evaluatedAtLogicalMs: completedAtLogicalMs,
+        validUntilLogicalMs: dispatch.validUntilLogicalMs,
       });
       const artifacts =
         status === "completed"
@@ -622,6 +623,7 @@ test("fails closed on non-allow completion and hostile accessor input", async ()
         reasonCode: "control_denied",
         sourceEvidenceDigest: digest("denied.control"),
         evaluatedAtLogicalMs: completedAtLogicalMs,
+        validUntilLogicalMs: dispatch.validUntilLogicalMs,
       }),
       sourceStepRecordDigest: digest("denied.step"),
       reasonCode: "completed_without_allow",

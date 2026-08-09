@@ -25,6 +25,8 @@ canonical order and digest equality.
 - A manifest differing from the exact requested definition: fail conformance.
 - Entity, byte, interaction or checkpoint limit exceeded: reject before
   allocation.
+- Checkpoint restore must also restore adapter-owned budget and idempotency
+  state; restoring only the delegated simulator snapshot is non-conformant.
 - Stale execution fence: return a rejected effect receipt through the existing
   bridge.
 - Replay divergence: fail conformance and preserve the evidence digest.

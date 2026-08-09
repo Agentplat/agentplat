@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.mesh_sim_scalable_evaluation_checkpoints;

@@ -147,6 +147,7 @@ function controlTarget(logicalTimeMs) {
   return {
     schemaVersion: 1,
     checkpoint: "pre_step",
+    stepSequence: 1,
     manifest,
     sessionId: "session-a",
     tenantId: "tenant-a",

@@ -189,10 +189,7 @@ export function createPeerStrategyEvidenceCohortV1(
   const body = freeze({
     tenantId: identifier(value.tenantId, "cohort.tenantId"),
     meshId: identifier(value.meshId, "cohort.meshId"),
-    policyDomainId: identifier(
-      value.policyDomainId,
-      "cohort.policyDomainId",
-    ),
+    policyDomainId: identifier(value.policyDomainId, "cohort.policyDomainId"),
     missionIntentId: identifier(
       value.missionIntentId,
       "cohort.missionIntentId",
@@ -375,7 +372,8 @@ export async function createSignedPeerStrategyOutcomeAttestationV1(
     fail("strategy evidence signing failed");
   }
   const signature = new Uint8Array(signed);
-  if (signature.byteLength !== 64) fail("strategy evidence signature is invalid");
+  if (signature.byteLength !== 64)
+    fail("strategy evidence signature is invalid");
   return validateSignedPeerStrategyOutcomeAttestationV1({
     ...unsigned,
     proof: { ...proof, value: base64url(signature) },
@@ -478,8 +476,14 @@ export function createPeerStrategyEvidenceStateV1(input: {
     policy.policy.limits.maximumAttestations,
     policy.policy.limits.maximumAttestationsPerPeer,
   );
-  const overlap = new Set(attestations.map(({ attestationDigest }) => attestationDigest));
-  if (pendingAttestations.some(({ attestationDigest }) => overlap.has(attestationDigest)))
+  const overlap = new Set(
+    attestations.map(({ attestationDigest }) => attestationDigest),
+  );
+  if (
+    pendingAttestations.some(({ attestationDigest }) =>
+      overlap.has(attestationDigest),
+    )
+  )
     fail("strategy evidence pending and admitted attestations overlap");
   const retainedAttestations = [...attestations, ...pendingAttestations];
   if (retainedAttestations.length > policy.policy.limits.maximumAttestations)
@@ -496,10 +500,7 @@ export function createPeerStrategyEvidenceStateV1(input: {
     pendingAttestations,
     sourceHeads,
   );
-  const certificates = normalizeCertificates(
-    input.certificates ?? [],
-    policy,
-  );
+  const certificates = normalizeCertificates(input.certificates ?? [], policy);
   const body = freeze({
     format: PEER_STRATEGY_EVIDENCE_STATE_FORMAT_V1,
     schemaVersion: PEER_STRATEGY_EVIDENCE_SCHEMA_VERSION_V1,
@@ -554,7 +555,8 @@ export function validatePeerStrategyEvidenceStateV1(
     policy: options.policy,
     revision: value.revision as number,
     logicalTimeHighWaterMs: value.logicalTimeHighWaterMs as number,
-    sourceHeads: value.sourceHeads as readonly PeerStrategyEvidenceSourceHeadV1[],
+    sourceHeads:
+      value.sourceHeads as readonly PeerStrategyEvidenceSourceHeadV1[],
     attestations:
       value.attestations as readonly SignedPeerStrategyOutcomeAttestationV1[],
     pendingAttestations:
@@ -589,7 +591,10 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
   const attestation = validateSignedPeerStrategyOutcomeAttestationV1(
     input.attestation,
   );
-  const logicalTimeMs = nonNegative(input.logicalTimeMs, "admission.logicalTimeMs");
+  const logicalTimeMs = nonNegative(
+    input.logicalTimeMs,
+    "admission.logicalTimeMs",
+  );
   if (logicalTimeMs < state.logicalTimeHighWaterMs)
     fail("strategy evidence logical time rolled back");
   const eligibility = normalizeEligibility(input.eligibility, attestation);
@@ -597,7 +602,8 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
   let status: PeerStrategyEvidenceAdmissionDecisionV1["status"] = "admitted";
   if (
     attestation.cohort.tenantId === "" ||
-    attestation.binding.feedbackSchemaDigest !== policy.policy.feedbackSchemaDigest
+    attestation.binding.feedbackSchemaDigest !==
+      policy.policy.feedbackSchemaDigest
   ) {
     status = "rejected";
     reasonCodes.add("feedback_schema_mismatch");
@@ -673,10 +679,7 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
   if (status === "admitted" && existing) {
     status = "duplicate";
     reasonCodes.add("duplicate_attestation");
-  } else if (
-    status === "admitted" &&
-    (pendingConflict || admittedConflict)
-  ) {
+  } else if (status === "admitted" && (pendingConflict || admittedConflict)) {
     status = "rejected";
     quarantineSource = true;
     reasonCodes.add("source_equivocation");
@@ -781,8 +784,12 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
     status = "rejected";
     reasonCodes.add("retention_capacity_exceeded");
   }
+  // A pending successor consumes the independently bounded attestation budget,
+  // but it does not reserve a source-head slot. Capacity is enforced when the
+  // missing predecessor makes the source admissible, so pending evidence
+  // cannot create an undocumented or non-durable reservation.
   if (
-    (status === "admitted" || status === "pending_predecessor") &&
+    status === "admitted" &&
     !head &&
     prunedHeads.length >= policy.policy.limits.maximumSourceHeads
   ) {
@@ -822,18 +829,21 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
   });
   if (committedStateRevision === priorStateRevision)
     return freeze({ state, decision });
-  const nextHeads = new Map(prunedHeads.map((current) => [current.headKey, current]));
+  const nextHeads = new Map(
+    prunedHeads.map((current) => [current.headKey, current]),
+  );
   if (quarantineSource) {
     if (head || nextHeads.size < policy.policy.limits.maximumSourceHeads)
       nextHeads.set(headKey, equivocatedSourceHead(attestation, head));
   } else if (status === "admitted") {
     nextHeads.set(headKey, sourceHead(attestation));
   }
-  const retainedAdmittedAttestations = quarantineSource || rotateSource
-    ? prunedAttestations.filter(
-        (candidate) => !sameIssuerPeer(candidate, attestation),
-      )
-    : prunedAttestations;
+  const retainedAdmittedAttestations =
+    quarantineSource || rotateSource
+      ? prunedAttestations.filter(
+          (candidate) => !sameIssuerPeer(candidate, attestation),
+        )
+      : prunedAttestations;
   const retainedPendingAttestations = quarantineSource
     ? prunedPendingAttestations.filter(
         (candidate) => !sameIssuerPeer(candidate, attestation),
@@ -878,9 +888,7 @@ export function reducePeerStrategyEvidenceAdmissionV1(input: {
   return freeze({ state: nextState, decision });
 }
 
-export class PeerStrategyEvidenceExchangeRuntimeV1
-  implements PeerStrategyEvidenceExchangePortV1
-{
+export class PeerStrategyEvidenceExchangeRuntimeV1 implements PeerStrategyEvidenceExchangePortV1 {
   readonly exchangerId: string;
   readonly exchangerVersion: number;
   readonly implementationId: string;
@@ -910,9 +918,15 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
     this.policyId = this.#policy.policy.policyId;
     this.policyVersion = this.#policy.policy.policyVersion;
     this.policyDigest = this.#policy.policyDigest;
-    if (!options.eligibility || typeof options.eligibility.evaluate !== "function")
+    if (
+      !options.eligibility ||
+      typeof options.eligibility.evaluate !== "function"
+    )
       fail("strategy evidence eligibility port is required");
-    if (!options.independence || typeof options.independence.classify !== "function")
+    if (
+      !options.independence ||
+      typeof options.independence.classify !== "function"
+    )
       fail("strategy evidence independence port is required");
     if (
       !options.store ||
@@ -932,7 +946,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
     const attestation = validateSignedPeerStrategyOutcomeAttestationV1(
       input.attestation,
     );
-    const logicalTimeMs = nonNegative(input.logicalTimeMs, "admit.logicalTimeMs");
+    const logicalTimeMs = nonNegative(
+      input.logicalTimeMs,
+      "admit.logicalTimeMs",
+    );
     const eligibility = normalizeEligibility(
       await this.#eligibility.evaluate({ attestation, logicalTimeMs }),
       attestation,
@@ -975,7 +992,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
   }): Promise<PeerStrategyEvidenceCertificateDecisionV1> {
     const cohort = validatePeerStrategyEvidenceCohortV1(input.cohort);
     const binding = validatePeerStrategyEvidenceBindingV1(input.binding);
-    const logicalTimeMs = nonNegative(input.logicalTimeMs, "certify.logicalTimeMs");
+    const logicalTimeMs = nonNegative(
+      input.logicalTimeMs,
+      "certify.logicalTimeMs",
+    );
     for (
       let attempt = 0;
       attempt < this.#policy.policy.limits.maximumCommitAttempts;
@@ -1060,7 +1080,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
     );
     if (targetStateKey === this.#stateKey)
       fail("strategy evidence handoff target must differ from source");
-    const logicalTimeMs = nonNegative(input.logicalTimeMs, "handoff.logicalTimeMs");
+    const logicalTimeMs = nonNegative(
+      input.logicalTimeMs,
+      "handoff.logicalTimeMs",
+    );
     const sourceState = await this.loadState();
     if (logicalTimeMs < sourceState.logicalTimeHighWaterMs)
       fail("strategy evidence handoff logical time rolled back");
@@ -1091,7 +1114,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
     const handoff = validatePeerStrategyEvidenceHandoffV1(input.handoff, {
       policy: this.#policy,
     });
-    const logicalTimeMs = nonNegative(input.logicalTimeMs, "handoff.logicalTimeMs");
+    const logicalTimeMs = nonNegative(
+      input.logicalTimeMs,
+      "handoff.logicalTimeMs",
+    );
     if (
       handoff.targetStateKey !== this.#stateKey ||
       handoff.exchangerId !== this.exchangerId ||
@@ -1176,7 +1202,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
         classification.independenceGroupId,
         "independence.independenceGroupId",
       );
-      sha(classification.classificationDigest, "independence.classificationDigest");
+      sha(
+        classification.classificationDigest,
+        "independence.classificationDigest",
+      );
       candidates.push({
         attestation,
         independenceGroupId: classification.independenceGroupId,
@@ -1211,10 +1240,10 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
         );
         return Boolean(
           head &&
-            !head.equivocated &&
-            candidate.issuerStreamId === head.issuerStreamId &&
-            candidate.issuerSequence === head.issuerSequence + 1 &&
-            candidate.predecessorAttestationDigest === head.attestationDigest,
+          !head.equivocated &&
+          candidate.issuerStreamId === head.issuerStreamId &&
+          candidate.issuerSequence === head.issuerSequence + 1 &&
+          candidate.predecessorAttestationDigest === head.attestationDigest,
         );
       });
       if (!successor) return state;
@@ -1266,9 +1295,7 @@ export class PeerStrategyEvidenceExchangeRuntimeV1
   }
 }
 
-export class InMemoryPeerStrategyEvidenceStoreV1
-  implements PeerStrategyEvidenceStoreV1
-{
+export class InMemoryPeerStrategyEvidenceStoreV1 implements PeerStrategyEvidenceStoreV1 {
   readonly #states = new Map<string, PeerStrategyEvidenceStateV1>();
   readonly #policy: PeerStrategyEvidencePolicyRecordV1;
 
@@ -1279,7 +1306,9 @@ export class InMemoryPeerStrategyEvidenceStoreV1
   async load(stateKey: string): Promise<PeerStrategyEvidenceStateV1 | null> {
     const state = this.#states.get(stateKey);
     return state
-      ? clone(validatePeerStrategyEvidenceStateV1(state, { policy: this.#policy }))
+      ? clone(
+          validatePeerStrategyEvidenceStateV1(state, { policy: this.#policy }),
+        )
       : null;
   }
 
@@ -1362,14 +1391,16 @@ export function validatePeerStrategyEvidenceCertificateV1(
   const certificateDigest = digest("peer-strategy-evidence-certificate", body);
   if (
     value.certificateDigest !== certificateDigest ||
-    value.certificateId !== `strategy-evidence-certificate.${certificateDigest.slice(7)}`
+    value.certificateId !==
+      `strategy-evidence-certificate.${certificateDigest.slice(7)}`
   )
     fail("strategy evidence certificate binding is invalid");
   if (policyInput) {
     const policy = validatePeerStrategyEvidenceExchangePolicyV1(policyInput);
     if (
       body.policyDigest !== policy.policyDigest ||
-      body.binding.feedbackSchemaDigest !== policy.policy.feedbackSchemaDigest ||
+      body.binding.feedbackSchemaDigest !==
+        policy.policy.feedbackSchemaDigest ||
       body.attestationDigests.length < policy.policy.minimumDistinctPeers ||
       body.independenceGroupIds.length <
         policy.policy.minimumDistinctIndependenceGroups ||
@@ -1477,22 +1508,25 @@ function buildCertificateDecision(input: {
     const key = `${candidate.attestation.membershipEpoch}\u0000${candidate.attestation.membershipConfigurationDigest}`;
     epochGroups.set(key, [...(epochGroups.get(key) ?? []), candidate]);
   }
-  const selected = [...epochGroups.values()].sort(
-    (left, right) =>
-      right.length - left.length ||
-      (right[0]?.attestation.membershipEpoch ?? 0) -
-        (left[0]?.attestation.membershipEpoch ?? 0),
-  )[0] ?? [];
-  const peers = new Set(selected.map(({ attestation }) => attestation.issuerPeerId));
-  const groups = new Set(selected.map(({ independenceGroupId }) => independenceGroupId));
+  const selected =
+    [...epochGroups.values()].sort(
+      (left, right) =>
+        right.length - left.length ||
+        (right[0]?.attestation.membershipEpoch ?? 0) -
+          (left[0]?.attestation.membershipEpoch ?? 0),
+    )[0] ?? [];
+  const peers = new Set(
+    selected.map(({ attestation }) => attestation.issuerPeerId),
+  );
+  const groups = new Set(
+    selected.map(({ independenceGroupId }) => independenceGroupId),
+  );
   let certificate: PeerStrategyEvidenceCertificateV1 | null = null;
   let status: PeerStrategyEvidenceCertificateDecisionV1["status"] =
     "insufficient_evidence";
   if (peers.size < input.policy.policy.minimumDistinctPeers)
     reasonCodes.add("insufficient_distinct_peers");
-  if (
-    groups.size < input.policy.policy.minimumDistinctIndependenceGroups
-  )
+  if (groups.size < input.policy.policy.minimumDistinctIndependenceGroups)
     reasonCodes.add("insufficient_independence_groups");
   if (
     peers.size >= input.policy.policy.minimumDistinctPeers &&
@@ -1508,15 +1542,23 @@ function buildCertificateDecision(input: {
       cohortDigest: input.cohort.cohortDigest,
       binding: input.binding,
       attestationDigests: freeze(
-        evidence.map(({ attestation }) => attestation.attestationDigest).sort(compare),
+        evidence
+          .map(({ attestation }) => attestation.attestationDigest)
+          .sort(compare),
       ),
       attesterPeerIds: freeze(
-        evidence.map(({ attestation }) => attestation.issuerPeerId).sort(compare),
+        evidence
+          .map(({ attestation }) => attestation.issuerPeerId)
+          .sort(compare),
       ),
       independenceGroupIds: freeze(
-        evidence.map(({ independenceGroupId }) => independenceGroupId).sort(compare),
+        evidence
+          .map(({ independenceGroupId }) => independenceGroupId)
+          .sort(compare),
       ),
-      outcome: aggregateOutcome(evidence.map(({ attestation }) => attestation.outcome)),
+      outcome: aggregateOutcome(
+        evidence.map(({ attestation }) => attestation.outcome),
+      ),
       metrics: aggregateMetrics(evidence.map(({ attestation }) => attestation)),
       confidenceBps: lowerMedian(
         evidence.map(({ attestation }) => attestation.confidenceBps),
@@ -1526,7 +1568,10 @@ function buildCertificateDecision(input: {
         ...evidence.map(({ attestation }) => attestation.expiresAtLogicalMs),
       ),
     });
-    const certificateDigest = digest("peer-strategy-evidence-certificate", body);
+    const certificateDigest = digest(
+      "peer-strategy-evidence-certificate",
+      body,
+    );
     certificate = freeze({
       ...body,
       certificateId: `strategy-evidence-certificate.${certificateDigest.slice(7)}`,
@@ -1561,12 +1606,16 @@ function buildCertificateDecision(input: {
     status = "idempotent";
     reasonCodes.add("certificate_idempotent");
   }
-  if (certificate && previous?.certificateDigest === certificate.certificateDigest) {
+  if (
+    certificate &&
+    previous?.certificateDigest === certificate.certificateDigest
+  ) {
     status = "idempotent";
     reasonCodes.add("certificate_idempotent");
   }
   const shouldCommit = Boolean(
-    certificate && previous?.certificateDigest !== certificate.certificateDigest,
+    certificate &&
+    previous?.certificateDigest !== certificate.certificateDigest,
   );
   const committedStateRevision = shouldCommit
     ? priorStateRevision + 1
@@ -1615,7 +1664,9 @@ function buildCertificateDecision(input: {
   return freeze({ state, decision });
 }
 
-function normalizeAttestationContent(input: Record<string, unknown>): Omit<
+function normalizeAttestationContent(
+  input: Record<string, unknown>,
+): Omit<
   UnsignedPeerStrategyOutcomeAttestationV1,
   "attestationId" | "attestationDigest" | "proof"
 > {
@@ -1647,10 +1698,7 @@ function normalizeAttestationContent(input: Record<string, unknown>): Omit<
   const binding = validatePeerStrategyEvidenceBindingV1(input.binding);
   return freeze({
     schemaVersion: PEER_STRATEGY_EVIDENCE_SCHEMA_VERSION_V1,
-    issuerPeerId: identifier(
-      input.issuerPeerId,
-      "attestation.issuerPeerId",
-    ),
+    issuerPeerId: identifier(input.issuerPeerId, "attestation.issuerPeerId"),
     issuerInstanceId: identifier(
       input.issuerInstanceId,
       "attestation.issuerInstanceId",
@@ -1704,8 +1752,13 @@ function normalizeAttestationContent(input: Record<string, unknown>): Omit<
   });
 }
 
-function normalizeMetricValues(input: unknown): readonly PeerStrategyEvidenceMetricValueV1[] {
-  if (!Array.isArray(input) || input.length !== LOCAL_STRATEGY_FEEDBACK_METRICS_V1.length)
+function normalizeMetricValues(
+  input: unknown,
+): readonly PeerStrategyEvidenceMetricValueV1[] {
+  if (
+    !Array.isArray(input) ||
+    input.length !== LOCAL_STRATEGY_FEEDBACK_METRICS_V1.length
+  )
     fail("strategy evidence metric coverage is invalid");
   const values = input
     .map((candidate) => {
@@ -1733,7 +1786,9 @@ function normalizeMetricValues(input: unknown): readonly PeerStrategyEvidenceMet
   return freeze(values);
 }
 
-function normalizeLimits(input: unknown): PeerStrategyEvidencePolicyV1["limits"] {
+function normalizeLimits(
+  input: unknown,
+): PeerStrategyEvidencePolicyV1["limits"] {
   const value = exact(input, limitsKeys, "strategy evidence limits");
   return freeze({
     maximumAttestations: bounded(
@@ -1821,7 +1876,8 @@ function normalizeEligibility(
   return freeze({
     schemaVersion: PEER_STRATEGY_EVIDENCE_SCHEMA_VERSION_V1,
     attestationDigest: attestation.attestationDigest,
-    disposition: value.disposition as PeerStrategyEvidenceEligibilityDecisionV1["disposition"],
+    disposition:
+      value.disposition as PeerStrategyEvidenceEligibilityDecisionV1["disposition"],
     decisionDigest: sha(value.decisionDigest, "eligibility.decisionDigest"),
     expiresAtLogicalMs: positive(
       value.expiresAtLogicalMs,
@@ -1840,7 +1896,10 @@ function normalizeAttestations(
   const values = input
     .map(validateSignedPeerStrategyOutcomeAttestationV1)
     .sort(attestationOrder);
-  unique(values.map(({ attestationDigest }) => attestationDigest), "attestations");
+  unique(
+    values.map(({ attestationDigest }) => attestationDigest),
+    "attestations",
+  );
   const counts = new Map<string, number>();
   for (const value of values) {
     const count = (counts.get(value.issuerPeerId) ?? 0) + 1;
@@ -1859,7 +1918,11 @@ function normalizeSourceHeads(
     fail("strategy evidence source heads are invalid");
   const values = input
     .map((candidate) => {
-      const value = exact(candidate, sourceHeadKeys, "strategy evidence source head");
+      const value = exact(
+        candidate,
+        sourceHeadKeys,
+        "strategy evidence source head",
+      );
       schema(value.schemaVersion, "strategy evidence source head");
       if (typeof value.equivocated !== "boolean")
         fail("strategy evidence source head disposition is invalid");
@@ -1871,13 +1934,19 @@ function normalizeSourceHeads(
           "head.issuerInstanceId",
         ),
         issuerStreamId: identifier(value.issuerStreamId, "head.issuerStreamId"),
-        membershipEpoch: positive(value.membershipEpoch, "head.membershipEpoch"),
+        membershipEpoch: positive(
+          value.membershipEpoch,
+          "head.membershipEpoch",
+        ),
         membershipConfigurationDigest: sha(
           value.membershipConfigurationDigest,
           "head.membershipConfigurationDigest",
         ),
         issuerSequence: positive(value.issuerSequence, "head.issuerSequence"),
-        attestationDigest: sha(value.attestationDigest, "head.attestationDigest"),
+        attestationDigest: sha(
+          value.attestationDigest,
+          "head.attestationDigest",
+        ),
         equivocated: value.equivocated,
         expiresAtLogicalMs: positive(
           value.expiresAtLogicalMs,
@@ -1890,7 +1959,10 @@ function normalizeSourceHeads(
       return freeze({ ...body, headKey: expectedKey });
     })
     .sort(headOrder);
-  unique(values.map(({ headKey }) => headKey), "source heads");
+  unique(
+    values.map(({ headKey }) => headKey),
+    "source heads",
+  );
   return freeze(values);
 }
 
@@ -1912,10 +1984,7 @@ function assertAttestationStateConsistency(
     const predecessor = bySequence.get(
       sourceSequenceKey(attestation, attestation.issuerSequence - 1),
     );
-    if (
-      predecessor &&
-      attestation.predecessorAttestationDigest !== predecessor
-    )
+    if (predecessor && attestation.predecessorAttestationDigest !== predecessor)
       fail("strategy evidence retained causal chain is inconsistent");
   }
   for (const attestation of admitted) {
@@ -1975,12 +2044,20 @@ function normalizeCertificates(
   input: readonly PeerStrategyEvidenceCertificateV1[],
   policy: PeerStrategyEvidencePolicyRecordV1,
 ): readonly PeerStrategyEvidenceCertificateV1[] {
-  if (!Array.isArray(input) || input.length > policy.policy.limits.maximumCertificates)
+  if (
+    !Array.isArray(input) ||
+    input.length > policy.policy.limits.maximumCertificates
+  )
     fail("strategy evidence certificates are invalid");
   const values = input
-    .map((candidate) => validatePeerStrategyEvidenceCertificateV1(candidate, policy))
+    .map((candidate) =>
+      validatePeerStrategyEvidenceCertificateV1(candidate, policy),
+    )
     .sort(certificateOrder);
-  unique(values.map(({ certificateDigest }) => certificateDigest), "certificates");
+  unique(
+    values.map(({ certificateDigest }) => certificateDigest),
+    "certificates",
+  );
   return freeze(values);
 }
 
@@ -1988,21 +2065,20 @@ function aggregateMetrics(
   attestations: readonly SignedPeerStrategyOutcomeAttestationV1[],
 ): readonly PeerStrategyEvidenceMetricValueV1[] {
   return freeze(
-    [...LOCAL_STRATEGY_FEEDBACK_METRICS_V1]
-      .sort(compare)
-      .map((currentMetric) =>
-        freeze({
-          schemaVersion: PEER_STRATEGY_EVIDENCE_SCHEMA_VERSION_V1,
-          metric: currentMetric,
-          valueMicros: lowerMedian(
-            attestations.map(
-              (attestation) =>
-                attestation.metrics.find(({ metric }) => metric === currentMetric)!
-                  .valueMicros,
-            ),
+    [...LOCAL_STRATEGY_FEEDBACK_METRICS_V1].sort(compare).map((currentMetric) =>
+      freeze({
+        schemaVersion: PEER_STRATEGY_EVIDENCE_SCHEMA_VERSION_V1,
+        metric: currentMetric,
+        valueMicros: lowerMedian(
+          attestations.map(
+            (attestation) =>
+              attestation.metrics.find(
+                ({ metric }) => metric === currentMetric,
+              )!.valueMicros,
           ),
-        }),
-      ),
+        ),
+      }),
+    ),
   );
 }
 
@@ -2048,14 +2124,8 @@ function sourceHead(
 }
 
 function sameIssuerPeer(
-  left: Pick<
-    SignedPeerStrategyOutcomeAttestationV1,
-    "issuerPeerId"
-  >,
-  right: Pick<
-    SignedPeerStrategyOutcomeAttestationV1,
-    "issuerPeerId"
-  >,
+  left: Pick<SignedPeerStrategyOutcomeAttestationV1, "issuerPeerId">,
+  right: Pick<SignedPeerStrategyOutcomeAttestationV1, "issuerPeerId">,
 ): boolean {
   return left.issuerPeerId === right.issuerPeerId;
 }
@@ -2079,9 +2149,7 @@ function equivocatedSourceHead(
   return freeze({ ...base, equivocated: true });
 }
 
-function sourceHeadKey(input: {
-  readonly issuerPeerId: string;
-}): string {
+function sourceHeadKey(input: { readonly issuerPeerId: string }): string {
   const value = digest("peer-strategy-evidence-source-head", {
     issuerPeerId: identifier(input.issuerPeerId, "head.issuerPeerId"),
   });
@@ -2149,11 +2217,15 @@ function signingBytes(value: unknown): Uint8Array<ArrayBuffer> {
 function base64url(value: Uint8Array): string {
   let binary = "";
   for (const byte of value) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/u, "");
 }
 
 function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
-  const padded = value.replaceAll("-", "+").replaceAll("_", "/") +
+  const padded =
+    value.replaceAll("-", "+").replaceAll("_", "/") +
     "=".repeat((4 - (value.length % 4)) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
@@ -2171,18 +2243,18 @@ function cryptoOf(value?: Crypto): Crypto {
 function privateKey(value: unknown): value is CryptoKey {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      (value as CryptoKey).type === "private" &&
-      (value as CryptoKey).algorithm?.name === MESH_SIGNATURE_ALGORITHM,
+    typeof value === "object" &&
+    (value as CryptoKey).type === "private" &&
+    (value as CryptoKey).algorithm?.name === MESH_SIGNATURE_ALGORITHM,
   );
 }
 
 function publicKey(value: unknown): value is CryptoKey {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      (value as CryptoKey).type === "public" &&
-      (value as CryptoKey).algorithm?.name === MESH_SIGNATURE_ALGORITHM,
+    typeof value === "object" &&
+    (value as CryptoKey).type === "public" &&
+    (value as CryptoKey).algorithm?.name === MESH_SIGNATURE_ALGORITHM,
   );
 }
 
@@ -2216,7 +2288,8 @@ function identifier(input: unknown, label: string): string {
 }
 
 function sha(input: unknown, label: string): PlanningDigestV1 {
-  if (typeof input !== "string" || !DIGEST.test(input)) fail(`${label} is invalid`);
+  if (typeof input !== "string" || !DIGEST.test(input))
+    fail(`${label} is invalid`);
   return input as PlanningDigestV1;
 }
 
@@ -2260,7 +2333,8 @@ function digestArray(
   label: string,
   maximum: number,
 ): readonly PlanningDigestV1[] {
-  if (!Array.isArray(input) || input.length > maximum) fail(`${label} is invalid`);
+  if (!Array.isArray(input) || input.length > maximum)
+    fail(`${label} is invalid`);
   const values = input.map((value, index) => sha(value, `${label}[${index}]`));
   if (!same(values, [...values].sort(compare))) fail(`${label} must be sorted`);
   unique(values, label);
@@ -2272,7 +2346,8 @@ function identifierArray(
   label: string,
   maximum: number,
 ): readonly string[] {
-  if (!Array.isArray(input) || input.length > maximum) fail(`${label} is invalid`);
+  if (!Array.isArray(input) || input.length > maximum)
+    fail(`${label} is invalid`);
   const values = input.map((value, index) =>
     identifier(value, `${label}[${index}]`),
   );

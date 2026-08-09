@@ -13,6 +13,7 @@ import type { Pool } from "pg";
 const applicationId = "@agentplat/collective-quorum-postgres";
 const legacyMigrationName = "001_collective_quorum";
 const agreementMigrationName = "002_collective_agreement";
+const sparseRuntimeMigrationName = "003_sparse_runtime_state";
 
 export const migrationDirectory = fileURLToPath(
   new URL("../migrations/", import.meta.url),
@@ -24,7 +25,14 @@ export interface CollectiveQuorumPostgresMigrationOptionsV1 {
 }
 
 async function migrations() {
-  const [legacyUp, legacyDown, agreementUp, agreementDown] = await Promise.all([
+  const [
+    legacyUp,
+    legacyDown,
+    agreementUp,
+    agreementDown,
+    sparseRuntimeUp,
+    sparseRuntimeDown,
+  ] = await Promise.all([
     readFile(
       new URL(`../migrations/${legacyMigrationName}.up.sql`, import.meta.url),
       "utf8",
@@ -45,6 +53,14 @@ async function migrations() {
         `../migrations/${agreementMigrationName}.down.sql`,
         import.meta.url,
       ),
+      "utf8",
+    ),
+    readFile(
+      new URL(`../migrations/${sparseRuntimeMigrationName}.up.sql`, import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(`../migrations/${sparseRuntimeMigrationName}.down.sql`, import.meta.url),
       "utf8",
     ),
   ]);
@@ -79,6 +95,18 @@ async function migrations() {
           AS present
       `,
     },
+    {
+      version: 3,
+      name: sparseRuntimeMigrationName,
+      up: sparseRuntimeUp,
+      down: sparseRuntimeDown,
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.collective_sparse_runtime_states') IS NOT NULL
+          AS present
+      `,
+    },
   ] as const;
 }
 
@@ -107,7 +135,7 @@ export async function getMigrationStatus(
 
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 2,
+  version = 3,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

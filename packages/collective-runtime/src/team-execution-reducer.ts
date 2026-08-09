@@ -418,6 +418,7 @@ export function expireTeamExecutionStepV1(input: {
     reasonCode: "step_deadline_exceeded",
     sourceEvidenceDigest: record.dispatch.dispatchDigest,
     evaluatedAtLogicalMs: input.logicalTimeMs,
+    validUntilLogicalMs: input.logicalTimeMs + 1,
   });
   const result = createTeamExecutionStepResultV1({
     dispatch: record.dispatch,

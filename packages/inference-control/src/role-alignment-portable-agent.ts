@@ -822,6 +822,14 @@ function validateControlTarget(target: PortableAgentControlRequestV1): void {
     assertIdentifier(value, label);
   if (!['pre_step', 'post_output', 'pre_action'].includes(target.checkpoint))
     throw new TypeError('role_alignment_checkpoint_invalid');
+  assertSafeInteger(target.stepSequence, 'stepSequence', 1);
+  const checkpointItemIndex = target.checkpointItemIndex ?? 0;
+  assertSafeInteger(checkpointItemIndex, 'checkpointItemIndex', 0);
+  if (
+    checkpointItemIndex > 4_095 ||
+    (target.checkpoint === 'pre_step' && checkpointItemIndex !== 0)
+  )
+    throw new TypeError('role_alignment_checkpoint_item_index_invalid');
   assertSafeInteger(target.request.logicalTimeMs, 'logicalTimeMs');
   normalizeRoleBindingV1(target.role);
 }
