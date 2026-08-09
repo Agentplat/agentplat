@@ -38,6 +38,9 @@ source completion separate from empirical scale and performance evidence.
 The accompanying
 [formal control model](./docs/collective-runtime/decentralized-control-model-v1.md)
 states the assumptions and falsifiable hypotheses, while the
+[empirical validation protocol](./docs/collective-runtime/empirical-validation-protocol-v1.md)
+turns those hypotheses into a preregistered, paper-oriented study design with
+an explicit no-spend local pilot path. The
 [transition plan](./docs/transition/decentralized-collective-transition-plan-v1.md)
 packages deployment adapters, evaluation, cost, risk, rights and adoption as
 separate gated work rather than implied properties of the source tree.
