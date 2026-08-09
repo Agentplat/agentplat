@@ -38,7 +38,11 @@ if (options.mode === "snapshot") await createSnapshot();
 else if (options.mode === "attest") await createAttestedBundle();
 else if (options.mode === "verify") await verifyAttestedBundle();
 else if (options.mode === "kms-preflight") await preflightAwsKms();
-else fail("--mode must be snapshot, attest, verify or kms-preflight");
+else if (options.mode === "kms-public-key") await exportAwsKmsPublicKey();
+else
+  fail(
+    "--mode must be snapshot, attest, verify, kms-preflight or kms-public-key",
+  );
 
 async function createSnapshot() {
   const output = requireExternalOutput("--output");
@@ -125,6 +129,25 @@ async function preflightAwsKms() {
   console.log(
     `public key fingerprint: ${digestDevelopmentEvidenceArtifactV1(material.publicKeyBytes)}`,
   );
+}
+
+async function exportAwsKmsPublicKey() {
+  const output = requireExternalOutput("--output");
+  const requestedKeyId = requireTextOption("--kms-key-id");
+  const material = await resolveAwsKmsPublicKey(requestedKeyId);
+  const base64 = Buffer.from(material.publicKeyBytes).toString("base64");
+  const lines = base64.match(/.{1,64}/g);
+  assert(lines, "AWS KMS public key could not be encoded as PEM");
+  await writeText(
+    output,
+    `-----BEGIN PUBLIC KEY-----\n${lines.join("\n")}\n-----END PUBLIC KEY-----\n`,
+  );
+  console.log("collective capability AWS KMS public key export: PASS");
+  console.log(`key id: ${material.keyId}`);
+  console.log(
+    `public key fingerprint: ${digestDevelopmentEvidenceArtifactV1(material.publicKeyBytes)}`,
+  );
+  console.log(`output: ${output}`);
 }
 
 async function createAttestedBundle() {
@@ -787,7 +810,11 @@ async function readJson(file) {
 }
 
 async function writeJson(file, value) {
-  await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, {
+  await writeText(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function writeText(file, value) {
+  await writeFile(file, value, {
     encoding: "utf8",
     flag: "wx",
   });

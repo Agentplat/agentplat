@@ -82,7 +82,26 @@ key, resolves and re-hashes every source-tree entry, and stores the resulting
 `development_complete` assessment. A mismatched key pair, catalog path,
 manifest, receipt, source byte, commit or policy fails closed.
 
-## 3. Verify with an external trust decision
+## 3. Export the public verification key
+
+The KMS public key is not a secret. Export it as a PEM file alongside the
+snapshot and attestation bundle, then publish those three files as release
+assets. This gives independent reviewers a stable verification input without
+granting them AWS credentials or KMS access.
+
+```sh
+pnpm run export:capability-source-kms-public-key -- \
+  --output /absolute/evidence/path/agentplat-release-ed25519-public.pem \
+  --kms-key-id alias/agentplat-release-attestation-v1 \
+  --aws-profile grishen \
+  --aws-region us-east-1
+```
+
+The command writes only a DER-SPKI public key encoded as PEM, refuses to write
+inside the repository and fails if the target already exists. Record the
+printed KMS key ID and public-key fingerprint in the release notes.
+
+## 4. Verify with an external trust decision
 
 Reviewers must obtain the expected issuer ID, key ID and public key through a
 trusted channel rather than trusting the values embedded in the bundle.

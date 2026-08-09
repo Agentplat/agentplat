@@ -28,6 +28,22 @@ all five public entrypoints, a Trust policy/profile/eligibility scenario across
 the Trust root and explicit Mesh/Inference Control Trust subpaths, and the
 unchanged aggregate functional consumer smoke test.
 
+## Source-development attestation assets
+
+For a release that represents the frozen collective capability baseline, create
+the source snapshot and signed bundle from the final clean release commit, then
+export the KMS public key. Attach all three external files to the GitHub release:
+
+1. `source-snapshot.json`;
+2. `source-attestation.json`; and
+3. `agentplat-release-ed25519-public.pem`.
+
+Use the commands in the [source capability attestation
+runbook](./docs/collective-runtime/source-attestation-runbook-v1.md). Include
+the canonical KMS key ID, public-key fingerprint and bundle digest in the
+release notes. These assets establish source-development closure only; they do
+not assert empirical validation or deployment approval.
+
 `pnpm check` also verifies the versioned 27-scenario Alpha 4 adversarial
 catalog. Every record binds its seed, bounded configuration, fault plan, trace,
 test evidence and first controlled divergence where applicable.
