@@ -52,6 +52,7 @@
     "evidence:capability-source:snapshot": "pnpm --filter @agentplat/collective-planning build && node scripts/collective-capability-evidence.mjs --mode snapshot",
     "evidence:capability-source:attest": "pnpm --filter @agentplat/collective-planning build && node scripts/collective-capability-evidence.mjs --mode attest",
     "verify:capability-source-attestation": "pnpm --filter @agentplat/collective-planning build && node scripts/collective-capability-evidence.mjs --mode verify",
+    "preflight:capability-source-kms": "node scripts/collective-capability-evidence.mjs --mode kms-preflight",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
     "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",

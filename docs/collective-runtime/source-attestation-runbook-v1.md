@@ -11,8 +11,9 @@ claim empirical performance or grant execution authority.
 - `pnpm run check` has passed on the candidate commit;
 - `git status --porcelain=v1 --untracked-files=all` is empty;
 - the release owner has assigned a stable issuer ID and key ID; and
-- an Ed25519 private key in PKCS#8 PEM and its public key in SPKI PEM are
-  available from owner-controlled key custody outside the repository.
+- either an owner-controlled Ed25519 PKCS#8/SPKI key pair is available outside
+  the repository, or an AWS KMS `ECC_NIST_EDWARDS25519` key with `SIGN_VERIFY`
+  usage is available to the release role.
 
 The tooling deliberately has no key-generation mode and never writes key
 material. Release identity creation, access policy, rotation and revocation
@@ -35,6 +36,8 @@ detect a moving worktree.
 
 ## 2. Issue the attestations
 
+For an owner-controlled PEM key:
+
 ```sh
 pnpm run evidence:capability-source:attest -- \
   --snapshot /absolute/evidence/path/source-snapshot.json \
@@ -43,6 +46,34 @@ pnpm run evidence:capability-source:attest -- \
   --key-id YOUR_RELEASE_KEY_ID \
   --private-key /secure/path/release-ed25519-private.pem \
   --public-key /secure/path/release-ed25519-public.pem
+```
+
+For AWS KMS, use the canonical KMS key as the attestation key identity. The
+private key remains inside KMS; do not create a Secrets Manager copy.
+
+```sh
+pnpm run evidence:capability-source:attest -- \
+  --snapshot /absolute/evidence/path/source-snapshot.json \
+  --output /absolute/evidence/path/source-attestation.json \
+  --issuer-id agentplat-release \
+  --kms-key-id alias/agentplat-release-attestation-v1 \
+  --aws-profile grishen \
+  --aws-region us-east-1
+```
+
+The AWS identity needs only `kms:GetPublicKey` and `kms:Sign` for the selected
+key. The tool rejects every key type except
+`ECC_NIST_EDWARDS25519`, requires `SIGN_VERIFY`, signs the exact attestation
+digest with `ED25519_SHA_512` and records the canonical key ID returned by KMS.
+
+Before freezing a release, validate access and key configuration without
+signing:
+
+```sh
+node scripts/collective-capability-evidence.mjs --mode kms-preflight \
+  --kms-key-id alias/agentplat-release-attestation-v1 \
+  --aws-profile grishen \
+  --aws-region us-east-1
 ```
 
 This creates one policy, 19 receipts and 19 detached Ed25519 attestations. The
@@ -62,6 +93,17 @@ pnpm run verify:capability-source-attestation -- \
   --issuer-id EXPECTED_RELEASE_ISSUER \
   --key-id EXPECTED_RELEASE_KEY_ID \
   --public-key /trusted/path/release-ed25519-public.pem
+```
+
+Or verify against the public key independently resolved from KMS:
+
+```sh
+pnpm run verify:capability-source-attestation -- \
+  --bundle /absolute/evidence/path/source-attestation.json \
+  --issuer-id agentplat-release \
+  --kms-key-id alias/agentplat-release-attestation-v1 \
+  --aws-profile grishen \
+  --aws-region us-east-1
 ```
 
 Verification requires a clean checkout at the attested commit. It validates

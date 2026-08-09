@@ -37,7 +37,8 @@ validateCatalogBinding();
 if (options.mode === "snapshot") await createSnapshot();
 else if (options.mode === "attest") await createAttestedBundle();
 else if (options.mode === "verify") await verifyAttestedBundle();
-else fail("--mode must be snapshot, attest or verify");
+else if (options.mode === "kms-preflight") await preflightAwsKms();
+else fail("--mode must be snapshot, attest, verify or kms-preflight");
 
 async function createSnapshot() {
   const output = requireExternalOutput("--output");
@@ -116,21 +117,25 @@ async function createSnapshot() {
   console.log(`output: ${output}`);
 }
 
+async function preflightAwsKms() {
+  const requestedKeyId = requireTextOption("--kms-key-id");
+  const material = await resolveAwsKmsPublicKey(requestedKeyId);
+  console.log("collective capability AWS KMS preflight: PASS");
+  console.log(`key id: ${material.keyId}`);
+  console.log(
+    `public key fingerprint: ${digestDevelopmentEvidenceArtifactV1(material.publicKeyBytes)}`,
+  );
+}
+
 async function createAttestedBundle() {
   const snapshotPath = requireOption("--snapshot");
   const output = requireExternalOutput("--output");
   const issuerId = requireTextOption("--issuer-id");
-  const keyId = requireTextOption("--key-id");
-  const privateKeyPath = requireOption("--private-key");
-  const publicKeyPath = requireOption("--public-key");
   const snapshot = await loadAndValidateSnapshot(snapshotPath);
   await assertCleanHead(snapshot.sourceTree.sourceCommit);
 
-  const [privateKey, publicKey, publicKeyBytes] = await Promise.all([
-    importPemKey(privateKeyPath, "PRIVATE KEY", "pkcs8", ["sign"]),
-    importPemKey(publicKeyPath, "PUBLIC KEY", "spki", ["verify"]),
-    readPemBytes(publicKeyPath, "PUBLIC KEY"),
-  ]);
+  const signingMaterial = await resolveSigningMaterial();
+  const keyId = signingMaterial.keyId;
   const manifests = snapshot.manifests;
   const policy = createDevelopmentEvidencePolicyV1({
     schemaVersion: 1,
@@ -163,18 +168,6 @@ async function createAttestedBundle() {
       threatModelDigests: manifest.threatModelDigests,
     }),
   );
-  const signer = {
-    async sign(input) {
-      assert(input.issuerId === issuerId, "signer issuer binding mismatch");
-      assert(input.keyId === keyId, "signer key binding mismatch");
-      const signature = await globalThis.crypto.subtle.sign(
-        "Ed25519",
-        privateKey,
-        new TextEncoder().encode(input.attestationDigest),
-      );
-      return Buffer.from(signature).toString("base64url");
-    },
-  };
   const attestations = [];
   for (const receipt of receipts)
     attestations.push(
@@ -182,7 +175,7 @@ async function createAttestedBundle() {
         receipt,
         issuerId,
         keyId,
-        signer,
+        signer: signingMaterial.signer,
       }),
     );
   const issuer = {
@@ -197,7 +190,7 @@ async function createAttestedBundle() {
     policy,
     attestations,
     issuer,
-    publicKey,
+    signingMaterial.publicKey,
   );
   assertCompleteAssessment(assessment);
 
@@ -213,7 +206,9 @@ async function createAttestedBundle() {
     policy,
     receipts,
     issuer,
-    publicKeyFingerprint: digestDevelopmentEvidenceArtifactV1(publicKeyBytes),
+    publicKeyFingerprint: digestDevelopmentEvidenceArtifactV1(
+      signingMaterial.publicKeyBytes,
+    ),
     attestations,
     assessment,
   };
@@ -237,8 +232,6 @@ async function createAttestedBundle() {
 async function verifyAttestedBundle() {
   const bundlePath = requireOption("--bundle");
   const issuerId = requireTextOption("--issuer-id");
-  const keyId = requireTextOption("--key-id");
-  const publicKeyPath = requireOption("--public-key");
   const bundle = await readJson(bundlePath);
   validateBundleEnvelope(bundle);
   await assertCleanHead(bundle.sourceTree.sourceCommit);
@@ -259,6 +252,8 @@ async function verifyAttestedBundle() {
   const attestations = bundle.attestations.map((item) =>
     validateSignedDevelopmentCapabilityAttestationV1(item),
   );
+  const verificationMaterial = await resolveVerificationMaterial();
+  const keyId = verificationMaterial.keyId;
   assert(bundle.issuer.issuerId === issuerId, "trusted issuer id mismatch");
   assert(bundle.issuer.keyId === keyId, "trusted key id mismatch");
   assert(
@@ -269,13 +264,9 @@ async function verifyAttestedBundle() {
       ),
     "bundle receipt list does not match attested receipts",
   );
-  const [publicKey, publicKeyBytes] = await Promise.all([
-    importPemKey(publicKeyPath, "PUBLIC KEY", "spki", ["verify"]),
-    readPemBytes(publicKeyPath, "PUBLIC KEY"),
-  ]);
   assert(
     bundle.publicKeyFingerprint ===
-      digestDevelopmentEvidenceArtifactV1(publicKeyBytes),
+      digestDevelopmentEvidenceArtifactV1(verificationMaterial.publicKeyBytes),
     "trusted public key fingerprint mismatch",
   );
   const assessment = await assess(
@@ -283,7 +274,7 @@ async function verifyAttestedBundle() {
     policy,
     attestations,
     bundle.issuer,
-    publicKey,
+    verificationMaterial.publicKey,
   );
   assertCompleteAssessment(assessment);
   assert(
@@ -572,6 +563,175 @@ async function readPemBytes(file, label) {
   return Buffer.from(match[1].replace(/\n/gu, ""), "base64");
 }
 
+async function resolveSigningMaterial() {
+  const kmsKeyId = optionalTextOption("--kms-key-id");
+  const privateKeyPath = optionalOption("--private-key");
+  const publicKeyPath = optionalOption("--public-key");
+  if (kmsKeyId) {
+    assert(
+      !privateKeyPath && !publicKeyPath,
+      "--kms-key-id cannot be combined with --private-key or --public-key",
+    );
+    return resolveAwsKmsSigningMaterial(kmsKeyId);
+  }
+  assert(
+    privateKeyPath && publicKeyPath,
+    "--private-key and --public-key are required unless --kms-key-id is supplied",
+  );
+  const keyId = requireTextOption("--key-id");
+  const [privateKey, publicKey, publicKeyBytes] = await Promise.all([
+    importPemKey(privateKeyPath, "PRIVATE KEY", "pkcs8", ["sign"]),
+    importPemKey(publicKeyPath, "PUBLIC KEY", "spki", ["verify"]),
+    readPemBytes(publicKeyPath, "PUBLIC KEY"),
+  ]);
+  return {
+    keyId,
+    publicKey,
+    publicKeyBytes,
+    signer: {
+      async sign(input) {
+        assert(input.keyId === keyId, "signer key binding mismatch");
+        const signature = await globalThis.crypto.subtle.sign(
+          "Ed25519",
+          privateKey,
+          new TextEncoder().encode(input.attestationDigest),
+        );
+        return Buffer.from(signature).toString("base64url");
+      },
+    },
+  };
+}
+
+async function resolveVerificationMaterial() {
+  const kmsKeyId = optionalTextOption("--kms-key-id");
+  const publicKeyPath = optionalOption("--public-key");
+  assert(
+    Boolean(kmsKeyId) !== Boolean(publicKeyPath),
+    "supply exactly one of --kms-key-id or --public-key",
+  );
+  if (kmsKeyId) return resolveAwsKmsPublicKey(kmsKeyId);
+  const keyId = requireTextOption("--key-id");
+  const [publicKey, publicKeyBytes] = await Promise.all([
+    importPemKey(publicKeyPath, "PUBLIC KEY", "spki", ["verify"]),
+    readPemBytes(publicKeyPath, "PUBLIC KEY"),
+  ]);
+  return { keyId, publicKey, publicKeyBytes };
+}
+
+async function resolveAwsKmsSigningMaterial(requestedKeyId) {
+  const material = await resolveAwsKmsPublicKey(requestedKeyId);
+  const aws = awsKmsCommandPrefix();
+  return {
+    ...material,
+    signer: {
+      async sign(input) {
+        assert(input.keyId === material.keyId, "signer key binding mismatch");
+        const response = awsJson([
+          ...aws,
+          "kms",
+          "sign",
+          "--key-id",
+          material.keyId,
+          "--message",
+          Buffer.from(input.attestationDigest).toString("base64"),
+          "--message-type",
+          "RAW",
+          "--signing-algorithm",
+          "ED25519_SHA_512",
+        ]);
+        assert(
+          response?.KeyId === material.keyId,
+          "AWS KMS signing key binding mismatch",
+        );
+        assert(
+          typeof response.Signature === "string" &&
+            response.Signature.length > 0,
+          "AWS KMS returned an invalid signature",
+        );
+        const signature = Buffer.from(response.Signature, "base64");
+        assert(
+          signature.byteLength === 64,
+          "AWS KMS returned a non-Ed25519 signature",
+        );
+        return signature.toString("base64url");
+      },
+    },
+  };
+}
+
+async function resolveAwsKmsPublicKey(requestedKeyId) {
+  const response = awsJson([
+    ...awsKmsCommandPrefix(),
+    "kms",
+    "get-public-key",
+    "--key-id",
+    requestedKeyId,
+  ]);
+  assert(
+    typeof response?.KeyId === "string" && response.KeyId.length > 0,
+    "AWS KMS returned an invalid key id",
+  );
+  assert(
+    response.KeySpec === "ECC_NIST_EDWARDS25519",
+    "AWS KMS key must use ECC_NIST_EDWARDS25519",
+  );
+  assert(
+    response.KeyUsage === "SIGN_VERIFY",
+    "AWS KMS key must permit signing and verification",
+  );
+  assert(
+    Array.isArray(response.SigningAlgorithms) &&
+      response.SigningAlgorithms.includes("ED25519_SHA_512"),
+    "AWS KMS key must support ED25519_SHA_512",
+  );
+  assert(
+    typeof response.PublicKey === "string" && response.PublicKey.length > 0,
+    "AWS KMS returned no public key",
+  );
+  const publicKeyBytes = Buffer.from(response.PublicKey, "base64");
+  const publicKey = await globalThis.crypto.subtle.importKey(
+    "spki",
+    publicKeyBytes,
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  assert(
+    publicKey.type === "public" && publicKey.algorithm.name === "Ed25519",
+    "AWS KMS public key is not Ed25519",
+  );
+  const suppliedKeyId = optionalTextOption("--key-id");
+  if (suppliedKeyId)
+    assert(
+      suppliedKeyId === response.KeyId,
+      "--key-id must equal the canonical AWS KMS key id",
+    );
+  return { keyId: response.KeyId, publicKey, publicKeyBytes };
+}
+
+function awsKmsCommandPrefix() {
+  const args = [];
+  const profile = optionalTextOption("--aws-profile");
+  const region = optionalTextOption("--aws-region");
+  if (profile) args.push("--profile", profile);
+  if (region) args.push("--region", region);
+  return args;
+}
+
+function awsJson(args) {
+  const executable = options["aws-cli"] || "aws";
+  const output = execFileSync(executable, [...args, "--output", "json"], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  try {
+    return JSON.parse(output);
+  } catch {
+    fail("AWS KMS returned invalid JSON");
+  }
+}
+
 function parseArguments(args) {
   const parsed = {};
   for (let index = 0; index < args.length; index += 1) {
@@ -592,6 +752,11 @@ function requireOption(name) {
   return path.resolve(value);
 }
 
+function optionalOption(name) {
+  const value = options[name.slice(2)];
+  return value ? path.resolve(value) : null;
+}
+
 function requireExternalOutput(name) {
   const value = requireOption(name);
   const relative = path.relative(root, value);
@@ -605,6 +770,14 @@ function requireExternalOutput(name) {
 function requireTextOption(name) {
   const value = options[name.slice(2)];
   if (!value || value.trim() !== value || value.length > 256)
+    fail(`${name} must be a non-empty identifier of at most 256 characters`);
+  return value;
+}
+
+function optionalTextOption(name) {
+  const value = options[name.slice(2)];
+  if (!value) return null;
+  if (value.trim() !== value || value.length > 256)
     fail(`${name} must be a non-empty identifier of at most 256 characters`);
   return value;
 }

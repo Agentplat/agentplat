@@ -55,3 +55,10 @@ private key and SPKI public key; verification requires the reviewer to supply
 the expected issuer ID, key ID and public key through an external trust
 decision. The bundle's issuer metadata and key fingerprint are evidence, not a
 self-authorizing trust root.
+
+The AWS KMS signer mode accepts only an `ECC_NIST_EDWARDS25519` key with
+`SIGN_VERIFY` usage and `ED25519_SHA_512` signing support. It resolves the
+public key and canonical KMS key ID before signing, and binds every signature
+request to that ID. This keeps the private release key non-exportable. KMS IAM
+and key policies must still restrict `kms:Sign` and `kms:GetPublicKey` to the
+release role and produce an auditable signing trail.
