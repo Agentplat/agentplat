@@ -4,3 +4,6 @@ export * from "./validation.js";
 export * from "./state.js";
 export * from "./lifecycle.js";
 export * from "./evidence.js";
+export * from "./local-rule-kernel.js";
+export * from "./bounded-model.js";
+export * from "./bounded-progress-model.js";

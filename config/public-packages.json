@@ -7,7 +7,7 @@
       "layer": "observability",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": ["."],
+      "browserEntrypoints": [".", "./collective-telemetry"],
       "packSmoke": true
     },
     {
@@ -37,7 +37,10 @@
       "browserEntrypoints": [
         ".",
         "./actions",
+        "./bounded-model",
+        "./bounded-progress-model",
         "./evaluation",
+        "./local-rule-kernel",
         "./memory",
         "./mesh"
       ],
@@ -53,12 +56,47 @@
       "packSmoke": true
     },
     {
+      "name": "@agentplat/collective-host",
+      "directory": "packages/collective-host",
+      "layer": "runtime",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        ".",
+        "./assurance-coupled-execution",
+        "./autonomous-adaptation",
+        "./autonomous-node",
+        "./collective-telemetry",
+        "./distributed-planning",
+        "./distributed-protocol",
+        "./in-process-sparse-bft-gateway",
+        "./reference-integrated-stack",
+        "./reference-local-ports",
+        "./semantic-horizon-coupling",
+        "./webcrypto-ports"
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/collective-host-postgres",
+      "directory": "packages/collective-host-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/collective-membership",
       "directory": "packages/collective-membership",
       "layer": "collaboration",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [],
+      "browserEntrypoints": [
+        "./agent-factory",
+        "./agent-lineage",
+        "./governed-agent-lifecycle"
+      ],
       "packSmoke": true
     },
     {
@@ -76,7 +114,13 @@
       "layer": "collaboration",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./evaluation", "./mesh"],
+      "browserEntrypoints": [
+        ".",
+        "./development-evidence",
+        "./distributed-decomposition",
+        "./evaluation",
+        "./mesh"
+      ],
       "packSmoke": true
     },
     {
@@ -85,7 +129,15 @@
       "layer": "collaboration",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [],
+      "browserEntrypoints": [
+        "./collusion-aware-context",
+        "./crypto",
+        "./equivocation-response",
+        "./partial-view-agreement",
+        "./sparse-agreement",
+        "./sparse-agreement-runtime",
+        "./webcrypto-ports"
+      ],
       "packSmoke": true
     },
     {
@@ -103,7 +155,34 @@
       "layer": "runtime",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./checkpoints", "./peer"],
+      "browserEntrypoints": [
+        ".",
+        "./attested-mission-control",
+        "./autonomous-mission-loop",
+        "./capability-state",
+        "./checkpoints",
+        "./collective-decision",
+        "./collective-invariants",
+        "./compromise-aware-recovery",
+        "./coordination-control",
+        "./coordination-control-guarantees",
+        "./distributed-team-allocation",
+        "./host",
+        "./mechanism-allocation",
+        "./mission-continuity",
+        "./mission-lifecycle",
+        "./peer",
+        "./sparse-peer",
+        "./strategic-allocation",
+        "./strategy-adaptation",
+        "./strategy-convergence",
+        "./strategy-evidence-exchange",
+        "./team-execution",
+        "./team-execution-continuity",
+        "./team-execution-exchange",
+        "./team-formation",
+        "./team-structure-adaptation"
+      ],
       "packSmoke": true
     },
     {
@@ -157,7 +236,44 @@
       "layer": "runtime",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./role-alignment", "./tools"],
+      "browserEntrypoints": [
+        ".",
+        "./assessor-ensemble",
+        "./cognitive-adapters",
+        "./context-integrity",
+        "./governed-role-evolution",
+        "./intervention",
+        "./operational-control",
+        "./reference-controllers",
+        "./role-alignment",
+        "./semantic-guarantees",
+        "./semantic-horizon-budget",
+        "./semantic-metrics",
+        "./tools"
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/interop",
+      "directory": "packages/interop",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        ".",
+        "./governed-lifecycle",
+        "./http",
+        "./webcrypto"
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/interop-postgres",
+      "directory": "packages/interop-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
       "packSmoke": true
     },
     {
@@ -186,10 +302,13 @@
       "providerNeutral": true,
       "browserEntrypoints": [
         ".",
+        "./adaptive-overlay",
         "./continuity",
         "./coordination",
         "./durability",
-        "./loopback"
+        "./loopback",
+        "./overlay",
+        "./overlay-transport"
       ],
       "packSmoke": true
     },
@@ -251,7 +370,7 @@
       "layer": "testing",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": ["."],
+      "browserEntrypoints": [".", "./scalable-evaluation"],
       "packSmoke": true
     },
     {
@@ -386,7 +505,7 @@
       "layer": "runtime",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./adapter"],
+      "browserEntrypoints": [".", "./adapter", "./cognitive-adapter"],
       "packSmoke": true
     },
     {
@@ -440,7 +559,7 @@
       "layer": "foundation",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": [".", "./mesh-records"],
+      "browserEntrypoints": [".", "./mesh-records", "./peer-credibility"],
       "packSmoke": true
     },
     {

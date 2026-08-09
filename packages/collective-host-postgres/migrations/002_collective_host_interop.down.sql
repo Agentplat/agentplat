@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_interop_sequence_heads;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_interop_idempotency;

@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_cognitive_operations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_cognitive_sessions;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_inbound_sequence_heads;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.interop_idempotency_records;

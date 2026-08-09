@@ -30,6 +30,36 @@ reuse the same value across every retry. Forward it to providers that support
 idempotency keys, or use it in the adapter's deduplication mechanism, so one
 logical run cannot apply the same effect twice.
 
+## Durable cognitive effects
+
+`CognitiveAgentRuntimeV2` treats `memory_mutation` and `tool` as effectful. An
+adapter that advertises either operation must provide both an explicit
+`CognitiveDurableOperationStoreV2` and a `CognitiveEffectSinkV2`; construction
+fails closed when either boundary is absent. The runtime never dispatches these
+operations through the adapter's general `execute` method.
+
+Before dispatch, the durable store atomically reserves the tuple
+`tenantId/sessionId/operationId`, binds it to the complete request digest, and
+claims the expected session revision. The sink receives a stable idempotency
+key and request digest. Its `apply` implementation must atomically deduplicate
+that pair, while `lookup` must return the durable sink receipt/result for crash
+reconciliation. The store then atomically moves the operation from `prepared`
+to `applied` together with the session-state CAS. Replays return the recorded
+outcome, conflicting request digests fail, and a second operation cannot spend
+the same session revision. Durable operation records omit request payloads but
+retain the applied result and original outcome for exact replay, so production
+stores must encrypt and govern that output according to its data classification.
+A `prepared` record whose sink state cannot be established remains claimed and
+blocks that session revision; operators must reconcile it rather than deleting
+the reservation and risking a duplicate effect.
+
+This protocol prevents duplicate logical application only when the configured
+sink honors its idempotency contract. It does not claim exactly-once delivery
+to an arbitrary external system: integrations must use an idempotent downstream
+API or durably reconcile their own receipt before reporting success. The
+in-memory store is intended for local execution and deterministic tests; a
+multi-process deployment must supply a transactional durable implementation.
+
 ## Portable heterogeneous agents
 
 `@agentplat/runtime/adapter` adds a stateful protocol for language, vision,

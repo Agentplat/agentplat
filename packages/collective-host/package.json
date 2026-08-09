@@ -1,0 +1,96 @@
+{
+  "name": "@agentplat/collective-host",
+  "version": "0.3.0-beta.3",
+  "description": "Peer-local composition host for decentralized planning, control, trust and governed evolution.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./assurance-coupled-execution": {
+      "types": "./dist/assurance-coupled-execution.d.ts",
+      "import": "./dist/assurance-coupled-execution.js"
+    },
+    "./autonomous-adaptation": {
+      "types": "./dist/autonomous-adaptation-runtime.d.ts",
+      "import": "./dist/autonomous-adaptation-runtime.js"
+    },
+    "./autonomous-node": {
+      "types": "./dist/autonomous-collective-node.d.ts",
+      "import": "./dist/autonomous-collective-node.js"
+    },
+    "./collective-telemetry": {
+      "types": "./dist/collective-telemetry.d.ts",
+      "import": "./dist/collective-telemetry.js"
+    },
+    "./distributed-protocol": {
+      "types": "./dist/distributed-collective-protocol.d.ts",
+      "import": "./dist/distributed-collective-protocol.js"
+    },
+    "./distributed-planning": {
+      "types": "./dist/distributed-planning-runtime.d.ts",
+      "import": "./dist/distributed-planning-runtime.js"
+    },
+    "./reference-integrated-stack": {
+      "types": "./dist/reference-integrated-stack.d.ts",
+      "import": "./dist/reference-integrated-stack.js"
+    },
+    "./in-process-sparse-bft-gateway": {
+      "types": "./dist/in-process-sparse-bft-gateway.d.ts",
+      "import": "./dist/in-process-sparse-bft-gateway.js"
+    },
+    "./reference-local-ports": {
+      "types": "./dist/reference-local-ports.d.ts",
+      "import": "./dist/reference-local-ports.js"
+    },
+    "./semantic-horizon-coupling": {
+      "types": "./dist/semantic-horizon-coupling.d.ts",
+      "import": "./dist/semantic-horizon-coupling.js"
+    },
+    "./webcrypto-ports": {
+      "types": "./dist/webcrypto-ports.d.ts",
+      "import": "./dist/webcrypto-ports.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm --filter @agentplat/audit build && pnpm run build && node --test tests/*.test.mjs",
+    "test:reference-stack": "pnpm run build && node --test tests/reference-integrated-stack.test.mjs",
+    "test:telemetry-outbox": "pnpm --filter @agentplat/audit build && pnpm run build && node --test tests/durable-telemetry-outbox.test.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@agentplat/audit": "workspace:^",
+    "@agentplat/core": "workspace:^",
+    "@agentplat/collective-control": "workspace:^",
+    "@agentplat/collective-membership": "workspace:^",
+    "@agentplat/collective-planning": "workspace:^",
+    "@agentplat/collective-quorum": "workspace:^",
+    "@agentplat/collective-runtime": "workspace:^",
+    "@agentplat/inference-control": "workspace:^",
+    "@agentplat/mesh": "workspace:^",
+    "@agentplat/runtime": "workspace:^",
+    "@agentplat/trust": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/collective-host"
+  }
+}

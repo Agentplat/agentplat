@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_autonomous_node_commands;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_autonomous_node_advances;

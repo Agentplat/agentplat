@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_telemetry_monotonic_anchors;
+DROP FUNCTION IF EXISTS __AGENTPLAT_SCHEMA__.agentplat_enforce_telemetry_anchor_advance();

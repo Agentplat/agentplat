@@ -11,7 +11,10 @@ import type { PostgresMigrationStatus } from "@agentplat/postgres";
 import type { Pool } from "pg";
 
 const applicationId = "@agentplat/collective-membership-postgres";
-const migrationName = "001_collective_membership";
+const migrationNames = [
+  "001_collective_membership",
+  "002_governed_agent_states",
+] as const;
 
 export const migrationDirectory = fileURLToPath(
   new URL("../migrations/", import.meta.url),
@@ -23,22 +26,17 @@ export interface CollectiveMembershipPostgresMigrationOptionsV1 {
 }
 
 async function migrations() {
-  const [up, down] = await Promise.all([
-    readFile(
-      new URL(`../migrations/${migrationName}.up.sql`, import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL(`../migrations/${migrationName}.down.sql`, import.meta.url),
-      "utf8",
-    ),
-  ]);
+  const files = await Promise.all(migrationNames.map(async (name) => {
+    const [up, down] = await Promise.all([
+      readFile(new URL(`../migrations/${name}.up.sql`, import.meta.url), "utf8"),
+      readFile(new URL(`../migrations/${name}.down.sql`, import.meta.url), "utf8"),
+    ]);
+    return { name, up, down };
+  }));
   return [
     {
       version: 1,
-      name: migrationName,
-      up,
-      down,
+      ...files[0],
       destructiveDown: true,
       adoptIf: `
         SELECT
@@ -47,6 +45,16 @@ async function migrations() {
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_membership_vote_slots') IS NOT NULL
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_membership_responses') IS NOT NULL
           AND to_regclass('__AGENTPLAT_SCHEMA__.collective_membership_certificates') IS NOT NULL
+          AS present
+      `,
+    },
+    {
+      version: 2,
+      ...files[1],
+      destructiveDown: true,
+      adoptIf: `
+        SELECT
+          to_regclass('__AGENTPLAT_SCHEMA__.collective_membership_agent_states') IS NOT NULL
           AS present
       `,
     },
@@ -78,7 +86,7 @@ export async function getMigrationStatus(
 
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 1,
+  version = 2,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

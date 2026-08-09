@@ -1,0 +1,4 @@
+DROP TRIGGER IF EXISTS collective_telemetry_events_append_only_delete ON __AGENTPLAT_SCHEMA__.collective_telemetry_events;
+DROP TRIGGER IF EXISTS collective_telemetry_events_append_only_update ON __AGENTPLAT_SCHEMA__.collective_telemetry_events;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_telemetry_events;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_telemetry_states;

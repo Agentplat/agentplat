@@ -206,6 +206,627 @@ imports and restores that state before its first step. If the election port
 cannot certify a round or the certified state is unavailable, recovery fails
 closed.
 
+## Capability-state fusion
+
+Import `@agentplat/collective-runtime/capability-state` to combine local Trust,
+role coherence, capacity, sparse reachability and recovery projections before
+the peer node considers a candidate for productive work.
+
+```ts
+import {
+  CapabilityStateFusionRuntimeV1,
+  InMemoryCapabilityStateStoreV1,
+  createCapabilityStatePolicyV1,
+  createCapabilityStateResolutionPortV1,
+} from "@agentplat/collective-runtime/capability-state";
+
+const policy = createCapabilityStatePolicyV1({
+  schemaVersion: 1,
+  policyId: "local-candidate-policy",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  requiredDimensions: {
+    offer_recipient: ["trust", "reachability"],
+    bid: ["capacity", "role", "trust"],
+    award: ["capacity", "reachability", "trust"],
+    assignment_acceptance: ["capacity", "role", "trust"],
+    recovery: ["capacity", "reachability", "recovery", "trust"],
+  },
+  maximumCandidates: 64,
+  maximumReasonCodesPerSignal: 8,
+  maximumStateHeads: 4096,
+  maximumDecisionTtlMs: 30_000,
+  maximumCommitAttempts: 4,
+});
+
+const capabilityState = new CapabilityStateFusionRuntimeV1({
+  stateKey: "peer-a.capability-state",
+  fusionId: "local-capability-state",
+  fusionVersion: 1,
+  implementationId: "local-capability-state.default",
+  policy,
+  resolver: createCapabilityStateResolutionPortV1({
+    sources: [trustProjection, capacityProjection, reachabilityProjection],
+  }),
+  store: new InMemoryCapabilityStateStoreV1(policy),
+});
+```
+
+Pass `capabilityState` as the optional port when constructing
+`CollectivePeerNodeRuntimeV1`. The node uses exact `eligible` decisions only to
+narrow offer recipients, bid and award candidates, assignment acceptance,
+execution and recovery. The fusion boundary cannot grant assignment, action or
+recovery authority, and the existing selectors still run after filtering.
+
+Signals are content-free projections bound to candidate, operation, policy,
+source revision and logical time. Missing, expired, future, conflicting or
+rolled-back inputs fail closed. Applications should use a durable
+compare-and-swap state store in production; the in-memory store is intended for
+local composition and tests.
+
+## Bounded local strategy adaptation
+
+Import `@agentplat/collective-runtime/strategy-adaptation` to select among an
+immutable catalog of local coordination strategies using bounded online
+feedback. The controller can be used at explicit plan decomposition, offer
+routing, bid submission, award selection and recovery selection seams.
+
+```ts
+import {
+  LocalStrategyAdaptationRuntimeV1,
+  createLocalStrategyAdaptationPolicyV1,
+  createLocalStrategyCatalogV1,
+} from "@agentplat/collective-runtime/strategy-adaptation";
+
+const catalog = createLocalStrategyCatalogV1({
+  schemaVersion: 1,
+  catalogId: "local-coordination-strategies",
+  catalogVersion: 1,
+  parentCatalogDigest: null,
+  strategies: [safeBaseline, adaptiveAlternative],
+  baselines: {
+    plan_decomposition: safeBaseline.strategyId,
+    offer_routing: safeBaseline.strategyId,
+    bid_submission: safeBaseline.strategyId,
+    award_selection: safeBaseline.strategyId,
+    recovery_selection: safeBaseline.strategyId,
+  },
+});
+
+const policy = createLocalStrategyAdaptationPolicyV1({
+  // Bind safety dimensions, feedback sources, metric weights, learning,
+  // exploration, baseline probability, quarantine and state limits here.
+});
+
+const adaptation = new LocalStrategyAdaptationRuntimeV1({
+  stateKey: "peer-a.local-strategy-state",
+  controllerId: "local-strategy-controller",
+  controllerVersion: 1,
+  implementationId: "local-strategy-controller.default",
+  policy,
+  catalog,
+  safety: safetyResolver,
+  entropy: productionEntropy,
+  store: durableStrategyStateStore,
+});
+```
+
+Every selection requires current policy-defined safety projections. Trust,
+role, capability-state, context-integrity and authority adapters can only keep
+or narrow their upstream disposition. The integer probability distribution
+always totals 10,000 basis points, caps exploration and preserves the safe
+baseline floor.
+
+Feedback binds one pending decision and an implementation-bound independent
+source cohort. The controller derives reward from policy-defined clipped
+metrics using a deterministic median; it never accepts a caller-provided
+scalar reward. Unsafe outcomes quarantine the selected alternative and roll
+the operation back to baseline. Unsafe baseline outcomes pause that operation.
+
+The dispatcher invokes only the selected catalog-bound implementation and
+exposes one method per supported coordination seam. Its result remains subject
+to existing planning acceptance, capability, assignment, recovery, action and
+effect controls. The feature is opt-in and does not alter existing selectors.
+
+Use a durable compare-and-swap store and unpredictable integrity-protected
+entropy in production. The in-memory store and deterministic entropy helper
+are intended for local composition, tests and reproducible simulation.
+
+## Peer-to-peer strategy evidence exchange
+
+Import `@agentplat/collective-runtime/strategy-evidence-exchange` when peers
+should exchange authenticated, content-free outcome evidence for their
+installed strategy catalogs. The exchange runtime validates signed identity,
+current membership and Trust eligibility, feedback schema, causal sequence,
+freshness and local retention policy before an attestation may participate in
+aggregation.
+
+```ts
+import {
+  PeerStrategyEvidenceExchangeRuntimeV1,
+  createPeerStrategyEvidenceExchangePolicyV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+
+const policy = createPeerStrategyEvidenceExchangePolicyV1({
+  schemaVersion: 1,
+  policyId: "strategy-evidence.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  feedbackSchemaDigest,
+  minimumDistinctPeers: 3,
+  minimumDistinctIndependenceGroups: 3,
+  minimumConfidenceBps: 7_500,
+  maximumPriorInfluenceBps: 2_000,
+  limits: {
+    maximumAttestations: 4_096,
+    maximumAttestationsPerPeer: 32,
+    maximumSourceHeads: 1_024,
+    maximumCertificates: 256,
+    maximumFeedbackSignalDigests: 16,
+    maximumAttestationTtlMs: 86_400_000,
+    maximumFutureSkewMs: 5_000,
+    maximumReasonCodesPerDecision: 8,
+    maximumCommitAttempts: 8,
+    maximumGossipFanout: 8,
+    maximumGossipHops: 12,
+  },
+});
+
+const exchange = new PeerStrategyEvidenceExchangeRuntimeV1({
+  stateKey: "peer-a.strategy-evidence",
+  exchangerId: "peer-strategy-evidence",
+  exchangerVersion: 1,
+  implementationId: "peer-strategy-evidence.default",
+  policy,
+  eligibility: membershipSignatureAndTrustGate,
+  independence: localIndependenceClassifier,
+  store: durableEvidenceExchangeStore,
+});
+```
+
+The runtime exchanges attestations, not strategy implementations, prompts,
+model outputs or model weights. A collective prior is advisory input to local
+strategy adaptation: it cannot directly select a strategy, increase an
+alternative's safety disposition, grant planning or assignment authority, or
+override the local baseline and control-plane vetoes. Missing, stale,
+equivocating or insufficiently independent evidence fails closed.
+Out-of-order evidence consumes the bounded pending-attestation budget but does
+not reserve a source-head slot; that capacity is checked only when a complete
+predecessor chain becomes admissible.
+
+Use a durable compare-and-swap store in production. The in-memory reference
+store and deterministic routing helpers are intended for local composition,
+tests and reproducible simulation. The optional CollectiveSync adapter maps
+the same signed attestation stream into the existing authenticated causal
+replication protocol; sparse-overlay gossip announces only content digests.
+
+## Decentralized strategy convergence and stability
+
+Import `@agentplat/collective-runtime/strategy-convergence` to turn locally
+validated evidence certificates into stable, short-lived recommendations for
+local strategy adaptation.
+
+```ts
+import {
+  InMemoryStrategyConvergenceStoreV1,
+  StrategyConvergenceRuntimeV1,
+  createStrategyConvergencePolicyV1,
+} from "@agentplat/collective-runtime/strategy-convergence";
+
+const convergencePolicy = createStrategyConvergencePolicyV1({
+  schemaVersion: 1,
+  policyId: "strategy-convergence.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  minimumConfidenceBps: 7_500,
+  minimumDistinctPeers: 3,
+  minimumDistinctIndependenceGroups: 3,
+  minimumStableCycles: 3,
+  recoveryStableCycles: 5,
+  improvementMarginBps: 750,
+  diversityPreservationMarginBps: 500,
+  minimumCycleIntervalMs: 30_000,
+  cooldownDurationMs: 300_000,
+  oscillationWindowMs: 900_000,
+  maximumTransitionsPerOscillationWindow: 3,
+  maximumPriorInfluenceBps: 2_000,
+  recommendationTtlMs: 60_000,
+  limits: {
+    maximumScopes: 256,
+    maximumStrategiesPerScope: 16,
+    maximumObservationsPerCycle: 128,
+    maximumHistoryPerScope: 64,
+    maximumSourceIdsPerObservation: 128,
+    maximumReasonCodesPerDecision: 12,
+    maximumObservationTtlMs: 86_400_000,
+    maximumFutureSkewMs: 5_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const convergence = new StrategyConvergenceRuntimeV1({
+  stateKey: "peer-a.strategy-convergence",
+  controllerId: "strategy-convergence",
+  controllerVersion: 1,
+  implementationId: "strategy-convergence.default",
+  policy: convergencePolicy,
+  store: new InMemoryStrategyConvergenceStoreV1(),
+});
+```
+
+Applications project certificates from the evidence exchange into a cycle and
+provide only strategies already eligible under local catalog and safety
+policy. Partitioned, divergent, oscillating, unsafe and insufficient views do
+not emit a prior. A credible current strategy inside the diversity margin is
+retained, and a different leader must survive the configured time, hysteresis
+and recovery windows before it can be recommended.
+
+The in-memory store is intended for composition, tests and deterministic
+simulation. Use a durable compare-and-swap store and a trustworthy local
+connectivity classifier in production.
+
+## Dynamic team formation and joint work contracts
+
+Import `@agentplat/collective-runtime/team-formation` when one unit of work
+requires several complementary roles or capabilities. The runtime selects a
+complete roster from bounded, locally eligible position bids without a global
+candidate registry or a central scheduler.
+
+```ts
+import {
+  InMemoryTeamFormationStoreV1,
+  TeamFormationRuntimeV1,
+  createTeamFormationPolicyV1,
+} from "@agentplat/collective-runtime/team-formation";
+
+const teamPolicy = createTeamFormationPolicyV1({
+  schemaVersion: 1,
+  policyId: "dynamic-teams.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  minimumDistinctPeers: 2,
+  minimumIndependenceGroups: 2,
+  maximumTotalBudgetUnits: 1_000,
+  requireDistinctPeerPerPosition: true,
+  limits: {
+    maximumPositions: 16,
+    maximumBidsPerPosition: 32,
+    maximumMembers: 16,
+    maximumSearchNodes: 100_000,
+    maximumReasonCodesPerDecision: 12,
+    maximumHistoryEntries: 32,
+    maximumRequestInvalidations: 1_024,
+    maximumRequestTtlMs: 300_000,
+    maximumTeamDurationMs: 86_400_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const teams = new TeamFormationRuntimeV1({
+  stateKey: "peer-a.team-formation",
+  formationId: "dynamic-team-formation",
+  formationVersion: 1,
+  implementationId: "dynamic-team-formation.default",
+  policy: teamPolicy,
+  store: new InMemoryTeamFormationStoreV1(),
+});
+```
+
+Capability-state decisions can be projected into team candidates, and
+authenticated Mesh bids can be projected into local position bids. Selection
+is an exhaustive deterministic search inside a policy-defined node budget. It
+optimizes the complete roster rather than independently choosing the highest
+bid for every position; if the bounded search cannot prove a result it emits no
+proposal.
+
+Proposal validation reconstructs every member identity and selection digest
+from the proposal's exact Team ID and epoch. For an initial proposal, the Team
+ID is derived from scope plus formation-request digest, the epoch is exactly 1,
+and the predecessor joint contract is null.
+
+A `TeamProposalV1` is inert coordination data. `activate()` succeeds only when
+every selected position is backed by an exact, current individual
+`WorkContractV1`. The resulting `JointWorkContractV1` composes those bindings
+but never replaces them at an action boundary. Existing per-member assignment
+epochs, leases, fencing tokens and action budgets remain authoritative.
+Fenced coordinators should pass `expectedProposalDigest` to `cancel()`; the
+runtime checks it inside the cancellation CAS and will not cancel a replacement
+team that became current concurrently.
+
+`invalidate()` commits a durable negative fence for a formation-request digest,
+bound to the coordinator's formation authorization and the request validity
+window. `form()` checks that tombstone inside its Team-creation CAS, before
+decision replay, so an invocation already in flight must either commit first or
+lose its CAS and observe the invalidation. Tombstones remain in state and
+handoffs while their request can still arrive. Only entries whose
+`requestValidUntilLogicalMs` is at or below the durable logical-time high-water
+may be compacted; exhausting `maximumRequestInvalidations` with unexpired
+entries fails closed.
+
+Member failure is handled as a new team epoch. Unaffected members may retain
+their current individual contracts, while the replacement must complete the
+ordinary Mesh offer, award and acceptance flow. The new proposal names the
+previous joint contract and cannot reuse a failed member's authority. Member
+outcomes are content-free and result-bound; the team completes only when every
+current member reports success and fails closed on a failed or unsafe result.
+
+Use durable compare-and-swap storage in production. Formation requests, bids,
+rosters, outcomes and epoch history are bounded and contain no prompts, model
+outputs, credentials or hidden reasoning.
+
+## Autonomous team execution and causal replanning
+
+Import `@agentplat/collective-runtime/team-execution` to execute an activated
+team's position dependency graph without a central scheduler.
+
+```ts
+import {
+  InMemoryTeamExecutionArtifactPortV1,
+  InMemoryTeamExecutionStoreV1,
+  TeamExecutionRuntimeV1,
+  createTeamExecutionPolicyV1,
+} from "@agentplat/collective-runtime/team-execution";
+
+const executionPolicy = createTeamExecutionPolicyV1({
+  schemaVersion: 1,
+  policyId: "team-execution.production",
+  policyVersion: 1,
+  parentPolicyDigest: null,
+  requireReferencedCompletionArtifact: true,
+  requireAllowedControlForProgress: true,
+  limits: {
+    maximumPositions: 16,
+    maximumStepsPerPosition: 64,
+    maximumArtifactsPerStep: 8,
+    maximumArtifactsPerPosition: 64,
+    maximumArtifactDependencies: 64,
+    maximumArtifactBytes: 16_777_216,
+    maximumPeerMessagesPerStep: 64,
+    maximumTotalPeerMessages: 4_096,
+    maximumRecoveryCount: 8,
+    maximumHistoryEntries: 16,
+    maximumExecutionDurationMs: 86_400_000,
+    maximumStepTtlMs: 300_000,
+    maximumCommitAttempts: 8,
+  },
+});
+
+const execution = new TeamExecutionRuntimeV1({
+  stateKey: "peer-a.team-execution",
+  runtimeId: "team-execution",
+  runtimeVersion: 1,
+  implementationId: "team-execution.default",
+  policy: executionPolicy,
+  executor: controlledPortableMemberExecutor,
+  artifacts: new InMemoryTeamExecutionArtifactPortV1(),
+  store: new InMemoryTeamExecutionStoreV1(),
+});
+```
+
+`start()` requires an exact active `TeamProposalV1` and
+`JointWorkContractV1`. `runStep()` first commits a content-addressed dispatch,
+checks every predecessor artifact locally, delegates to the configured member
+executor, publishes only durable artifact references and then settles the
+result. The portable-agent adapter composes existing provider-neutral sessions
+and their pre-step, post-output and pre-action controls.
+
+Failed, unsafe and expired steps produce a recovery signal that can be adapted
+into the existing team-reconfiguration flow. After a replacement is selected
+and activated, `rebind()` advances the execution epoch, retains the unaffected
+completed dependency subgraph and resets the failed position and all causal
+successors.
+
+The runtime does not execute tools or grant effect authority. A dispatch and a
+joint contract remain coordination data; action gateways must continue to
+validate the member's individual Work Contract, lease, epoch and fence. Use a
+durable compare-and-swap store and durable content-addressed artifact service
+in production. The included in-memory ports are for composition, tests and
+deterministic simulation.
+
+## Distributed team execution exchange
+
+Import `@agentplat/collective-runtime/team-execution-exchange` to carry team
+dispatches, artifact availability, results and recovery signals across peers.
+The exchange record is embedded in a signed Mesh envelope under the critical
+extension `agentplat.team-execution-exchange.v1`. Inbound extraction accepts
+only `VerifiedMeshEnvelope` values and then applies a separate local membership
+decision; a transport signature alone never grants team membership.
+
+Each sender owns an append-only causal stream. Out-of-order records remain in a
+bounded pending set, exact replay is idempotent, forks fail closed and a narrow
+recovery port can fetch missing authenticated predecessors after a partition.
+The runtime persists `ready`/`handled` inbox and `pending`/`sent` outbox states
+with compare-and-swap storage. Handlers and outbound publishers must use
+`messageId` as their durable idempotency key because a crash can repeat either
+external call before its local acknowledgement is committed.
+
+The member adapter resolves dependency artifacts, executes through the existing
+controlled member port and announces durable references before returning a
+result. The coordinator adapter verifies reference availability before calling
+`settleStep()`. Neither adapter grants tool or action authority: individual
+Work Contracts, leases, epochs, fencing tokens and action controls remain
+mandatory at the effect boundary. Use the in-memory store only for tests and
+deterministic local simulations.
+
+## Team execution ownership continuity
+
+Import `@agentplat/collective-runtime/team-execution-continuity` when a team
+execution must survive permanent coordinator loss. The runtime binds each
+prepared execution checkpoint to the exact current `work_owner` holder,
+instance, generation, authority head and fencing token. Publication requires an
+availability certificate tied to the same membership configuration.
+
+A successor resolves and validates the latest certified checkpoint before
+import. Pending dispatches retain their existing identifiers, so a member or
+effect gateway can return the same durable result instead of repeating work.
+The injected execution and state ports must apply the supplied fence atomically
+at every durable CAS and effect boundary. With those fence-aware ports,
+ownership changes prevent a stale coordinator from committing new progress.
+The runtime consumes authority but does not elect an owner, move credentials or
+make an execution checkpoint an effect grant.
+
+## Outcome-driven team structure adaptation
+
+Import `@agentplat/collective-runtime/team-structure-adaptation` to choose the
+shape of a future team from an immutable local catalog. Observations are derived
+from validated execution state and contain bounded outcome metrics rather than
+raw model output or an arbitrary caller-provided reward.
+
+Deterministic integer updates, minimum evidence, exploration caps, cooldown,
+hysteresis and quarantine prevent one result from causing an unbounded change.
+The resulting selection is advisory for a future adaptation cycle. Its
+positions still pass through a fresh formation runtime at team epoch 1, which
+rechecks coverage, diversity, budget, eligibility and individual Work
+Contracts. Active teams are never changed in place.
+
+## Integrated collective peer host
+
+Import `@agentplat/collective-runtime/host` as the transport-neutral composition
+root for an operational peer. The host verifies or accepts verified Mesh
+envelopes, classifies them once and admits each message to exactly one durable
+subsystem. Unknown or ambiguous critical semantics fail closed, and an inbound
+message is acknowledged only after admission succeeds.
+
+`restore()`, bounded `runOnce()`, `start()`, `drain()` and `status()` control the
+host scheduler without taking ownership of subsystem lifecycle or CAS state.
+Optional command ports expose formation, execution, continuity and structure
+adaptation through one facade. Directory and topology freshness may pause
+dispatch but never replace membership or Work authority. HTTP, databases,
+provider SDKs and effect gateways remain outside this browser-safe package.
+
+The host also accepts optional decision, mechanism-allocation and
+coordination-control ports. Their facade methods preserve the authority of the
+underlying subsystem: allocation and control remain advisory, while a certified
+collective decision remains coordination authority rather than an action grant,
+lease or fencing token. Facade methods are independent: the application must
+explicitly route each advisory proposal through its applicable approval gate.
+
+## Certified collective decisions
+
+Import `@agentplat/collective-runtime/collective-decision` to prepare, certify
+and durably accept content-free decisions for plan fragments, team rosters,
+execution takeovers, team structures, role transitions and strategy changes.
+Every candidate binds its scope, causal epoch, exact membership and external
+payload digest. Policy selects local, trusted-evidence or Byzantine-agreement
+certification independently for each decision kind.
+
+The runtime revalidates certificate bindings before an append-only CAS commit,
+requires the injected certification port to authenticate externally retained
+proofs, rejects a conflicting value for an accepted slot and preserves a
+logical-time high-water mark. Restore reauthenticates retained certificates;
+expired full records become permanent digest-bound tombstones. Policy bounds
+both active heads and tombstones and fails closed at either limit. Production
+stores must add a durable rollback-resistant integrity anchor; archival or state
+generation rotation must preserve replay protection for every compacted slot.
+The in-memory store is only for local composition and tests. The concrete
+signed-agreement adapter is exported by
+`@agentplat/collective-quorum/collective-decision`.
+
+## Mechanism-aware mission allocation
+
+Import `@agentplat/collective-runtime/mechanism-allocation` for bounded,
+non-monetary commit/reveal allocation over semantic work slots. The deterministic
+clear enforces capability eligibility, dependency readiness, declared cost and
+budget, resource limits, per-peer concentration and independence-group policy.
+Every event must carry an admission from the required provider-neutral verifier,
+binding actor peer, process instance, independence group, membership,
+capabilities and logical validity. Exact admitted events are retained so restore
+can reauthenticate them. Equivocating bidders are excluded, and a withdrawal
+reopens only affected slots in the next causal round.
+
+Production allocation stores must atomically compare the expected revision and
+state digest and retain a monotonic rollback-resistant head outside the mutable
+snapshot. The in-memory store is only for local composition and tests.
+
+`createMechanismDecompositionFromPlanningStateV1()` projects one peer's accepted
+planning view into an allocation proposal.
+`createTeamFormationRequestFromMechanismAllocationV1()` projects a complete
+allocation into the ordinary team-formation gate after rechecking the allocation
+policy, formation policy and every persisted admission. Neither adapter creates
+an assignment or effect authority; formation and individual Work Contracts
+remain mandatory.
+
+`@agentplat/collective-runtime/distributed-team-allocation` composes those
+boundaries as a durable saga. It retains the complete certified roster decision
+and the exact formation command before dispatch. A canonical authorization
+digest binds the planning state, allocation plan, decision candidate and
+certificate, exact allocation-state/auction/round fence, request identity,
+membership and validity window. A retained plan is rejected unless its
+proposal, auction digest and round still match the current allocation state.
+
+Every retry reauthenticates the retained decision and reconstructs the exact
+plan-to-bid-to-member binding before `form()` or activation. Activation crosses
+an application-provided boundary that must atomically consume the exact fence.
+That boundary also provides idempotent reconcile and cancel operations: after a
+crash, the saga adopts a matching activation or cancels it before clearing a
+stale authorization. A changed/retired plan, expired or invalid certificate,
+altered command, or stale Work Contract fails closed and returns the affected
+positions to a fresh allocation round.
+
+Formation replay is discovered from the current durable Team proposal, not
+from `lastDecision`, because a concurrent request may overwrite the latter
+while leaving the Team non-terminal. Before the saga persists a proposal
+digest, discovery requires its exact formation-request digest and canonical
+request-to-roster binding; afterwards it requires the exact recorded proposal
+digest. `lastDecision` is consulted only to compare a freshly returned `form()`
+response that has no Team proposal to reconcile. A crash after Team Formation
+commits is therefore adopted without encountering `non_terminal_team_exists`.
+Before any later fence-clear or withdrawal, that exact awaiting/active proposal
+is cancelled through the CAS-bound `expectedProposalDigest`; a replacement
+proposal is never cancelled.
+Initial rosters are accepted only as epoch 1 with no predecessor and with the
+canonical team ID, member IDs and selection digests reconstructed from the
+retained bids.
+
+For activation-pending or active cleanup, the saga first cancels the exact
+activation-boundary contract and only then cancels the exact Formation Team;
+this removes effect authority before closing the Team while still preventing a
+later round from failing with `non_terminal_team_exists`.
+
+Before clearing a formation authorization or emitting a withdrawal, the saga
+first persists the request invalidation and then reconciles/cancels any exact
+proposal. This closes the no-Team-yet race: a delayed `form()` cannot create a
+Team after cleanup has already observed an empty Formation state.
+
+## Integrated coordination-control loop
+
+Import `@agentplat/collective-runtime/coordination-control` to reduce fresh,
+source-bound projections of role alignment, context integrity, uncertainty,
+Trust, capability and execution outcomes into a bounded advisory proposal. The
+closed action set can continue, pause dispatch, restrict participation, or
+request role transition, work reassignment, team adaptation or replanning.
+
+Missing, stale, rolled-back or equivocating evidence fails closed. Cooldown and
+hysteresis reduce oscillation. Policy pins a source-registry digest and a
+required resolution port authenticates every projection before use. The durable
+outbox retains a live pending proposal until its injected delivery port
+acknowledges it. An expired proposal becomes an explicit `expired` non-delivery
+record and is never reported as delivered. The recipient still owns the
+decision, assignment and effect-authority checks needed to enact the request.
+Production control stores require the same revision-and-digest CAS plus an
+external monotonic head; the in-memory store is not a rollback anchor.
+
+## Governed autonomous mission lifecycle
+
+Import `@agentplat/collective-runtime/mission-lifecycle` to compose planning,
+allocation, formation, execution observation and coordination control as one
+durable, bounded mission saga. The state is content-free: it retains exact
+scope, policy, request, operation, authorization and result digests rather than
+mission prompts or model output.
+
+Every external operation is prepared durably before invocation and carries a
+stable operation ID plus exact authority epoch and fencing coordinates. Restore
+reauthenticates applied authorizations and resumes pending operations through
+application-provided idempotent ports. Control output remains advisory until a
+separate reconfiguration port enacts the approved pause, restriction, role
+transition, reassignment, team adaptation or replanning action.
+
+The runtime enforces action, reconfiguration, transition and CAS budgets.
+Replanning, formation and execution changes return to their corresponding
+phase instead of being reported as completed. The optional peer-host facade
+exposes `advanceMission()` and `recoverMission()` without taking ownership of
+the underlying subsystem state or widening its authority.
+
 ## Replicated execution checkpoint handoff
 
 Import `@agentplat/collective-runtime/checkpoints` for the provider-neutral
@@ -281,3 +902,181 @@ evidence and return the rehydrated runtime state; the node processes the
 original envelope again through the normal inbound reducer. No synchronization
 payload bypasses admission or authority checks. `@agentplat/collective-sync`
 provides the reference operational adapter.
+
+## Replicated mission lifecycle continuity
+
+Import `@agentplat/collective-runtime/mission-continuity` to persist an exact
+governed mission state through `snapshot → replicate → checkpoint → takeover`.
+Stable operation IDs, certified replica availability, checkpoint lineage,
+authority epoch/fence bindings, revision-and-digest CAS and an external
+monotonic head make interrupted retries and rollback explicit. Takeover copies
+prepared and applied lifecycle receipts exactly; it never invokes an effect
+port or replays a confirmed effect.
+
+Production adapters provide immutable artifact custody, authenticated current
+authority, availability verification, atomic CAS plus monotonic-head advance,
+and destination restore CAS. The in-memory ports are local composition aids.
+
+## Attested mission-control continuity
+
+Import `@agentplat/collective-runtime/attested-mission-control` when the mission
+lifecycle should consume a long, externally verified health sequence. The
+adapter implements the ordinary control port and emits `continue` only after
+the configured contiguous healthy threshold, up to 10,000 decisions. Gaps,
+replay, equivocation, expiry, source changes, mission/epoch/fence changes and
+rollback reset progress to a conservative advisory pause or replan.
+
+The adapter stores only identifiers, counters and digests. It never executes
+the proposal, and source authentication remains an application-provided port.
+
+## Collective capability closure
+
+The additive collective capability closure composes autonomous mission planning,
+certified context fusion, distributed team allocation, compromise-aware
+recovery, semantic alignment/agility control, coordination-control guarantees
+and heterogeneous agent execution through provider-neutral ports. Each module
+retains its own policy, scope, CAS state and authority boundary.
+
+`DistributedTeamAllocationRuntimeV2` advances planning positions through
+authenticated mechanism events, a certified team-roster decision, formation
+and Work-Contract activation. Formation rejection or activation expiry is
+reported through an authenticated withdrawal port for a later allocation round.
+`CoordinationControlGuaranteeRuntimeV1` intersects a verified local control
+guarantee with a planning target and emits an allow/deny dispatch gate with a
+bounded effective planning window. Its dispatch sink returns a durable receipt
+that binds the exact proposal, scope, delivery time and configured team-control
+identity. `createAuthenticatedGuaranteeTeamExecutionControlPortV1` accepts only
+a proposal digest and obtains the proposal plus receipt through an
+application-owned authenticated lookup. It cannot accept inline proposal bytes
+or a caller-selected `controlId`, version or implementation identity.
+
+`CompromiseAwareRecoveryRuntimeV1` requires its store to advance the saga
+snapshot and rollback-resistant anchor atomically. It never repairs an anchor
+from a newer snapshot. Certified recovery chooses exactly one of checkpoint,
+reauction or replanning; a checkpoint decision without an exact checkpoint
+digest is invalid. The store reads snapshot+anchor as one consistent pair, and
+the production anchor must live on a monotonic/non-reversible boundary that is
+not rolled back with ordinary state backups. The in-memory adapter demonstrates
+atomic semantics only and is not that production boundary.
+
+The saga is a nominal capability. Its state/anchor store, verdict verifier and
+all exclusion, fencing, activation and restoration effect methods are captured
+with their original receiver at construction, while module-owned invokers bypass
+replaceable public methods. Structural clones, prototype fabrication, monkey
+patches and dependency rebinding cannot acquire or redirect the durable saga.
+
+Import the same subpath to use `AutonomousCompromiseRecoveryRuntimeV1` as the
+bounded bridge from certified incident delivery to those durable, scope-local
+sagas. Its source is an at-least-once certificate inbox, not a raw anomaly
+detector: an application-owned verifier remains inside each recovery runtime,
+and an application-owned request planner derives the current assignment epoch,
+fencing token, takeover candidates, witness policy and restoration choice from
+authoritative repositories. Callers pass only logical time to `tick()`; they do
+not inject a verdict or recovery request on each scheduling cycle.
+
+The runtime resolves one saga per full recovery scope, resumes a retained saga
+before a later out-of-order delivery, bounds both certificates and saga steps,
+and acknowledges a certificate only after its terminal state is durable. A
+missing runtime, unavailable request, rejected boundary, incomplete saga or
+exhausted batch prevents ordinary node progress. Even a completed recovery
+returns `nodeProgressAllowed: false`; a subsequent empty delivery is the clean
+tick that permits work to resume. Source acknowledgement is idempotent and may
+refer to a certificate delivered to the same consumer in an earlier pull.
+
+A blocked incident may be superseded only for the same subject. Its complete
+ancestor chain remains non-terminal while the successor is blocked, so an
+ancestor redelivery is rejected before planning or saga submission and remains
+unacknowledged. When a successor completes, the saga atomically records every
+ancestor's durable disposition to that terminal certificate; after a restart,
+those redeliveries can be acknowledged without rerunning recovery. Completed
+and superseded identities share one fail-closed capacity bound and are never
+evicted.
+
+`scopeAdmission` authenticates the complete tenant/mesh/mission/objective/work
+scope before a registry lookup. The required coordinator store persists a
+mission-wide logical-time high-water and the canonical set of admitted scopes
+with monotonic CAS; it therefore rejects time rollback and fails closed at
+`maximumScopes` across restarts before an unknown runtime can be initialized.
+No in-memory coordinator store is provided. Its production implementation must
+prevent rollback of both the high-water and retained scope set.
+
+`BoundedLifecycleCompromiseRecoveryRuntimeRegistryV1` is the reference safe
+composition for the integrated host. It accepts a fixed-capacity list of known
+scope configurations and constructs every `CompromiseAwareRecoveryRuntimeV1`
+itself. Each saga is wrapped with the exact same governed lifecycle and the
+same assignment authority used to install fences; an inbox certificate cannot
+create a new scope or substitute either authority boundary.
+
+The bounded registry is nominal and owns its resolve/admission invokers. The
+autonomous supervisor captures the exact source, planner, registry resolution,
+scope admission and coordinator-store methods at construction, then pins the
+first resolved saga identity for every full scope. Returning a different object
+for an already retained scope is treated as registry substitution and fails
+closed. Closed host composition additionally requires resolution and admission
+to be the same nominal bounded-registry instance, preventing split-brain scope
+admission or a structurally forged registry from satisfying authority closure.
+
+Compose each saga with
+`createCompromiseRecoveryLifecycleExclusionPortV1()` so sparse exclusion also
+retires the subject from governed membership, and with
+`createCompromiseRecoveryFencingPortV1()` so assignment authority advances
+before takeover. Work-Contract execution paths additionally wrap their normal
+pre/post currentness check with
+`createCompromiseRecoveryCurrentnessPortV1()`; the effect sink must share the
+same durable assignment/fence repository and idempotency identity. Integrated
+assurance execution additionally binds scope, objective, work item, assignment
+epoch/token and membership generation into execution finality and submits that
+exact fence to the same repository for atomic compare-and-commit. These ports
+do not create detector, membership, election, planning or effect authority.
+
+The open-core intentionally provides no in-memory certified-verdict inbox and
+no production saga or coordinator store. The source must retain unacknowledged
+certificates across process loss. The saga store must atomically commit snapshot
+and rollback-resistant anchor on a protection boundary that ordinary backup
+restoration cannot rewind. The coordinator store must preserve its monotonic
+time and never evict admitted scope identities. `InMemoryCompromiseRecoveryStoreV1`
+remains a local saga composition aid only.
+
+`AutonomousMissionLoopRuntimeV1` likewise reads one consistent state/anchor
+pair and requires every CAS to advance both atomically. Its production anchor
+is independently keyed and lives on a monotonic protection boundary outside
+the replaceable Mesh snapshot. A missing or divergent half fails closed: the
+runtime and `MeshDurableAutonomousMissionLoopStoreV1` neither derive an anchor
+from state nor repair one after an interrupted or rolled-back write. The
+Mesh-backed adapter therefore requires an atomic repository that owns both the
+snapshot transaction and the independent anchor advance.
+
+Compromise-aware sparse exclusion is replay-safe by certificate. A retry keeps
+the original adaptive revision fence, but an already-applied locally certified
+certificate is recognized before that stale revision is rejected. The sparse
+view is then reconciled if the crash occurred between adaptive application and
+local routing persistence, and the recovery receipt retains the original
+application time.
+
+Applications provide durable stores, authenticated event/certificate sources,
+current Work Contract resolution, logical time and fenced effect boundaries.
+These runtimes do not provide a central scheduler, global plan graph, transport
+or execution authority. See [ADR 0042](../../docs/adr/0042-collective-capability-closure.md)
+and the [architecture and threat model](../../docs/security/collective-capability-closure-v1.md).
+
+## Cross-capability invariant guard
+
+Import `@agentplat/collective-runtime/collective-invariants` to enforce portable,
+content-free invariants immediately before a protected effect. The guard
+requires an application-owned evidence verifier and rejects an effect unless
+authorization, finality and an admissible semantic decision are all bound to
+the exact observation. The same state machine prevents conflicting finality in
+one scope/epoch, checks budget conservation and lineage attenuation, and
+advances epoch, fence and checkpoint coordinates monotonically.
+
+Decisions produce content-addressed receipts and advance a CAS snapshot plus a
+monotonic anchor. Observation identifiers are durable idempotency keys; bounded
+receipt capacity fails closed instead of evicting replay protection. The
+runtime is created asynchronously with `CollectiveInvariantRuntimeV1.create`,
+which recomputes the complete policy digest, including trusted lineage roots
+and admissible semantic dispositions. Its evidence verifier must attest the
+entire observation digest and the exact claim-specific binding; independently
+valid but unrelated certificates cannot be mixed into an effect permit. The
+in-memory store is a composition aid only. Production stores must atomically
+commit the state with an independently protected rollback witness, and effect
+sinks must deduplicate by effect identity plus the exact invariant receipt.

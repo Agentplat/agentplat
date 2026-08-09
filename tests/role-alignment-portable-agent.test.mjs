@@ -63,6 +63,7 @@ function controlTarget(overrides = {}) {
   return {
     schemaVersion: 1,
     checkpoint: 'pre_step',
+    stepSequence: 1,
     manifest: manifest(),
     sessionId: 'session-1',
     tenantId: 'tenant-1',

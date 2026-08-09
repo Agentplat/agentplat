@@ -194,6 +194,10 @@ try {
     consumerRoot,
     'collective-planning-resilience-conformance'
   );
+  const collectiveSelfManagementConsumerRoot = path.join(
+    consumerRoot,
+    'collective-self-management'
+  );
   const typeScriptConsumerRoot = path.join(consumerRoot, 'typescript');
   const inferenceControlConsumerRoot = path.join(
     consumerRoot,
@@ -227,6 +231,7 @@ try {
     mkdir(collectivePlanningResilienceConformanceConsumerRoot, {
       recursive: true,
     }),
+    mkdir(collectiveSelfManagementConsumerRoot, { recursive: true }),
     mkdir(typeScriptConsumerRoot, { recursive: true }),
     mkdir(inferenceControlConsumerRoot, { recursive: true }),
     mkdir(trustConsumerRoot, { recursive: true }),
@@ -270,6 +275,7 @@ try {
         "  - 'collective-planning-closed-loop'",
         "  - 'collective-planning-closed-loop-resilience'",
         "  - 'collective-planning-resilience-conformance'",
+        "  - 'collective-self-management'",
         "  - 'typescript'",
         "  - 'inference-control'",
         "  - 'trust'",
@@ -423,7 +429,38 @@ try {
   );
   const trustArtifact = artifactsByName.get('@agentplat/trust');
   assert.ok(trustArtifact, 'Missing packed Trust dependency');
+  const collectiveRuntimeArtifact = artifactsByName.get(
+    '@agentplat/collective-runtime'
+  );
+  assert.ok(
+    collectiveRuntimeArtifact,
+    'Missing packed collective-runtime dependency'
+  );
   workspaceWrites.push(
+    writeFile(
+      path.join(collectiveSelfManagementConsumerRoot, 'package.json'),
+      `${JSON.stringify(
+        {
+          name: 'agentplat-pack-smoke-collective-self-management',
+          version: '1.0.0',
+          private: true,
+          type: 'module',
+          dependencies: {
+            '@agentplat/collective-runtime':
+              collectiveRuntimeArtifact.tarballReference,
+          },
+        },
+        null,
+        2
+      )}\n`
+    ),
+    copyFile(
+      path.join(root, 'scripts/pack-consumers/collective-self-management.mjs'),
+      path.join(
+        collectiveSelfManagementConsumerRoot,
+        'verify-self-management.mjs'
+      )
+    ),
     writeFile(
       path.join(functionalConsumerRoot, 'package.json'),
       `${JSON.stringify(
@@ -899,6 +936,10 @@ try {
       stdio: 'inherit',
     }
   );
+  execFileSync(process.execPath, ['verify-self-management.mjs'], {
+    cwd: collectiveSelfManagementConsumerRoot,
+    stdio: 'inherit',
+  });
   execFileSync(process.execPath, ['verify-resilience-conformance.mjs'], {
     cwd: collectivePlanningResilienceConformanceConsumerRoot,
     stdio: 'inherit',

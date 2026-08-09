@@ -16,6 +16,14 @@
       "types": "./dist/agreement.d.ts",
       "import": "./dist/agreement.js"
     },
+    "./sparse-agreement": {
+      "types": "./dist/sparse-agreement.d.ts",
+      "import": "./dist/sparse-agreement.js"
+    },
+    "./sparse-agreement-runtime": {
+      "types": "./dist/sparse-agreement-runtime.d.ts",
+      "import": "./dist/sparse-agreement-runtime.js"
+    },
     "./role-realignment": {
       "types": "./dist/role-realignment.d.ts",
       "import": "./dist/role-realignment.js"
@@ -23,6 +31,34 @@
     "./trust-consensus": {
       "types": "./dist/trust-consensus.d.ts",
       "import": "./dist/trust-consensus.js"
+    },
+    "./collective-decision": {
+      "types": "./dist/collective-decision.d.ts",
+      "import": "./dist/collective-decision.js"
+    },
+    "./mission-context-fusion": {
+      "types": "./dist/mission-context-fusion.d.ts",
+      "import": "./dist/mission-context-fusion.js"
+    },
+    "./collusion-aware-context": {
+      "types": "./dist/collusion-aware-context.d.ts",
+      "import": "./dist/collusion-aware-context.js"
+    },
+    "./crypto": {
+      "types": "./dist/crypto.d.ts",
+      "import": "./dist/crypto.js"
+    },
+    "./partial-view-agreement": {
+      "types": "./dist/partial-view-agreement.d.ts",
+      "import": "./dist/partial-view-agreement.js"
+    },
+    "./equivocation-response": {
+      "types": "./dist/equivocation-response.d.ts",
+      "import": "./dist/equivocation-response.js"
+    },
+    "./webcrypto-ports": {
+      "types": "./dist/webcrypto-ports.d.ts",
+      "import": "./dist/webcrypto-ports.js"
     }
   },
   "files": [
@@ -37,6 +73,7 @@
   },
   "dependencies": {
     "@agentplat/collective-control": "workspace:^",
+    "@agentplat/collective-planning": "workspace:^",
     "@agentplat/collective-runtime": "workspace:^",
     "@agentplat/inference-control": "workspace:^",
     "@agentplat/mesh": "workspace:^",

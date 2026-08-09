@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Added opt-in Capability-State Fusion V1 with content-free local projections
+  across Trust, role coherence, capacity, sparse reachability and recovery;
+  canonical decisions, durable anti-rollback heads and fail-closed CAS runtime.
+- Connected the optional fusion port to productive peer offer, bid, award,
+  acceptance/execution and certified-recovery candidate paths without changing
+  existing selection rules or granting authority.
+- Added the opt-in `@agentplat/mesh/overlay` sparse collective runtime with
+  closed 500/5,000/100,000-peer profiles, deterministic `O(log N)` active and
+  reserve views, revision-bound neighbor recovery, digest-only incremental
+  dissemination, hop/deduplication limits and exact local interaction quotas.
+- Bound progressive scale execution tiers to the production overlay without
+  changing existing V1 campaign, topology, plan, result or report artifacts.
 - Added opt-in Continuous Role Alignment contracts and a deterministic
   longitudinal reducer with bounded coherence windows, recovery hysteresis,
   context challenges, role reinforcement, pause, realignment and protected

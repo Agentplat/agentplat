@@ -7,7 +7,9 @@ The repository stores one peer's independent membership state:
 - the current configuration head and complete epoch history;
 - one durable proposal choice per source epoch;
 - idempotent signed vote responses; and
-- certified transition records.
+- certified transition records;
+- CAS-protected governed agent lineage; and
+- the idempotent governed agent factory ledger.
 
 ## Setup
 
@@ -28,6 +30,12 @@ const repository = new PostgresCollectiveMembershipRepositoryV1(pool, {
   policyDomainId: "operations",
 });
 ```
+
+`PostgresAgentLineageStoreV1` and
+`PostgresGovernedAgentFactoryStoreV1` share the same tenant or mesh `scopeId`
+but use separate state kinds. Both compare the expected revision and reject
+logical-time rollback. Run migration `002_governed_agent_states` before using
+them.
 
 Run migrations before constructing membership hosts. Rollback is destructive
 and requires both the generated confirmation string and

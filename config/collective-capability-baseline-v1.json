@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "agentplat-collective-capabilities-v1",
+  "baselineVersion": 1,
+  "status": "frozen",
+  "scope": "source-and-publication",
+  "baselineDigest": "sha256:3767fd5b660f6ecc82dee249dbf67bcbd79ebc63160f7795f0f43519389b746e",
+  "sourceCompletion": {
+    "status": "complete",
+    "objectiveCount": 11,
+    "capabilityCount": 19,
+    "attestationStatus": "pending-frozen-tree",
+    "empiricalValidationStatus": "separate-pending",
+    "operationalReadinessStatus": "separate-pending"
+  },
+  "completionRule": {
+    "requiredObjectiveStatus": "closed",
+    "requiredCapabilityStatus": "implemented-and-integrated",
+    "requiredOpenSourceFindings": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0
+    },
+    "requiresPublicReleaseGate": true,
+    "externalObligationsAffectSourceCompletion": false
+  },
+  "changeControl": {
+    "objectiveDenominatorFrozen": true,
+    "capabilityDenominatorFrozen": true,
+    "additionsRequireNewBaseline": true,
+    "removalsRequireNewBaseline": true,
+    "semanticChangesRequireNewBaseline": true,
+    "baselineReplacementRequiresExplicitOwnerApproval": true,
+    "defectsCannotCreateObjectives": true
+  },
+  "findingClassifications": [
+    "existing-capability-defect",
+    "validation-evidence",
+    "deployment-operationalization",
+    "future-baseline-proposal"
+  ],
+  "authoritativeDocuments": [
+    "docs/collective-runtime/development-capability-matrix-v1.md",
+    "docs/collective-runtime/capability-baseline-governance-v1.md",
+    "docs/collective-runtime/program-readiness-checklist-v1.md"
+  ],
+  "objectives": [
+    {
+      "id": "OBJ-01",
+      "title": "Peer-local collective runtime",
+      "status": "closed",
+      "capabilityIds": [
+        "autonomous-local-peer-host",
+        "sparse-peer-discovery-routing",
+        "durable-causal-delivery-catch-up",
+        "authenticated-rotation-aware-overlay-transport"
+      ]
+    },
+    {
+      "id": "OBJ-02",
+      "title": "Planning-to-effect finality bridge",
+      "status": "closed",
+      "capabilityIds": [
+        "distributed-mission-decomposition",
+        "decentralized-allocation-team-formation",
+        "sparse-adversarial-agreement"
+      ]
+    },
+    {
+      "id": "OBJ-03",
+      "title": "Governed agent lifecycle",
+      "status": "closed",
+      "capabilityIds": [
+        "membership-epochs-attenuated-lineage",
+        "governed-agent-creation-termination",
+        "versioned-agent-simulation-interoperability"
+      ]
+    },
+    {
+      "id": "OBJ-04",
+      "title": "Autonomous compromise recovery",
+      "status": "closed",
+      "capabilityIds": [
+        "adversarial-context-fusion-local-credibility",
+        "mission-execution-continuity-compromise-recovery",
+        "autonomous-adaptation-local-replanning"
+      ]
+    },
+    {
+      "id": "OBJ-05",
+      "title": "Operational cognitive control",
+      "status": "closed",
+      "capabilityIds": [
+        "role-objective-context-drift-detection",
+        "inference-time-intervention",
+        "semantic-agility-governed-role-evolution"
+      ]
+    },
+    {
+      "id": "OBJ-06",
+      "title": "Statistical control coupled to coordination",
+      "status": "closed",
+      "capabilityIds": ["anytime-statistical-guarantees-coupled-planning"]
+    },
+    {
+      "id": "OBJ-07",
+      "title": "Heterogeneous agent/environment integration",
+      "status": "closed",
+      "capabilityIds": [
+        "heterogeneous-open-black-box-adapters",
+        "versioned-agent-simulation-interoperability"
+      ]
+    },
+    {
+      "id": "OBJ-08",
+      "title": "Causal observability and replay",
+      "status": "closed",
+      "capabilityIds": [
+        "durable-causal-delivery-catch-up",
+        "scale-safe-telemetry-executable-invariants"
+      ]
+    },
+    {
+      "id": "OBJ-09",
+      "title": "Scale-ready evaluation runtime",
+      "status": "closed",
+      "capabilityIds": [
+        "heterogeneous-open-black-box-adapters",
+        "versioned-agent-simulation-interoperability",
+        "scale-safe-telemetry-executable-invariants"
+      ]
+    },
+    {
+      "id": "OBJ-10",
+      "title": "Formal decentralized control model",
+      "status": "closed",
+      "capabilityIds": [
+        "autonomous-local-peer-host",
+        "decentralized-allocation-team-formation",
+        "sparse-adversarial-agreement",
+        "mission-execution-continuity-compromise-recovery",
+        "anytime-statistical-guarantees-coupled-planning",
+        "governed-agent-creation-termination",
+        "scale-safe-telemetry-executable-invariants"
+      ]
+    },
+    {
+      "id": "OBJ-11",
+      "title": "Transition and proposal work packages",
+      "status": "closed",
+      "capabilityIds": [
+        "autonomous-local-peer-host",
+        "sparse-peer-discovery-routing",
+        "durable-causal-delivery-catch-up",
+        "membership-epochs-attenuated-lineage",
+        "authenticated-rotation-aware-overlay-transport",
+        "distributed-mission-decomposition",
+        "decentralized-allocation-team-formation",
+        "sparse-adversarial-agreement",
+        "adversarial-context-fusion-local-credibility",
+        "mission-execution-continuity-compromise-recovery",
+        "autonomous-adaptation-local-replanning",
+        "role-objective-context-drift-detection",
+        "inference-time-intervention",
+        "heterogeneous-open-black-box-adapters",
+        "semantic-agility-governed-role-evolution",
+        "anytime-statistical-guarantees-coupled-planning",
+        "governed-agent-creation-termination",
+        "versioned-agent-simulation-interoperability",
+        "scale-safe-telemetry-executable-invariants"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "autonomous-local-peer-host",
+      "title": "Autonomous local peer host",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "sparse-peer-discovery-routing",
+      "title": "Sparse peer-to-peer discovery and routing",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "durable-causal-delivery-catch-up",
+      "title": "Durable causal delivery and catch-up",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "membership-epochs-attenuated-lineage",
+      "title": "Membership, epochs and attenuated lineage",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "authenticated-rotation-aware-overlay-transport",
+      "title": "Authenticated, rotation-aware overlay transport",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "distributed-mission-decomposition",
+      "title": "Distributed mission decomposition",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "decentralized-allocation-team-formation",
+      "title": "Decentralized allocation and team formation",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "sparse-adversarial-agreement",
+      "title": "Sparse adversarial agreement",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "adversarial-context-fusion-local-credibility",
+      "title": "Adversarial context fusion and local credibility",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "mission-execution-continuity-compromise-recovery",
+      "title": "Mission execution continuity and compromise recovery",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "autonomous-adaptation-local-replanning",
+      "title": "Autonomous adaptation and local replanning",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "role-objective-context-drift-detection",
+      "title": "Role, objective and context drift detection",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "inference-time-intervention",
+      "title": "Inference-time intervention",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "heterogeneous-open-black-box-adapters",
+      "title": "Heterogeneous open and black-box adapters",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "semantic-agility-governed-role-evolution",
+      "title": "Semantic agility and governed role evolution",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "anytime-statistical-guarantees-coupled-planning",
+      "title": "Anytime statistical guarantees coupled to planning",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "governed-agent-creation-termination",
+      "title": "Governed creation and termination of agents",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "versioned-agent-simulation-interoperability",
+      "title": "Versioned agent/simulation interoperability",
+      "status": "implemented-and-integrated"
+    },
+    {
+      "id": "scale-safe-telemetry-executable-invariants",
+      "title": "Scale-safe operation, telemetry and executable invariants",
+      "status": "implemented-and-integrated"
+    }
+  ],
+  "externalObligations": [
+    {
+      "id": "production-deployment",
+      "status": "external-pending"
+    },
+    {
+      "id": "empirical-performance",
+      "status": "external-pending"
+    },
+    {
+      "id": "operational-security-certification",
+      "status": "external-pending"
+    },
+    {
+      "id": "provider-selection",
+      "status": "external-pending"
+    },
+    {
+      "id": "cost-validation",
+      "status": "external-pending"
+    },
+    {
+      "id": "data-ip-rights",
+      "status": "external-pending"
+    }
+  ]
+}

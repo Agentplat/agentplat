@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_protocol_artifacts;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.collective_host_runtime_states;

@@ -4,6 +4,7 @@ export * from "./adapter-errors.js";
 export * from "./adapter-registry.js";
 export * from "./adapter-runtime.js";
 export * from "./adapter-store.js";
+export * from "./cognitive-adapter.js";
 export {
   assertStoredPortableSessionV1,
   jsonByteLength,
