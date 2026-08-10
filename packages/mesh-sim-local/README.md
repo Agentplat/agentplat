@@ -33,6 +33,14 @@ const executionStore =
   createLocalCollectiveStatisticalCampaignExecutionStoreV1(local);
 ```
 
+Protected local operations can additionally use
+`createLocalCollectiveStatisticalCampaignDeadlineArtifactWriterV1()`. It
+validates the trusted local clock before reading the artifact stream and again
+immediately before publishing the immutable logical binding. Content staged
+before an expiry but left without that binding is unreachable campaign
+evidence. This is a local-process deadline boundary, not a cross-host clock or
+distributed-transaction claim.
+
 The root must be private to the running OS user. Every fixed directory segment
 is rechecked on each operation; the store rejects symlink intrusion, content
 corruption, path escape and configured byte/file limits. Campaign and mutation
