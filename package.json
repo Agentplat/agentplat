@@ -65,7 +65,7 @@
     "evidence:empirical-campaign:execute-shard": "pnpm --filter @agentplat/collective-planning build && pnpm --filter @agentplat/mesh-sim build && pnpm --filter @agentplat/mesh-sim-local build && node scripts/empirical-study-campaign.mjs --mode execute-shard",
     "evidence:empirical-campaign:status": "node scripts/empirical-study-campaign.mjs --mode status",
     "evidence:empirical-campaign:collect": "pnpm --filter @agentplat/collective-planning build && pnpm --filter @agentplat/mesh-sim build && pnpm --filter @agentplat/mesh-sim-local build && node scripts/empirical-study-campaign.mjs --mode collect",
-    "verify:empirical-campaign-contract": "node scripts/empirical-study-campaign.mjs --mode contract-smoke",
+    "verify:empirical-campaign-contract": "pnpm --filter @agentplat/collective-planning build && pnpm --filter @agentplat/mesh-sim build && pnpm --filter @agentplat/mesh-sim-local build && node scripts/empirical-study-campaign.mjs --mode contract-smoke",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
     "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",
