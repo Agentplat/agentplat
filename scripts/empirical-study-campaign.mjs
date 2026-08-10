@@ -66,8 +66,9 @@ const JSON_LIMITS = Object.freeze({
   maximumItemsPerArray: 16_384,
 });
 
-const options = parseOptions(process.argv.slice(2));
+let options = Object.create(null);
 try {
+  options = parseOptions(process.argv.slice(2));
   if (options.mode === "plan") await plan();
   else if (options.mode === "authorize") await authorize();
   else if (options.mode === "execute-shard") await executeShard();
@@ -888,9 +889,10 @@ function csvCell(value) {
 
 function parseOptions(args) {
   const result = Object.create(null);
-  for (let index = 0; index < args.length; index += 2) {
-    const name = args[index];
-    const value = args[index + 1];
+  const values = args.filter((value) => value !== "--");
+  for (let index = 0; index < values.length; index += 2) {
+    const name = values[index];
+    const value = values[index + 1];
     if (
       !name?.startsWith("--") ||
       value === undefined ||
