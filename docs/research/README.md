@@ -15,6 +15,9 @@ organize that material for research communication.
   units, endpoints, estimands, units, directionality and missing-data rules.
 - [Research decision ledger V1](./research-decision-ledger-v1.md): decisions
   frozen before results and the evidence that future claims must cite.
+- [Local empirical execution package V2](./local-empirical-execution-package-v2.md):
+  registered adapter, signed authorization, shard resumption, immutable
+  evidence and paper-oriented result exports.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):

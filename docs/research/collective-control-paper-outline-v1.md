@@ -31,13 +31,13 @@ evidence package closes.
 
 ## Research questions
 
-| ID | Question | Registered hypotheses |
-| --- | --- | --- |
-| RQ1 | Does bounded-degree coordination remain within the registered sparse communication and state envelope as the collective grows? | H1 |
-| RQ2 | Does the collective preserve useful progress under localized disruption without violating protected-effect safety? | H2, H5 |
-| RQ3 | How does recovery work scale with affected scopes, replicas and total collective size? | H3 |
-| RQ4 | What safety/utility tradeoff is introduced by semantic-horizon intervention? | H4 |
-| RQ5 | Under the fairness contract, how do mission outcomes compare with a centralized planner? | H2 and registered paired-success analysis |
+| ID  | Question                                                                                                                       | Registered hypotheses                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| RQ1 | Does bounded-degree coordination remain within the registered sparse communication and state envelope as the collective grows? | H1                                        |
+| RQ2 | Does the collective preserve useful progress under localized disruption without violating protected-effect safety?             | H2, H5                                    |
+| RQ3 | How does recovery work scale with affected scopes, replicas and total collective size?                                         | H3                                        |
+| RQ4 | What safety/utility tradeoff is introduced by semantic-horizon intervention?                                                   | H4                                        |
+| RQ5 | Under the fairness contract, how do mission outcomes compare with a centralized planner?                                       | H2 and registered paired-success analysis |
 
 ## Candidate contributions
 
@@ -56,6 +56,11 @@ accurate citations to code and artifacts:
 
 The first four are design or reproducibility contributions. The fifth is not a
 contribution until measurements exist.
+
+The executable study package and its artifact topology are specified in
+[Local empirical execution package V2](./local-empirical-execution-package-v2.md).
+Its collection outputs should populate the planned tables without manual
+transcription from logs.
 
 ## Methods structure
 
@@ -87,26 +92,26 @@ kept outside the confirmatory decision.
 
 ## Planned tables
 
-| Table | Content | Availability |
-| --- | --- | --- |
-| T1 | Architecture components, authority boundaries and assumptions | Source-complete |
-| T2 | Treatment fairness and information-access matrix | Source-complete |
-| T3 | Scale/stratum/seed design and interaction ceilings | Preregistered |
-| T4 | Per-stratum success, intervals, missing and invalid samples | Pending execution |
-| T5 | Paired treatment deltas and multiplicity-adjusted decisions | Pending execution |
-| T6 | Recovery, communication, coherence, safe-stop and cost outcomes | Pending execution |
-| T7 | Safety violations and exact-replay closure | Pending execution |
+| Table | Content                                                         | Availability      |
+| ----- | --------------------------------------------------------------- | ----------------- |
+| T1    | Architecture components, authority boundaries and assumptions   | Source-complete   |
+| T2    | Treatment fairness and information-access matrix                | Source-complete   |
+| T3    | Scale/stratum/seed design and interaction ceilings              | Preregistered     |
+| T4    | Per-stratum success, intervals, missing and invalid samples     | Pending execution |
+| T5    | Paired treatment deltas and multiplicity-adjusted decisions     | Pending execution |
+| T6    | Recovery, communication, coherence, safe-stop and cost outcomes | Pending execution |
+| T7    | Safety violations and exact-replay closure                      | Pending execution |
 
 ## Planned figures
 
-| Figure | Intended visualization | Claim limitation |
-| --- | --- | --- |
-| F1 | Architecture and pre-effect authority flow | Design only |
-| F2 | Registered study topology, treatments and hidden monitor | Methods only |
-| F3 | Delivered interactions and retained state versus collective size | Finite-range evidence, not asymptotic proof |
-| F4 | Paired mission-outcome differences by stratum | Registered samples only |
-| F5 | Recovery distribution after disruption | Declared fault model only |
-| F6 | Useful decisions, replanning and safe stops | Must show safety and utility together |
+| Figure | Intended visualization                                           | Claim limitation                            |
+| ------ | ---------------------------------------------------------------- | ------------------------------------------- |
+| F1     | Architecture and pre-effect authority flow                       | Design only                                 |
+| F2     | Registered study topology, treatments and hidden monitor         | Methods only                                |
+| F3     | Delivered interactions and retained state versus collective size | Finite-range evidence, not asymptotic proof |
+| F4     | Paired mission-outcome differences by stratum                    | Registered samples only                     |
+| F5     | Recovery distribution after disruption                           | Declared fault model only                   |
+| F6     | Useful decisions, replanning and safe stops                      | Must show safety and utility together       |
 
 ## Results writing rules
 

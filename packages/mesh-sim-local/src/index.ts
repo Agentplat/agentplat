@@ -15,6 +15,7 @@ import type {
   CollectiveStatisticalCampaignArtifactIndexEntryV1,
   CollectiveStatisticalCampaignArtifactReaderV1,
   CollectiveStatisticalCampaignArtifactWriterV1,
+  CollectiveStatisticalCampaignDeadlineArtifactWriterV1,
   CollectiveStatisticalCampaignExecutionArtifactsV1,
   CollectiveStatisticalCampaignFencedExecutionStoreV1,
   CollectiveStatisticalCampaignExecutionStoreV1,
@@ -196,73 +197,134 @@ export function createLocalCollectiveStatisticalCampaignArtifactWriterV1(
     fail("local artifact store is invalid");
   return Object.freeze({
     schemaVersion: 1 as const,
-    async putArtifactV1(
+    putArtifactV1: (
       input: Parameters<
         CollectiveStatisticalCampaignArtifactWriterV1["putArtifactV1"]
       >[0],
-    ) {
+    ) => putLocalArtifactV1(store, input),
+  });
+}
+
+/**
+ * Creates the trusted-clock writer required by protected local operations.
+ * Bytes may be staged in the content-addressed store before expiry, but the
+ * logical artifact binding is checked and committed only while authorization
+ * remains active. Unbound content is unreachable campaign evidence.
+ */
+export function createLocalCollectiveStatisticalCampaignDeadlineArtifactWriterV1(
+  store: CollectiveStatisticalCampaignLocalStoreV1,
+  clockSource: () => number = Date.now,
+): CollectiveStatisticalCampaignDeadlineArtifactWriterV1 {
+  if (!store || typeof store !== "object")
+    fail("local artifact store is invalid");
+  if (typeof clockSource !== "function") fail("clock must be a function");
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    putArtifactV1: (
+      input: Parameters<
+        CollectiveStatisticalCampaignArtifactWriterV1["putArtifactV1"]
+      >[0],
+    ) => putLocalArtifactV1(store, input),
+    putArtifactBeforeDeadlineV1: async (
+      input: Parameters<
+        CollectiveStatisticalCampaignDeadlineArtifactWriterV1["putArtifactBeforeDeadlineV1"]
+      >[0],
+    ) => {
       exactObject(
         input,
-        ["artifactId", "bytes", "kind", "maximumBytes"],
-        "artifact stream write",
+        ["artifactId", "bytes", "kind", "maximumBytes", "operationExpiresAtMs"],
+        "deadline artifact stream write",
       );
-      assertToken(input.artifactId, "artifactId");
-      if (input.artifactId.length > 256)
-        fail("artifact stream artifactId is invalid");
-      if (
-        !Number.isSafeInteger(input.maximumBytes) ||
-        input.maximumBytes < 1 ||
-        input.maximumBytes >
-          COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1
-      )
-        fail("artifact stream maximumBytes is invalid");
-      const bytes = await collectArtifactStreamV1(
-        input.bytes,
-        input.maximumBytes,
+      assertActiveDeadlineV1(input.operationExpiresAtMs, clockSource);
+      return putLocalArtifactV1(
+        store,
+        {
+          artifactId: input.artifactId,
+          bytes: input.bytes,
+          kind: input.kind,
+          maximumBytes: input.maximumBytes,
+        },
+        () => assertActiveDeadlineV1(input.operationExpiresAtMs, clockSource),
       );
-      let value: unknown;
-      try {
-        value = JSON.parse(
-          new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-        );
-      } catch {
-        fail("artifact stream is not valid UTF-8 JSON");
-      }
-      const canonicalDigest = digestCollectiveStatisticalCampaignArtifactV1(
-        input.kind,
-        value as never,
-      );
-      const stored = await store.putArtifactV1(bytes);
-      const entry = Object.freeze({
-        schemaVersion: 1 as const,
-        artifactId: input.artifactId,
-        kind: input.kind,
-        path: `artifacts/sha256/${stored.sha256}.json`,
-        byteLength: stored.byteLength,
-        sha256: stored.sha256,
-        canonicalDigest,
-      });
-      // Commit the full semantic binding, not just the content hash. This
-      // prevents the same logical ID and bytes from being reclassified under
-      // a different artifact kind or digest domain.
-      const binding = await store.putArtifactV1(
-        JSON.stringify({
-          schemaVersion: 1,
-          artifactId: entry.artifactId,
-          kind: entry.kind,
-          path: entry.path,
-          byteLength: entry.byteLength,
-          sha256: entry.sha256,
-          canonicalDigest: entry.canonicalDigest,
-        }),
-      );
-      await store.commitSlotV1({
-        runKey: artifactRunKeyV1(input.artifactId),
-        artifactSha256: [binding.sha256],
-      });
-      return entry;
     },
   });
+}
+
+async function putLocalArtifactV1(
+  store: CollectiveStatisticalCampaignLocalStoreV1,
+  input: Parameters<
+    CollectiveStatisticalCampaignArtifactWriterV1["putArtifactV1"]
+  >[0],
+  beforeLogicalCommit: () => void = () => undefined,
+): Promise<CollectiveStatisticalCampaignArtifactIndexEntryV1> {
+  exactObject(
+    input,
+    ["artifactId", "bytes", "kind", "maximumBytes"],
+    "artifact stream write",
+  );
+  assertToken(input.artifactId, "artifactId");
+  if (input.artifactId.length > 256)
+    fail("artifact stream artifactId is invalid");
+  if (
+    !Number.isSafeInteger(input.maximumBytes) ||
+    input.maximumBytes < 1 ||
+    input.maximumBytes >
+      COLLECTIVE_STATISTICAL_CAMPAIGN_MAXIMUM_ARTIFACT_BYTES_V1
+  )
+    fail("artifact stream maximumBytes is invalid");
+  const bytes = await collectArtifactStreamV1(input.bytes, input.maximumBytes);
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch {
+    fail("artifact stream is not valid UTF-8 JSON");
+  }
+  const canonicalDigest = digestCollectiveStatisticalCampaignArtifactV1(
+    input.kind,
+    value as never,
+  );
+  const stored = await store.putArtifactV1(bytes);
+  const entry = Object.freeze({
+    schemaVersion: 1 as const,
+    artifactId: input.artifactId,
+    kind: input.kind,
+    path: `artifacts/sha256/${stored.sha256}.json`,
+    byteLength: stored.byteLength,
+    sha256: stored.sha256,
+    canonicalDigest,
+  });
+  const binding = await store.putArtifactV1(
+    JSON.stringify({
+      schemaVersion: 1,
+      artifactId: entry.artifactId,
+      kind: entry.kind,
+      path: entry.path,
+      byteLength: entry.byteLength,
+      sha256: entry.sha256,
+      canonicalDigest: entry.canonicalDigest,
+    }),
+  );
+  beforeLogicalCommit();
+  await store.commitSlotV1({
+    runKey: artifactRunKeyV1(input.artifactId),
+    artifactSha256: [binding.sha256],
+  });
+  return entry;
+}
+
+function assertActiveDeadlineV1(
+  operationExpiresAtMs: number,
+  clockSource: () => number,
+): void {
+  const current = clockSource();
+  if (
+    !Number.isSafeInteger(operationExpiresAtMs) ||
+    operationExpiresAtMs < 0 ||
+    !Number.isSafeInteger(current) ||
+    current < 0 ||
+    current >= operationExpiresAtMs
+  )
+    fail("artifact stream operation deadline expired");
 }
 
 /**

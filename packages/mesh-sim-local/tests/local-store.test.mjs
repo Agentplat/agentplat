@@ -16,6 +16,7 @@ import test from "node:test";
 import {
   createLocalCollectiveStatisticalCampaignArtifactReaderV1,
   createLocalCollectiveStatisticalCampaignArtifactWriterV1,
+  createLocalCollectiveStatisticalCampaignDeadlineArtifactWriterV1,
   createLocalCollectiveStatisticalCampaignExecutionStoreV1,
   openCollectiveStatisticalCampaignLocalStoreV1,
 } from "../dist/index.js";
@@ -139,6 +140,40 @@ test("logical artifact writer is idempotent but rejects same ID with different b
         maximumBytes: 1_024,
       }),
       /chunk is invalid/i,
+    );
+  });
+});
+
+test("deadline artifact writer never publishes an expired logical binding", async () => {
+  await withStore(async (root) => {
+    const local = await openCollectiveStatisticalCampaignLocalStoreV1({ root });
+    let now = 99;
+    const writer =
+      createLocalCollectiveStatisticalCampaignDeadlineArtifactWriterV1(
+        local,
+        () => now,
+      );
+    const active = await writer.putArtifactBeforeDeadlineV1({
+      artifactId: "artifact:before-deadline",
+      kind: "policy",
+      bytes: byteStream(JSON.stringify({ schemaVersion: 1, value: "active" })),
+      maximumBytes: 1_024,
+      operationExpiresAtMs: 100,
+    });
+    assert.equal(active.artifactId, "artifact:before-deadline");
+
+    now = 100;
+    await assert.rejects(
+      writer.putArtifactBeforeDeadlineV1({
+        artifactId: "artifact:at-deadline",
+        kind: "policy",
+        bytes: byteStream(
+          JSON.stringify({ schemaVersion: 1, value: "expired" }),
+        ),
+        maximumBytes: 1_024,
+        operationExpiresAtMs: 100,
+      }),
+      /deadline expired/i,
     );
   });
 });

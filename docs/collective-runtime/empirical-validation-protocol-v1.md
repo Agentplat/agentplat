@@ -28,9 +28,9 @@ and fault realization, run both treatments with the same public intent,
 initial distribution, partial observations, decision-response tape, resource
 budget, logical-time ceiling and protected-effect boundary:
 
-| Treatment | Description |
-| --- | --- |
-| `adaptive_collective` | Bounded-degree peers exchange admitted evidence, construct and revise local planning fragments, allocate work, recover and enforce the installed effect boundary. |
+| Treatment             | Description                                                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adaptive_collective` | Bounded-degree peers exchange admitted evidence, construct and revise local planning fragments, allocate work, recover and enforce the installed effect boundary.           |
 | `centralized_planner` | One planner uses the same admitted observations and decision outputs, but must pay the same accounted boundary interactions and has no hidden-state or future-fault access. |
 
 The hidden environment monitor owns terminal predicates, the full world state,
@@ -48,13 +48,13 @@ The following hypotheses correspond to the falsifiable claims in the
 [decentralized control model](./decentralized-control-model-v1.md). Each is
 conditional on the registered simulator, topology, workload and fault model.
 
-| ID | Hypothesis | Primary observation | Falsifier |
-| --- | --- | --- | --- |
-| H1 | With bounded local degree, collective communication and retained peer state grow below a complete-topology representation over the registered scale ladder. | Directed-edge, delivered-message and local-state ledgers at `N = 50, 100, 250, 500`. | A registered ladder point violates its sparse envelope or the accounting cannot be replayed. |
-| H2 | Under localized benign disruption, unaffected scopes retain useful progress without unsafe effects. | Success, partial success, safe-stop and invariant outcomes. | An authority, stale-fence, duplicate-effect or evaluation-integrity violation; or the registered success criterion is not met. |
-| H3 | Recovery cost follows affected scopes and required replicas more closely than total collective size. | Recovery/replanning interactions and time to a valid post-heal state. | Recovery exceeds the registered ceiling or the result is not reproducible. |
-| H4 | The semantic-horizon gate trades unsafe effect attempts for safe stops or replanning rather than hiding risk. | Unsafe-effect count, safe-stop count, replan count and useful-decision rate. | Unsafe executable decision, or a metric is omitted/renamed after registration. |
-| H5 | Agreement hardening prevents conflicting committed effects within its declared membership assumptions, while quorum loss produces explicit safe stops. | Finality, conflict, quorum-loss and monitor verdict records. | Any conflicting accepted commit or an unavailable quorum converted into an ordinary allow. |
+| ID  | Hypothesis                                                                                                                                                  | Primary observation                                                                  | Falsifier                                                                                                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| H1  | With bounded local degree, collective communication and retained peer state grow below a complete-topology representation over the registered scale ladder. | Directed-edge, delivered-message and local-state ledgers at `N = 50, 100, 250, 500`. | A registered ladder point violates its sparse envelope or the accounting cannot be replayed.                                   |
+| H2  | Under localized benign disruption, unaffected scopes retain useful progress without unsafe effects.                                                         | Success, partial success, safe-stop and invariant outcomes.                          | An authority, stale-fence, duplicate-effect or evaluation-integrity violation; or the registered success criterion is not met. |
+| H3  | Recovery cost follows affected scopes and required replicas more closely than total collective size.                                                        | Recovery/replanning interactions and time to a valid post-heal state.                | Recovery exceeds the registered ceiling or the result is not reproducible.                                                     |
+| H4  | The semantic-horizon gate trades unsafe effect attempts for safe stops or replanning rather than hiding risk.                                               | Unsafe-effect count, safe-stop count, replan count and useful-decision rate.         | Unsafe executable decision, or a metric is omitted/renamed after registration.                                                 |
+| H5  | Agreement hardening prevents conflicting committed effects within its declared membership assumptions, while quorum loss produces explicit safe stops.      | Finality, conflict, quorum-loss and monitor verdict records.                         | Any conflicting accepted commit or an unavailable quorum converted into an ordinary allow.                                     |
 
 H1--H5 are research hypotheses, not acceptance claims. Null, negative and
 inconclusive outcomes are retained and reported.
@@ -64,14 +64,14 @@ inconclusive outcomes are retained and reported.
 The fixed normative ladder has four sizes and four strata. Seeds are paired
 across treatments and exact replay runs are required for each selected sample.
 
-| Factor | Registered values |
-| --- | --- |
-| Collective size | 50, 100, 250, 500 logical agents |
-| Stratum | nominal, benign, adversarial, mixed |
-| Topology | directed ring plus seed-derived unique neighbors; `N × ceil(log2(N))` directed edges |
-| Paired seeds per stratum | 10 at 50/100/250; 30 at 500 |
-| Executions per paired seed | collective, centralized, collective replay, centralized replay |
-| Interaction ceilings | 1,000; 1,600; 3,000; 5,000 respectively |
+| Factor                     | Registered values                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| Collective size            | 50, 100, 250, 500 logical agents                                                     |
+| Stratum                    | nominal, benign, adversarial, mixed                                                  |
+| Topology                   | directed ring plus seed-derived unique neighbors; `N × ceil(log2(N))` directed edges |
+| Paired seeds per stratum   | 10 at 50/100/250; 30 at 500                                                          |
+| Executions per paired seed | collective, centralized, collective replay, centralized replay                       |
+| Interaction ceilings       | 1,000; 1,600; 3,000; 5,000 respectively                                              |
 
 The full design contains 240 paired seeds and 960 executions. The exact seed
 list, source commit, package versions, fixtures, policy, environment, monitor,
@@ -112,13 +112,13 @@ No cloud service, hosted model or production adapter is necessary for the first
 two stages. The recorded-response/simulator path must be used until a separate
 budget and data-governance decision authorizes any provider-backed experiment.
 
-| Stage | Purpose | Execution scope | Incremental infrastructure cost |
-| --- | --- | --- | --- |
-| 0 | Freeze protocol and evidence identity | This document, release attestation and exact source commitments | $0 |
-| 1 | Local reproducibility pilot | One 50-agent nominal paired seed plus exact replays, run on an operator workstation | $0 |
-| 2 | Local fault pilot | One 50-agent seed for each closed stratum, with all failures retained | $0 |
-| 3 | Public diagnostic only | Bounded 50/100-agent diagnostic workflow using standard GitHub-hosted runners | $0 for a public repository using standard runners |
-| 4 | Normative study | Full registered 240-pair/960-execution ladder with a registered adapter | Requires an explicit budget, environment and operator authorization |
+| Stage | Purpose                               | Execution scope                                                                     | Incremental infrastructure cost                                     |
+| ----- | ------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 0     | Freeze protocol and evidence identity | This document, release attestation and exact source commitments                     | $0                                                                  |
+| 1     | Local reproducibility pilot           | One 50-agent nominal paired seed plus exact replays, run on an operator workstation | $0                                                                  |
+| 2     | Local fault pilot                     | One 50-agent seed for each closed stratum, with all failures retained               | $0                                                                  |
+| 3     | Public diagnostic only                | Bounded 50/100-agent diagnostic workflow using standard GitHub-hosted runners       | $0 for a public repository using standard runners                   |
+| 4     | Normative study                       | Full registered 240-pair/960-execution ladder with a registered adapter             | Requires an explicit budget, environment and operator authorization |
 
 Stages 1--3 are feasibility and reproducibility evidence, not a substitute for
 the full normative study. Stage 4 must not start merely because a preceding
@@ -232,7 +232,7 @@ pnpm run evidence:empirical-results-template -- \
   --public-key /trusted/agentplat-release-ed25519-public.pem
 ```
 
-The CLI intentionally has no experiment execution mode.
+The V1 preregistration CLI intentionally has no experiment execution mode.
 
 ## 12. Paper preparation records
 
@@ -241,3 +241,29 @@ data dictionary and pre-results decision ledger. Those documents preserve
 paper-relevant context that is not appropriate inside the executable protocol,
 including planned figures/tables, wording constraints, endpoint semantics,
 authorship placeholders and threats-to-validity prompts.
+
+## 13. Registered local execution V2
+
+The V2 registration binds the real registered reference adapter, independent
+metric projector, local immutable store, 48-shard operation plan and aggregation
+seed. Planning still grants no execution authority:
+
+```sh
+pnpm run evidence:empirical-preregistration:plan-v2 -- \
+  --campaign-id paper-study-v2 \
+  --source-sha COMMIT_SHA \
+  --output-directory /absolute/external/preregistration-v2
+```
+
+V2 uses the same attestation and verification commands as V1, with
+`scientific-registration-v2.json` as the registration input. A separate
+operator signature may later authorize an explicit, strictly increasing subset
+of shard indexes. Execution accepts exactly one authorized shard per command;
+there is no implicit run-all operation. The full command and artifact contract
+is documented in the [local empirical execution package
+V2](../research/local-empirical-execution-package-v2.md).
+
+Collection requires exact closure over shard indexes `0..47` and all 960
+evaluator projections. It produces machine-readable rows, registered analysis,
+CSV and table-source files but retains `empiricalClaimPermitted: false` until a
+responsible author reviews the evidence and writes an interpretation.
