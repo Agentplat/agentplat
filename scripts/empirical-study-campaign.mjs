@@ -59,11 +59,11 @@ const PROJECTIONS_PER_SHARD = 20;
 const EXPECTED_PROJECTIONS = 960;
 const AGGREGATION_SEED = 20_260_810;
 const JSON_LIMITS = Object.freeze({
-  maximumBytes: 256 * 1024 * 1024,
+  maximumBytes: 16 * 1024 * 1024,
   maximumDepth: 64,
-  maximumNodes: 4_000_000,
+  maximumNodes: 1_000_000,
   maximumKeysPerObject: 4_096,
-  maximumItemsPerArray: 100_000,
+  maximumItemsPerArray: 16_384,
 });
 
 const options = parseOptions(process.argv.slice(2));
