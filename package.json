@@ -54,6 +54,11 @@
     "verify:capability-source-attestation": "pnpm --filter @agentplat/collective-planning build && node scripts/collective-capability-evidence.mjs --mode verify",
     "preflight:capability-source-kms": "node scripts/collective-capability-evidence.mjs --mode kms-preflight",
     "export:capability-source-kms-public-key": "node scripts/collective-capability-evidence.mjs --mode kms-public-key",
+    "evidence:empirical-preregistration:plan": "pnpm --filter @agentplat/collective-planning build && node scripts/empirical-study-preregistration.mjs --mode plan",
+    "evidence:empirical-preregistration:attest": "node scripts/empirical-study-preregistration.mjs --mode attest",
+    "verify:empirical-preregistration": "node scripts/empirical-study-preregistration.mjs --mode verify",
+    "evidence:empirical-results-template": "node scripts/empirical-study-preregistration.mjs --mode results-template",
+    "verify:empirical-preregistration-contract": "node scripts/empirical-study-preregistration.mjs --mode contract-smoke",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
     "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",
@@ -86,7 +91,7 @@
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run verify:empirical-preregistration-contract && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

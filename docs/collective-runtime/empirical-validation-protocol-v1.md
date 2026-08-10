@@ -186,3 +186,58 @@ results from architecture assumptions, local conformance and source evidence.
 
 No abstract, conclusion or figure may claim a result until the corresponding
 registered evidence exists.
+
+## 11. Executable preregistration
+
+The repository provides a planning-only command that wraps the existing
+normative operation plan and binds it to this protocol. It writes all artifacts
+outside the checkout and always records `executionPermitted: false`:
+
+```sh
+pnpm run evidence:empirical-preregistration:plan -- \
+  --campaign-id paper-study-v1 \
+  --source-sha COMMIT_SHA \
+  --output-directory /absolute/external/preregistration
+```
+
+The resulting `scientific-registration.json` can be signed with the managed
+release KMS identity. The signing action does not execute a campaign:
+
+```sh
+pnpm run evidence:empirical-preregistration:attest -- \
+  --registration /absolute/external/preregistration/scientific-registration.json \
+  --output /absolute/external/preregistration/scientific-registration-attestation.json \
+  --issuer-id agentplat-release \
+  --kms-key-id alias/agentplat-release-attestation-v1 \
+  --aws-profile grishen \
+  --aws-region us-east-1
+```
+
+An external reviewer verifies the signature with the published PEM key and can
+then create a results skeleton whose initial state is `not_executed` and whose
+empirical claim permission is false:
+
+```sh
+pnpm run verify:empirical-preregistration -- \
+  --attestation /absolute/external/preregistration/scientific-registration-attestation.json \
+  --issuer-id agentplat-release \
+  --key-id CANONICAL_KMS_KEY_ARN \
+  --public-key /trusted/agentplat-release-ed25519-public.pem
+
+pnpm run evidence:empirical-results-template -- \
+  --attestation /absolute/external/preregistration/scientific-registration-attestation.json \
+  --output /absolute/external/preregistration/results-template.json \
+  --issuer-id agentplat-release \
+  --key-id CANONICAL_KMS_KEY_ARN \
+  --public-key /trusted/agentplat-release-ed25519-public.pem
+```
+
+The CLI intentionally has no experiment execution mode.
+
+## 12. Paper preparation records
+
+The [research package index](../research/README.md) links a manuscript outline,
+data dictionary and pre-results decision ledger. Those documents preserve
+paper-relevant context that is not appropriate inside the executable protocol,
+including planned figures/tables, wording constraints, endpoint semantics,
+authorship placeholders and threats-to-validity prompts.
