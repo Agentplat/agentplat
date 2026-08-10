@@ -29,6 +29,7 @@ an empirical claim; interpretation remains a human-authored paper step.
 | Local execution store       | `@agentplat/mesh-sim-local`                                          | Persists revision-CAS state, leases and immutable slot commits outside the checkout.             |
 | Deadline artifact writer    | `createLocalCollectiveStatisticalCampaignDeadlineArtifactWriterV1()` | Rechecks authorization time immediately before publishing a logical artifact binding.            |
 | Campaign control CLI        | `scripts/empirical-study-campaign.mjs`                               | Plans, authorizes, executes one shard, reports closure and collects results.                     |
+| Durable campaign supervisor | `scripts/empirical-study-supervisor.mjs`                             | Runs authorized shards sequentially outside the starting terminal and maintains a paper report.  |
 | Preregistration V2          | `scripts/empirical-study-preregistration.mjs --mode plan-v2`         | Binds the registered adapter and deterministic aggregation seed before authorization or results. |
 
 The local adapter makes no cross-host coordination, managed-service,
@@ -49,6 +50,11 @@ There is no implicit run-all command. `execute-shard` accepts one shard index
 and requires the exact `RUN_LOCAL_REGISTERED_SHARD` confirmation plus an active
 signed authorization that contains that shard. Operational automation may call
 the command repeatedly, but each call remains independently bounded.
+
+The [durable local campaign supervisor](./durable-local-campaign-supervisor-v1.md)
+provides that automation without weakening the one-shard boundary. Pause and
+stop requests take effect at shard boundaries; a failed shard stops the
+supervisor rather than being silently skipped.
 
 ## Resumption and interruption semantics
 
@@ -139,6 +145,7 @@ must still report:
 - the exact source and registration digests;
 - hardware and Node.js runtime metadata;
 - elapsed time and locally measured resource use;
+- the hash-chained supervisor journal and generated execution report;
 - any deviation under a separately identified amended registration; and
 - adversarial and mixed strata as bounded safety/recovery observations, not an
   unqualified superiority claim.
