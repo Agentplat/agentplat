@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   assertStateEventAnchorV1,
   createSupervisorEventV1,
+  isSupervisorDigestV1,
   renderExecutionReportV1,
   validateEventChainV1,
 } from "./empirical-study-supervisor.mjs";
@@ -75,6 +76,16 @@ test("rejects an event-log prefix when durable state anchors a later event", () 
     () => assertStateEventAnchorV1({ lastEventDigest: second.eventDigest }, [first]),
     /empirical_supervisor_event_log_truncated/,
   );
+});
+
+test("accepts the exact sha256 digest format written into durable state", () => {
+  const digest = event(0, null, "supervisor_started", {
+    recovered: false,
+  }).eventDigest;
+
+  assert.equal(isSupervisorDigestV1(digest), true);
+  assert.equal(isSupervisorDigestV1(digest.slice("sha256:".length)), false);
+  assert.equal(isSupervisorDigestV1("sha256:not-a-digest"), false);
 });
 
 test("renders paper-oriented closure, environment and interruption metadata", () => {
