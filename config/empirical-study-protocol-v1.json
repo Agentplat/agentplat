@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-empirical-study-protocol-v1",
+  "protocolId": "agentplat-collective-control-empirical-study-v1",
+  "title": "Finite-range evaluation of bounded collective control",
+  "researchQuestion": "Under equivalent partial information, resource ceilings and fault realizations, how does bounded collective control compare with a fairness-constrained centralized planner?",
+  "treatments": [
+    "adaptive_collective",
+    "centralized_planner"
+  ],
+  "scales": [
+    50,
+    100,
+    250,
+    500
+  ],
+  "strata": [
+    "nominal",
+    "benign",
+    "adversarial",
+    "mixed"
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "With bounded local degree, collective communication and retained peer state grow below a complete-topology representation over the registered scale ladder.",
+      "primaryEndpointIds": [
+        "sparse_growth"
+      ]
+    },
+    {
+      "id": "H2",
+      "statement": "Under localized benign disruption, unaffected scopes retain useful progress without unsafe effects.",
+      "primaryEndpointIds": [
+        "mission_success",
+        "protected_effect_safety"
+      ]
+    },
+    {
+      "id": "H3",
+      "statement": "Recovery cost follows affected scopes and required replicas more closely than total collective size.",
+      "primaryEndpointIds": [
+        "recovery_interactions"
+      ]
+    },
+    {
+      "id": "H4",
+      "statement": "The semantic-horizon gate trades unsafe effect attempts for explicit safe stops or replanning rather than hiding risk.",
+      "primaryEndpointIds": [
+        "semantic_horizon_outcomes",
+        "useful_decision_rate"
+      ]
+    },
+    {
+      "id": "H5",
+      "statement": "Agreement hardening prevents conflicting committed effects within declared membership assumptions, while quorum loss produces explicit safe stops.",
+      "primaryEndpointIds": [
+        "agreement_safety"
+      ]
+    }
+  ],
+  "primaryEndpoints": [
+    "sparse_growth",
+    "mission_success",
+    "protected_effect_safety",
+    "recovery_interactions",
+    "semantic_horizon_outcomes",
+    "useful_decision_rate",
+    "agreement_safety"
+  ],
+  "analysisPolicy": {
+    "nominalWilsonLowerBound": 0.95,
+    "benignWilsonLowerBound": 0.9,
+    "pairedSuccessLowerMargin": -0.05,
+    "bootstrapResamples": 10000,
+    "familywiseMethod": "holm",
+    "familywiseAlpha": 0.05,
+    "benignRecoveryP95MaximumInteractions": 250,
+    "roleCoherenceDecisionCount": 1000,
+    "minimumUsefulDecisionRate": 0.7,
+    "maximumSafetyViolations": 0
+  },
+  "budgetPolicy": {
+    "currency": "USD",
+    "maximumExternalSpend": 0,
+    "paidModelCallsPermitted": false,
+    "cloudComputePermitted": false,
+    "managedDatabasePermitted": false,
+    "dataEgressSpendPermitted": false
+  },
+  "claimBoundary": {
+    "sourceDevelopmentClaimPermitted": true,
+    "empiricalResultClaimPermitted": false,
+    "productionReadinessClaimPermitted": false,
+    "securityCertificationClaimPermitted": false,
+    "deploymentAuthorityGranted": false
+  },
+  "protocolDocument": "docs/collective-runtime/empirical-validation-protocol-v1.md"
+}
