@@ -233,3 +233,11 @@ pnpm run evidence:empirical-results-template -- \
 ```
 
 The CLI intentionally has no experiment execution mode.
+
+## 12. Paper preparation records
+
+The [research package index](../research/README.md) links a manuscript outline,
+data dictionary and pre-results decision ledger. Those documents preserve
+paper-relevant context that is not appropriate inside the executable protocol,
+including planned figures/tables, wording constraints, endpoint semantics,
+authorship placeholders and threats-to-validity prompts.
