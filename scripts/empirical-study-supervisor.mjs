@@ -1008,7 +1008,7 @@ async function loadState(supervisorDirectory, config) {
     ) ||
     !(
       state.lastEventDigest === null ||
-      /^[0-9a-f]{64}$/u.test(state.lastEventDigest)
+      isSupervisorDigestV1(state.lastEventDigest)
     ) ||
     !Number.isSafeInteger(state.lastControlRevision) ||
     state.lastControlRevision < 0
@@ -1395,6 +1395,10 @@ function canonicalJson(value) {
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
     .join(",")}}`;
+}
+
+export function isSupervisorDigestV1(value) {
+  return typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value);
 }
 
 function digest(scope, value) {
