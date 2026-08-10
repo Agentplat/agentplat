@@ -90,6 +90,13 @@ coherence and zero-tolerance safety endpoints exactly as preregistered. Do not
 introduce post-hoc primary endpoints. Exploratory analyses must be labeled and
 kept outside the confirmatory decision.
 
+### Execution provenance
+
+Report the durable supervisor configuration digest, hash-chained event journal,
+per-shard wall time and peak-memory samples, process recoveries, executed versus
+resumed slot counts and immutable shard receipt digests. Operational metadata
+must not replace evaluator-derived scientific endpoints.
+
 ## Planned tables
 
 | Table | Content                                                         | Availability      |
@@ -137,7 +144,8 @@ global information or different quorum assumptions are preferable.
 The final statement should identify the public source commit, release tag,
 source-attestation bundle, scientific-registration digest, KMS public-key
 fingerprint, exact registrations, result artifacts, analysis implementation
-and any material that cannot be published with a reason.
+and supervisor execution report, plus any material that cannot be published
+with a reason.
 
 ## Metadata still requiring human decisions
 
