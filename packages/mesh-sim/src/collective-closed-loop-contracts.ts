@@ -153,6 +153,12 @@ const runBodyKeys = Object.freeze([
 const runKeys = Object.freeze([...runBodyKeys, "runDigest"] as const);
 const digestPattern = /^sha256:[0-9a-f]{64}$/u;
 const tokenPattern = /^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/u;
+// Keep the public definition contract aligned with the closed-loop runtime and
+// registered campaign, both of which support deterministic runs through 500
+// peers. Neighbor validation must allow a fully connected owner at that scale.
+const MINIMUM_PEERS = 3;
+const MAXIMUM_PEERS = 500;
+const MAXIMUM_NEIGHBORS = MAXIMUM_PEERS - 1;
 
 function exact(
   value: unknown,
@@ -266,7 +272,7 @@ function validatePeer(value: unknown): CollectiveClosedLoopPeerV1 {
   const neighborPeerIds = sortedStrings(
     value.neighborPeerIds,
     "neighborPeerIds",
-    99,
+    MAXIMUM_NEIGHBORS,
   );
   if (neighborPeerIds.includes(value.peerId))
     throw new TypeError("a peer may not be its own neighbor");
@@ -303,7 +309,10 @@ function normalizedDefinitionBody(
   const selectionPolicy = validatePlanSelectionPolicyV1(value.selectionPolicy);
   const mandate = validateDelegationMandateV1(value.mandate);
   denseArray(value.peers, "peers");
-  if (value.peers.length < 3 || value.peers.length > 100)
+  if (
+    value.peers.length < MINIMUM_PEERS ||
+    value.peers.length > MAXIMUM_PEERS
+  )
     throw new TypeError("closed-loop peer count is invalid");
   const peers = value.peers.map(validatePeer);
   safeInteger(value.maximumLogicalTimeMs, "maximumLogicalTimeMs", 1);
