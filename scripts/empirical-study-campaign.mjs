@@ -54,6 +54,10 @@ const EXECUTE_CONFIRMATION = "RUN_LOCAL_REGISTERED_SHARD";
 const COLLECT_CONFIRMATION = "COLLECT_REGISTERED_240X4";
 const AUTHORIZATION_AUDIENCE = "agentplat:local-empirical-campaign-v1";
 const EXPECTED_SHARDS = 48;
+// A cell contains four complete registered executions.  Five minutes is not
+// sufficient for the largest resilient cells on a constrained local machine;
+// keep a finite, recovery-safe fence that covers the measured worst case.
+const LOCAL_CELL_LEASE_DURATION_MS = 30 * 60 * 1_000;
 const CELLS_PER_SHARD = 5;
 const PROJECTIONS_PER_SHARD = 20;
 const EXPECTED_PROJECTIONS = 960;
@@ -387,7 +391,7 @@ async function executeShard() {
       },
       shardIndex,
       workerId: tokenOption("worker-id"),
-      leaseDurationMs: 5 * 60 * 1_000,
+      leaseDurationMs: LOCAL_CELL_LEASE_DURATION_MS,
       store: executionStore,
       artifacts: artifactWriter,
       adapterResolver: resolver,
