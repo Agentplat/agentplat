@@ -374,6 +374,16 @@ async function executeShard() {
   const campaignLock = await local.acquireCampaignLockV1(
     `empirical:${trusted.authorization.authorizationDigest}`,
   );
+  // A supervisor can be interrupted while a shard owns the exclusive local
+  // campaign lock.  Do not let SIGTERM tear down the process immediately:
+  // finish the fenced operation, release the lock in `finally`, and report a
+  // recoverable interruption.  This preserves immutable slot evidence and
+  // lets a later supervisor resume without breaking a lock automatically.
+  let terminationSignal = null;
+  const noteTermination = (signal) => {
+    terminationSignal ??= signal;
+  };
+  process.once("SIGTERM", noteTermination);
   let result;
   try {
     result = await runCollectiveStatisticalCampaignNormativeOperationV1({
@@ -399,7 +409,10 @@ async function executeShard() {
     });
   } finally {
     await campaignLock.release();
+    process.off("SIGTERM", noteTermination);
   }
+  if (terminationSignal !== null)
+    fail("empirical_campaign_interrupted_after_lock_release");
   const verification =
     await verifyCollectiveStatisticalCampaignArtifactStreamV1({
       schemaVersion: 1,
