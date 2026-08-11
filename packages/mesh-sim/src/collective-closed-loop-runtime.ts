@@ -94,8 +94,10 @@ import { collectiveTraceJournalForOwnerV2 } from './collective-trace-journal.js'
 import { assertCollectiveEffectReceiptProvenanceV1 } from './collective-effect-provenance.js';
 
 const MINIMUM_PEERS = 3;
-const MAXIMUM_PEERS = 100;
-const MAXIMUM_NEIGHBORS = 99;
+// Keep the runtime admission bound aligned with the public reference scenario
+// and registered empirical campaign, which both support scales through 500.
+const MAXIMUM_PEERS = 500;
+const MAXIMUM_NEIGHBORS = MAXIMUM_PEERS - 1;
 const MAXIMUM_RECIPIENTS = 32;
 const MAXIMUM_INTERACTIONS = 5_000;
 const WIRE_VERSION = 0 as const;

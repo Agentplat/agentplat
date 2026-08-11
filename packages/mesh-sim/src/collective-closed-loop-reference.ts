@@ -1406,7 +1406,9 @@ function missionIntentFor(
       maximumProposalBytes: 16_384,
       maximumSnapshotBytes: 131_072,
       maximumTraceBytes: 131_072,
-      maximumTotalPlanningBudgetUnits: 1_000,
+      // The equal-subject shard policy must fund the fixed 10-unit proposal
+      // for every supported peer at the largest registered scale.
+      maximumTotalPlanningBudgetUnits: MAXIMUM_PEERS * 10,
       maximumFragmentBudgetUnits: 100,
       budgetShardPolicy: 'equal_mandate_subjects',
       maximumConcurrentProposals: 4,
