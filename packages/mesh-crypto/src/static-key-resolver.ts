@@ -9,7 +9,10 @@ import type {
   StaticMeshKeyResolverOptions,
 } from './contracts.js';
 
-const defaultMaximumRecords = 256;
+// The public closed-loop reference runtime supports deterministic campaigns
+// through 500 peers. Keep the default local key-resolver capacity aligned with
+// that admitted topology while retaining an explicit finite bound.
+const defaultMaximumRecords = 500;
 
 /**
  * Fixed, bounded key resolver with no callbacks, I/O or hidden network path.

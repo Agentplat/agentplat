@@ -1256,9 +1256,13 @@ function expectedRecoveryRecipients(
   if (policy === undefined) return undefined;
   const recipients = [
     proposal.ownerPeerId,
-    proposal.assigneePeerId,
     proposal.proposedAssigneePeerId,
     ...policy.recoveryWitnessPeerIds,
+    // The former assignee receives the takeover proposal so it can observe
+    // fencing, but it is not authorized to receive a vote or certificate.
+    ...(payload.type === "lease.takeover_proposal"
+      ? [proposal.assigneePeerId]
+      : []),
   ];
   return Object.freeze(
     [...new Set(recipients)]

@@ -38,10 +38,12 @@ const allowedSubscriptions = new Set<MeshAudienceTopic>([
 
 export const DEFAULT_MESH_DISCOVERY_LIMITS: Readonly<MeshDiscoveryLimits> =
   Object.freeze({
-    maximumAdmissions: 256,
+    // The public closed-loop reference runtime admits deterministic meshes
+    // through 500 peers; discovery defaults must accept that same topology.
+    maximumAdmissions: 500,
     maximumInstancesPerAdmission: 16,
-    maximumPeerCards: 256,
-    maximumPeerViews: 128,
+    maximumPeerCards: 500,
+    maximumPeerViews: 500,
     maximumPeerCardBytes: 65_536,
     maximumCapabilities: 2_048,
     maximumCapabilitiesPerPeer: 64,

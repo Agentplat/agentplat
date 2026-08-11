@@ -460,10 +460,27 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
     seed,
     maximumLogicalTimeMs: MAXIMUM_LOGICAL_TIME_MS,
   });
-  const replacementPeerId = nominalDefinition.peers.find(
-    (peer) =>
-      peer.peerId !== preflight.winnerPeerId && peer.peerId !== owner.peerId
-  )?.peerId;
+  // A recovery award must bind to a bid that the owner has already recorded.
+  // Choosing the next topology member works only when that peer happened to
+  // bid; select a distinct registered bidder instead.
+  const ownerState = preflight.meshStates[owner.peerId];
+  const eligibleBidders = new Set(
+    Object.values(ownerState?.allocation.bidHeads ?? {}).map(
+      (bid) => bid.bidderPeerId,
+    ),
+  );
+  const replacementPeerId =
+    ownerState?.objectives.objectives[
+      nominalDefinition.missionIntent.objective.objectiveId
+    ]
+      ?.recoveryWitnessPeerIds
+      .filter(
+        (peerId) =>
+          eligibleBidders.has(peerId) &&
+          peerId !== preflight.winnerPeerId &&
+          peerId !== owner.peerId,
+      )
+      .sort()[0];
   if (!replacementPeerId)
     throw new RangeError('closed_loop_resilience_replacement_unavailable');
 

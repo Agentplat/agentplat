@@ -485,16 +485,15 @@ export async function runCollectiveStatisticalCampaignShardV1(
                 renewLeaseV1,
               }),
             );
-          } catch {
-            output = deepFreezePlanning({
-              schemaVersion: 1 as const,
-              status: "failed" as const,
-              reasonCode: "runner_exception",
-              outcome: { reasonCode: "runner_exception" },
-              traceRecords: [],
-              ledgerRecords: [],
-              observations: [],
-            });
+          } catch (error) {
+            // A runner exception is not an empirical outcome.  Persisting a
+            // synthetic failed sample here used to hide the actual execution
+            // fault until the evaluator rejected the projection.  Stop before
+            // any durable sample is committed, retaining only a tokenized,
+            // public-safe failure code for the supervisor.
+            throw new Error(
+              `collective_statistical_campaign_runner_execution_${publicRunnerErrorCode(error)}`,
+            );
           }
           execution = createCollectiveStatisticalCampaignExecutionArtifactsV1({
             schemaVersion: 1,
@@ -1454,6 +1453,11 @@ function safeAdd(left: number, right: number): number {
   if (!Number.isSafeInteger(value))
     throw new RangeError("collective_statistical_campaign_time_overflow");
   return value;
+}
+
+function publicRunnerErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  return /^[a-z0-9_]{1,120}$/u.test(message) ? message : "invalid";
 }
 
 function json(value: object): string {

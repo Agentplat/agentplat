@@ -45,6 +45,12 @@ import type {
 } from "./collective-closed-loop-runtime.js";
 import { assertCollectiveEffectReceiptProvenanceV1 } from "./collective-effect-provenance.js";
 
+// Recovery is part of the same registered closed-loop runtime as the
+// definition and execution contracts. Keep its admission bound aligned with
+// their public 500-peer ceiling so a declared large-scale resilient scenario
+// cannot fail only when the recovery path is exercised.
+const MAXIMUM_RECOVERY_ROSTER_SIZE = 500;
+
 /**
  * Internal Increment 6 recovery seam. It is deliberately not exported from
  * the package root until the resilient-runner contract is public.
@@ -174,8 +180,8 @@ export async function recoverCollectiveClosedLoopAssignmentV1(
       input.missionIntent.objective.objectiveId
     ];
   if (!objective) throw new Error("closed_loop_recovery_objective_missing");
-  const witnesses = objective.recoveryWitnessPeerIds.filter((peerId) =>
-    context.peersById.has(peerId),
+  const witnesses = objective.recoveryWitnessPeerIds.filter(
+    (peerId) => peerId !== failed && context.peersById.has(peerId),
   );
   if (witnesses.length < objective.recoveryWitnessThreshold)
     throw new Error("closed_loop_recovery_witness_quorum_unavailable");
@@ -183,13 +189,18 @@ export async function recoverCollectiveClosedLoopAssignmentV1(
   // A witness needs exact direct copies, not a reconstructed authority. The
   // source records remain signed by their original issuer and are routed again
   // to each configured in-mesh witness.
-  for (const witnessPeerId of witnesses) {
-    if (witnessPeerId === failed) continue;
-    const awardCopy = await copyForWitness(context, oldAward, witnessPeerId);
+  // The selected replacement also needs the original signed evidence. It may
+  // be an eligible bidder without being part of the voting witness quorum.
+  // Preserve direct copies rather than reconstructing authority from state.
+  const evidenceRecipients = [...new Set([...witnesses, replacement.peerId])]
+    .filter((peerId) => peerId !== failed)
+    .sort();
+  for (const recipientPeerId of evidenceRecipients) {
+    const awardCopy = await copyForWitness(context, oldAward, recipientPeerId);
     states = await deliver(
       context,
       states,
-      witnessPeerId,
+      recipientPeerId,
       awardCopy,
       input.preEffect.logicalTimeMs + 1,
       oldAward.sentAt,
@@ -197,13 +208,13 @@ export async function recoverCollectiveClosedLoopAssignmentV1(
     const acceptanceCopy = await copyForWitness(
       context,
       oldAcceptance,
-      witnessPeerId,
+      recipientPeerId,
       awardCopy.messageId,
     );
     states = await deliver(
       context,
       states,
-      witnessPeerId,
+      recipientPeerId,
       acceptanceCopy,
       input.preEffect.logicalTimeMs + 1,
       oldAcceptance.sentAt,
@@ -211,13 +222,13 @@ export async function recoverCollectiveClosedLoopAssignmentV1(
     const checkpointCopy = await copyForWitness(
       context,
       oldCheckpoint,
-      witnessPeerId,
+      recipientPeerId,
       acceptanceCopy.messageId,
     );
     states = await deliver(
       context,
       states,
-      witnessPeerId,
+      recipientPeerId,
       checkpointCopy,
       input.preEffect.logicalTimeMs + 1,
       oldCheckpoint.sentAt,
@@ -823,7 +834,7 @@ function validateInput(
     value.faultLogicalTimeMs < 0
   )
     throw new TypeError("closed_loop_recovery_input_invalid");
-  if (value.peers.length < 3 || value.peers.length > 100)
+  if (value.peers.length < 3 || value.peers.length > MAXIMUM_RECOVERY_ROSTER_SIZE)
     throw new TypeError("closed_loop_recovery_roster_size_invalid");
   const peersById = new Map(value.peers.map((peer) => [peer.peerId, peer]));
   if (
@@ -1008,12 +1019,33 @@ async function deliver(
     verifiedAt,
     receivedAt: logicalTimeMs,
   });
-  if (!decision.accepted)
+  if (!decision.accepted) {
+    const diagnostic = recoveryDeliveryDiagnostic(state, envelope);
     throw new Error(
-      `closed_loop_recovery_delivery_rejected:${envelope.payload.type}:${decision.code}`,
+      `closed_loop_recovery_delivery_rejected_${envelope.payload.type.replaceAll(".", "_")}_${decision.code}_${diagnostic}`,
     );
+  }
   context.interactionCount += 1;
   return { ...states, [peerId]: decision.state };
+}
+
+function recoveryDeliveryDiagnostic(
+  state: MeshAllocationInboundRuntimeState,
+  envelope: SignedMeshEnvelope<MeshAllocationPayload>,
+): string {
+  if (envelope.payload.type !== "work.award") return "not_applicable";
+  const payload = envelope.payload;
+  if (payload.authorityKind !== "recovery_certificate")
+    return "authority_kind_invalid";
+  const certificate =
+    state.allocation.recoveryCertificates[payload.recoveryCertificateId];
+  if (!certificate) return "certificate_missing";
+  const proposal =
+    state.allocation.takeoverProposals[certificate.takeoverProposalId];
+  if (!proposal) return "proposal_missing";
+  if (!state.allocation.receivedOffers[payload.offerId]) return "offer_missing";
+  if (!state.allocation.localBids[payload.bidId]) return "bid_missing";
+  return "other_precondition_invalid";
 }
 
 async function copyForWitness(
@@ -1088,11 +1120,18 @@ async function recoveryRecipients<
     ]!.objectives.objectives[
       context.input.missionIntent.objective.objectiveId
     ]!;
+  // The expired assignee must observe the takeover proposal so its prior
+  // authority is fenced. It is deliberately not a participant in votes or
+  // certificates, however. Sending those messages to it works accidentally
+  // only when the prior assignee is also a witness, and otherwise causes the
+  // receiver to correctly reject them as stale authority at larger scales.
   const recipients = [
     context.input.preEffect.workContract.assignment.ownerPeerId,
-    context.input.failedWinnerPeerId,
     context.input.replacementPeerId,
     ...policy.recoveryWitnessPeerIds,
+    ...(payload.type === "lease.takeover_proposal"
+      ? [context.input.failedWinnerPeerId]
+      : []),
   ]
     .filter(
       (peerId, index, all) =>

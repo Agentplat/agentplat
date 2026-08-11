@@ -321,7 +321,10 @@ export async function runCollectiveClosedLoopMeshRuntimeV1(
     type: 'objective.announce',
     audience: { kind: 'mesh', topic: 'objective' },
     objectiveId: input.missionIntent.objective.objectiveId,
-    payload: objectivePayload(context),
+    payload: objectivePayload(
+      context,
+      recipients.map((recipient) => recipient.peerId),
+    ),
     sentAtOffsetMs: 2_000,
     expiresAtOffsetMs: 120_000,
   });
@@ -1269,13 +1272,23 @@ function admitDiscovery(
   );
 }
 
-function objectivePayload(context: RuntimeContext) {
+function objectivePayload(
+  context: RuntimeContext,
+  offerRecipientPeerIds: readonly string[],
+) {
   const { missionIntent, mandate } = context.input;
-  const witnesses = context.input.peers
-    .filter((peer) => peer.peerId !== context.owner.peerId)
-    .slice(0, 2)
-    .map((peer) => peer.peerId);
-  witnesses.push(`witness:${context.input.seed}:external`);
+  // Recovery can only award a replacement that has both a received offer and
+  // its own bid. Bind the witness pool to that exact offer cohort, rather than
+  // to unrelated topology positions. The cohort is bounded by the recipient
+  // selection limit (32), which is also the protocol witness ceiling.
+  // Three offer recipients provide a two-witness quorum even when the
+  // original assignee is one of them, while keeping recovery fanout small and
+  // comfortably inside the protocol recipient limit.
+  const witnesses = [...new Set(offerRecipientPeerIds)].sort().slice(0, 3);
+  // The public objective contract requires at least three witnesses even for
+  // the minimum three-peer reference topology, where only two are in-mesh.
+  if (witnesses.length < 3)
+    witnesses.push(`witness:${context.input.seed}:external`);
   witnesses.sort();
   return {
     type: 'objective.announce' as const,

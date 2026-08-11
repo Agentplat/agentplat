@@ -218,8 +218,8 @@ export function createCollectiveClosedLoopFaultMatrixMissionBindingV1(input: {
     throw new TypeError("closed_loop_fault_matrix_mission_binding_invalid");
   return deepFreezePlanning({
     schemaVersion: 1,
-    planningStateRoot: digestValue(input.preEffect.planningStates),
-    meshStateRoot: digestValue(input.preEffect.meshStates),
+    planningStateRoot: digestPlanningStates(input.preEffect.planningStates),
+    meshStateRoot: digestMeshStates(input.preEffect.meshStates),
     workContractDigest: input.preEffect.workContract.workContractDigest,
     checkpointDigest: digestValue(input.preEffect.checkpoint),
     assignmentEpoch: input.preEffect.execution.assignmentEpoch,
@@ -877,7 +877,7 @@ async function runResilientClosedLoop(
       startedAtLogicalMs: 0,
       endedAtLogicalMs: recovery.recoveryLogicalTimeMs,
       planningStateRoot: digestValue(planningStateRoots),
-      meshStateRoot: digestValue(preEffect.meshStates),
+      meshStateRoot: digestMeshStates(preEffect.meshStates),
       governanceStateRoot: digestValue({
         authorityState: preEffect.authorityState,
         workContractDigest: preEffect.workContract.workContractDigest,
@@ -889,7 +889,7 @@ async function runResilientClosedLoop(
       startedAtLogicalMs: recovery.recoveryLogicalTimeMs,
       endedAtLogicalMs: finalized.logicalTimeMs,
       planningStateRoot: digestValue(planningStateRoots),
-      meshStateRoot: digestValue(finalized.meshStates),
+      meshStateRoot: digestMeshStates(finalized.meshStates),
       governanceStateRoot: digestValue({
         authorityState: preEffect.authorityState,
         workContractDigest: recovery.workContract.workContractDigest,
@@ -1859,7 +1859,7 @@ function appendFinalizationEvidence(
     kind: "work.result",
     recordDigest: digestValue(value.result),
     stateDigestBefore: null,
-    stateDigestAfter: digestValue(value.meshStates),
+    stateDigestAfter: digestMeshStates(value.meshStates),
   });
 }
 
@@ -1869,8 +1869,8 @@ function appendRecoveryEvidence(
   recovery: CollectiveClosedLoopCertifiedRecoveryResultV1,
   faultMatrixDigest: PlanningDigestV1,
 ): void {
-  const stateBefore = digestValue(preEffect.meshStates);
-  const stateAfter = digestValue(recovery.meshStates);
+  const stateBefore = digestMeshStates(preEffect.meshStates);
+  const stateAfter = digestMeshStates(recovery.meshStates);
   for (const [kind, recordDigest] of [
     [
       "recovery.directive",
@@ -1905,7 +1905,7 @@ function appendStaleResultRejectionEvidence(
   currentFenceDigest: PlanningDigestV1,
 ) {
   const reasonCode = staleRejection.rejectionCode;
-  const currentStateDigest = digestValue(recovery.meshStates);
+  const currentStateDigest = digestMeshStates(recovery.meshStates);
   return journal.append({
     logicalTimeMs: staleRejection.logicalTimeMs,
     peerId: preEffect.winnerPeerId,
@@ -1936,7 +1936,7 @@ function appendRecoveredFinalizationEvidence(
     kind: "work.result",
     recordDigest: digestValue(value.result),
     stateDigestBefore: null,
-    stateDigestAfter: digestValue(value.meshStates),
+    stateDigestAfter: digestMeshStates(value.meshStates),
   });
 }
 
@@ -2221,6 +2221,28 @@ function digestValue(value: unknown): PlanningDigestV1 {
       maximumKeysPerObject: 4_096,
       maximumItemsPerArray: 262_144,
     },
+  );
+}
+
+function digestMeshStates(
+  states: Readonly<Record<string, unknown>>,
+): PlanningDigestV1 {
+  return digestStateCollection(states);
+}
+
+function digestPlanningStates(
+  states: Readonly<Record<string, unknown>>,
+): PlanningDigestV1 {
+  return digestStateCollection(states);
+}
+
+function digestStateCollection(
+  states: Readonly<Record<string, unknown>>,
+): PlanningDigestV1 {
+  return digestValue(
+    Object.entries(states)
+      .map(([peerId, state]) => ({ peerId, stateDigest: digestValue(state) }))
+      .sort((left, right) => left.peerId.localeCompare(right.peerId)),
   );
 }
 

@@ -1460,7 +1460,6 @@ function validateRecoveryRuntimeRelations(
         ? []
         : runtimeRecoveryRecipients(allocation.identity.peerId, [
             payload.ownerPeerId,
-            payload.assigneePeerId,
             payload.proposedAssigneePeerId,
             ...policy.recoveryWitnessPeerIds,
           ]);
@@ -1474,7 +1473,7 @@ function validateRecoveryRuntimeRelations(
           allocation.identity.peerId,
           payload,
           policy.recoveryWitnessPeerIds,
-          true,
+          false,
         ))
     )
       throw new TypeError("Mesh recovery vote policy binding is invalid");
@@ -1496,7 +1495,6 @@ function validateRecoveryRuntimeRelations(
         ? []
         : runtimeRecoveryRecipients(allocation.identity.peerId, [
             payload.ownerPeerId,
-            payload.assigneePeerId,
             payload.proposedAssigneePeerId,
             ...policy.recoveryWitnessPeerIds,
           ]);
@@ -1513,14 +1511,14 @@ function validateRecoveryRuntimeRelations(
         certificate.envelope.payload.certificateAssemblerPeerId,
         payload,
         policy.recoveryWitnessPeerIds,
-        true,
+        false,
       ) ||
       (certificate.direction === "received" &&
         !recoveryParticipantIncludes(
           allocation.identity.peerId,
           payload,
           policy.recoveryWitnessPeerIds,
-          true,
+          false,
         ))
     )
       throw new TypeError(
