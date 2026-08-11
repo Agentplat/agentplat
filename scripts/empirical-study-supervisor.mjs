@@ -638,12 +638,7 @@ async function generateReport(supervisorDirectory, config, suppliedCampaign) {
   const reportPath = path.join(supervisorDirectory, REPORT_FILE);
   await writeTextAtomic(reportPath, markdown);
   let finalReportPath = null;
-  if (
-    campaign.completedShards.length === config.shardIndices.length &&
-    config.shardIndices.every(
-      (value, index) => campaign.completedShards[index] === value,
-    )
-  ) {
+  if (isTerminalCampaignClosureV1(config, campaign, events)) {
     finalReportPath = path.join(supervisorDirectory, FINAL_REPORT_FILE);
     await writeTextImmutable(finalReportPath, markdown);
   }
@@ -657,6 +652,16 @@ async function generateReport(supervisorDirectory, config, suppliedCampaign) {
     completedShardCount: campaign.completedShards.length,
     eventCount: events.length,
   };
+}
+
+export function isTerminalCampaignClosureV1(config, campaign, events) {
+  return (
+    campaign.completedShards.length === config.shardIndices.length &&
+    config.shardIndices.every(
+      (value, index) => campaign.completedShards[index] === value,
+    ) &&
+    events.some((event) => event.eventType === "campaign_completed")
+  );
 }
 
 export function renderExecutionReportV1({ config, events, campaign }) {

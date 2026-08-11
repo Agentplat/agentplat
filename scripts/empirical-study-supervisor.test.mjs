@@ -5,6 +5,7 @@ import {
   assertStateEventAnchorV1,
   createSupervisorEventV1,
   isSupervisorDigestV1,
+  isTerminalCampaignClosureV1,
   renderExecutionReportV1,
   validateEventChainV1,
 } from "./empirical-study-supervisor.mjs";
@@ -86,6 +87,22 @@ test("accepts the exact sha256 digest format written into durable state", () => 
   assert.equal(isSupervisorDigestV1(digest), true);
   assert.equal(isSupervisorDigestV1(digest.slice("sha256:".length)), false);
   assert.equal(isSupervisorDigestV1("sha256:not-a-digest"), false);
+});
+
+test("creates a final report only after the terminal campaign event", () => {
+  const config = { shardIndices: [1, 2, 3] };
+  const campaign = { completedShards: [1, 2, 3] };
+  const started = event(0, null, "supervisor_started", { recovered: false });
+  const terminal = event(1, started.eventDigest, "campaign_completed", {
+    completedShards: [1, 2, 3],
+    completedProjectionCount: 60,
+  });
+
+  assert.equal(isTerminalCampaignClosureV1(config, campaign, [started]), false);
+  assert.equal(
+    isTerminalCampaignClosureV1(config, campaign, [started, terminal]),
+    true,
+  );
 });
 
 test("renders paper-oriented closure, environment and interruption metadata", () => {
