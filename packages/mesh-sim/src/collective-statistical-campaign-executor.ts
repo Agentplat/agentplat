@@ -470,6 +470,23 @@ export async function runCollectiveStatisticalCampaignShardV1(
           resumedSlotCount += 1;
         } else {
           let output: CollectiveStatisticalCampaignRunnerOutputV1;
+          // Runners are supplied by adapters and must not need to know the
+          // storage lease duration.  Keep the fenced cell alive while an
+          // otherwise healthy long-running execution is in progress.  The
+          // renewal chain deliberately serializes CAS transitions so it cannot
+          // race the runner's optional explicit renewal hook.
+          let renewalChain: Promise<void> = Promise.resolve();
+          const renewalIntervalMs = Math.max(
+            1_000,
+            Math.floor(input.leaseDurationMs / 3),
+          );
+          const renewalTimer = setInterval(() => {
+            renewalChain = renewalChain.then(() =>
+              renewLeaseV1(
+                safeAdd(clock(input.now), input.leaseDurationMs),
+              ),
+            );
+          }, renewalIntervalMs);
           try {
             assertOperationActive(input, clock(input.now));
             output = await input.execute(
@@ -494,6 +511,9 @@ export async function runCollectiveStatisticalCampaignShardV1(
             throw new Error(
               `collective_statistical_campaign_runner_execution_${publicRunnerErrorCode(error)}`,
             );
+          } finally {
+            clearInterval(renewalTimer);
+            await renewalChain;
           }
           execution = createCollectiveStatisticalCampaignExecutionArtifactsV1({
             schemaVersion: 1,
