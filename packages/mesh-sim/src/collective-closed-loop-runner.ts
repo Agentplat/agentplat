@@ -1564,7 +1564,7 @@ function collectObservations(
   const registration = input.definition.registration;
   const observations: MissionObservationV1[] = [];
   const cursors: Record<string, string> = { ...priorCursors };
-  for (const peer of input.definition.peers) {
+  for (const peer of activePlanningPeers(input)) {
     const environmentCursor = priorCursors[peer.peerId] ?? "cursor:0";
     const result = input.evaluator.environment.observe(
       createCollectiveEnvironmentObservationRequestV1({
@@ -1603,7 +1603,7 @@ async function collectDecisions(
   logicalTimeMs: number,
 ): Promise<ReadonlyMap<string, CollectivePlanningDecisionV1>> {
   const decisions = new Map<string, CollectivePlanningDecisionV1>();
-  for (const peer of input.definition.peers) {
+  for (const peer of activePlanningPeers(input)) {
     const localObservations = observations.filter(
       (observation) =>
         observation.observerPeerId === peer.peerId &&
@@ -1655,6 +1655,18 @@ async function collectDecisions(
       });
   }
   return decisions;
+}
+
+/** The sparse reference mesh admits only the owner and its direct neighbors
+ * to a planning round. Other registered peers remain in the scale model but
+ * cannot observe or influence that round without an ingress path. */
+function activePlanningPeers(
+  input: CollectiveClosedLoopExecutionInputV1,
+): readonly CollectiveClosedLoopDefinitionV1['peers'][number][] {
+  const owner = input.definition.peers[0];
+  if (owner === undefined) throw new Error('closed_loop_owner_missing');
+  const activeIds = new Set([owner.peerId, ...owner.neighborPeerIds]);
+  return input.definition.peers.filter((peer) => activeIds.has(peer.peerId));
 }
 
 async function collectCentralizedDecision(
