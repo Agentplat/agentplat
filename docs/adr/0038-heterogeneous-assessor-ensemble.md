@@ -16,4 +16,4 @@ Durable state records a prepared invocation before any assessor call and termina
 
 ## Consequences
 
-Applications supply evaluator implementations and durable storage/anchors. The open-core runtime is deterministic, content-free, provider-neutral, and does not claim that distinct identifiers alone prove real-world independence.
+Applications supply evaluator implementations and durable storage/anchors. The open-source runtime is deterministic, content-free, provider-neutral, and does not claim that distinct identifiers alone prove real-world independence.

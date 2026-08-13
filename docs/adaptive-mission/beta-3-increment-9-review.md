@@ -3,7 +3,7 @@
 ## Status
 
 Increment 9 adds the bounded operational boundary for statistical-campaign
-diagnostics and expands the coordinated open-core catalog to 38 packages with
+diagnostics and expands the coordinated open-source catalog to 38 packages with
 the Node-local `@agentplat/mesh-sim-local` adapter. It does not execute a
 normative campaign, publish a package,
 deploy an AgentPlat service or make a statistical/pass-rate claim. The workflow

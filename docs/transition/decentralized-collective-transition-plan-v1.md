@@ -6,7 +6,7 @@ commitment by any adopter.
 
 ## Purpose
 
-This plan turns the provider-neutral open-core into an adoptable decentralized
+This plan turns the provider-neutral open-source into an adoptable decentralized
 collective capability over 36 months. It can be reused as the technical and
 transition backbone of a commercial, research or public-sector proposal after
 the proposer supplies dates, owners, labor rates, hosting choices, target use
@@ -16,7 +16,7 @@ The plan preserves four separations:
 
 1. source implementation is distinct from empirical validation;
 2. coordination evidence is distinct from execution authority;
-3. reusable open-core is distinct from deployment-specific integration; and
+3. reusable open-source is distinct from deployment-specific integration; and
 4. software ownership is distinct from rights in input data, generated data,
    model services and operational evidence.
 
@@ -335,7 +335,7 @@ reported as unresolved or contradicted.
 **Period:** months 0-36
 
 **Objective:** produce deployment-appropriate assurance evidence while keeping
-open-core and adopter responsibilities explicit.
+open-source and adopter responsibilities explicit.
 
 **Activities:**
 
@@ -501,7 +501,7 @@ This section is a planning framework, not legal advice.
 
 | Layer | Preferred treatment | Rationale |
 | --- | --- | --- |
-| provider-neutral protocols, contracts and reference runtimes | public open-core under the repository's declared license | supports interoperability, inspection and community maintenance |
+| provider-neutral protocols, contracts and reference runtimes | public open-source under the repository's declared license | supports interoperability, inspection and community maintenance |
 | generic conformance fixtures and schemas | public where data rights permit | allows independent implementation and comparison |
 | deployment configuration, identity policy and topology | adopter-controlled | may reveal architecture, keys, endpoints or operational constraints |
 | proprietary provider adapters or workflow logic | separate optional modules with explicit interfaces | preserves portability and avoids contaminating the core rights boundary |
@@ -530,7 +530,7 @@ retention, deletion, onward-transfer and publication fields.
 
 | Data/artifact class | Default control posture | Must not be inferred |
 | --- | --- | --- |
-| open-core source and public schemas | governed by their declared repository licenses | rights in third-party data or hosted services |
+| open-source source and public schemas | governed by their declared repository licenses | rights in third-party data or hosted services |
 | adopter configuration and policy | adopter-controlled; publish only by explicit decision | permission to disclose topology, thresholds or endpoints |
 | input datasets and observations | source-specific agreement and classification | right to train, redistribute or publish |
 | prompts, context and tool inputs | ephemeral by default; persist only an approved minimized form | right to retain private reasoning or credentials |

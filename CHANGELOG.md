@@ -322,7 +322,7 @@
 
 ## 0.1.0
 
-Initial developer preview of the public AgentPlat open core:
+Initial developer preview of the public AgentPlat open source:
 
 - Provider-neutral runtime contracts and executable dispatch.
 - OpenAI Agents SDK provider with execution-scoped credentials.

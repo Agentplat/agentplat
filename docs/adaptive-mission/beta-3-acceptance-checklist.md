@@ -1,6 +1,6 @@
 # AgentPlat `0.3.0-beta.3` acceptance checklist
 
-Status: Increments 0 through 12 are complete at the open-core implementation
+Status: Increments 0 through 12 are complete at the open-source implementation
 boundary. Increment 9 added the bounded diagnostic executor and local durable
 adapter; Increment 10 adds the protected, fail-closed normative control plane,
 independent analysis and evidence custody; Increment 11 adds a registered

@@ -6,7 +6,7 @@ compose with Rooms but do not replace Room persistence, policy or approvals.
 
 An Agent Room is a tenant-scoped workspace in which humans and agents collaborate toward a goal. It keeps the transcript, structured handoffs, runs, artifacts, approvals, policy decisions, memory provenance and audit events together so applications can expose one coherent unit of work.
 
-The public framework is self-contained: a company can clone this repository, run the reference API and then replace adapters without depending on AgentPlat Cloud.
+The public framework is self-contained: a company can clone this repository, run the reference API and then replace adapters without depending on any service operated by AgentPlat.
 
 ## Public components
 
@@ -70,8 +70,8 @@ The reference assembly in [`examples/rooms-api/src/index.mjs`](../examples/rooms
 
 Keep adapters responsible for infrastructure concerns. Tenant checks, lifecycle invariants, context assembly, policies, approval state and domain events belong in `RoomService` so every transport behaves consistently.
 
-## Open-core boundary
+## Open-source boundary
 
-The Apache-2.0 repository includes the complete self-hosted Room domain, API, PostgreSQL adapter, mock runtime and extension contracts. It never imports private AgentPlat components, and AgentPlat Cloud can consume the same public interfaces as any other downstream application.
+The Apache-2.0 repository includes the complete self-hosted Room domain, API, PostgreSQL adapter, mock runtime and extension contracts. It never imports private AgentPlat components. Any adopting application can consume the same public interfaces.
 
-Managed hosting, enterprise SSO/SAML/SCIM, advanced RBAC and organization-wide governance, private or premium connectors, billing, fleet operations and advanced analytics are outside the public framework. Trademark use is governed separately by [`TRADEMARKS.md`](../TRADEMARKS.md).
+Enterprise SSO/SAML/SCIM, advanced RBAC, organization-wide governance, connectors, billing, fleet operations and analytics are deployment and application concerns outside the public framework. Trademark use is governed separately by [`TRADEMARKS.md`](../TRADEMARKS.md).

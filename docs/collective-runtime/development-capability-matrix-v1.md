@@ -11,7 +11,7 @@ Audits may identify defects inside these IDs but cannot add objectives to V1.
 
 ## Purpose
 
-This matrix is the development closure boundary for the public open-core. It
+This matrix is the development closure boundary for the public open-source. It
 separates three different claims:
 
 - **implemented** means a provider-neutral public contract has an executable
@@ -37,7 +37,7 @@ execution unauthorized.
 ## Integrated closure objectives
 
 The current development cycle closes eleven cross-cutting objectives. A source
-status of **reference-integrated** means that the open-core contains a concrete
+status of **reference-integrated** means that the open-source contains a concrete
 composition and that intermediate plans, certificates, cognitive material or
 effect authority cannot be replaced by a caller-supplied success value. It does
 not claim that a deployment provider or an empirical campaign exists.
@@ -103,7 +103,7 @@ boundary:
 
 ## What remains outside source closure
 
-The following are evidence and deployment obligations, not missing open-core
+The following are evidence and deployment obligations, not missing open-source
 algorithms:
 
 - install real identity, membership, key-custody, certificate, time and

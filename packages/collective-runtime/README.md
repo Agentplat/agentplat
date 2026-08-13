@@ -1029,7 +1029,7 @@ epoch/token and membership generation into execution finality and submits that
 exact fence to the same repository for atomic compare-and-commit. These ports
 do not create detector, membership, election, planning or effect authority.
 
-The open-core intentionally provides no in-memory certified-verdict inbox and
+The open-source intentionally provides no in-memory certified-verdict inbox and
 no production saga or coordinator store. The source must retain unacknowledged
 certificates across process loss. The saga store must atomically commit snapshot
 and rollback-resistant anchor on a protection boundary that ordinary backup

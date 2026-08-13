@@ -44,4 +44,4 @@ model provider or effect authority.
 Adding orchestration to the existing peer-node runtime was rejected because it
 would couple its closed planning payload registry to every optional extension.
 A server-only host was rejected because it would force transport and persistence
-choices into the open-core runtime.
+choices into the open-source runtime.

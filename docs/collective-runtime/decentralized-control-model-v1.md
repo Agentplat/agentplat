@@ -85,7 +85,7 @@ The architecture predicts an advantage over a centralized coordinator when:
 It may be worse when the collective is small, the network is reliable, every
 decision needs a complete global view, the optimization objective is tightly
 coupled, or the central baseline can cheaply compute a materially better global
-allocation. The open-core therefore exposes both causal/message accounting and
+allocation. The open-source therefore exposes both causal/message accounting and
 comparison manifests instead of asserting universal superiority.
 
 ## Falsifiable evaluation hypotheses

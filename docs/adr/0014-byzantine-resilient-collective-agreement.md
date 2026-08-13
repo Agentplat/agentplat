@@ -110,7 +110,7 @@ prevent conflicting certificates across partitions or proposer changes.
 
 ### Depend on one external consensus service
 
-Rejected as the only open-core path. An application may still route the
+Rejected as the only open-source path. An application may still route the
 decision port to an external implementation, but the portable contracts,
 verification and reference repositories remain available without a centralized
 service.

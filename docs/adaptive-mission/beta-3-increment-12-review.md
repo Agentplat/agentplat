@@ -4,7 +4,7 @@ Date: 2026-08-03
 
 ## Decision
 
-Increment 12 is accepted at the open-core implementation boundary. AgentPlat
+Increment 12 is accepted at the open-source implementation boundary. AgentPlat
 now has a provider-neutral, non-executing readiness gate that binds an exact
 source, registered operation and fixed capacity envelope to a closed set of
 content-addressed verification receipts.

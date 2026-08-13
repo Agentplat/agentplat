@@ -7,7 +7,7 @@
 <h1 align="center">AgentPlat</h1>
 
 <p align="center">
-  <strong>Open-core runtime primitives for building governed agentic platforms.</strong>
+  <strong>Open-source runtime primitives for building governed agentic platforms.</strong>
 </p>
 
 <p align="center">
@@ -182,7 +182,7 @@ contract](./docs/agent-mesh/sparse-collective-scale-v2.md).
 
 ### Distributed Collective Runtime and Interoperability
 
-The open-core includes an authenticated causal message protocol, distributed
+The open-source includes an authenticated causal message protocol, distributed
 planning and allocation, live sparse agreement, bounded partial-view committee
 formation, assurance-coupled effects, autonomous mission adaptation, concrete
 local inference adapters and an interoperability SDK for remote agents and
@@ -760,7 +760,7 @@ const agent = {
 
 const result = await runtime.run(
   agent,
-  { input: "hello open core" },
+  { input: "hello open source" },
   { tenant: { tenantId: agent.tenantId }, agentId: agent.id },
 );
 ```
@@ -800,10 +800,10 @@ workspace directory cannot publish a package accidentally.
 Package versioning and publishing are documented in [RELEASING.md](./RELEASING.md).
 See [release channels](./docs/release-channels.md) for `next` versus `latest`.
 
-## Open-core boundary
+## Open-source deployment boundary
 
-This repository contains everything needed to build and self-host an Agent Room platform; public code does not depend on AgentPlat Cloud or private packages. Hosted operations, enterprise SSO and organization-wide policy management, billing, managed infrastructure, premium connectors, advanced analytics and customer-specific verticals remain commercial products built on the same public contracts.
+This repository contains everything needed to build and self-host an Agent Room platform. It does not depend on a service operated by AgentPlat or on private packages. Each adopting organization is responsible for its own deployment, identity integration, policy administration, infrastructure, connectors, analytics and operations.
 
 ## License
 
-AgentPlat open-core code is licensed under the [Apache License 2.0](./LICENSE). The AgentPlat name, logo and brand assets are covered by the [trademark guidelines](./TRADEMARKS.md).
+AgentPlat open-source code is licensed under the [Apache License 2.0](./LICENSE). The AgentPlat name, logo and brand assets are covered by the [trademark guidelines](./TRADEMARKS.md).

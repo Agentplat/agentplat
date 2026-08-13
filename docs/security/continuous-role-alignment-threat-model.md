@@ -99,7 +99,7 @@ signature or proof of origin.
 ## Claims and limitations
 
 Role alignment signals are policy inputs, not mathematical proof that a model is
-aligned. The open core provides deterministic handling, binding, history and
+aligned. The open source provides deterministic handling, binding, history and
 intervention semantics around those signals. Assessment quality, independent
 measurement, provider-internal representation access and domain-specific role
 definitions remain outside the V1 guarantee.

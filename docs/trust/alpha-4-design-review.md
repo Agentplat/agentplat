@@ -66,7 +66,7 @@ the design-freeze commit.
 
 ## Freeze decision
 
-The Alpha 4 Evidence and Trust design is frozen for open-core implementation.
+The Alpha 4 Evidence and Trust design is frozen for open-source implementation.
 Implementation must follow the ordered increments and cannot weaken a closed
 contract without a new documented review. All implementation, adversarial,
 packaging, registry and publication items remain open in the acceptance

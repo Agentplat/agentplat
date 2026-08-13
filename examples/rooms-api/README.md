@@ -3,7 +3,7 @@
 This is the smallest deployable Agentplat application: a Hono API backed by
 PostgreSQL, the public Room domain service, an in-process event bus, and the
 deterministic mock runtime. It makes no external model calls and imports no
-Agentplat Cloud or other private code.
+any service operated by AgentPlat or other private code.
 
 Use it as a runnable example, a local development server, or the starting
 point for a self-hosted agentic platform. Each infrastructure boundary is

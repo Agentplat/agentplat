@@ -4,7 +4,7 @@ Date: 2026-08-03
 
 ## Decision
 
-Increment 11 is accepted at the open-core implementation boundary. The
+Increment 11 is accepted at the open-source implementation boundary. The
 provider-neutral statistical runtime now resolves through a closed registry,
 executes under an exact signed operation authorization, stores resumable state
 in PostgreSQL and derives projections through an evaluator-owned replay path.

@@ -1,6 +1,6 @@
 # Dynamic Membership and Key Rotation V1
 
-Status: implemented open-core protocol.
+Status: implemented open-source protocol.
 
 ## Purpose
 

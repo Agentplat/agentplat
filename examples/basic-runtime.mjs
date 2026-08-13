@@ -27,7 +27,7 @@ const agent = {
 
 const result = await runtime.run(
   agent,
-  { input: 'hello open core' },
+  { input: 'hello open source' },
   { tenant: { tenantId: agent.tenantId }, agentId: agent.id }
 );
 

@@ -45,7 +45,7 @@ continue the ordinary planning path.
   and feeds execution evidence into autonomous adaptation. Callers provide no
   peer graph, candidate list, collective-wide score, or semantic sample on a
   mission tick.
-- `./reference-integrated-stack` is the open-core reference assembly for that
+- `./reference-integrated-stack` is the open-source reference assembly for that
   lifecycle. It constructs the authenticated sparse protocol, distributed
   decomposition and sealed allocation, independently verified sparse-BFT
   finality, assurance-coupled protected execution, and bounded adaptation as
@@ -268,7 +268,7 @@ state.
 collective candidate lists, local bids, role lists, cognitive task payloads,
 semantic samples, certificate-verification callbacks, signal-admission
 callbacks, and adaptation-safety callbacks. The
-following ports intentionally remain because the open-core cannot safely infer
+following ports intentionally remain because the open-source cannot safely infer
 them from collective messages:
 
 - sparse overlay publication, content-addressed artifact persistence, message
