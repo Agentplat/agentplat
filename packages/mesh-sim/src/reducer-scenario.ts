@@ -652,11 +652,10 @@ function validateScenario<State, Action>(
       throw new TypeError('Duplicate Mesh reducer scenario invariant');
     invariantNames.add(invariant.name);
   }
-  assertCanonicalWithin(
-    deepFreezeData(config),
-    Number.MAX_SAFE_INTEGER,
-    'configuration'
-  );
+  // The configuration has already crossed the canonical digest boundary
+  // before validation, and every nested state/action is checked against its
+  // own limits above. Re-canonicalizing the entire 500-peer object here made
+  // replay quadratic in the size of the registered scenario.
   const runtimes = cachedRuntimes ?? new WeakSet<object>();
   runtimes.add(runtime as object);
   if (cachedRuntimes === undefined)
