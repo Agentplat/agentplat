@@ -399,6 +399,8 @@ export async function exportMeshEd25519PublicKey(
 export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
   readonly #signingPolicy: Readonly<MeshSigningPolicy>;
   readonly #cache = new WeakMap<object, Map<string, Promise<unknown>>>();
+  #signRequests = 0;
+  #cacheHits = 0;
 
   constructor(options: WebCryptoMeshEnvelopeSignerOptions = {}) {
     this.#signingPolicy = snapshotSigningPolicy(options.signingPolicy);
@@ -410,6 +412,7 @@ export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
   >(
     request: MeshSignRequest<TPayload, TWireVersion>
   ): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
+    this.#signRequests += 1;
     const key = request.privateKey as object;
     let entries = this.#cache.get(key);
     if (entries === undefined) {
@@ -418,11 +421,33 @@ export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
     }
     const cacheKey = JSON.stringify(request.envelope);
     const cached = entries.get(cacheKey);
-    if (cached !== undefined) return cached as Promise<SignedMeshEnvelope<TPayload, TWireVersion>>;
+    if (cached !== undefined) {
+      this.#cacheHits += 1;
+      this.#trace();
+      return cached as Promise<SignedMeshEnvelope<TPayload, TWireVersion>>;
+    }
     const pending = signMeshEnvelopeWithPolicy(request, this.#signingPolicy);
     entries.set(cacheKey, pending);
     if (entries.size > 4096) entries.delete(entries.keys().next().value as string);
+    this.#trace();
     return pending;
+  }
+
+  #trace(): void {
+    const runtime = globalThis as unknown as {
+      process?: { env?: Record<string, string | undefined> };
+    };
+    if (
+      runtime.process?.env?.AGENTPLAT_SIGNATURE_TRACE !== '1' ||
+      this.#signRequests % 1_000 !== 0
+    ) return;
+    console.error(
+      JSON.stringify({
+        event: 'mesh_signature_progress',
+        requests: this.#signRequests,
+        cacheHits: this.#cacheHits,
+      }),
+    );
   }
 }
 
