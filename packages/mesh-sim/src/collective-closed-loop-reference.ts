@@ -446,11 +446,19 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
   const peerIds = nominalDefinition.peers.map((peer) => peer.peerId);
   const owner = nominalDefinition.peers[0];
   if (!owner) throw new Error('closed_loop_resilience_owner_missing');
-  const initialObservations = peerIds.map((peerId, index) =>
+  // The runtime's planning round is intentionally bounded to the owner and
+  // its direct neighbours. Construct the preflight from that exact observer
+  // set as well: the fault-matrix port is cryptographically bound to the
+  // pre-effect state later reconstructed by the runner.
+  const planningPeerIds = new Set([owner.peerId, ...owner.neighborPeerIds]);
+  const planningPeers = nominalDefinition.peers.filter((peer) =>
+    planningPeerIds.has(peer.peerId),
+  );
+  const initialObservations = planningPeers.map((peer) =>
     observationFor({
       missionIntent: nominalDefinition.missionIntent,
-      peerId,
-      peerInstanceId: peerInstanceId(index),
+      peerId: peer.peerId,
+      peerInstanceId: peer.peerInstanceId,
       cursor: 0,
       phase: 'initial',
       logicalTimeMs: 0,
