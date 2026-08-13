@@ -271,6 +271,7 @@ export async function runMeshReducerScenario<
   const faultRecords: MeshReducerScenarioFaultRecord[] = [];
   let chainDigest = configurationDigest;
   let logicalTime = 0;
+  let queueNeedsSort = false;
   let reducerCalls = 0;
   let acceptedReducerCalls = 0;
   let rejectedReducerCalls = 0;
@@ -305,6 +306,9 @@ export async function runMeshReducerScenario<
         config,
         () => ++insertionSequence
       );
+      // Faults are the only operation that can mutate/reorder the pending
+      // queue. Normal reducer events consume its already-sorted head.
+      queueNeedsSort = true;
       suppressedEvents += applied.suppressedEvents ?? 0;
       accepted = applied.applied;
       faultRecord = Object.freeze({
@@ -419,7 +423,10 @@ export async function runMeshReducerScenario<
     };
     chainDigest = await digest({ previous: chainDigest, record: base });
     records.push(Object.freeze({ ...base, chainDigest }));
-    queue.sort(compareQueued);
+    if (queueNeedsSort) {
+      queue.sort(compareQueued);
+      queueNeedsSort = false;
+    }
   }
 
   const peerStates = frozenRecord([...states]);
