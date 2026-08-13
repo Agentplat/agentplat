@@ -336,7 +336,15 @@ export async function runCollectiveClosedLoopMeshRuntimeV1(
     }),
     authority: { read: () => authorityState },
   });
+  // Only the owner and the selected offer recipients need this objective in
+  // the bounded planning round. Broadcasting it to every member of a
+  // 500-peer mesh is observationally irrelevant to the resulting allocation.
+  const objectiveRecipients = new Set([
+    owner.peerId,
+    ...recipients.map((recipient) => recipient.peerId),
+  ]);
   for (const peer of input.peers) {
+    if (!objectiveRecipients.has(peer.peerId)) continue;
     const receivedAt = advance(context);
     const admitted = await objectiveInbound.process(
       createMeshObjectiveInboundRuntimeState(

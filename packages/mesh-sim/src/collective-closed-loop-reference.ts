@@ -1290,7 +1290,10 @@ function peerInstanceId(index: number): string {
 }
 
 function peersFor(peerIds: readonly string[]) {
-  const ownerNeighbors = peerIds.slice(1);
+  // The registered 500-peer scale models a sparse mesh, not a 499-way
+  // broadcast fanout. The runtime itself accepts at most 32 work recipients,
+  // so retaining more discovery neighbors cannot affect the selected set.
+  const ownerNeighbors = peerIds.slice(1, 33);
   return Object.freeze(
     peerIds.map((peerId, index) =>
       Object.freeze({
