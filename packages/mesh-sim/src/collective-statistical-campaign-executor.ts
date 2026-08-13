@@ -503,12 +503,6 @@ export async function runCollectiveStatisticalCampaignShardV1(
               }),
             );
           } catch (error) {
-            if (
-              (globalThis as {
-                process?: { env?: Record<string, string | undefined> };
-              }).process?.env?.AGENTPLAT_DIAGNOSTIC_ERRORS === "1"
-            )
-              console.error(error);
             // A runner exception is not an empirical outcome.  Persisting a
             // synthetic failed sample here used to hide the actual execution
             // fault until the evaluator rejected the projection.  Stop before
