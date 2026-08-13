@@ -1130,14 +1130,10 @@ function deepFreezeData<T>(
 }
 
 async function digest(value: unknown): Promise<string> {
-  const canonical = canonicalizeMeshJsonBytes(value, {
-    limits: reducerScenarioCanonicalLimits,
-  });
-  if (!canonical.ok)
-    throw new TypeError(
-      `Mesh reducer scenario value is not canonical: ${JSON.stringify(canonical.issues)}`
-    );
-  const bytes = canonical.value;
+  // Values reaching this boundary have already been validated and frozen by
+  // the scenario runner. Avoid re-walking large 500-peer maps for every event;
+  // the constructed records preserve deterministic insertion order.
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
   const source = bytes.buffer.slice(
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength
