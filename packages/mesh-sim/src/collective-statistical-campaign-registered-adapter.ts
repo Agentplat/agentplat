@@ -50,6 +50,12 @@ const NON_NOMINAL_FAULTS = Object.freeze([
   'peer.restart',
 ] as const);
 
+// The reference topology keeps the owner plus at most 32 direct planning
+// neighbours active. A statistical cell may model a larger population, but
+// its trace must bind the bounded active plane rather than an all-to-all
+// broadcast that the runtime deliberately does not perform.
+const MAXIMUM_ACTIVE_PLANNING_PEERS = 33;
+
 type TraceRecord = Readonly<{
   eventId: string;
   peerId: string | null;
@@ -259,14 +265,16 @@ function projectRegisteredExecutionV1(
   const trace = normalizeTrace(
     replayed.trace.events as unknown as readonly PlanningJson[],
   );
+  const tracedPeerCount = new Set(
+    trace.flatMap((event) => (event.peerId === null ? [] : [event.peerId])),
+  ).size;
   if (
     replayed.registration.seed !== execution.seed ||
     replayed.registration.runner !== execution.runner ||
     replayed.registration.stratum !== 'nominal' ||
     string(outcome.stratum, 'outcome_stratum_invalid') !== cell.stratum ||
-    new Set(
-      trace.flatMap((event) => (event.peerId === null ? [] : [event.peerId])),
-    ).size !== cell.peerCount
+    tracedPeerCount !==
+      Math.min(cell.peerCount, MAXIMUM_ACTIVE_PLANNING_PEERS)
   )
     fail('evaluation_registration_cell_binding_mismatch');
   const ledger = normalizeLedger(execution.ledger.records);
