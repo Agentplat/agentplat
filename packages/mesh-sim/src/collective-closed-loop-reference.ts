@@ -142,6 +142,11 @@ export interface CreateCollectiveClosedLoopResilienceReferenceScenarioInputV1 {
   readonly runtime?: CollectiveClosedLoopReferenceRuntimeV1;
 }
 
+const referenceRuntimeCache = new Map<
+  number,
+  Promise<CollectiveClosedLoopReferenceRuntimeV1>
+>();
+
 /**
  * Generates reusable signing handles for deterministic closed-loop replay.
  * Reuse the returned value across scenario factories to retain the same keys.
@@ -150,6 +155,16 @@ export async function createCollectiveClosedLoopReferenceRuntimeV1(
   peerCount: number
 ): Promise<CollectiveClosedLoopReferenceRuntimeV1> {
   assertPeerCount(peerCount);
+  const cached = referenceRuntimeCache.get(peerCount);
+  if (cached !== undefined) return cached;
+  const pending = createReferenceRuntime(peerCount);
+  referenceRuntimeCache.set(peerCount, pending);
+  return pending;
+}
+
+async function createReferenceRuntime(
+  peerCount: number
+): Promise<CollectiveClosedLoopReferenceRuntimeV1> {
   const crypto = globalThis.crypto;
   if (!crypto?.subtle) throw new TypeError('closed_loop_crypto_unavailable');
   const peerIds = peerIdsFor(peerCount);
