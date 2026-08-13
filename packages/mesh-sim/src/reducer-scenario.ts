@@ -227,6 +227,8 @@ export async function runMeshReducerScenario<
   const states = new Map(
     config.peers.map(({ peerId, state }) => [peerId, deepFreezeData(state)])
   );
+  const recordValueEncodingCache = new WeakMap<object, string>();
+  const projectionCache = new WeakMap<object, Projection>();
   const availability = new Map(
     config.peers.map(({ peerId }) => [peerId, true])
   );
@@ -373,10 +375,14 @@ export async function runMeshReducerScenario<
 
     const peerStates = frozenRecord([...states]);
     const projections = frozenRecord(
-      [...states].map(([peerId, state]) => [
-        peerId,
-        deepFreezeData(runtime.project(state)),
-      ])
+      [...states].map(([peerId, state]) => {
+        let projection = projectionCache.get(state as object);
+        if (projection === undefined) {
+          projection = deepFreezeData(runtime.project(state));
+          projectionCache.set(state as object, projection);
+        }
+        return [peerId, projection];
+      })
     );
     for (const invariant of runtime.invariants ?? [])
       invariant.evaluate({
@@ -389,8 +395,8 @@ export async function runMeshReducerScenario<
       await Promise.all([
         digest(event.fault ?? event.action),
         digest(effects),
-        digest(peerStates),
-        digest(projections),
+        digestPeerRecord(peerStates, recordValueEncodingCache),
+        digestPeerRecord(projections, recordValueEncodingCache),
       ]);
     const base = {
       eventId: event.eventId,
@@ -417,10 +423,14 @@ export async function runMeshReducerScenario<
 
   const peerStates = frozenRecord([...states]);
   const projections = frozenRecord(
-    [...states].map(([peerId, state]) => [
-      peerId,
-      deepFreezeData(runtime.project(state)),
-    ])
+    [...states].map(([peerId, state]) => {
+      let projection = projectionCache.get(state as object);
+      if (projection === undefined) {
+        projection = deepFreezeData(runtime.project(state));
+        projectionCache.set(state as object, projection);
+      }
+      return [peerId, projection];
+    })
   );
   return Object.freeze({
     scenarioId: config.scenarioId,
@@ -1142,6 +1152,31 @@ async function digest(value: unknown): Promise<string> {
     await globalThis.crypto.subtle.digest('SHA-256', source)
   );
   return [...result].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Serialises a large peer map with identity-level reuse.  A reducer event
+ * changes at most one peer state, while the remaining state/projection
+ * objects retain their identity.  Keeping the framing explicit preserves
+ * key boundaries and makes the resulting digest deterministic.
+ */
+async function digestPeerRecord(
+  record: Readonly<Record<string, unknown>>,
+  cache: WeakMap<object, string>,
+): Promise<string> {
+  const entries = Object.keys(record).map((key) => {
+    const value = record[key];
+    let encoded = typeof value === 'object' && value !== null
+      ? cache.get(value)
+      : undefined;
+    if (encoded === undefined) {
+      encoded = JSON.stringify(value);
+      if (typeof value === 'object' && value !== null)
+        cache.set(value, encoded);
+    }
+    return `${JSON.stringify(key)}:${encoded}`;
+  });
+  return digest(`{${entries.join(',')}}`);
 }
 
 function frozenRecord<T>(
