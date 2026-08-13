@@ -24,9 +24,32 @@
 > and Trust boundaries are usable, but APIs may still change before the first
 > stable release.
 
+> **Technical architecture designed by [Grishen](https://grishen.com/).**
+> AgentPlat's Agent Rooms concept originated in the paper [*Agent Rooms: A
+> Conceptual Framework for Persistent Human-Governed Multi-Agent
+> Collaboration*](https://doi.org/10.5281/zenodo.20564834) by Douglas Rodriguez.
+
 AgentPlat is a downloadable framework for building self-hosted agentic platforms around **Agent Rooms**: durable workspaces where humans and agents coordinate through messages, tasks, versioned artifacts, approvals, policies and scoped memory.
 
 Clone this repository to run the complete reference API with Node.js and PostgreSQL, or install only the packages you need. Storage, model runtimes, event delivery, tools and authentication are public extension boundaries, so a company can keep the Room domain while replacing the surrounding infrastructure.
+
+## Architecture at a glance
+
+```text
+Agent Rooms → Collective Runtime → Agent Mesh → Safety and Evidence → Adapters
+human-agent    planning, teams,     peers,       policy, authority,     models,
+collaboration  recovery, continuity  sync, quorum  fencing, audit, trust  tools, PostgreSQL
+```
+
+Agent Rooms are persistent, tenant-scoped workspaces for humans and agents. The
+Collective Runtime coordinates missions and recovery. Agent Mesh provides
+authenticated peer coordination, causal synchronization, governed membership,
+quorum and sparse views. Safety and evidence boundaries keep authority explicit
+and outcomes inspectable.
+
+See the [Agent Rooms implementation guide](https://doc.agentplat.com/agent-rooms),
+the [Agent Mesh documentation](https://doc.agentplat.com/agent-mesh), and the
+[Agent Rooms origin paper](https://zenodo.org/records/20564834).
 
 The decentralized collective stack now has an explicit
 [19-capability development matrix](./docs/collective-runtime/development-capability-matrix-v1.md)
