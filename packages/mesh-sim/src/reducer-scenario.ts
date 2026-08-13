@@ -227,7 +227,8 @@ export async function runMeshReducerScenario<
   const states = new Map(
     config.peers.map(({ peerId, state }) => [peerId, deepFreezeData(state)])
   );
-  const recordValueEncodingCache = new WeakMap<object, string>();
+  const stateRecordDigest = new IncrementalPeerRecordDigest();
+  const projectionRecordDigest = new IncrementalPeerRecordDigest();
   const projectionCache = new WeakMap<object, Projection>();
   const availability = new Map(
     config.peers.map(({ peerId }) => [peerId, true])
@@ -395,8 +396,8 @@ export async function runMeshReducerScenario<
       await Promise.all([
         digest(event.fault ?? event.action),
         digest(effects),
-        digestPeerRecord(peerStates, recordValueEncodingCache),
-        digestPeerRecord(projections, recordValueEncodingCache),
+        stateRecordDigest.digest(peerStates),
+        projectionRecordDigest.digest(projections),
       ]);
     const base = {
       eventId: event.eventId,
@@ -1155,28 +1156,26 @@ async function digest(value: unknown): Promise<string> {
 }
 
 /**
- * Serialises a large peer map with identity-level reuse.  A reducer event
- * changes at most one peer state, while the remaining state/projection
- * objects retain their identity.  Keeping the framing explicit preserves
- * key boundaries and makes the resulting digest deterministic.
+ * Maintains a deterministic root over a large peer map. A reducer event
+ * changes at most one peer state, so unchanged leaves are never rehashed.
  */
-async function digestPeerRecord(
-  record: Readonly<Record<string, unknown>>,
-  cache: WeakMap<object, string>,
-): Promise<string> {
-  const entries = Object.keys(record).map((key) => {
-    const value = record[key];
-    let encoded = typeof value === 'object' && value !== null
-      ? cache.get(value)
-      : undefined;
-    if (encoded === undefined) {
-      encoded = JSON.stringify(value);
-      if (typeof value === 'object' && value !== null)
-        cache.set(value, encoded);
-    }
-    return `${JSON.stringify(key)}:${encoded}`;
-  });
-  return digest(`{${entries.join(',')}}`);
+class IncrementalPeerRecordDigest {
+  #leaves = new Map<string, { value: unknown; digest: string }>();
+
+  async digest(record: Readonly<Record<string, unknown>>): Promise<string> {
+    const keys = Object.keys(record);
+    const updates = keys.map(async (key) => {
+      const value = record[key];
+      const prior = this.#leaves.get(key);
+      if (prior?.value === value) return;
+      const leaf = await digest(JSON.stringify(value));
+      this.#leaves.set(key, { value, digest: leaf });
+    });
+    await Promise.all(updates);
+    return digest(
+      keys.map((key) => `${JSON.stringify(key)}:${this.#leaves.get(key)?.digest ?? ''}`).join(','),
+    );
+  }
 }
 
 function frozenRecord<T>(
