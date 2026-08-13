@@ -439,7 +439,7 @@ export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
     };
     if (
       runtime.process?.env?.AGENTPLAT_SIGNATURE_TRACE !== '1' ||
-      this.#signRequests % 1_000 !== 0
+      this.#signRequests % 10 !== 0
     ) return;
     console.error(
       JSON.stringify({
