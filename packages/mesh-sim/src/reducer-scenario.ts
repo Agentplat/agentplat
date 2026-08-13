@@ -8,6 +8,8 @@ import {
   type MeshSimulationPrngVersion,
 } from './index.js';
 
+const MAX_SCENARIO_PEERS = 1_024;
+
 export interface MeshReducerScenarioLimits {
   readonly maximumEvents: number;
   readonly maximumLogicalTime: number;
@@ -510,7 +512,7 @@ function validateScenario<State, Action>(
   assertDenseArray(config.faultPlan.faults, 'faults');
   if (
     config.peers.length === 0 ||
-    config.peers.length > 256 ||
+    config.peers.length > MAX_SCENARIO_PEERS ||
     !config.faultPlan ||
     config.faultPlan.schemaVersion !== 1 ||
     config.faultPlan.faults.length > MESH_SIMULATION_FAULT_LIMITS.maximumFaults
