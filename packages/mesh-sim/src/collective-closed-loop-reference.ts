@@ -540,21 +540,21 @@ export async function createCollectiveClosedLoopResilienceReferenceScenarioV1(
   if (actionLogicalTimeMs > MAXIMUM_RESILIENCE_LOGICAL_TIME_MS)
     throw new RangeError('closed_loop_resilience_logical_time_exceeded');
 
-  const checkpointObservations = peerIds.map((peerId, index) =>
+  const checkpointObservations = planningPeers.map((peer) =>
     observationFor({
       missionIntent: nominalDefinition.missionIntent,
-      peerId,
-      peerInstanceId: peerInstanceId(index),
+      peerId: peer.peerId,
+      peerInstanceId: peer.peerInstanceId,
       cursor: 1,
       phase: 'checkpoint',
       logicalTimeMs: preflight.logicalTimeMs,
     })
   );
-  const outcomeObservations = peerIds.map((peerId, index) =>
+  const outcomeObservations = planningPeers.map((peer) =>
     observationFor({
       missionIntent: nominalDefinition.missionIntent,
-      peerId,
-      peerInstanceId: peerInstanceId(index),
+      peerId: peer.peerId,
+      peerInstanceId: peer.peerInstanceId,
       cursor: 2,
       phase: 'outcome',
       logicalTimeMs: actionLogicalTimeMs,
