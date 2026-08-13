@@ -398,6 +398,7 @@ export async function exportMeshEd25519PublicKey(
 /** Reference Web Crypto signer implementation. */
 export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
   readonly #signingPolicy: Readonly<MeshSigningPolicy>;
+  readonly #cache = new WeakMap<object, Map<string, Promise<unknown>>>();
 
   constructor(options: WebCryptoMeshEnvelopeSignerOptions = {}) {
     this.#signingPolicy = snapshotSigningPolicy(options.signingPolicy);
@@ -409,7 +410,19 @@ export class WebCryptoMeshEnvelopeSigner implements MeshEnvelopeSigner {
   >(
     request: MeshSignRequest<TPayload, TWireVersion>
   ): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
-    return signMeshEnvelopeWithPolicy(request, this.#signingPolicy);
+    const key = request.privateKey as object;
+    let entries = this.#cache.get(key);
+    if (entries === undefined) {
+      entries = new Map();
+      this.#cache.set(key, entries);
+    }
+    const cacheKey = JSON.stringify(request.envelope);
+    const cached = entries.get(cacheKey);
+    if (cached !== undefined) return cached as Promise<SignedMeshEnvelope<TPayload, TWireVersion>>;
+    const pending = signMeshEnvelopeWithPolicy(request, this.#signingPolicy);
+    entries.set(cacheKey, pending);
+    if (entries.size > 4096) entries.delete(entries.keys().next().value as string);
+    return pending;
   }
 }
 
