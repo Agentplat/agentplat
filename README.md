@@ -15,6 +15,8 @@
   ·
   <a href="https://doc.agentplat.com">Documentation</a>
   ·
+  <a href="https://doc.agentplat.com/ai/context.md">For AI coding agents</a>
+  ·
   <a href="https://github.com/Agentplat/agentplat">GitHub</a>
   ·
   <a href="https://agentplat.com/#contact">Contact</a>
