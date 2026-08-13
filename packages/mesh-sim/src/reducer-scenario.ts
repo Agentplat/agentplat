@@ -162,6 +162,7 @@ const reducerScenarioCanonicalLimits = Object.freeze({
   maximumArrayItems: 1_000_000,
   maximumStringBytes: 1_048_576,
 });
+const validatedScenarioPairs = new WeakMap<object, WeakSet<object>>();
 
 /**
  * Runs a closed serialized schedule against a caller supplied production reducer
@@ -500,6 +501,8 @@ function validateScenario<State, Action>(
   config: MeshReducerScenarioConfig<State, Action>,
   runtime: MeshReducerScenarioRuntime<State, Action, unknown, unknown>
 ): void {
+  const cachedRuntimes = validatedScenarioPairs.get(config as object);
+  if (cachedRuntimes?.has(runtime as object)) return;
   assertPlainRecord(config, 'configuration');
   assertExactKeys(config, [
     'events',
@@ -654,6 +657,10 @@ function validateScenario<State, Action>(
     Number.MAX_SAFE_INTEGER,
     'configuration'
   );
+  const runtimes = cachedRuntimes ?? new WeakSet<object>();
+  runtimes.add(runtime as object);
+  if (cachedRuntimes === undefined)
+    validatedScenarioPairs.set(config as object, runtimes);
 }
 
 function validateFaultTargets<Action>(
