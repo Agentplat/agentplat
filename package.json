@@ -96,6 +96,7 @@
     "verify:collective-compatibility": "node scripts/collective-beta2-compatibility.mjs --mode check",
     "verify:alpha5-compatibility": "node scripts/verify-alpha5-compatibility.mjs",
     "verify:pack": "node scripts/pack-smoke.mjs",
+    "verify:public-consumer": "node scripts/verify-public-consumer.mjs",
     "verify:collective-planning-closed-loop": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop.mjs",
     "verify:collective-closed-loop-resilience": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop-resilience.mjs",
     "verify:team-formation-pack": "node scripts/pack-consumers/team-formation.mjs",
@@ -106,7 +107,7 @@
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run verify:empirical-preregistration-contract && pnpm run verify:empirical-campaign-contract && pnpm run verify:empirical-supervisor-contract && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack"
+    "check": "pnpm run audit:public && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run verify:empirical-preregistration-contract && pnpm run verify:empirical-campaign-contract && pnpm run verify:empirical-supervisor-contract && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack && pnpm run verify:public-consumer"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

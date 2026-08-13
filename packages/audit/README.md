@@ -2,6 +2,22 @@
 
 Audit contracts and redaction helpers for AgentPlat.
 
+## Installation
+
+Requires Node.js `>=20.19.3` when used alongside the collective runtime. The
+current coordinated prerelease is published under `next`; use the explicit
+version for a reproducible install:
+
+```sh
+npm install @agentplat/audit@0.3.0-beta.3
+```
+
+```ts
+import { createMemoryAuditSink } from "@agentplat/audit";
+
+const auditSink = createMemoryAuditSink();
+```
+
 This package defines audit records, sinks and utility helpers for redacting sensitive details before records are stored, emitted or shared with operational systems.
 
 `InMemoryAuditSink` recursively redacts credential-like fields before retaining records.

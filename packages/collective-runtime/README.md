@@ -5,6 +5,25 @@ It composes the public `AgentRuntime` provider registry with an explicit work
 plan, bounded policies, observable execution state and revision-checked
 persistence.
 
+## Installation
+
+Requires Node.js `>=20.19.3` and an npm client configured for the public npm
+registry. The current coordinated prerelease is published under `next`; pin the
+explicit version for reproducible consumer installs:
+
+```sh
+npm install @agentplat/collective-runtime@0.3.0-beta.3 @agentplat/audit@0.3.0-beta.3
+```
+
+```ts
+import { createMemoryAuditSink } from "@agentplat/audit";
+import { createCollective } from "@agentplat/collective-runtime";
+
+const auditSink = createMemoryAuditSink();
+void auditSink;
+void createCollective; // Configure runtime, agents and a plan before creating one.
+```
+
 ```ts
 import { createCollective } from "@agentplat/collective-runtime";
 import { DefaultAgentRuntime } from "@agentplat/runtime";
