@@ -106,18 +106,18 @@ test('resilience reference construction is deterministic and binds the recovered
 });
 
 test('non-nominal campaign strata remain bound without widening the nominal definition contract', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   const [nominal, benign] = await Promise.all([
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'adaptive_collective',
-      peerCount: 3,
+      peerCount: 4,
       seed: 17,
       stratum: 'nominal',
       runtime,
     }),
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'adaptive_collective',
-      peerCount: 3,
+      peerCount: 4,
       seed: 17,
       stratum: 'benign',
       runtime,
@@ -201,10 +201,10 @@ test('adaptive and centralized reference factories share mission, peers and faul
 });
 
 test('a trace-event fault trigger must resolve to an earlier retained event', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   const input = await createCollectiveClosedLoopResilienceReferenceScenarioV1({
     runner: 'adaptive_collective',
-    peerCount: 3,
+    peerCount: 4,
     runtime,
   });
   const nominal = input.definition.nominalDefinition;
@@ -241,17 +241,17 @@ test('a trace-event fault trigger must resolve to an earlier retained event', as
 });
 
 test('registered matrix ports fail closed for foreign mission roots and plan substitutions', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
-  const foreignRuntime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
+  const foreignRuntime = await createCollectiveClosedLoopReferenceRuntimeV1(5);
   const [input, foreign] = await Promise.all([
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'adaptive_collective',
-      peerCount: 3,
+      peerCount: 4,
       runtime,
     }),
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'adaptive_collective',
-      peerCount: 3,
+      peerCount: 5,
       runtime: foreignRuntime,
     }),
   ]);
@@ -359,7 +359,7 @@ test('registered matrix ports fail closed for foreign mission roots and plan sub
     const value = await createCollectiveClosedLoopResilienceReferenceScenarioV1(
       {
         runner: 'adaptive_collective',
-        peerCount: 3,
+        peerCount: 4,
         runtime,
       }
     );
