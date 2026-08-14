@@ -86,9 +86,11 @@ jobs:
           else
             pnpm run check
           fi
-          pnpm run verify:mesh-postgres-faults
-          pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
-          pnpm run benchmark:mesh-adapters
+          if [ "${{ inputs.scope }}" = "all" ]; then
+            pnpm run verify:mesh-postgres-faults
+            pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
+            pnpm run benchmark:mesh-adapters
+          fi
         env:
           AGENTPLAT_POSTGRES_TEST: "1"
           NPM_CONFIG_USERCONFIG: /dev/null
