@@ -36,6 +36,7 @@ export type CollectiveTraceEventKindV2 =
   | "environment.observation.delivered"
   | "environment.observation.rejected"
   | "peer.decision.accepted"
+  | "role.decision.observed"
   | "peer.decision.rejected"
   | "runner.directive.delivered"
   | "planning.proposal"

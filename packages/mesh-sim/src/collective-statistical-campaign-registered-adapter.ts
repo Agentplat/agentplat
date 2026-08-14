@@ -58,12 +58,14 @@ const MAXIMUM_ACTIVE_PLANNING_PEERS = 33;
 
 type TraceRecord = Readonly<{
   eventId: string;
+  logicalTimeMs: number;
   peerId: string | null;
   kind: string;
   status: string;
   reasonCode: string | null;
   accountingKind: string | null;
   accountingUnits: number;
+  stateDigestAfter: PlanningDigestV1 | null;
   traceChainDigest: PlanningDigestV1;
   previousTraceChainDigest: PlanningDigestV1 | null;
   faultBinding: Readonly<{
@@ -303,16 +305,10 @@ function projectRegisteredExecutionV1(
   const safety = safetyMetrics(monitor, trace);
   const faults = faultMetrics(trace, cell.stratum);
   const recovery = recoveryMetrics(trace, cell.stratum);
-  const convergence = Object.freeze({
-    schemaVersion: 1 as const,
-    healOrQuiescenceEventId: null,
-    agreementEventId: null,
-    healthyParticipantCount: 0,
-    agreeingParticipantCount: 0,
-    interactionsToAgreement: null,
-  });
+  const convergence = deriveConvergenceMetricsV1(trace, cell.stratum);
   const decisions = trace.filter(
-    (event) => event.accountingKind === 'decision',
+    (event) =>
+      event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed',
   );
   const unsafeExecutableCount =
     safety.authorizationViolations +
@@ -415,6 +411,96 @@ function projectRegisteredExecutionV1(
     recovery,
     convergence,
     roleCoherence,
+  });
+}
+
+/**
+ * Derives convergence only from evaluator-owned trace facts. A participant is
+ * healthy when it emits an accepted planning decision after the last observed
+ * disruption (or from the start for nominal cells). Agreement is the largest
+ * same-state cohort at the latest decision round; the interaction count is the
+ * ledger-accounted prefix through the event that established that cohort.
+ * Missing or non-agreeing evidence remains explicit in the projection and is
+ * rejected by the normative gate rather than being filled with a placeholder.
+ */
+export function deriveConvergenceMetricsV1(
+  trace: readonly TraceRecord[],
+  stratum: 'nominal' | 'benign' | 'adversarial' | 'mixed',
+) {
+  const disruptions = trace.filter(
+    (event) =>
+      event.kind === 'fault.observed' &&
+      event.faultBinding !== null &&
+      event.faultBinding.faultFamily !== 'network.heal',
+  );
+  const lastDisruptionIndex =
+    stratum === 'nominal'
+      ? -1
+      : Math.max(
+          -1,
+          ...disruptions.map((event) => trace.indexOf(event)),
+        );
+  const healOrQuiescence =
+    stratum === 'nominal'
+      ? (trace.at(-1) ?? null)
+      : (trace.find(
+          (event) =>
+            event.kind === 'fault.observed' &&
+            event.faultBinding?.faultFamily === 'network.heal',
+        ) ?? trace.at(-1) ?? null);
+  const decisions = trace
+    .map((event, index) => ({ event, index }))
+    .filter(
+      ({ event, index }) =>
+        index > lastDisruptionIndex &&
+        (event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed') &&
+        event.peerId !== null &&
+        event.stateDigestAfter !== null,
+    );
+  const latestLogicalTime = decisions.at(-1)?.event.logicalTimeMs;
+  const latestRound = decisions.filter(
+    ({ event }) => event.logicalTimeMs === latestLogicalTime,
+  );
+  const byState = new Map<string, { count: number; lastIndex: number }>();
+  for (const { event, index } of latestRound) {
+    const state = event.stateDigestAfter!;
+    const current = byState.get(state) ?? { count: 0, lastIndex: index };
+    byState.set(state, { count: current.count + 1, lastIndex: index });
+  }
+  const cohorts = [...byState.values()].sort(
+    (left, right) => right.count - left.count || right.lastIndex - left.lastIndex,
+  );
+  const winning = cohorts[0] ?? null;
+  const winningState =
+    winning === null
+      ? null
+      : [...byState.entries()].find(
+          ([, value]) => value.lastIndex === winning.lastIndex,
+        )?.[0] ?? null;
+  const agreementEvent =
+    winning === null
+      ? null
+      : trace
+          .slice(0, winning.lastIndex + 1)
+          .reverse()
+          .find(
+            (event: TraceRecord) =>
+              (event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed') &&
+              event.stateDigestAfter === winningState,
+          ) ?? null;
+  const interactionsToAgreement =
+    agreementEvent === null
+      ? null
+      : trace
+          .slice(0, trace.indexOf(agreementEvent) + 1)
+          .reduce((sum, event) => sum + event.accountingUnits, 0);
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    healOrQuiescenceEventId: healOrQuiescence?.eventId ?? null,
+    agreementEventId: agreementEvent?.eventId ?? null,
+    healthyParticipantCount: latestRound.length,
+    agreeingParticipantCount: winning?.count ?? 0,
+    interactionsToAgreement,
   });
 }
 
@@ -523,6 +609,10 @@ function normalizeTrace(
     result.push(
       Object.freeze({
         eventId,
+        logicalTimeMs: integer(
+          value.logicalTimeMs,
+          'trace_logical_time_invalid',
+        ),
         peerId: nullableString(value.peerId, 'trace_peer_id_invalid'),
         kind: token(value.kind, 'trace_kind_invalid'),
         status: token(value.status, 'trace_status_invalid'),
@@ -537,6 +627,10 @@ function normalizeTrace(
         accountingUnits: integer(
           value.accountingUnits,
           'trace_accounting_units_invalid',
+        ),
+        stateDigestAfter: nullableDigest(
+          value.stateDigestAfter,
+          'trace_state_after_digest_invalid',
         ),
         traceChainDigest: digest(
           value.traceChainDigest,

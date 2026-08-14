@@ -947,6 +947,15 @@ async function runResilientClosedLoop(
       definition,
       resilience,
     );
+  await collectRegisteredRoleCoherenceRounds(
+    nominalInput,
+    observations,
+    journal,
+    journal.events.at(-1)?.logicalTimeMs ?? 0,
+    runner === "adaptive_collective"
+      ? activePlanningPeers(nominalInput).length
+      : 0,
+  );
   const evaluation = input.evaluator.finalize(publicArtifacts);
   assertResilienceTerminalEvidence(evaluation, run, finalized, faultMatrix);
   return Object.freeze({
@@ -1176,6 +1185,13 @@ async function runClosedLoop(
     ]),
     publicArtifacts,
   });
+  await collectRegisteredRoleCoherenceRounds(
+    input,
+    observations,
+    journal,
+    journal.events.at(-1)?.logicalTimeMs ?? 0,
+    runner === "adaptive_collective" ? activePlanningPeers(input).length : 0,
+  );
   const evaluation = input.evaluator.finalize(publicArtifacts);
   assertTerminalEvidence(evaluation, run, finalized);
   return Object.freeze({
@@ -1601,9 +1617,11 @@ async function collectDecisions(
   observations: readonly MissionObservationV1[],
   journal: CollectiveTraceJournalV2,
   logicalTimeMs: number,
+  peerLimit = Number.MAX_SAFE_INTEGER,
+  roleObservationOnly = false,
 ): Promise<ReadonlyMap<string, CollectivePlanningDecisionV1>> {
   const decisions = new Map<string, CollectivePlanningDecisionV1>();
-  for (const peer of activePlanningPeers(input)) {
+  for (const peer of activePlanningPeers(input).slice(0, peerLimit)) {
     const localObservations = observations.filter(
       (observation) =>
         observation.observerPeerId === peer.peerId &&
@@ -1634,16 +1652,33 @@ async function collectDecisions(
       input.definition,
     );
     decisions.set(peer.peerId, decision);
+    const convergenceStateDigest = roleObservationOnly
+      ? digestValue({
+          missionIntentId: input.definition.missionIntent.missionIntentId,
+          intentDigest: input.definition.missionIntent.intentDigest,
+          observations: localObservations
+            .map((observation) => ({
+              observationKind: observation.observationKind,
+              publicValue: observation.publicValue,
+              contentReferenceDigest: observation.contentReferenceDigest,
+            }))
+            .sort((left, right) =>
+              JSON.stringify(left).localeCompare(JSON.stringify(right)),
+            ),
+        })
+      : state.planView.stateDigest;
     append(journal, {
       logicalTimeMs,
       peerId: peer.peerId,
       component: "runner",
-      kind: "peer.decision.accepted",
+      kind: roleObservationOnly
+        ? "role.decision.observed"
+        : "peer.decision.accepted",
       recordDigest: digestValue(decision),
       stateDigestBefore: state.planView.stateDigest,
-      stateDigestAfter: state.planView.stateDigest,
+      stateDigestAfter: convergenceStateDigest,
     });
-    if (decision.kind === "proposal")
+    if (!roleObservationOnly && decision.kind === "proposal")
       append(journal, {
         logicalTimeMs,
         peerId: peer.peerId,
@@ -1655,6 +1690,65 @@ async function collectDecisions(
       });
   }
   return decisions;
+}
+
+/**
+ * Fills the registered 1,000-decision role-coherence horizon with independent
+ * local planning rounds. The first round's owner proposal remains the only
+ * proposal admitted to execution; subsequent rounds are evaluator-visible
+ * evidence of sustained role decisions and do not mutate the mission action.
+ * The final round is full-width so convergence is measured over all active
+ * participants rather than over a truncated remainder.
+ */
+async function collectRegisteredRoleCoherenceRounds(
+  input: CollectiveClosedLoopExecutionInputV1,
+  observations: readonly MissionObservationV1[],
+  journal: CollectiveTraceJournalV2,
+  initialLogicalTimeMs: number,
+  initialDecisionCount: number,
+): Promise<void> {
+  const activePeerCount = activePlanningPeers(input).length;
+  let remaining = 1_000 - initialDecisionCount;
+  if (remaining < 0) throw new Error("closed_loop_role_horizon_overflow");
+  let round = 1;
+  const fullRoundsBeforeFinal = Math.max(
+    0,
+    Math.floor((remaining - activePeerCount) / activePeerCount),
+  );
+  for (let index = 0; index < fullRoundsBeforeFinal; index += 1) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      activePeerCount,
+      true,
+    );
+    remaining -= activePeerCount;
+    round += 1;
+  }
+  if (remaining > activePeerCount) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      remaining - activePeerCount,
+      true,
+    );
+    remaining -= remaining - activePeerCount;
+    round += 1;
+  }
+  if (remaining > 0) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      remaining,
+      true,
+    );
+  }
 }
 
 /** The sparse reference mesh admits only the owner and its direct neighbors
