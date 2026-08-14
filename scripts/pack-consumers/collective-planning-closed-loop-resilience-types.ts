@@ -19,12 +19,12 @@ import {
   type CreateCollectiveClosedLoopResilienceReferenceScenarioInputV1,
 } from '@agentplat/mesh-sim';
 
-const runtime = createCollectiveClosedLoopReferenceRuntimeV1(3);
+const runtime = createCollectiveClosedLoopReferenceRuntimeV1(4);
 const adaptiveInput: Promise<CollectiveClosedLoopResilienceExecutionInputV1> =
   runtime.then((referenceRuntime) =>
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'adaptive_collective',
-      peerCount: 3,
+      peerCount: 4,
       runtime: referenceRuntime,
     })
   );
@@ -32,7 +32,7 @@ const centralizedInput: Promise<CollectiveClosedLoopResilienceExecutionInputV1> 
   runtime.then((referenceRuntime) =>
     createCollectiveClosedLoopResilienceReferenceScenarioV1({
       runner: 'centralized_planner',
-      peerCount: 3,
+      peerCount: 4,
       runtime: referenceRuntime,
     })
   );

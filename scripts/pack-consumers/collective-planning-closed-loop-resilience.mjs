@@ -6,7 +6,7 @@ import {
   runPairedCollectiveClosedLoopResilienceCampaignV1,
 } from '@agentplat/mesh-sim';
 
-const peerCount = 3;
+const peerCount = 4;
 const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(peerCount);
 const createAdaptiveInput = () =>
   createCollectiveClosedLoopResilienceReferenceScenarioV1({

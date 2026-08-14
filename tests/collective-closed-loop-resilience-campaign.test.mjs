@@ -8,19 +8,19 @@ import {
 } from '@agentplat/mesh-sim';
 
 test('runs a fair adaptive and centralized resilience pair with exact replay', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   const campaign = await runPairedCollectiveClosedLoopResilienceCampaignV1({
     schemaVersion: 1,
     createAdaptiveInput: () =>
       createCollectiveClosedLoopResilienceReferenceScenarioV1({
         runner: 'adaptive_collective',
-        peerCount: 3,
+        peerCount: 4,
         runtime,
       }),
     createCentralizedInput: () =>
       createCollectiveClosedLoopResilienceReferenceScenarioV1({
         runner: 'centralized_planner',
-        peerCount: 3,
+        peerCount: 4,
         runtime,
       }),
   });
@@ -48,21 +48,21 @@ test('runs a fair adaptive and centralized resilience pair with exact replay', a
 });
 
 test('rejects a centralized input with a different public campaign binding', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   await assert.rejects(
     runPairedCollectiveClosedLoopResilienceCampaignV1({
       schemaVersion: 1,
       createAdaptiveInput: () =>
         createCollectiveClosedLoopResilienceReferenceScenarioV1({
           runner: 'adaptive_collective',
-          peerCount: 3,
+          peerCount: 4,
           runtime,
         }),
       async createCentralizedInput() {
         const value =
           await createCollectiveClosedLoopResilienceReferenceScenarioV1({
             runner: 'centralized_planner',
-            peerCount: 3,
+            peerCount: 4,
             runtime,
           });
         return Object.freeze({
@@ -76,21 +76,21 @@ test('rejects a centralized input with a different public campaign binding', asy
 });
 
 test('rejects a different decision-policy implementation despite matching metadata', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   await assert.rejects(
     runPairedCollectiveClosedLoopResilienceCampaignV1({
       schemaVersion: 1,
       createAdaptiveInput: () =>
         createCollectiveClosedLoopResilienceReferenceScenarioV1({
           runner: 'adaptive_collective',
-          peerCount: 3,
+          peerCount: 4,
           runtime,
         }),
       async createCentralizedInput() {
         const value =
           await createCollectiveClosedLoopResilienceReferenceScenarioV1({
             runner: 'centralized_planner',
-            peerCount: 3,
+            peerCount: 4,
             runtime,
           });
         return Object.freeze({
@@ -109,21 +109,21 @@ test('rejects a different decision-policy implementation despite matching metada
 });
 
 test('rejects different evaluator environment or monitor bindings before execution', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   await assert.rejects(
     runPairedCollectiveClosedLoopResilienceCampaignV1({
       schemaVersion: 1,
       createAdaptiveInput: () =>
         createCollectiveClosedLoopResilienceReferenceScenarioV1({
           runner: 'adaptive_collective',
-          peerCount: 3,
+          peerCount: 4,
           runtime,
         }),
       async createCentralizedInput() {
         const value =
           await createCollectiveClosedLoopResilienceReferenceScenarioV1({
             runner: 'centralized_planner',
-            peerCount: 3,
+            peerCount: 4,
             runtime,
           });
         const nominal = value.definition.nominalDefinition;
@@ -148,21 +148,21 @@ test('rejects different evaluator environment or monitor bindings before executi
 });
 
 test('rejects a substituted centralized matrix with a different binding', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   await assert.rejects(
     runPairedCollectiveClosedLoopResilienceCampaignV1({
       schemaVersion: 1,
       createAdaptiveInput: () =>
         createCollectiveClosedLoopResilienceReferenceScenarioV1({
           runner: 'adaptive_collective',
-          peerCount: 3,
+          peerCount: 4,
           runtime,
         }),
       async createCentralizedInput() {
         const value =
           await createCollectiveClosedLoopResilienceReferenceScenarioV1({
             runner: 'centralized_planner',
-            peerCount: 3,
+            peerCount: 4,
             runtime,
           });
         return Object.freeze({
@@ -179,21 +179,21 @@ test('rejects a substituted centralized matrix with a different binding', async 
 });
 
 test('rejects a substituted matrix even when its public binding matches', async () => {
-  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(3);
+  const runtime = await createCollectiveClosedLoopReferenceRuntimeV1(4);
   await assert.rejects(
     runPairedCollectiveClosedLoopResilienceCampaignV1({
       schemaVersion: 1,
       createAdaptiveInput: () =>
         createCollectiveClosedLoopResilienceReferenceScenarioV1({
           runner: 'adaptive_collective',
-          peerCount: 3,
+          peerCount: 4,
           runtime,
         }),
       async createCentralizedInput() {
         const value =
           await createCollectiveClosedLoopResilienceReferenceScenarioV1({
             runner: 'centralized_planner',
-            peerCount: 3,
+            peerCount: 4,
             runtime,
           });
         return Object.freeze({

@@ -22,7 +22,7 @@ import {
   validatePlanningConformanceReportV1,
 } from "@agentplat/mesh-conformance/planning";
 
-const peerCount = 3;
+const peerCount = 4;
 const preflightCells = collectiveEvaluationCampaignProfileCellsV1(
   COLLECTIVE_EVALUATION_PREFLIGHT_CAMPAIGN_PROFILE_V1,
   "packed-consumer-preflight",
