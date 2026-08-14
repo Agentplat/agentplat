@@ -11,6 +11,10 @@ import {
 } from "@agentplat/mesh-sim";
 
 const PEER_COUNT = 50;
+// The reference mesh intentionally executes planning only for the owner and
+// its 32 direct neighbors; the remaining registered peers are scale-model
+// participants and do not emit local planning decisions in this scenario.
+const ACTIVE_PLANNING_PEER_COUNT = 33;
 
 function committedEffects(result) {
   return result.trace.events.filter(
@@ -73,8 +77,14 @@ test("50-peer nominal adaptive and centralized closed loops commit the same publ
   }
 
   assert.equal(centralizedDirectives(adaptive).length, 0);
-  assert.equal(centralizedDirectives(centralized).length, PEER_COUNT);
-  assert.equal(eventsOfKind(adaptive, "peer.decision.accepted").length, PEER_COUNT);
+  assert.equal(
+    centralizedDirectives(centralized).length,
+    ACTIVE_PLANNING_PEER_COUNT,
+  );
+  assert.equal(
+    eventsOfKind(adaptive, "peer.decision.accepted").length,
+    ACTIVE_PLANNING_PEER_COUNT,
+  );
   assert.equal(eventsOfKind(centralized, "peer.decision.accepted").length, 0);
   assert.equal(eventsOfKind(adaptive, "planning.decision").length, 0);
   assert.equal(eventsOfKind(centralized, "planning.decision").length, 1);
@@ -87,9 +97,18 @@ test("50-peer nominal adaptive and centralized closed loops commit the same publ
     "closed-loop-mesh-participation",
   );
   for (const participation of [adaptiveParticipation, centralizedParticipation]) {
-    assert.equal(participation.discoveredPeerIds.length, PEER_COUNT - 1);
-    assert.equal(new Set(participation.discoveredPeerIds).size, PEER_COUNT - 1);
-    assert.equal(participation.offerRecipientPeerIds.length, 32);
+    assert.equal(
+      participation.discoveredPeerIds.length,
+      ACTIVE_PLANNING_PEER_COUNT - 1,
+    );
+    assert.equal(
+      new Set(participation.discoveredPeerIds).size,
+      ACTIVE_PLANNING_PEER_COUNT - 1,
+    );
+    assert.equal(
+      participation.offerRecipientPeerIds.length,
+      ACTIVE_PLANNING_PEER_COUNT - 1,
+    );
     assert.deepEqual(
       participation.bidderPeerIds,
       participation.offerRecipientPeerIds,
