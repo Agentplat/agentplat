@@ -16,6 +16,14 @@ on:
         required: false
         default: true
         type: boolean
+      scope:
+        description: Publication cohort
+        required: true
+        default: public-consumer
+        type: choice
+        options:
+          - public-consumer
+          - all
 
 permissions:
   contents: read
@@ -71,7 +79,13 @@ jobs:
       - name: Run release audit and full verification
         run: |
           pnpm run audit:public:release
-          pnpm run check
+          if [ "${{ inputs.scope }}" = "public-consumer" ]; then
+            pnpm --filter @agentplat/collective-runtime... --filter @agentplat/audit... build
+            pnpm --filter @agentplat/collective-runtime --filter @agentplat/audit type-check
+            pnpm run verify:public-consumer
+          else
+            pnpm run check
+          fi
           pnpm run verify:mesh-postgres-faults
           pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
           pnpm run benchmark:mesh-adapters
@@ -90,12 +104,14 @@ jobs:
           NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NPM_PUBLISH_DRY_RUN: "1"
+          NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
       - name: Publish packages
         if: ${{ !inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NPM_PUBLISH_DRY_RUN: "0"
+          NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Verify exact packages from a Node 20 pnpm registry consumer
         if: ${{ !inputs.dry_run }}

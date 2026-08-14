@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { lstat, mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,7 +83,11 @@ export async function publishPackages({
     'Final distribution tag must differ from the staging tag'
   );
 
-  const packages = publishablePackages(catalog);
+  const packages = selectPublishablePackages({
+    catalog,
+    scope: environment.NPM_PACKAGE_SCOPE,
+    root,
+  });
   const manifests = new Map();
   for (const packageEntry of packages) {
     const manifest = JSON.parse(
@@ -401,6 +406,42 @@ export function topologicalPackages(packageEntries, packageManifests) {
 
   for (const packageName of [...byName.keys()].sort()) visit(packageName);
   return ordered;
+}
+
+export function selectPublishablePackages({ catalog, scope = 'all', root = process.cwd() }) {
+  const allPackages = publishablePackages(catalog);
+  if (scope === undefined || scope === 'all') return allPackages;
+  assert.equal(scope, 'public-consumer', `Unsupported npm package scope: ${scope}`);
+  const byName = new Map(allPackages.map((entry) => [entry.name, entry]));
+  const manifests = new Map(
+    allPackages.map((entry) => [
+      entry.name,
+      JSON.parse(readFileSync(path.join(root, entry.directory, 'package.json'), 'utf8')),
+    ])
+  );
+  const selected = new Set(['@agentplat/collective-runtime', '@agentplat/audit']);
+  for (const name of [...selected]) {
+    for (const dependency of runtimeDependencyNames(manifests.get(name))) {
+      if (dependency.startsWith('@agentplat/')) selected.add(dependency);
+    }
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const name of [...selected]) {
+      for (const dependency of runtimeDependencyNames(manifests.get(name))) {
+        if (dependency.startsWith('@agentplat/') && !selected.has(dependency)) {
+          selected.add(dependency);
+          changed = true;
+        }
+      }
+    }
+  }
+  return [...selected].sort().map((name) => {
+    const entry = byName.get(name);
+    assert.ok(entry, `${name} is not a publishable catalog package`);
+    return entry;
+  });
 }
 
 export function determineUploadAction({
@@ -1220,4 +1261,3 @@ if (isMain) {
     process.exitCode = 1;
   }
 }
-
