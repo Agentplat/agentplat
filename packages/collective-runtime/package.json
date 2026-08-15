@@ -100,6 +100,14 @@
       "types": "./dist/autonomous-mission-loop.d.ts",
       "import": "./dist/autonomous-mission-loop.js"
     },
+    "./approval-checkpoints": {
+      "types": "./dist/approval-checkpoints.d.ts",
+      "import": "./dist/approval-checkpoints.js"
+    },
+    "./inference-policy-projection": {
+      "types": "./dist/inference-policy-projection.d.ts",
+      "import": "./dist/inference-policy-projection.js"
+    },
     "./coordination-control-guarantees": {
       "types": "./dist/coordination-control-guarantees.d.ts",
       "import": "./dist/coordination-control-guarantees.js"
@@ -129,6 +137,7 @@
   "dependencies": {
     "@agentplat/collective-control": "workspace:^",
     "@agentplat/collective-planning": "workspace:^",
+    "@agentplat/inference-control": "workspace:^",
     "@agentplat/core": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-crypto": "workspace:^",

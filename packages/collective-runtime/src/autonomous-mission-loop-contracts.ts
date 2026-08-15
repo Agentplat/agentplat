@@ -13,6 +13,10 @@ import type {
   CollectivePeerNodeRuntimePortV1,
   CollectivePeerNodeSnapshotV1,
 } from "./node-contracts.js";
+import type {
+  ApprovalCheckpointPolicyV1,
+  ApprovalCheckpointPortV1,
+} from "./approval-checkpoints.js";
 
 export const AUTONOMOUS_MISSION_LOOP_SCHEMA_VERSION_V1 = 1 as const;
 export const AUTONOMOUS_MISSION_LOOP_STATE_FORMAT_V1 =
@@ -162,6 +166,11 @@ export interface AutonomousMissionLoopRuntimeOptionsV1 {
   readonly executionMaterial: AutonomousMissionExecutionMaterialPortV1;
   readonly clock: AutonomousMissionLoopClockV1;
   readonly store: AutonomousMissionLoopStoreV1;
+  /** Optional human/oversight gate. Omitted preserves autonomous compatibility. */
+  readonly approval?: {
+    readonly policy: ApprovalCheckpointPolicyV1;
+    readonly port?: ApprovalCheckpointPortV1;
+  };
 }
 
 export interface AutonomousMissionLoopCycleResultV1 {
