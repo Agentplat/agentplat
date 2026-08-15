@@ -12,3 +12,4 @@ export * from "./state.js";
 export * from "./lifecycle.js";
 export * from "./peer-credibility.js";
 export * from "./propagation.js";
+export * from "./evidence-fusion-strategy.js";
