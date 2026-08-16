@@ -8,3 +8,5 @@ export * from './team-topology-transformation.js';
 export * from './inference-policy-projection.js';
 export * from './topology-governance.js';
 export * from './mission-continuity-disposition.js';
+export * from './forensic-preservation.js';
+export * from './compromise-lifecycle.js';
