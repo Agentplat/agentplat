@@ -10,3 +10,7 @@ export * from './topology-governance.js';
 export * from './mission-continuity-disposition.js';
 export * from './forensic-preservation.js';
 export * from './compromise-lifecycle.js';
+export * from './degraded-effect-budget.js';
+export * from './partition-reconciliation.js';
+export * from './partition-operation-contracts.js';
+export * from './partition-operation.js';
