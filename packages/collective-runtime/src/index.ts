@@ -7,3 +7,4 @@ export * from './collective-invariants.js';
 export * from './team-topology-transformation.js';
 export * from './inference-policy-projection.js';
 export * from './topology-governance.js';
+export * from './mission-continuity-disposition.js';
