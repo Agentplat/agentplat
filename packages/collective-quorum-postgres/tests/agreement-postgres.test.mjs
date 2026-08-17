@@ -45,7 +45,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        2,
+        3,
       );
       const fixture = await createFixture(pool, schema);
       const value = await createCollectiveAgreementValueV1({
