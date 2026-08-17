@@ -12,7 +12,7 @@ registry. The current coordinated prerelease is published under `next`; pin the
 explicit version for reproducible consumer installs:
 
 ```sh
-npm install @agentplat/collective-runtime@0.3.0-beta.3 @agentplat/audit@0.3.0-beta.3
+npm install @agentplat/collective-runtime@0.3.0-beta.4 @agentplat/audit@0.3.0-beta.4
 ```
 
 ```ts

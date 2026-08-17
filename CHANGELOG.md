@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0-beta.4 - 2026-08-17
+
 - Added the provider-neutral governed collective runtime facade, which composes
   observation, partition policy, topology, strategy selection, approval,
   inference, effect and forensic phases into one receipt-producing mission
