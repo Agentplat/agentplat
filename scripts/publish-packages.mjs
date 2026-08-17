@@ -1204,22 +1204,28 @@ function addDistributionTag({ environment, packageName, root, tag, version }) {
 }
 
 function removeDistributionTag({ environment, packageName, root, tag }) {
-  const result = spawnSync(
-    'npm',
-    ['dist-tag', 'rm', packageName, tag, ...PUBLIC_NPM_REGISTRY_ARGUMENTS],
-    {
-      cwd: root,
-      encoding: 'utf8',
-      env: environment,
-    }
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(
-      `Unable to remove staging tag ${tag} from ${packageName}: ${`${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim()}`
+  let lastFailure = null;
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const result = spawnSync(
+      'npm',
+      ['dist-tag', 'rm', packageName, tag, ...PUBLIC_NPM_REGISTRY_ARGUMENTS],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: environment,
+      }
     );
+    if (result.error) throw result.error;
+    if (result.status === 0) {
+      console.log(String(result.stdout ?? '').trim());
+      return;
+    }
+    lastFailure = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim();
+    if (attempt < 4) spawnSync('sleep', ['2']);
   }
-  console.log(String(result.stdout ?? '').trim());
+  throw new Error(
+    `Unable to remove staging tag ${tag} from ${packageName} after four attempts: ${lastFailure}`
+  );
 }
 
 function runGit(root, arguments_, environment) {
