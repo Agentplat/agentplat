@@ -52,6 +52,10 @@
       "types": "./dist/mission-continuity.d.ts",
       "import": "./dist/mission-continuity.js"
     },
+    "./mission-continuity-disposition": {
+      "types": "./dist/mission-continuity-disposition.d.ts",
+      "import": "./dist/mission-continuity-disposition.js"
+    },
     "./attested-mission-control": {
       "types": "./dist/attested-mission-control.d.ts",
       "import": "./dist/attested-mission-control.js"
@@ -72,9 +76,25 @@
       "types": "./dist/strategy-convergence.d.ts",
       "import": "./dist/strategy-convergence.js"
     },
+    "./partition-operation": {
+      "types": "./dist/partition-operation.d.ts",
+      "import": "./dist/partition-operation.js"
+    },
+    "./degraded-effect-budget": {
+      "types": "./dist/degraded-effect-budget.d.ts",
+      "import": "./dist/degraded-effect-budget.js"
+    },
+    "./partition-reconciliation": {
+      "types": "./dist/partition-reconciliation.d.ts",
+      "import": "./dist/partition-reconciliation.js"
+    },
     "./team-formation": {
       "types": "./dist/team-formation.d.ts",
       "import": "./dist/team-formation.js"
+    },
+    "./team-formation-strategies": {
+      "types": "./dist/team-formation-strategies.d.ts",
+      "import": "./dist/team-formation-strategies.js"
     },
     "./team-execution": {
       "types": "./dist/team-execution.d.ts",
@@ -100,6 +120,18 @@
       "types": "./dist/autonomous-mission-loop.d.ts",
       "import": "./dist/autonomous-mission-loop.js"
     },
+    "./approval-checkpoints": {
+      "types": "./dist/approval-checkpoints.d.ts",
+      "import": "./dist/approval-checkpoints.js"
+    },
+    "./inference-policy-projection": {
+      "types": "./dist/inference-policy-projection.d.ts",
+      "import": "./dist/inference-policy-projection.js"
+    },
+    "./topology-governance": {
+      "types": "./dist/topology-governance.d.ts",
+      "import": "./dist/topology-governance.js"
+    },
     "./coordination-control-guarantees": {
       "types": "./dist/coordination-control-guarantees.d.ts",
       "import": "./dist/coordination-control-guarantees.js"
@@ -112,9 +144,33 @@
       "types": "./dist/compromise-aware-recovery.d.ts",
       "import": "./dist/compromise-aware-recovery.js"
     },
+    "./compromise-authority-lifecycle": {
+      "types": "./dist/compromise-authority-lifecycle.d.ts",
+      "import": "./dist/compromise-authority-lifecycle.js"
+    },
+    "./forensic-preservation": {
+      "types": "./dist/forensic-preservation.d.ts",
+      "import": "./dist/forensic-preservation.js"
+    },
+    "./compromise-lifecycle": {
+      "types": "./dist/compromise-lifecycle.d.ts",
+      "import": "./dist/compromise-lifecycle.js"
+    },
     "./collective-invariants": {
       "types": "./dist/collective-invariants.d.ts",
       "import": "./dist/collective-invariants.js"
+    },
+    "./team-topology-transformation": {
+      "types": "./dist/team-topology-transformation.d.ts",
+      "import": "./dist/team-topology-transformation.js"
+    },
+    "./governed-collective-runtime": {
+      "types": "./dist/governed-collective-runtime.d.ts",
+      "import": "./dist/governed-collective-runtime.js"
+    },
+    "./durable-runtime-state": {
+      "types": "./dist/durable-runtime-state.d.ts",
+      "import": "./dist/durable-runtime-state.js"
     }
   },
   "files": [
@@ -129,6 +185,7 @@
   "dependencies": {
     "@agentplat/collective-control": "workspace:^",
     "@agentplat/collective-planning": "workspace:^",
+    "@agentplat/inference-control": "workspace:^",
     "@agentplat/core": "workspace:^",
     "@agentplat/mesh": "workspace:^",
     "@agentplat/mesh-crypto": "workspace:^",

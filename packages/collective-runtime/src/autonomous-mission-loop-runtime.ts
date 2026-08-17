@@ -17,7 +17,12 @@ import type {
   CollectivePeerNodeSnapshotV1,
 } from "./node-contracts.js";
 import {
-  autonomousMissionLoopDigestV1,
+  evaluateApprovalCheckpointV1,
+  validateApprovalCheckpointPolicyV1,
+  type ApprovalCheckpointActionV1,
+} from "./approval-checkpoints.js";
+import { autonomousMissionLoopDigestV1 } from "./autonomous-mission-loop-validation.js";
+import {
   createAutonomousMissionLoopOperationV1,
   createAutonomousMissionLoopStateV1,
   validateAutonomousMissionLoopPolicyV1,
@@ -57,6 +62,14 @@ export class AutonomousMissionLoopRuntimeV1 implements AutonomousMissionLoopPort
       ...options,
       scope: validateAutonomousMissionLoopScopeV1(options.scope),
       policy: validateAutonomousMissionLoopPolicyV1(options.policy),
+      ...(options.approval
+        ? {
+            approval: {
+              ...options.approval,
+              policy: validateApprovalCheckpointPolicyV1(options.approval.policy),
+            },
+          }
+        : {}),
     };
   }
 
@@ -328,6 +341,36 @@ export class AutonomousMissionLoopRuntimeV1 implements AutonomousMissionLoopPort
     let reasonCode = "operation_failed";
     let resultDigest = null;
     let nodeRevision = (await this.#options.node.restore()).durableRevision;
+    const approval = this.#options.approval;
+    if (approval && (input.operation.action === "plan" || input.operation.action === "execute")) {
+      const action = input.operation.action as ApprovalCheckpointActionV1;
+      const requestBody = {
+        schemaVersion: 1 as const,
+        approvalId: `approval.${input.operation.operationId}`,
+        operationId: input.operation.operationId,
+        action,
+        scopeDigest: this.#options.scope.scopeDigest,
+        policyDigest: approval.policy.policyDigest,
+        requestedAtLogicalMs: input.operation.preparedAtLogicalMs,
+      };
+      const request = Object.freeze({
+        ...requestBody,
+        requestDigest: autonomousMissionLoopDigestV1("approval-checkpoint-request", requestBody),
+      });
+      const decision = await evaluateApprovalCheckpointV1({ policy: approval.policy, port: approval.port, request });
+      if (decision.status !== "approved") {
+        const completed = await this.#complete({
+          state: input.state,
+          operation: input.operation,
+          now: this.#now(input.state.logicalTimeHighWaterMs),
+          status: decision.status,
+          reasonCode: decision.reasonCode,
+          resultDigest: autonomousMissionLoopDigestV1("approval-checkpoint-decision", decision),
+          nodeRevision,
+        });
+        return Object.freeze({ ...completed, transport: input.transport, planning: null, execution: null });
+      }
+    }
     if (input.operation.action === "execute") {
       const invocationNow = this.#now(input.state.logicalTimeHighWaterMs);
       const current = await this.#preparedAssignment(

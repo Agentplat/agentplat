@@ -133,6 +133,21 @@ signed decentralized peer, lease, fencing and certified-recovery protocols in
 external side effect. Applications that need those boundaries compose them in
 their provider or transport adapter.
 
+## Governed runtime facade
+
+For applications that want one provider-neutral mission cycle, use
+`@agentplat/collective-runtime/governed-collective-runtime`. It composes
+observation, partition policy, topology, strategy, approval, inference,
+effects and forensics, returning a content-addressed receipt for each cycle.
+The minimal reference example is
+[`examples/governed-collective-runtime.mjs`](../../examples/governed-collective-runtime.mjs).
+
+The facade is intentionally opt-in. Existing `createCollective` behavior and
+the default fail-closed policies remain unchanged. Applications that need
+restart-safe persistence can implement the ports from
+`@agentplat/collective-runtime/durable-runtime-state`, or use
+`InMemoryDurableStateStoreV1` for local simulations.
+
 ## Productive peer loop
 
 Import `@agentplat/collective-runtime/peer` to connect peer-local planning and

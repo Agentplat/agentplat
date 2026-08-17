@@ -7,3 +7,4 @@ export * from "./evidence.js";
 export * from "./local-rule-kernel.js";
 export * from "./bounded-model.js";
 export * from "./bounded-progress-model.js";
+export * from "./mandate-continuity.js";
