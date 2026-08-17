@@ -358,9 +358,13 @@ export async function publishPackages({
       }
     }
     if (stagingCleanupFailures.length > 0) {
+      const details = stagingCleanupFailures
+        .slice(0, 3)
+        .map((error) => error instanceof Error ? error.message : String(error))
+        .join('\n');
       throw new AggregateError(
         stagingCleanupFailures,
-        `Unable to remove ${stagingCleanupFailures.length} staging distribution tags after promotion`
+        `Unable to remove ${stagingCleanupFailures.length} staging distribution tags after promotion:\n${details}`
       );
     }
     console.log(
