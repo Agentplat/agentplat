@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Added the provider-neutral governed collective runtime facade, which composes
+  observation, partition policy, topology, strategy selection, approval,
+  inference, effect and forensic phases into one receipt-producing mission
+  cycle. The facade is exposed through
+  `@agentplat/collective-runtime/governed-collective-runtime`.
+- Added durable CAS state, epoch fences, causal receipts and idempotency
+  ledger ports through
+  `@agentplat/collective-runtime/durable-runtime-state`, with an in-memory
+  implementation for local development and deterministic simulations.
+- Added public reference documentation and a minimal runnable example for
+  starting, pausing, resuming and safely stopping a governed runtime.
+
 - Added opt-in Capability-State Fusion V1 with content-free local projections
   across Trust, role coherence, capacity, sparse reachability and recovery;
   canonical decisions, durable anti-rollback heads and fail-closed CAS runtime.

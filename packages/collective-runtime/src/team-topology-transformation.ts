@@ -32,7 +32,6 @@ export interface TeamTopologyTransformationRequestV1 {
   readonly operation: TeamTopologyOperationV1;
   readonly sourceTeamIds: readonly AgentPlatID[];
   readonly targetTeams: readonly TeamTopologyNodeV1[];
-  readonly priorTopology: readonly TeamTopologyNodeV1[];
   readonly priorTopologyDigest: PlanningDigestV1;
   readonly policyDigest: PlanningDigestV1;
   readonly quorumDigest: PlanningDigestV1;
@@ -205,6 +204,7 @@ export function rollbackTeamTopologyTransformationV1(input: { readonly state: Te
     operation: transformation.operation,
     sourceTeamIds: transformation.targetTeams.map((team) => team.teamId),
     targetTeams: transformation.priorTopology,
+    priorTopology: transformation.targetTeams,
     priorTopologyDigest: transformation.nextTopologyDigest,
     nextTopologyDigest: transformation.priorTopologyDigest,
     policyDigest: transformation.policyDigest,
