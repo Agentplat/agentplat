@@ -55,7 +55,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        2,
+        3,
       );
       assert.equal(
         (await getMigrationStatus(pool, { schema })).pendingVersions.length,
