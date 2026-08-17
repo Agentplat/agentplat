@@ -62,7 +62,7 @@ test("release-line guard rejects Beta 2 versions in a 52-package cohort", async 
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line beta3 requires root version 0\.3\.0-beta\.3/i,
+    /release line beta3 requires root version 0\.3\.0-beta\.4/i,
   );
 });
 
@@ -75,7 +75,7 @@ test("release-line guard rejects a 52-package Beta 2 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line beta3 requires root version 0\.3\.0-beta\.3/i,
+    /release line beta3 requires root version 0\.3\.0-beta\.4/i,
   );
 });
 
