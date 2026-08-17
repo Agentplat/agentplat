@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/interop",
-  "version": "0.3.0-beta.3",
+  "version": "0.3.0-beta.4",
   "description": "Provider-neutral SDK for connecting external agents and simulation environments to Agentplat.",
   "type": "module",
   "license": "Apache-2.0",
@@ -8,15 +8,27 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./http": { "types": "./dist/http.d.ts", "import": "./dist/http.js" },
-    "./webcrypto": { "types": "./dist/webcrypto.d.ts", "import": "./dist/webcrypto.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "import": "./dist/http.js"
+    },
+    "./webcrypto": {
+      "types": "./dist/webcrypto.d.ts",
+      "import": "./dist/webcrypto.js"
+    },
     "./governed-lifecycle": {
       "types": "./dist/governed-lifecycle.d.ts",
       "import": "./dist/governed-lifecycle.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
@@ -28,8 +40,12 @@
     "@agentplat/core": "workspace:^",
     "@agentplat/runtime": "workspace:^"
   },
-  "engines": { "node": ">=20.19.3" },
-  "publishConfig": { "access": "public" },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agentplat/agentplat.git",

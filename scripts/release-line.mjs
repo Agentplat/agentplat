@@ -42,7 +42,7 @@ export const RELEASE_LINES = Object.freeze([
   Object.freeze({
     catalogPackageCount: 52,
     id: "beta3",
-    releaseVersion: "0.3.0-beta.3",
+    releaseVersion: "0.3.0-beta.4",
     trustPackageCount: 1,
   }),
 ]);

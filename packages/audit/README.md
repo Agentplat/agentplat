@@ -9,7 +9,7 @@ current coordinated prerelease is published under `next`; use the explicit
 version for a reproducible install:
 
 ```sh
-npm install @agentplat/audit@0.3.0-beta.3
+npm install @agentplat/audit@0.3.0-beta.4
 ```
 
 ```ts
