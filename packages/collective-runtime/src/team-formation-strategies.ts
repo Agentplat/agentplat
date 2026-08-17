@@ -12,6 +12,8 @@ import {
   validateTeamFormationRequestV1,
 } from "./team-formation-validation.js";
 
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+
 /** Public descriptor used to select and audit a formation strategy. */
 export interface TeamFormationStrategyDescriptorV1 {
   readonly strategyId: string;
@@ -181,7 +183,6 @@ export function createDefaultTeamFormationStrategyRegistryV1(): TeamFormationStr
   return new TeamFormationStrategyRegistryV1().register(referenceTeamFormationStrategyV1);
 }
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
 function identifier(value: string, label: string): string {
   if (typeof value !== "string" || !IDENTIFIER.test(value))
     throw new TypeError(`${label} must be a valid identifier`);
