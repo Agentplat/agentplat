@@ -75,6 +75,7 @@
     "evidence:empirical-supervisor:report": "node scripts/empirical-study-supervisor.mjs --mode report",
     "verify:empirical-supervisor-contract": "node --test scripts/empirical-study-supervisor.test.mjs && node scripts/empirical-study-supervisor.mjs --mode contract-smoke",
     "verify:release": "node scripts/verify-release.mjs",
+    "verify:governed-runtime-release": "pnpm --filter @agentplat/collective-runtime build && node scripts/verify-governed-runtime-release.mjs",
     "verify:inference-control-scenarios": "node scripts/inference-control-scenarios.mjs --check",
     "verify:trust-scenarios": "node scripts/trust-scenarios.mjs --check",
     "fixtures:mesh-protocol:write": "pnpm --filter @agentplat/mesh-protocol build && node scripts/mesh-protocol-fixtures.mjs --write",

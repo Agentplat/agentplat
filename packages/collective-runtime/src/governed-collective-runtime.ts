@@ -21,6 +21,7 @@ export type GovernedRuntimeStatusV1 =
   | "paused"
   | "completed"
   | "safe_stopped"
+  | "abandoned"
   | "failed";
 
 export type GovernedRuntimePhaseV1 =
@@ -32,6 +33,26 @@ export type GovernedRuntimePhaseV1 =
   | "inference"
   | "effect"
   | "forensics";
+
+/** Construction profile for the governed runtime.
+ *
+ * `flexible` preserves the historical behavior where phase handlers are
+ * optional. `reference-integrated` is a fail-closed profile intended for the
+ * reference composition and requires every safety-critical phase handler.
+ */
+export type GovernedCollectiveRuntimeProfileV1 =
+  | "flexible"
+  | "reference-integrated";
+
+export const GOVERNED_REFERENCE_INTEGRATED_REQUIRED_PHASES_V1 = [
+  "observe",
+  "partition",
+  "strategy",
+  "approval",
+  "inference",
+  "effect",
+  "forensics",
+] as const satisfies readonly GovernedRuntimePhaseV1[];
 
 export interface GovernedCollectiveRuntimePolicyV1 {
   readonly schemaVersion: 1;
@@ -80,12 +101,31 @@ export type GovernedCollectiveRuntimePhaseV1Handler = (
 export interface GovernedCollectiveRuntimeOptionsV1 {
   readonly missionId: string;
   readonly policy: GovernedCollectiveRuntimePolicyV1;
+  /** Defaults to `flexible` for backwards compatibility. */
+  readonly profile?: GovernedCollectiveRuntimeProfileV1;
   readonly clock?: { now(): number };
   readonly phases: Partial<Record<GovernedRuntimePhaseV1, GovernedCollectiveRuntimePhaseV1Handler>>;
   /** Optional durable boundary. Omitted means the historical in-memory behavior. */
   readonly durableStore?: DurableStateStoreV1<GovernedCollectiveRuntimeStateV1>;
   readonly idempotencyLedger?: IdempotencyLedgerV1;
   readonly stateKey?: string;
+}
+
+/** Validate that a phase map satisfies the selected construction profile. */
+export function validateGovernedCollectiveRuntimeProfileV1(
+  profile: GovernedCollectiveRuntimeProfileV1,
+  phases: Partial<Record<GovernedRuntimePhaseV1, GovernedCollectiveRuntimePhaseV1Handler>>,
+): void {
+  if (profile !== "flexible" && profile !== "reference-integrated") {
+    throw new TypeError("invalid_governed_runtime_profile");
+  }
+  if (profile !== "reference-integrated") return;
+  const missing = GOVERNED_REFERENCE_INTEGRATED_REQUIRED_PHASES_V1.filter(
+    (phase) => typeof phases[phase] !== "function",
+  );
+  if (missing.length > 0) {
+    throw new TypeError(`reference_integrated_missing_phases:${missing.join(",")}`);
+  }
 }
 
 export interface GovernedCollectiveRuntimeReceiptV1 {
@@ -106,6 +146,12 @@ export interface GovernedCollectiveRuntimePortV1 {
   pause(): GovernedCollectiveRuntimeStateV1;
   resume(): GovernedCollectiveRuntimeStateV1;
   safeStop(reasonCode?: string): GovernedCollectiveRuntimeStateV1;
+  /** Durable, CAS-protected lifecycle mutations. Synchronous methods remain for compatibility. */
+  pauseAsync(): Promise<GovernedCollectiveRuntimeStateV1>;
+  resumeAsync(): Promise<GovernedCollectiveRuntimeStateV1>;
+  safeStopAsync(reasonCode?: string): Promise<GovernedCollectiveRuntimeStateV1>;
+  recoverAsync(): Promise<GovernedCollectiveRuntimeStateV1>;
+  abandonAsync(reasonCode?: string): Promise<GovernedCollectiveRuntimeStateV1>;
 }
 
 const PHASES: readonly GovernedRuntimePhaseV1[] = ["observe", "partition", "topology", "strategy", "approval", "inference", "effect", "forensics"];
@@ -122,11 +168,14 @@ function stateDigest(state: Omit<GovernedCollectiveRuntimeStateV1, "stateDigest"
 export function createGovernedCollectiveRuntimeV1(options: GovernedCollectiveRuntimeOptionsV1): GovernedCollectiveRuntimePortV1 {
   const missionId = id(options.missionId, "mission_id");
   if (options.policy.schemaVersion !== 1 || options.policy.maximumCycles < 1) throw new TypeError("invalid_governed_runtime_policy");
+  const profile = options.profile ?? "flexible";
+  validateGovernedCollectiveRuntimeProfileV1(profile, options.phases);
   const policy = Object.freeze({ ...options.policy });
   const clock = options.clock ?? { now: () => Date.now() };
   let current: GovernedCollectiveRuntimeStateV1 = makeState({ missionId, status: "idle", epoch: 0, revision: 0, cycle: 0, lastOperationId: null, lastReceiptDigest: null });
   let paused = false;
   const receipts = new Map<string, GovernedCollectiveRuntimeReceiptV1>();
+  const operationDigests = new Map<string, PlanningDigestV1>();
   const durableStore = options.durableStore;
   const ledger = options.idempotencyLedger;
   const stateKey = options.stateKey ?? `governed-runtime:${missionId}`;
@@ -160,20 +209,53 @@ export function createGovernedCollectiveRuntimeV1(options: GovernedCollectiveRun
   }
   async function persist(): Promise<void> {
     if (!durableStore) return;
-    epochFence.assert(stateKey, current.epoch);
+    const fencedEpoch = epochFence.current(stateKey);
+    if (fencedEpoch === undefined || current.epoch > fencedEpoch) epochFence.observe(stateKey, current.epoch);
+    else epochFence.assert(stateKey, current.epoch);
     const record = await durableStore.load(stateKey);
     const expectedRevision = record?.revision ?? null;
     await durableStore.save({ key: stateKey, state: current, expectedRevision, epoch: current.epoch });
+  }
+  async function durableTransition(
+    status: GovernedRuntimeStatusV1,
+    reasonCode?: string,
+    options?: { readonly incrementEpoch?: boolean },
+  ): Promise<GovernedCollectiveRuntimeStateV1> {
+    await ensureHydrated();
+    paused = status === "paused";
+    if (options?.incrementEpoch) {
+      current = makeState({ ...current, epoch: current.epoch + 1, revision: current.revision + 1, status });
+      epochFence.observe(stateKey, current.epoch);
+    } else {
+      current = makeState({ ...current, revision: current.revision + 1, status });
+    }
+    void reasonCode;
+    await persist();
+    return current;
   }
   return {
     state: () => current,
     pause: () => { paused = true; return setStatus("paused"); },
     resume: () => { paused = false; return setStatus("idle"); },
     safeStop: (reasonCode = "operator_safe_stop") => setStatus("safe_stopped", reasonCode),
+    pauseAsync: () => durableTransition("paused"),
+    resumeAsync: () => durableTransition("idle", "operator_resume", { incrementEpoch: true }),
+    safeStopAsync: (reasonCode = "operator_safe_stop") => durableTransition("safe_stopped", reasonCode),
+    recoverAsync: async () => {
+      await ensureHydrated();
+      if (current.status !== "safe_stopped" && current.status !== "paused" && current.status !== "failed") {
+        throw new Error("governed_runtime_not_recoverable");
+      }
+      return durableTransition("idle", "operator_recover", { incrementEpoch: true });
+    },
+    abandonAsync: (reasonCode = "operator_abandon") => durableTransition("abandoned", reasonCode),
     async run(input) {
       await ensureHydrated();
       const operationId = id(input.operationId ?? `${missionId}:${current.revision + 1}`, "operation_id");
       const operationDigest = digest({ missionId, operationId, intent: input.intent });
+      const knownOperationDigest = operationDigests.get(operationId);
+      if (knownOperationDigest && knownOperationDigest !== operationDigest) throw new Error(`idempotency conflict for "${operationId}"`);
+      operationDigests.set(operationId, operationDigest);
       const prior = receipts.get(operationId);
       if (prior) return prior;
       if (ledger) {
@@ -189,7 +271,7 @@ export function createGovernedCollectiveRuntimeV1(options: GovernedCollectiveRun
           throw new Error(`idempotency receipt unavailable for "${operationId}"`);
         }
       }
-      if (current.status === "safe_stopped" || current.status === "completed") throw new Error("governed_runtime_not_runnable");
+      if (current.status === "safe_stopped" || current.status === "completed" || current.status === "abandoned") throw new Error("governed_runtime_not_runnable");
       if (paused || current.status === "paused") {
         const receipt = Object.freeze({ missionId, operationId, cycle: current.cycle, status: "deferred" as const, completedPhases: [], phaseDigests: {}, reasonCode: "runtime_paused", predecessorDigest: current.lastReceiptDigest, receiptDigest: digest({ operationId, status: "deferred" }) });
         receipts.set(operationId, receipt); await persist(); return receipt;
