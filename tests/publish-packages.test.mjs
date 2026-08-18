@@ -329,7 +329,7 @@ test('publisher pins both global and scoped operations to the public registry', 
   assert.equal(Object.isFrozen(PUBLIC_NPM_READ_ARGUMENTS), true);
 });
 
-test('release workflow defaults to dry-run and scopes the npm token to publishing', async () => {
+test('release workflow defaults to dry-run and uses npm trusted publishing', async () => {
   const workflow = await readFile(
     new URL('../.github/workflows/release.yml', import.meta.url),
     'utf8'
@@ -340,7 +340,8 @@ test('release workflow defaults to dry-run and scopes the npm token to publishin
   );
   assert.match(workflow, /name: Dry-run package publication/);
   assert.match(workflow, /name: Publish packages/);
-  assert.equal(workflow.match(/NODE_AUTH_TOKEN:/g)?.length, 1);
+  assert.equal(workflow.match(/NODE_AUTH_TOKEN:/g)?.length ?? 0, 0);
+  assert.match(workflow, /permissions:\n  contents: read\n  id-token: write/);
   assert.match(
     workflow,
     /actions\/checkout@[0-9a-f]{40} # v7[\s\S]+actions\/setup-node@[0-9a-f]{40} # v7/
@@ -366,7 +367,8 @@ test('release workflow defaults to dry-run and scopes the npm token to publishin
   assert.doesNotMatch(dryRunStep, /NODE_AUTH_TOKEN/);
   assert.match(verificationStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
   assert.match(dryRunStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
-  assert.match(publishStep, /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
+  assert.match(publishStep, /NPM_CONFIG_PROVENANCE: "true"/);
+  assert.match(publishStep, /node-version: 24/);
   assert.doesNotMatch(publishStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
   assert.match(
     workflow,
