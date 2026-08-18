@@ -46,6 +46,10 @@ import {
   createLocalCollectiveStatisticalCampaignExecutionStoreV1,
   openCollectiveStatisticalCampaignLocalStoreV1,
 } from "../packages/mesh-sim-local/dist/index.js";
+import {
+  buildPublicationBundleManifestV1,
+  verifyPublicationBundleV1,
+} from "./empirical-publication-bundle.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PLAN_CONFIRMATION = "DO_NOT_RUN";
@@ -637,6 +641,26 @@ async function collect() {
     manifest,
   );
   await writeJsonImmutable(
+    path.join(resultDirectory, "source-lock.json"),
+    loaded.source,
+  );
+  await writeJsonImmutable(
+    path.join(resultDirectory, "registration.json"),
+    loaded.registration,
+  );
+  await writeJsonImmutable(
+    path.join(resultDirectory, "operation-plan.json"),
+    loaded.plan,
+  );
+  await writeJsonImmutable(
+    path.join(resultDirectory, "adapter-descriptor.json"),
+    loaded.descriptor,
+  );
+  await writeJsonImmutable(
+    path.join(resultDirectory, "authorization.json"),
+    trusted.authorization,
+  );
+  await writeJsonImmutable(
     path.join(resultDirectory, "normative-analysis.json"),
     analysis,
   );
@@ -654,6 +678,29 @@ async function collect() {
     path.join(resultDirectory, "paper-dataset.csv"),
     paperCsv(analysis.rawRows),
   );
+  await writeJsonImmutable(
+    path.join(resultDirectory, "analysis-input-projections.json"),
+    {
+      schemaVersion: 1,
+      executionId,
+      aggregationSeed: AGGREGATION_SEED,
+      projections,
+    },
+  );
+  const publicationBundle = await buildPublicationBundleManifestV1({
+    directory: resultDirectory,
+    sourceCommit: loaded.source.sourceCommit,
+    registrationDigest: loaded.registration.registrationDigest,
+    executionId,
+    analysisDigest: analysis.analysisDigest,
+    rawRowCount: analysis.rawRows.length,
+    projectionCount: projections.length,
+  });
+  const verifiedPublicationBundle = await verifyPublicationBundleV1(
+    resultDirectory,
+  );
+  if (verifiedPublicationBundle.bundleDigest !== publicationBundle.bundleDigest)
+    fail("empirical_campaign_publication_bundle_verification_mismatch");
   status({
     status: "collected",
     manifestDigest: manifest.manifestDigest,
@@ -661,6 +708,7 @@ async function collect() {
     decision: analysis.decision,
     cellCount: 240,
     projectionCount: EXPECTED_PROJECTIONS,
+    publicationBundleDigest: verifiedPublicationBundle.bundleDigest,
     incurredExternalSpend: 0,
     empiricalClaimPermitted: false,
   });

@@ -16,6 +16,28 @@ heartbeat, requested state and draft report are mutable operational metadata.
 Shard receipts, projection indexes and content-addressed artifacts remain the
 scientific authority.
 
+## Publication-bundle gate
+
+Exact shard closure is necessary but not sufficient for a confirmatory result.
+The collection boundary now writes a self-contained `results/` publication
+bundle containing the registered inputs, authorization, collection manifest,
+all analysis input projections, normative analysis, canonical raw rows, paper
+tables and CSV export. `publication-bundle-manifest.json` records the byte
+length and SHA-256 digest of every required object.
+
+The independent verifier is invoked with:
+
+```sh
+pnpm run verify:empirical-publication-bundle -- <campaign-output>/results
+```
+
+Verification re-runs the normative analysis from the bundled projections and
+checks equality of the reconstructed analysis, raw rows and paper tables. A
+missing object, changed byte, execution binding mismatch, analysis divergence,
+or table divergence rejects the bundle. This gate does not make an ineligible
+study confirmatory; it makes the evidence package independently recoverable so
+that an eligibility decision can be audited.
+
 ## Process model
 
 `start` validates and stores one immutable supervisor configuration, requests

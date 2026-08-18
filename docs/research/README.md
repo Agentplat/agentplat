@@ -20,7 +20,14 @@ organize that material for research communication.
   evidence and paper-oriented result exports.
 - [Durable local campaign supervisor V1](./durable-local-campaign-supervisor-v1.md):
   detached sequential execution, heartbeat, pause/resume/stop controls,
-  hash-chained operational events and an incremental paper report.
+  hash-chained operational events, publication-bundle verification and an
+  incremental paper report.
+- [DICE solicitation alignment V1](./dice-solicitation-alignment-v1.md): maps
+  DARPA solicitation HR001126S0010's four stated thrusts directly to ADR 0042
+  and the 19-capability matrix, by objective ID.
+- [DICE capability gap closure plan V1](./dice-capability-gap-closure-plan-v1.md):
+  the genuine (non-terminology) gaps against that solicitation, ranked for the
+  remaining window before its 2026-08-25 deadline.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):
