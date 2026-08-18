@@ -50,6 +50,11 @@ import {
   buildPublicationBundleManifestV1,
   verifyPublicationBundleV1,
 } from "./empirical-publication-bundle.mjs";
+import {
+  buildEvaluabilityCertificateV1,
+  REQUIRED_PUBLICATION_ARTIFACTS_V1,
+  verifyEvaluabilityCertificateV1,
+} from "./empirical-evaluability-gate.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PLAN_CONFIRMATION = "DO_NOT_RUN";
@@ -127,7 +132,16 @@ async function plan() {
     ],
     { cwd: root, stdio: "inherit" },
   );
-  const loaded = await loadPrepared(outputDirectory, campaignId, sourceSha);
+  const loaded = await loadPrepared(outputDirectory, campaignId, sourceSha, false);
+  const evaluabilityCertificate = buildEvaluabilityCertificateV1(
+    evaluabilityInput(loaded),
+  );
+  if (evaluabilityCertificate.status !== "passed")
+    fail("empirical_campaign_evaluability_gate_failed");
+  await writeJsonImmutable(
+    path.join(outputDirectory, "evaluability-certificate.json"),
+    evaluabilityCertificate,
+  );
   const body = {
     schemaVersion: 1,
     kind: "agentplat-local-empirical-campaign-design-v1",
@@ -169,6 +183,7 @@ async function plan() {
     expectedProjections: EXPECTED_PROJECTIONS,
     maximumExternalSpend: 0,
     executionPermitted: false,
+    evaluabilityCertificateDigest: evaluabilityCertificate.certificateDigest,
   });
 }
 
@@ -274,6 +289,8 @@ async function authorize() {
     registrationDigest: authorization.registrationDigest,
     planDigest: authorization.planDigest,
     adapterDigest: authorization.adapterDigest,
+    evaluabilityCertificateDigest:
+      loaded.evaluabilityCertificate.certificateDigest,
     executionId: authorization.executionId,
     shardIndices,
     maximumCells: authorization.maximumCells,
@@ -733,7 +750,12 @@ function contractSmoke() {
   });
 }
 
-async function loadPrepared(directory, campaignId, sourceSha) {
+async function loadPrepared(
+  directory,
+  campaignId,
+  sourceSha,
+  requireEvaluability = true,
+) {
   const source = inspectCleanSource(sourceSha);
   const sourceLock = await readJsonBounded(
     path.join(directory, "source-lock.json"),
@@ -758,6 +780,13 @@ async function loadPrepared(directory, campaignId, sourceSha) {
     registration,
     descriptor,
   );
+  let evaluabilityCertificate = null;
+  if (requireEvaluability) {
+    evaluabilityCertificate = verifyEvaluabilityCertificateV1(
+      await readJsonBounded(path.join(directory, "evaluability-certificate.json")),
+      evaluabilityInput({ source, descriptor, registration, plan }),
+    );
+  }
   if (
     plan.sourceCommit !== sourceSha ||
     plan.sourceTreeDigest !== source.sourceTreeDigest ||
@@ -765,7 +794,22 @@ async function loadPrepared(directory, campaignId, sourceSha) {
     plan.shards.some((shard) => shard.cellIds.length !== CELLS_PER_SHARD)
   )
     fail("empirical_campaign_plan_binding_invalid");
-  return { source, descriptor, registration, plan };
+  return { source, descriptor, registration, plan, evaluabilityCertificate };
+}
+
+function evaluabilityInput(loaded) {
+  return {
+    sourceCommit: loaded.source.sourceCommit,
+    registration: loaded.registration,
+    plan: loaded.plan,
+    descriptor: loaded.descriptor,
+    requiredPublicationArtifacts: REQUIRED_PUBLICATION_ARTIFACTS_V1,
+    syntheticRoleDecisionCount: 1_000,
+    syntheticUsefulDecisionCount: 700,
+    syntheticUnsafeExecutableCount: 0,
+    syntheticConvergenceEvidencePresent: true,
+    syntheticConvergenceInteractionDelta: 250,
+  };
 }
 
 async function loadAuthorization(directory, loaded, requireActive = true) {

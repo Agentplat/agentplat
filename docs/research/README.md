@@ -34,6 +34,9 @@ organize that material for research communication.
   runner, environment, trace, accounting and hidden-monitor boundary.
 - [Statistical campaign operations](../adaptive-mission/beta-3-statistical-campaign-operations.md):
   normative ladder, acceptance analysis and artifact custody.
+- The empirical campaign preflight emits an immutable
+  `evaluability-certificate.json`; authorization and shard execution reject a
+  missing or stale certificate before confirmatory work starts.
 
 ## Evidence classes
 

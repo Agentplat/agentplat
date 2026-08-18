@@ -38,6 +38,15 @@ or table divergence rejects the bundle. This gate does not make an ineligible
 study confirmatory; it makes the evidence package independently recoverable so
 that an eligibility decision can be audited.
 
+Before authorization, the campaign plan also writes an immutable
+`evaluability-certificate.json`. It checks the registered cell/slot population,
+evaluator-owned metrics, exact replay, Wilson denominator boundaries, the
+1,000-decision role-coherence contract, convergence evidence and the fixed
+publication-artifact set. Authorization and shard execution re-verify the
+certificate against the current source, registration, plan and adapter. A
+missing, stale or failed certificate blocks confirmatory execution before the
+first shard starts.
+
 ## Process model
 
 `start` validates and stores one immutable supervisor configuration, requests
