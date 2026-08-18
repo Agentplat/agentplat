@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: release-packages
@@ -114,7 +115,7 @@ jobs:
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NPM_PUBLISH_DRY_RUN: "0"
           NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
       - name: Verify exact packages from a Node 20 pnpm registry consumer
         if: ${{ !inputs.dry_run }}
         run: pnpm run verify:registry-consumer
