@@ -238,6 +238,19 @@ export async function publishPackages({
         .join(', ')}.`
     );
 
+    // npm restricts automated dist-tag mutation for granular tokens. If the
+    // requested tags already point at the immutable version, no mutation is
+    // necessary and the registry is already in the desired state.
+    const requestedTagAlreadyCorrect = artifacts.every(({ manifest }) =>
+      distributionTagRollbackTargets.get(manifest.name) === manifest.version
+    );
+    if (!dryRun && requestedTagAlreadyCorrect) {
+      console.log(
+        `Verified ${artifacts.length} existing ${distributionTag} tags; skipping dist-tag mutations.`
+      );
+      return;
+    }
+
     console.log(
       `${dryRun ? 'Dry-running' : 'Publishing'} ${artifacts.length} prepacked packages in dependency order with staging tag ${stagingTag}.`
     );
@@ -270,6 +283,9 @@ export async function publishPackages({
         ...PUBLIC_NPM_REGISTRY_ARGUMENTS,
       ];
       if (dryRun) publishArguments.push('--dry-run');
+      if (!dryRun && environment.NPM_CONFIG_PROVENANCE === 'true') {
+        publishArguments.push('--provenance');
+      }
       run(root, environment, 'npm', publishArguments, {
         cwd: root,
         stdio: 'inherit',
