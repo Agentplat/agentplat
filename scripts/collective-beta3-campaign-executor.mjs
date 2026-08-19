@@ -203,6 +203,11 @@ async function executeReferenceDiagnostic(context, runtime) {
       : result.trace.ledger.total > context.maximumInteractions
         ? "interaction_limit_exceeded"
         : "invariant_monitor_failed";
+  const semanticProjection = projectDiagnosticSemanticMetrics(
+    context,
+    result.trace.events,
+    result.evidence.monitorVerdict,
+  );
   const outcome = resilient
     ? {
         stratum: context.cell.stratum,
@@ -215,6 +220,7 @@ async function executeReferenceDiagnostic(context, runtime) {
         publicArtifactDigests: result.evidence.publicArtifactDigests,
         faultMatrixBindingDigest: result.faultMatrixBindingDigest,
         stopReason: run.stopReason,
+        semanticProjection,
       }
     : {
         stratum: context.cell.stratum,
@@ -224,6 +230,7 @@ async function executeReferenceDiagnostic(context, runtime) {
         monitorVerdict: result.evidence.monitorVerdict,
         publicArtifactDigests: result.evidence.publicArtifactDigests,
         stopReason: run.stopReason,
+        semanticProjection,
       };
   return {
     schemaVersion: 1,
@@ -234,6 +241,53 @@ async function executeReferenceDiagnostic(context, runtime) {
     ledgerRecords: [result.trace.ledger],
     observations: result.observations,
   };
+}
+
+export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVerdict) {
+  const events = Array.isArray(traceEvents) ? traceEvents : [];
+  const inferenceEvents = events.filter(
+    (event) => event.kind === "inference.assessed" && event.status === "accepted",
+  );
+  const dispatchEvents = events.filter(
+    (event) => event.kind === "effect.dispatch" && event.status === "accepted",
+  );
+  const committedEffects = events.filter(
+    (event) => event.kind === "environment.effect.committed" && event.status === "accepted",
+  );
+  const unsafeExecutableCount = Object.entries(monitorVerdict ?? {})
+    .filter(([key]) => key.endsWith("Violations"))
+    .reduce((total, [, value]) => total + Number(value ?? 0), 0);
+  const roleDecisionCount = inferenceEvents.length;
+  const usefulDecisionCount = Math.min(inferenceEvents.length, committedEffects.length);
+  const convergenceEvidencePresent = false;
+  const body = {
+    schemaVersion: 1,
+    projectionOwner: "evaluator",
+    evaluatorBasis: "trace-and-monitor-v1",
+    cellId: context.cell.cellId,
+    runner: context.runner,
+    attempt: context.attempt,
+    registeredDecisionPopulation: 1_000,
+    roleDecisionCount,
+    usefulDecisionCount,
+    usefulDecisionRate: roleDecisionCount === 0 ? null : usefulDecisionCount / roleDecisionCount,
+    unsafeExecutableCount,
+    convergenceEvidencePresent,
+    convergenceAgreement: null,
+    convergenceInteractionDelta: null,
+    convergenceReasonCode: "convergence_evidence_missing",
+    observedInferenceEventIds: inferenceEvents.map((event) => event.eventId),
+    observedDispatchEventIds: dispatchEvents.map((event) => event.eventId),
+    observedCommittedEffectEventIds: committedEffects.map((event) => event.eventId),
+    status:
+      roleDecisionCount === 1_000 && convergenceEvidencePresent
+        ? "complete"
+        : "incomplete",
+  };
+  return Object.freeze({
+    ...body,
+    projectionDigest: digest("diagnostic-semantic-projection", body),
+  });
 }
 
 async function collectDiagnostic(options) {
