@@ -28,6 +28,7 @@ import {
   createLocalCollectiveStatisticalCampaignExecutionStoreV1,
   openCollectiveStatisticalCampaignLocalStoreV1,
 } from "@agentplat/mesh-sim-local";
+import { projectDiagnosticSemanticMetrics } from "./diagnostic-semantic-projection.mjs";
 
 const strata = Object.freeze(["nominal", "benign", "adversarial", "mixed"]);
 const options = parseOptions(process.argv.slice(2));
@@ -243,7 +244,7 @@ async function executeReferenceDiagnostic(context, runtime) {
   };
 }
 
-export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVerdict) {
+function projectDiagnosticSemanticMetricsLegacy(context, traceEvents, monitorVerdict) {
   const events = Array.isArray(traceEvents) ? traceEvents : [];
   const inferenceEvents = events.filter(
     (event) => event.kind === "inference.assessed" && event.status === "accepted",
