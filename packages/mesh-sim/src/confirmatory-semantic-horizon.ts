@@ -150,6 +150,8 @@ function validateEvent(
   ) fail("confirmatory_semantic_decision_binding_invalid");
   for (const value of [event.traceDigest, event.decisionDigest, event.evidenceDigest])
     digestValue(value, "confirmatory_semantic_decision_digest_invalid");
+  if (event.traceDigest !== digest("trace-binding", { executionId: input.executionId, traceEventId: event.traceEventId, decisionDigest: event.decisionDigest }))
+    fail("confirmatory_semantic_trace_binding_invalid");
 }
 
 function validateCertificate(

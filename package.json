@@ -68,6 +68,7 @@
     "evidence:empirical-campaign:collect": "pnpm --filter @agentplat/mesh-sim-local... --filter @agentplat/mesh-sim-postgres... build && node scripts/empirical-study-campaign.mjs --mode collect",
     "verify:empirical-campaign-contract": "pnpm --filter @agentplat/mesh-sim-local... --filter @agentplat/mesh-sim-postgres... build && node scripts/empirical-study-campaign.mjs --mode contract-smoke",
     "verify:empirical-publication-bundle": "pnpm --filter @agentplat/collective-planning --filter @agentplat/mesh-sim build && node scripts/verify-empirical-publication-bundle.mjs",
+    "verify:confirmatory-semantic-horizon-smoke": "pnpm --filter @agentplat/collective-planning --filter @agentplat/inference-control --filter @agentplat/mesh-sim build && node scripts/confirmatory-semantic-horizon-smoke.mjs && node --test tests/confirmatory-semantic-horizon.test.mjs",
     "evidence:empirical-supervisor:start": "pnpm --filter @agentplat/mesh-sim-local... --filter @agentplat/mesh-sim-postgres... build && node scripts/empirical-study-supervisor.mjs --mode start",
     "evidence:empirical-supervisor:status": "node scripts/empirical-study-supervisor.mjs --mode status",
     "evidence:empirical-supervisor:pause": "node scripts/empirical-study-supervisor.mjs --mode pause",

@@ -6,6 +6,7 @@ import {
   projectConfirmatorySemanticHorizonV1,
   replayConfirmatorySemanticHorizonV1,
 } from "../packages/mesh-sim/dist/index.js";
+import { digestPlanningJsonV1 } from "../packages/collective-planning/dist/index.js";
 
 const digest = (letter) => `sha256:${letter.repeat(64)}`;
 
@@ -22,7 +23,7 @@ function fixture(count = 1_000) {
       executionId: "execution:confirmatory-smoke",
       registrationDigest: digest("a"),
       traceEventId: `event:${index}`,
-      traceDigest: digest("c"),
+      traceDigest: digestPlanningJsonV1("evaluation-campaign-artifact-v1", { schemaVersion: 1, kind: "trace-binding", value: { executionId: "execution:confirmatory-smoke", traceEventId: `event:${index}`, decisionDigest: digest((index % 10).toString(16)) } }),
       membershipEpoch: 7,
       membershipConfigurationDigest: digest("b"),
       assignmentEpoch: index,
