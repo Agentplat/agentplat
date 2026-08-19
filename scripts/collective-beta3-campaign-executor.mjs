@@ -264,7 +264,22 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
       event.kind === "fault.observed" &&
       event.faultBinding?.faultFamily === "network.heal",
   );
-  const convergenceEvidencePresent = false;
+  const quiescenceEvent = [...events]
+    .reverse()
+    .find((event) => event.kind === "work.result" && event.status === "accepted");
+  const healIndex = healEvent ? events.indexOf(healEvent) : -1;
+  const quiescenceIndex = quiescenceEvent ? events.indexOf(quiescenceEvent) : -1;
+  const convergenceEvidencePresent =
+    healEvent !== undefined &&
+    quiescenceEvent !== undefined &&
+    quiescenceIndex > healIndex &&
+    unsafeExecutableCount === 0 &&
+    monitorVerdict?.missionSuccess === true;
+  const convergenceInteractionDelta = convergenceEvidencePresent
+    ? events
+        .slice(healIndex + 1, quiescenceIndex + 1)
+        .reduce((total, event) => total + Number(event.accountingUnits ?? 0), 0)
+    : null;
   const body = {
     schemaVersion: 1,
     projectionOwner: "evaluator",
@@ -284,11 +299,14 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     convergence: {
       schemaVersion: 1,
       healOrQuiescenceEventId: healEvent?.eventId ?? null,
+      quiescenceEventId: quiescenceEvent?.eventId ?? null,
       agreementEventId: null,
       evidencePresent: convergenceEvidencePresent,
       agreement: null,
-      interactionDelta: null,
-      reasonCode: "convergence_evidence_missing",
+      interactionDelta: convergenceInteractionDelta,
+      reasonCode: convergenceEvidencePresent
+        ? null
+        : "convergence_evidence_missing",
     },
     observedInferenceEventIds: inferenceEvents.map((event) => event.eventId),
     observedDispatchEventIds: dispatchEvents.map((event) => event.eventId),
