@@ -50,6 +50,14 @@ projection identifies what was observed and refuses to promote a heal event
 into convergence agreement. It still does not satisfy the confirmatory
 convergence endpoint.
 
+The final smoke after classification reports eight samples with
+`status: complete_for_diagnostic_profile` and
+`confirmatoryStatus: incomplete`. Each sample binds
+`evidenceType: post_heal_quiescence_v1`, a heal event, a later quiescence
+(`work.result`) event, and an interaction delta of 37. No sample reports an
+agreement event; this is intentional because the diagnostic runtime has not
+yet produced a distributed agreement certificate.
+
 ## Decision
 
 **V29 is not ready to freeze.** The infrastructure and artifact path passed,
