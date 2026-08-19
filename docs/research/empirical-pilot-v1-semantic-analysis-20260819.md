@@ -24,17 +24,23 @@ statistical success or superiority over centralized coordination.
 
 ## Instrument coverage finding
 
-The diagnostic sample artifacts do not contain evaluator-owned fields for:
+The second semantic pilot now contains an evaluator-owned `semanticProjection`
+in every sample. The fields are present and replay-stable, but their observed
+coverage is incomplete:
 
-- role-coherence decision population;
-- useful-decision count or rate;
-- unsafe executable decisions; or
-- convergence evidence and convergence interaction delta.
+- role-coherence decision population: 1 observed decision per execution versus
+  the registered population of 1,000;
+- useful-decision count: 1 observed useful decision per execution;
+- unsafe executable decisions: 0 observed; and
+- convergence evidence: absent, with reason code
+  `convergence_evidence_missing`.
 
-The absence is structural: those fields are not present in any of the 64
-sample outcomes. Therefore this pilot cannot validate the three conditions
-that invalidated V28. The evaluability certificate's synthetic fixture passed,
-but the live diagnostic runner did not exercise the semantic endpoint surface.
+All 64 projections identify `projectionOwner: evaluator` and have status
+`incomplete`. The pilot therefore exercises the semantic endpoint surface and
+correctly refuses to treat it as complete. It still cannot validate the three
+conditions that invalidated V28 because the diagnostic reference runtime emits
+one planning/inference decision rather than the registered 1,000-decision
+role-coherence horizon and has no evaluator-owned convergence artifact.
 
 ## Decision
 
@@ -45,10 +51,10 @@ diagnostic samples, from `missionSuccess`, or from the runner's `passed` status.
 
 ## Required next change
 
-Add evaluator-owned semantic projections to the diagnostic reference path and
-its collector. Each sample must expose, at minimum, the exact decision
-population, useful decisions, unsafe executable decisions, convergence
-evidence digest, convergence agreement and interaction delta. Add negative
-tests for omitted, caller-authored, stale and inconsistent semantic fields.
-Repeat the same eight-shard pilot only after those fields are present and
-reconstructible from the bundle.
+Extend the diagnostic reference path so that it emits the actual registered
+role-coherence horizon (or explicitly register a diagnostic-specific horizon)
+and an evaluator-owned convergence artifact with agreement and interaction
+delta. Add negative tests for omitted, caller-authored, stale and inconsistent
+semantic fields. Repeat the same eight-shard pilot only after the observed
+decision population and convergence evidence are complete and reconstructible
+from the bundle.

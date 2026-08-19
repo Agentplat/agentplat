@@ -65,6 +65,8 @@ boundary.
 
 The semantic inspection is recorded separately in
 `empirical-pilot-v1-semantic-analysis-20260819.md`. It finds that the
-diagnostic runner does not emit role-coherence, useful-decision or convergence
-fields, so the pilot validates infrastructure but does not yet validate the
-full V28 instrument surface.
+diagnostic runner now emits evaluator-owned semantic fields, but the observed
+population is incomplete: one decision per execution versus the registered
+1,000-decision horizon and no convergence artifact. The pilot therefore
+validates infrastructure and semantic-field binding, but not the full V28
+instrument surface.
