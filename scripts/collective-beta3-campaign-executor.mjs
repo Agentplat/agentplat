@@ -266,7 +266,9 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     evaluatorBasis: "trace-and-monitor-v1",
     cellId: context.cell.cellId,
     runner: context.runner,
-    attempt: typeof context.attempt === "string" ? context.attempt : null,
+    // The sample digest intentionally excludes attempt so first/replay can be
+    // compared byte-for-byte; attempt is carried by the enclosing sample.
+    attempt: null,
     registeredDecisionPopulation: 1_000,
     roleDecisionCount,
     usefulDecisionCount,
