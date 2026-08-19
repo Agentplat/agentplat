@@ -68,6 +68,16 @@ of 37 in every present case. The 16 nominal samples correctly have no
 post-heal quiescence because no network heal is registered. No sample has a
 non-null `agreementEventId`, and no sample reaches the confirmatory horizon.
 
+The final 50-agent benign smoke at commit `503347f` added a real in-process
+sparse-BFT certificate over the post-heal quiescence evidence. All eight
+samples received a non-null `agreementCertificateDigest`; replay produced the
+same certificate binding for each first/replay pair. The certificate binds a
+membership epoch, validator set, proposal/value digests and evidence digests.
+`agreementEventId` remains null because the certificate is an evaluator
+artifact, not a trace event. This closes the certificate requirement for the
+diagnostic quiescence profile, but it does not create the 1,000-decision
+confirmatory horizon.
+
 ## Decision
 
 **V29 is not ready to freeze.** The infrastructure, artifact path and
