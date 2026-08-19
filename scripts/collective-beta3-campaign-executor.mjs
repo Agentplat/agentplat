@@ -259,6 +259,11 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     .reduce((total, [, value]) => total + Number(value ?? 0), 0);
   const roleDecisionCount = inferenceEvents.length;
   const usefulDecisionCount = Math.min(inferenceEvents.length, committedEffects.length);
+  const healEvent = events.find(
+    (event) =>
+      event.kind === "fault.observed" &&
+      event.faultBinding?.faultFamily === "network.heal",
+  );
   const convergenceEvidencePresent = false;
   const body = {
     schemaVersion: 1,
@@ -269,15 +274,22 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     // The sample digest intentionally excludes attempt so first/replay can be
     // compared byte-for-byte; attempt is carried by the enclosing sample.
     attempt: null,
-    registeredDecisionPopulation: 1_000,
+    diagnosticDecisionPopulation: 1,
+    confirmatoryDecisionPopulation: 1_000,
     roleDecisionCount,
     usefulDecisionCount,
     usefulDecisionRate: roleDecisionCount === 0 ? null : usefulDecisionCount / roleDecisionCount,
     unsafeExecutableCount,
-    convergenceEvidencePresent,
-    convergenceAgreement: null,
-    convergenceInteractionDelta: null,
-    convergenceReasonCode: "convergence_evidence_missing",
+    roleHorizonStatus: roleDecisionCount === 1 ? "complete_for_diagnostic_profile" : "incomplete",
+    convergence: {
+      schemaVersion: 1,
+      healOrQuiescenceEventId: healEvent?.eventId ?? null,
+      agreementEventId: null,
+      evidencePresent: convergenceEvidencePresent,
+      agreement: null,
+      interactionDelta: null,
+      reasonCode: "convergence_evidence_missing",
+    },
     observedInferenceEventIds: inferenceEvents.map((event) => event.eventId),
     observedDispatchEventIds: dispatchEvents.map((event) => event.eventId),
     observedCommittedEffectEventIds: committedEffects.map((event) => event.eventId),
