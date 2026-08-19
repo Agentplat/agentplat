@@ -62,3 +62,9 @@ or role-coherence semantics, establish stochastic convergence guarantees, or
 support any confirmatory claim. The next step is to inspect the pilot artifact
 contents for endpoint semantics and then define the frozen V29 pilot/registration
 boundary.
+
+The semantic inspection is recorded separately in
+`empirical-pilot-v1-semantic-analysis-20260819.md`. It finds that the
+diagnostic runner does not emit role-coherence, useful-decision or convergence
+fields, so the pilot validates infrastructure but does not yet validate the
+full V28 instrument surface.
