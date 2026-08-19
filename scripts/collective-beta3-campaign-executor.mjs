@@ -266,7 +266,7 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     evaluatorBasis: "trace-and-monitor-v1",
     cellId: context.cell.cellId,
     runner: context.runner,
-    attempt: context.attempt,
+    attempt: typeof context.attempt === "string" ? context.attempt : null,
     registeredDecisionPopulation: 1_000,
     roleDecisionCount,
     usefulDecisionCount,
