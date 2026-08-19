@@ -35,12 +35,15 @@ coverage is incomplete:
 - convergence evidence: absent, with reason code
   `convergence_evidence_missing`.
 
-All 64 projections identify `projectionOwner: evaluator` and have status
-`incomplete`. The pilot therefore exercises the semantic endpoint surface and
-correctly refuses to treat it as complete. It still cannot validate the three
-conditions that invalidated V28 because the diagnostic reference runtime emits
-one planning/inference decision rather than the registered 1,000-decision
-role-coherence horizon and has no evaluator-owned convergence artifact.
+All 64 projections identify `projectionOwner: evaluator`. In the final full
+pilot, 48 non-nominal projections are complete for the diagnostic profile and
+16 nominal projections remain incomplete because no heal event exists to
+anchor post-heal quiescence. The pilot therefore exercises the semantic
+endpoint surface and correctly refuses to treat diagnostic evidence as
+confirmatory. It still cannot validate the three conditions that invalidated
+V28 because the diagnostic reference runtime emits one planning/inference
+decision rather than the registered 1,000-decision role-coherence horizon and
+does not produce a distributed agreement certificate.
 
 A subsequent one-shard semantic smoke (50-agent benign, two seeds) now binds
 the observed `network.heal` event as `healOrQuiescenceEventId` while retaining
@@ -58,19 +61,27 @@ The final smoke after classification reports eight samples with
 agreement event; this is intentional because the diagnostic runtime has not
 yet produced a distributed agreement certificate.
 
+The full eight-shard pilot was then repeated at commit `5ff26e3`. It produced
+64 verified samples and 16 verified comparisons. Post-heal quiescence was
+present in 48/64 samples (all non-nominal strata), with an interaction delta
+of 37 in every present case. The 16 nominal samples correctly have no
+post-heal quiescence because no network heal is registered. No sample has a
+non-null `agreementEventId`, and no sample reaches the confirmatory horizon.
+
 ## Decision
 
-**V29 is not ready to freeze.** The infrastructure and artifact path passed,
-but the instrument still has a semantic coverage gap. A confirmatory campaign
-must not infer role coherence, useful-decision rate or convergence from these
-diagnostic samples, from `missionSuccess`, or from the runner's `passed` status.
+**V29 is not ready to freeze.** The infrastructure, artifact path and
+post-heal quiescence projection passed at the diagnostic horizon, but the
+confirmatory instrument still lacks the 1,000-decision role-coherence horizon
+and distributed agreement evidence. A confirmatory campaign must not infer
+role coherence, useful-decision rate or convergence from these diagnostic
+samples, from `missionSuccess`, or from the runner's `passed` status.
 
 ## Required next change
 
-Extend the diagnostic reference path so that it emits the actual registered
-role-coherence horizon (or explicitly register a diagnostic-specific horizon)
-and an evaluator-owned convergence artifact with agreement and interaction
-delta. Add negative tests for omitted, caller-authored, stale and inconsistent
-semantic fields. Repeat the same eight-shard pilot only after the observed
-decision population and convergence evidence are complete and reconstructible
-from the bundle.
+The next change is to connect the confirmatory role-coherence horizon to the
+actual semantic control loop and add a distributed agreement certificate
+rather than only post-heal quiescence. Add negative tests for omitted,
+caller-authored, stale and inconsistent semantic fields. Only after those
+artifacts are complete and reconstructible from the bundle should V29 be
+frozen.
