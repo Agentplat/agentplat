@@ -298,6 +298,7 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     roleHorizonStatus: roleDecisionCount === 1 ? "complete_for_diagnostic_profile" : "incomplete",
     convergence: {
       schemaVersion: 1,
+      evidenceType: "post_heal_quiescence_v1",
       healOrQuiescenceEventId: healEvent?.eventId ?? null,
       quiescenceEventId: quiescenceEvent?.eventId ?? null,
       agreementEventId: null,
@@ -312,6 +313,10 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
     observedDispatchEventIds: dispatchEvents.map((event) => event.eventId),
     observedCommittedEffectEventIds: committedEffects.map((event) => event.eventId),
     status:
+      roleDecisionCount === 1 && convergenceEvidencePresent
+        ? "complete_for_diagnostic_profile"
+        : "incomplete",
+    confirmatoryStatus:
       roleDecisionCount === 1_000 && convergenceEvidencePresent
         ? "complete"
         : "incomplete",
