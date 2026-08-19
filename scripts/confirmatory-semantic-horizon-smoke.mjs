@@ -9,6 +9,8 @@ import {
   CONFIRMATORY_SEMANTIC_DECISION_COUNT_V1,
 } from "../packages/mesh-sim/dist/index.js";
 import { digestPlanningJsonV1 } from "../packages/collective-planning/dist/index.js";
+import { InProcessSparseBftFinalityGatewayV1 } from "../packages/collective-host/dist/index.js";
+import { createSparseCommitteePolicyV2, sparseAggregateSignerSetDigestV2 } from "../packages/collective-quorum/dist/sparse-agreement.js";
 
 const executionId = "confirmatory-semantic-horizon-smoke-v1";
 const registrationDigest = digest("registration", { executionId, owner: "evaluator" });
@@ -48,14 +50,12 @@ for (let sequence = 1; sequence <= CONFIRMATORY_SEMANTIC_DECISION_COUNT_V1; sequ
 }
 const sortedDecisionDigests = decisionEvents.slice().sort((a, b) => a.decisionId.localeCompare(b.decisionId)).map((event) => event.decisionDigest);
 const decisionRootDigest = digest("decision-root", { executionId, decisionDigests: sortedDecisionDigests });
-const certificate = createConfirmatorySemanticAgreementCertificateV1({
+const sparseCertificate = await issueSparseCertificate({
   epoch: 1,
   membershipConfigurationDigest,
   decisionRootDigest,
-  proposalDigest: digest("proposal", { executionId, decisionRootDigest }),
-  valueDigest: digest("value", { executionId, decisionRootDigest }),
-  signerSetDigest: digest("signer-set", { validators: ["v0", "v1", "v2", "v3"] }),
 });
+const certificate = createConfirmatorySemanticAgreementCertificateV1({ ...sparseCertificate, decisionRootDigest });
 const input = { executionId, registrationDigest, membershipEpoch: 1, membershipConfigurationDigest, decisionEvents, agreementCertificate: certificate };
 const projection = projectConfirmatorySemanticHorizonV1(input);
 if (projection.status !== "complete" || projection.observedDecisionCount !== 1_000) throw new Error("confirmatory_horizon_smoke_incomplete");
@@ -67,4 +67,17 @@ console.log(JSON.stringify({ executionId, status: projection.status, observedDec
 
 function digest(kind, value) {
   return digestPlanningJsonV1("evaluation-campaign-artifact-v1", { schemaVersion: 1, kind, value });
+}
+
+async function issueSparseCertificate({ epoch, membershipConfigurationDigest, decisionRootDigest }) {
+  const validators = [0, 1, 2, 3].map((index) => ({ peerId: `confirmatory-v${index}`, instanceId: `confirmatory-i${index}`, keyId: `confirmatory-k${index}`, eligibilityDigest: digest("eligibility", index), independenceGroupId: `confirmatory-g${index}` }));
+  const membership = { schemaVersion: 2, epoch, configurationDigest: membershipConfigurationDigest, selectionSeedDigest: digest("selection", executionId), validators };
+  const policy = await createSparseCommitteePolicyV2({ policyId: "confirmatory-semantic-horizon", policyVersion: 1, committeeSize: 4, faultThreshold: 1, reconciliationCommitteeSize: 4, reconciliationFaultThreshold: 1, maximumCommittees: 1, maximumValidatorsPerIndependenceGroup: 1 });
+  const proposalDigest = digest("proposal", { executionId, decisionRootDigest });
+  const valueDigest = digest("value", { executionId, decisionRootDigest });
+  const decisionId = `confirmatory-semantic:${executionId}`;
+  const signatures = { algorithm: "confirmatory-test-signatures-v1", verifyShare: async ({ validator, signature }) => signature === `signed:${validator.peerId}`, aggregate: async ({ messageDigest, shares }) => { const signerPeerIds = shares.map((share) => share.signerPeerId).sort(); return { algorithm: "confirmatory-test-signatures-v1", signerPeerIds, signerSetDigest: await sparseAggregateSignerSetDigestV2("confirmatory-test-signatures-v1", signerPeerIds), value: `aggregate:${messageDigest}` }; }, verifyAggregate: async ({ messageDigest, signature }) => signature.value === `aggregate:${messageDigest}` };
+  const gateway = new InProcessSparseBftFinalityGatewayV1({ membership, policy, signatures, signers: validators.map((validator) => ({ ...validator, admitProposal: async ({ decisionId: candidateId, proposalDigest: candidateProposal, valueDigest: candidateValue }) => candidateId === decisionId && candidateProposal === proposalDigest && candidateValue === valueDigest, sign: async () => `signed:${validator.peerId}` })) });
+  const finalized = await gateway.certify({ decisionClass: "confirmatory_semantic_horizon", decisionId, proposalDigest, valueDigest, commandBindingDigest: digest("command", executionId), evidenceDigests: [decisionRootDigest], logicalTimeMs: 1_000 });
+  return { epoch: finalized.certificate.epoch, membershipConfigurationDigest: finalized.certificate.membershipConfigurationDigest, proposalDigest, valueDigest, signerSetDigest: finalized.certificate.reconciliationCertificate.aggregateSignature.signerSetDigest };
 }
