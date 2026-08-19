@@ -204,7 +204,7 @@ async function executeReferenceDiagnostic(context, runtime) {
       : result.trace.ledger.total > context.maximumInteractions
         ? "interaction_limit_exceeded"
         : "invariant_monitor_failed";
-  const semanticProjection = projectDiagnosticSemanticMetrics(
+  const semanticProjection = await projectDiagnosticSemanticMetrics(
     context,
     result.trace.events,
     result.evidence.monitorVerdict,
