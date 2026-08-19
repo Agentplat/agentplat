@@ -42,6 +42,14 @@ conditions that invalidated V28 because the diagnostic reference runtime emits
 one planning/inference decision rather than the registered 1,000-decision
 role-coherence horizon and has no evaluator-owned convergence artifact.
 
+A subsequent one-shard semantic smoke (50-agent benign, two seeds) now binds
+the observed `network.heal` event as `healOrQuiescenceEventId` while retaining
+an explicit null `agreementEventId`, null interaction delta and
+`convergence_evidence_missing`. This is the desired evidence shape: the
+projection identifies what was observed and refuses to promote a heal event
+into convergence agreement. It still does not satisfy the confirmatory
+convergence endpoint.
+
 ## Decision
 
 **V29 is not ready to freeze.** The infrastructure and artifact path passed,
