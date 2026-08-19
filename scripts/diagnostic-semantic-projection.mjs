@@ -115,15 +115,20 @@ async function certifyDiagnosticQuiescence(context, healEvent, quiescenceEvent, 
       sign: async () => `signed:${validator.peerId}`,
     })),
   });
-  const finalized = await gateway.certify({
-    decisionClass: "diagnostic_quiescence",
-    decisionId,
-    proposalDigest,
-    valueDigest,
-    commandBindingDigest: digestText(`${context.cell.cellId}:command`),
-    evidenceDigests: [digestText(healEvent.eventId), digestText(quiescenceEvent.eventId), digestText(JSON.stringify(monitorVerdict))].sort(),
-    logicalTimeMs: quiescenceEvent.logicalTimeMs ?? 0,
-  });
+  let finalized;
+  try {
+    finalized = await gateway.certify({
+      decisionClass: "diagnostic_quiescence",
+      decisionId,
+      proposalDigest,
+      valueDigest,
+      commandBindingDigest: digestText(`${context.cell.cellId}:command`),
+      evidenceDigests: [digestText(healEvent.eventId), digestText(quiescenceEvent.eventId), digestText(JSON.stringify(monitorVerdict))].sort(),
+      logicalTimeMs: quiescenceEvent.logicalTimeMs ?? 0,
+    });
+  } catch (error) {
+    throw new TypeError(`diagnostic_agreement_certificate_failure:${error instanceof Error ? error.message : "unknown"}`);
+  }
   return finalized;
 }
 
