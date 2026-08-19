@@ -286,7 +286,7 @@ export function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVe
   };
   return Object.freeze({
     ...body,
-    projectionDigest: digest("diagnostic-semantic-projection", body),
+    projectionDigest: digest("metric-projection", body),
   });
 }
 
