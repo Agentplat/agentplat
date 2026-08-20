@@ -60,10 +60,23 @@ const input = { executionId, registrationDigest, membershipEpoch: 1, membershipC
 const projection = projectConfirmatorySemanticHorizonV1(input);
 if (projection.status !== "complete" || projection.observedDecisionCount !== 1_000) throw new Error("confirmatory_horizon_smoke_incomplete");
 replayConfirmatorySemanticHorizonV1(input, projection);
+const bundle = JSON.parse(JSON.stringify({ input, projection }));
+const recovered = projectConfirmatorySemanticHorizonV1(bundle.input);
+if (recovered.projectionDigest !== projection.projectionDigest) throw new Error("bundle_recovery_diverged");
 let staleRejected = false;
 try { projectConfirmatorySemanticHorizonV1({ ...input, decisionEvents: decisionEvents.map((event, index) => index === 999 ? { ...event, traceEventId: "stale:trace" } : event) }); } catch { staleRejected = true; }
 if (!staleRejected) throw new Error("stale_evidence_was_accepted");
-console.log(JSON.stringify({ executionId, status: projection.status, observedDecisionCount: projection.observedDecisionCount, usefulDecisionCount: projection.usefulDecisionCount, agreementCertificateDigest: projection.agreementCertificateDigest, replay: "stable", staleEvidence: "rejected", v29: "not_started" }, null, 2));
+const sensitivity = [100, 250, 500, 1_000].map((horizon) => {
+  const events = decisionEvents.slice(0, horizon);
+  const partial = projectConfirmatorySemanticHorizonV1({ ...input, decisionEvents: events, agreementCertificate: horizon === 1_000 ? certificate : null });
+  return { horizon, observedDecisionCount: partial.observedDecisionCount, usefulDecisionCount: partial.usefulDecisionCount, usefulDecisionRate: partial.usefulDecisionCount / horizon, status: partial.status };
+});
+const classification = {
+  useful: decisionEvents.filter((event) => event.disposition === "useful").length,
+  notUseful: decisionEvents.filter((event) => event.disposition === "not_useful").length,
+  unsafe: decisionEvents.filter((event) => event.disposition === "unsafe").length,
+};
+console.log(JSON.stringify({ executionId, status: projection.status, observedDecisionCount: projection.observedDecisionCount, usefulDecisionCount: projection.usefulDecisionCount, classification, agreementCertificateDigest: projection.agreementCertificateDigest, replay: "stable", bundleRecovery: "stable", staleEvidence: "rejected", sensitivity, v29: "not_started" }, null, 2));
 
 function digest(kind, value) {
   return digestPlanningJsonV1("evaluation-campaign-artifact-v1", { schemaVersion: 1, kind, value });
