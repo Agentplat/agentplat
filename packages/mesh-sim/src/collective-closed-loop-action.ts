@@ -178,16 +178,13 @@ export async function runCollectiveClosedLoopActionV1(
   )
     throw new Error("closed_loop_grant_not_issued");
   const actionGrant = toActionGrant(retainedGrant);
-  appendActionTrace(
-    input,
-    "inference.assessed",
-    asDigest(controlDigest("message", createEvaluatorOwnedSemanticTraceEvidenceV1({
-      traceEventId: `inference.assessed:${input.assessment.assessmentId}`,
-      assessmentDigest: asDigest(controlDigest("message", input.assessment as never)),
-      evidenceDigest: asDigest(controlDigest("message", input.assessment as never)),
-      metrics: (input.assessment as unknown as { metrics?: Record<string, number | null> }).metrics ?? {},
-    }) as never)),
-  );
+  const semanticEvidence = createEvaluatorOwnedSemanticTraceEvidenceV1({
+    traceEventId: `inference.assessed:${input.assessment.assessmentId}`,
+    assessmentDigest: asDigest(controlDigest("message", input.assessment as never)),
+    evidenceDigest: asDigest(controlDigest("message", input.assessment as never)),
+    metrics: (input.assessment as unknown as { metrics?: Record<string, number | null> }).metrics ?? {},
+  });
+  appendActionTrace(input, "inference.assessed", semanticEvidence.evidenceDigest);
 
   const grantLedger = new LocalGrantLedger(input.gatewayId);
   await issueActionGrantV1(grantLedger, actionGrant);
