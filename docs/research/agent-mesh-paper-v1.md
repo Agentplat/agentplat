@@ -4,13 +4,13 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.6 — 20 August 2026
+Version 1.7 — 20 August 2026
 
 ### Abstract
 
 Coordinating autonomous software agents requires more than routing prompts among language models. Participants may hold different observations, join and leave during execution, fail independently, disagree about evidence, or attempt actions after their authority has expired. A coordination system must therefore distinguish identity from admission, information from authority, tentative allocation from final assignment, and successful computation from permission to change external state. This paper presents **Agent Mesh**, a provider-neutral coordination substrate for independently executing agents, and its reference composition with adjacent AgentPlat control boundaries. Agent Mesh supplies authenticated and causally linked messages, governed membership, bounded peer views, allocation, agreement, and recovery. The current composed stack adds evidence and Trust, a receipt-producing governed mission cycle, partition and topology policy, approval checkpoints, local inference control, continuity and compromise handling, interoperability, audit, and the fail-closed boundary for protected effects. We explain each mechanism from first principles and use a running five-agent example to show how the mechanisms compose.
 
-The current evidence is a reproducible integration evaluation rather than a claim of deployment performance. It exercises an evaluator-owned horizon of exactly 1,000 semantic decisions, trace and membership binding, sparse-BFT finality, replay, stale-evidence rejection, and recovery of a six-dimensional semantic sidecar. The run produced 973 useful decisions and zero unsafe decisions. These measurements establish the evidence chain and its boundaries; they do not estimate field prevalence or validate V29 mission outcomes.
+The current evidence is a reproducible integration evaluation rather than a claim of deployment performance. It exercises an evaluator-owned horizon of exactly 1,000 semantic decisions, trace and membership binding, sparse-BFT finality, replay, stale-evidence rejection, and recovery of a six-dimensional semantic sidecar. The run produced 973 useful decisions and zero unsafe decisions. These measurements establish the evidence chain and its boundaries; they do not estimate field prevalence or establish general mission performance.
 
 **Keywords:** multi-agent systems; decentralized coordination; agent governance; causal messaging; distributed agreement; reproducible evaluation; AI agents
 
@@ -26,7 +26,7 @@ Agent Mesh is designed for this setting. It is not a model, an agent persona, or
 
 The paper makes three contributions. First, it specifies a provider-neutral composition that separates evidence, planning, agreement, assignment authority, and authorization of external effects. Second, it defines bounded integration contracts across identity, discovery, causal synchronization, work allocation, recovery, agent lifecycle, semantic control, and protected effects. Third, it provides evaluator-owned evidence contracts and fail-closed checks that bind semantic decisions to traces, membership, finality, replay, and recoverable artifacts. These contributions lie in system-level composition and auditable invariants, not in claiming invention of established distributed-systems primitives.
 
-The open research questions are reserved for a future registered campaign; this paper reports only the current integration evidence.
+A future registered campaign will examine generalization across seeds and environments, comparative performance, semantic-metric calibration, and behavior at larger scales. This paper reports only the current integration evidence.
 
 ## 2. A running example
 
@@ -163,7 +163,7 @@ Distributed-systems research supplies foundational mechanisms and cautions. Lamp
 
 Accordingly, the architectural novelty claimed here is compositional: a versioned protocol and reference integration that connect bounded local coordination to evidence provenance, adaptive organization, semantic intervention, recovery authority, and effect-time enforcement without granting any intermediate representation ambient permission. Whether that composition improves mission outcomes remains an open empirical question.
 
-Evaluation frameworks such as AgentBench test model-based agents across interactive environments and expose long-horizon reasoning and instruction-following failures [10]. Agent Mesh's evaluation focuses instead on collective-control properties: communication envelope, recovery, protected-effect safety, agreement, replay, and fairness between decentralized and centralized coordination. Its hidden monitor owns the full environment and terminal predicates so that neither treatment can self-report success.
+Evaluation frameworks such as AgentBench test model-based agents across interactive environments and expose long-horizon reasoning and instruction-following failures [10]. The present Agent Mesh evaluation has a narrower purpose: it tests whether the reference composition produces evaluator-owned semantic evidence, finality, reproducible replay, and fail-closed rejection of altered or stale inputs. It does not compare reasoning quality or alternative orchestration strategies.
 
 ### 4.1 Relation to DARPA DICE
 
@@ -348,7 +348,7 @@ The runtime reference pilot emits a recoverable six-dimensional evaluator-owned 
 
 ### 8.4 Scope of the result
 
-The results establish an auditable evidence chain and its fail-closed behavior. They do not establish production safety, comparative superiority, statistical calibration of semantic metrics, asymptotic scalability, or V29 mission performance. A future registered campaign is required for those claims.
+The results establish an auditable evidence chain and its fail-closed behavior. They do not establish production safety, comparative superiority, statistical calibration of semantic metrics, asymptotic scalability, or general mission performance. A future registered campaign, internally designated V29, is planned for those questions.
 
 ## 9. Discussion
 
@@ -358,13 +358,9 @@ The source and protocol artifacts establish an implementable architecture with e
 
 The current contribution is the auditable integration path: evaluator-owned semantics, finality, replay, stale-evidence rejection, and recoverable artifacts. Performance and calibration remain open questions.
 
-The current contribution is the auditable integration path: evaluator-owned semantics, finality, replay, stale-evidence rejection, and recoverable artifacts. Performance and calibration remain open questions.
-
 ### 9.2 What the evidence does not establish
 
-The available evidence does not establish that sparse state remained within every registered envelope, that unaffected scopes preserved useful progress, that recovery followed affected scope, that semantic controls achieved an acceptable safety–utility balance, or that the adaptive collective matched or exceeded the centralized planner. It also does not establish production safety, robustness to unregistered faults, or behavior beyond 500 logical agents.
-
-The absence of a reported projection failure should not be confused with zero protected-effect violation. Those values arise from different observational units and evaluators. Similarly, exact replays verify determinism under registered inputs; they do not demonstrate that the chosen policy or environment is externally valid.
+The available evidence does not establish production safety, usefulness under nondeterministic workloads, semantic-metric calibration, or generalization to different assessors, policies, memberships, models, or environments. The four-validator in-process gateway exercises the finality contract but does not reproduce independent machines, production key custody, transport failures, or operational adversaries. Exact replay verifies determinism for the retained inputs; it does not establish external validity.
 
 ### 9.3 Architectural tradeoffs
 
@@ -375,11 +371,13 @@ Centralized coordination may remain preferable for small collectives, stable net
 
 ## 10. Threats to validity
 
-**Construct validity.** Logical-agent count may not represent deployed concurrency or state pressure. Useful-decision rate and semantic metrics depend on evaluator definitions and require future validation.
+**Construct validity.** The useful-decision label and six semantic dimensions are defined by the reference evaluator. The observed 0.973 rate therefore measures this implementation and profile; it is not an independently calibrated measure of general usefulness.
 
-**Internal validity.** The hidden monitor, fault injector, interaction accounting, and replay implementation are part of the experimental apparatus. A defect in them could bias both treatments. Digest binding and exact replay improve auditability but do not prove evaluator correctness.
+**Internal validity.** The decision generator, evaluator, projection code, sparse-BFT gateway, and replay verifier are software components in the same repository. Negative tests and independent digest recomputation reduce some risks, but correlated implementation defects remain possible.
 
-**External validity.** The simulator and recorded response tape control variation but do not reproduce live provider latency, model drift, human intervention, network behavior, or adversaries. One local Apple Silicon environment cannot establish deployment portability or operational performance.
+**External validity.** The evaluation uses one deterministic reference profile, one 1,000-decision stream, four in-process validators, test signatures, and reference semantic values. It does not reproduce independent hosts, production cryptographic custody, live model variation, changing workloads, human intervention, or adversarial networks.
+
+**Statistical scope.** The 1,000 decisions form one deterministic horizon, not 1,000 independent experimental samples. The reported counts are descriptive integration results; no confidence interval, population estimate, comparative effect, or significance claim is made.
 
 ## 11. Safety, governance, and responsible use
 

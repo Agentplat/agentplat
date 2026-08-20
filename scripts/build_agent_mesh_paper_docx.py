@@ -12,7 +12,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs/research/agent-mesh-paper-v1.md"
-OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.6.docx"
+OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.7.docx"
 
 FONT = "Calibri"
 INK = "17202A"
@@ -167,7 +167,7 @@ def build():
 
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    set_font(header.add_run("Agent Mesh | Preprint v1.6"), 8.5, color=MUTED)
+    set_font(header.add_run("Agent Mesh | Preprint v1.7"), 8.5, color=MUTED)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     set_font(footer.add_run("Page "), 8.5, color=MUTED)
