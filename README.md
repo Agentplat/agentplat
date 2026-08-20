@@ -37,6 +37,12 @@ Clone this repository to run the complete reference API with Node.js and Postgre
 
 ## Architecture at a glance
 
+### Agent-readable project context
+
+Coding agents should start with [`AGENTS.md`](AGENTS.md) and [`AI.md`](AI.md). The canonical local context is [`docs/ai/context.md`](docs/ai/context.md), the versioned specification is [`docs/specification/agentplat-spec-v1.md`](docs/specification/agentplat-spec-v1.md), and the read-only documentation MCP is [`@agentplat/mcp-docs`](packages/mcp-docs/README.md).
+
+AgentPlat-compatible runtimes can declare conformance levels 1–4 using [`docs/compatibility/agentplat-compatible.md`](docs/compatibility/agentplat-compatible.md). Implementation status and empirical evidence remain separate; see the capability baseline before making validation claims.
+
 ```text
 Agent Rooms → Collective Runtime → Agent Mesh → Safety and Evidence → Adapters
 human-agent    planning, teams,     peers,       policy, authority,     models,
