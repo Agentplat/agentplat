@@ -17,15 +17,18 @@ const registrationDigest = digest("registration", { executionId, owner: "evaluat
 const membershipConfigurationDigest = digest("membership", { epoch: 1, validators: ["v0", "v1", "v2", "v3"] });
 const engine = new SequentialSemanticGuaranteeEngineV1(CONFIRMATORY_SEMANTIC_DECISION_COUNT_V1, 9_500);
 const decisionEvents = [];
+const scenarioByDecision = new Map();
 for (let sequence = 1; sequence <= CONFIRMATORY_SEMANTIC_DECISION_COUNT_V1; sequence += 1) {
+  const scenario = sequence % 37 === 0 ? ["context_conflict", "high_uncertainty", "low_action_diversity", "low_action_novelty", "controller_restriction"][Math.floor(sequence / 37) % 5] : "nominal";
   const metrics = {
     roleCoherenceBps: 8_000 + (sequence % 500),
     missionAlignmentBps: 8_500 + (sequence % 300),
-    contextConflictBps: 500 + (sequence % 100),
-    uncertaintyBps: 1_000 + (sequence % 200),
-    courseActionDiversityBps: 7_000 + (sequence % 400),
-    courseActionNoveltyBps: 6_000 + (sequence % 350),
+    contextConflictBps: scenario === "context_conflict" ? 9_000 : 500 + (sequence % 100),
+    uncertaintyBps: scenario === "high_uncertainty" ? 9_000 : 1_000 + (sequence % 200),
+    courseActionDiversityBps: scenario === "low_action_diversity" ? 100 : 7_000 + (sequence % 400),
+    courseActionNoveltyBps: scenario === "low_action_novelty" ? 100 : 6_000 + (sequence % 350),
   };
+  if (scenario === "context_conflict") metrics.contextConflictBps = 9_000;
   const assessmentDigest = digest("semantic-assessment", { sequence, metrics });
   const guarantee = engine.append({ sequence, logicalTimeMs: sequence, metrics, assessmentDigest });
   const disposition = sequence % 37 === 0 ? "not_useful" : "useful";
@@ -47,6 +50,7 @@ for (let sequence = 1; sequence <= CONFIRMATORY_SEMANTIC_DECISION_COUNT_V1; sequ
     disposition,
     evidenceDigest: digest("evidence", { sequence, assessmentDigest, throughSequence: guarantee.throughSequence }),
   });
+  scenarioByDecision.set(`semantic-decision:${sequence}`, scenario);
 }
 const sortedDecisionDigests = decisionEvents.slice().sort((a, b) => a.decisionId.localeCompare(b.decisionId)).map((event) => event.decisionDigest);
 const decisionRootDigest = digest("decision-root", { executionId, decisionDigests: sortedDecisionDigests });
@@ -76,7 +80,9 @@ const classification = {
   notUseful: decisionEvents.filter((event) => event.disposition === "not_useful").length,
   unsafe: decisionEvents.filter((event) => event.disposition === "unsafe").length,
 };
-console.log(JSON.stringify({ executionId, status: projection.status, observedDecisionCount: projection.observedDecisionCount, usefulDecisionCount: projection.usefulDecisionCount, classification, agreementCertificateDigest: projection.agreementCertificateDigest, replay: "stable", bundleRecovery: "stable", staleEvidence: "rejected", sensitivity, v29: "not_started" }, null, 2));
+const causalClassification = Object.fromEntries(["context_conflict", "high_uncertainty", "low_action_diversity", "low_action_novelty", "controller_restriction"].map((cause) => [cause, decisionEvents.filter((event) => event.disposition === "not_useful" && scenarioByDecision.get(event.decisionId) === cause).length]));
+if (Object.values(causalClassification).reduce((sum, count) => sum + count, 0) !== classification.notUseful) throw new Error("causal_classification_incomplete");
+console.log(JSON.stringify({ executionId, status: projection.status, observedDecisionCount: projection.observedDecisionCount, usefulDecisionCount: projection.usefulDecisionCount, classification, causalClassification, agreementCertificateDigest: projection.agreementCertificateDigest, replay: "stable", bundleRecovery: "stable", staleEvidence: "rejected", sensitivity, v29: "not_started" }, null, 2));
 
 function digest(kind, value) {
   return digestPlanningJsonV1("evaluation-campaign-artifact-v1", { schemaVersion: 1, kind, value });
