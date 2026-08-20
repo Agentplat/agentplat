@@ -1,22 +1,16 @@
 # Agent Mesh: Governed Decentralized Coordination Under Partial Information
 
-## Architecture, Control Boundaries, and Lessons from an Inconclusive Preregistered Study
+## Invariants, Evaluability, and Verifiable Semantic Coordination
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.4 — 20 August 2026
+Version 1.5 — 20 August 2026
 
 ### Abstract
 
 Coordinating autonomous software agents requires more than routing prompts among language models. Participants may hold different observations, join and leave during execution, fail independently, disagree about evidence, or attempt actions after their authority has expired. A coordination system must therefore distinguish identity from admission, information from authority, tentative allocation from final assignment, and successful computation from permission to change external state. This paper presents **Agent Mesh**, a provider-neutral coordination substrate for independently executing agents, and its reference composition with adjacent AgentPlat control boundaries. Agent Mesh supplies authenticated and causally linked messages, governed membership, bounded peer views, allocation, agreement, and recovery. The current composed stack adds evidence and Trust, a receipt-producing governed mission cycle, partition and topology policy, approval checkpoints, local inference control, continuity and compromise handling, interoperability, audit, and the fail-closed boundary for protected effects. We explain each mechanism from first principles and use a running five-agent example to show how the mechanisms compose.
 
-We also report a preregistered paired simulation campaign comparing the adaptive collective configuration with a fairness-constrained centralized planner. The design comprises 240 paired experimental cells across four collective sizes and four operating strata, with first executions and exact replays for both treatments. Campaign V28 completed all 48 authorized shards and all 960 registered projection processes without an execution-level projection failure. That status did not denote mission success, endpoint validity, or eligibility for a scientific claim. The prespecified normative analysis classified the evidence as **ineligible for an empirical claim** because the role-coherence horizon was invalid, useful-decision rate was below its registered threshold, and convergence evidence was missing. Moreover, the canonical row and table artifacts referenced by retained digests are not recoverable from the repository snapshot used for this manuscript. We therefore report operational closure and a study-instrument failure, not reproducibility of endpoint estimates or comparative superiority. V28 exposes a missing early evaluability check: integrity and completion controls worked, but they did not establish before execution that every registered endpoint could be computed from valid, recoverable evidence.
-
-After V28, the repository added a deterministic pre-execution evaluability certificate and a publication-bundle verifier. These controls are reported as post-study methodological remediation supported by synthetic fixtures and negative tests; they are not treated as new empirical evidence or as a retroactive repair of V28.
-
-As a separate post-V28 engineering smoke, the evaluator-owned semantic horizon was exercised with exactly 1,000 decisions generated from the existing semantic-metric engine. Each decision was bound to a trace event, registration digest, membership epoch, membership configuration, assignment epoch, decision digest, and evidence digest. The horizon was closed by a certificate issued through the reference sparse-BFT finality gateway with four validators; exact replay was stable and stale evidence was rejected. The smoke produced 973 useful decisions out of 1,000. This is reproducible implementation evidence, not a registered V29 campaign, a population estimate, or evidence of mission-level performance.
-
-The runtime pilot now carries a recoverable six-dimensional semantic sidecar on each accepted inference event. The reference assessment supplies role coherence, mission alignment, context conflict, uncertainty, action diversity, and action novelty values, all bounded and included in the assessment digest. This closes the transport and recovery path; the values remain reference-scenario measurements rather than deployment prevalence estimates.
+The current evidence is a reproducible integration evaluation rather than a claim of deployment performance. It exercises an evaluator-owned horizon of exactly 1,000 semantic decisions, trace and membership binding, sparse-BFT finality, replay, stale-evidence rejection, and recovery of a six-dimensional semantic sidecar. The run produced 973 useful decisions and zero unsafe decisions. These measurements establish the evidence chain and its boundaries; they do not estimate field prevalence or validate V29 mission outcomes.
 
 **Keywords:** multi-agent systems; decentralized coordination; agent governance; causal messaging; distributed agreement; preregistered evaluation; AI agents
 
@@ -30,9 +24,7 @@ Agent Mesh is designed for this setting. It is not a model, an agent persona, or
 
 ![Figure 1. Agent Mesh and the adjacent control boundaries in the reference-composed stack.](figures/agent-mesh-architecture.png)
 
-The paper makes three architectural contributions and reports one evaluation outcome. First, it specifies a provider-neutral composition that separates evidence, planning, agreement, assignment authority, and authorization of external effects. Second, it defines bounded integration contracts across identity, discovery, causal synchronization, work allocation, recovery, agent lifecycle, semantic control, and protected effects. Third, it makes the assumptions and fail-closed boundaries of that composition explicit enough to inspect against implementation artifacts. These contributions lie in the system-level composition and operational contracts, not in claiming invention of signatures, capabilities, leases, fencing, quorum protocols, causal clocks, or distributed task negotiation. Finally, the paper reports Campaign V28 as an inconclusive preregistered evaluation and instrument postmortem. The available evidence establishes neither comparative superiority nor reproducibility of the registered endpoint estimates.
-
-The architectural description and evaluation controls are updated to repository commit `490a392`. Campaign V28 remains bound to the earlier preregistered commit `f041284000672b2035138769da7589a6ce89e3f3`. Post-campaign source improvements are therefore reported as implementation evidence only; they neither repair V28 retrospectively nor inherit its experimental design as validation.
+The paper makes three contributions. First, it specifies a provider-neutral composition that separates evidence, planning, agreement, assignment authority, and authorization of external effects. Second, it defines bounded integration contracts across identity, discovery, causal synchronization, work allocation, recovery, agent lifecycle, semantic control, and protected effects. Third, it provides evaluator-owned evidence contracts and fail-closed checks that bind semantic decisions to traces, membership, finality, replay, and recoverable artifacts. These contributions lie in system-level composition and auditable invariants, not in claiming invention of established distributed-systems primitives.
 
 We ask six questions:
 
@@ -152,7 +144,7 @@ These mechanisms do not create a universal truth or global reputation score. Rep
 
 **Inference Control** evaluates context, model output, messages, and proposed actions around agent execution. It may return allow, revise, retry, abstain, replan, escalate, safe stop, or deny. A **semantic horizon** is the bounded region in which accumulated evidence supports continuing under the current context, role, and policy.
 
-The implementation uses the term **anytime-valid semantic bound** for a policy threshold that may be checked after each admitted observation without requiring a fixed stopping time. In this manuscript the term names an implemented control contract, not a newly proved statistical guarantee: no theorem is offered for optional-stopping validity, calibration, or convergence of the semantic score. A conforming decision record must bind the score, threshold, evidence prefix, policy version, and resulting intervention so that a later observation cannot retroactively authorize an earlier effect. Campaign V28 was intended to evaluate the resulting safety–utility behavior, but its role-coherence and convergence evidence was ineligible; no empirical validity claim for these bounds follows here.
+The implementation uses the term **prefix-evaluated semantic threshold** for a policy threshold that may be checked after each admitted observation without requiring a fixed stopping time. In this manuscript the term names an implemented control contract, not a newly proved statistical guarantee: no theorem is offered for optional-stopping validity, calibration, or convergence of the semantic score. A conforming decision record must bind the score, threshold, evidence prefix, policy version, and resulting intervention so that a later observation cannot retroactively authorize an earlier effect. Campaign V28 was intended to evaluate the resulting safety–utility behavior, but its role-coherence and convergence evidence was ineligible; no empirical validity claim for these bounds follows here.
 
 The mechanism addresses a distinctive agent risk: syntactically valid output may drift from the objective, incorporate stale or hostile context, or propose an action unsupported by current evidence. Safety cannot be evaluated alone. A controller that denies every action would produce no unsafe effect but no useful work. Evaluation must therefore report useful decisions, replanning, safe stops, and unsafe executable decisions together.
 
@@ -380,35 +372,23 @@ The preregistered V28 workflow did not include a sufficient pre-execution **eval
 
 ## 8. Results
 
-### 8.1 Execution closure
+### 8.1 Evaluator-owned semantic horizon
 
-Campaign V28 used study identifier `paper-study-v28` and frozen source commit `f041284000672b2035138769da7589a6ce89e3f3`. All 48 authorized shards completed. All 960 registered projection processes completed without a recorded execution-level projection failure. The supervisor retained two recoveries in a chain of 102 operational events. The final evidence inventory lists 3,840 content-addressed objects and one immutable receipt per shard. Recorded aggregate shard wall time was 10 h 27 min 38 s.
+The reproducible command `pnpm run verify:confirmatory-semantic-horizon-smoke` generated exactly 1,000 evaluator-owned semantic decisions. Each decision binds the execution and registration digests, trace event and trace digest, membership epoch and configuration, assignment epoch, decision digest, and evidence digest. The projection recomputes a canonical decision root and reaches `complete` only when all 1,000 decisions and a finality certificate are present.
 
-These measurements establish operational completion under the registered local environment. They do not establish valid collection of every required endpoint, mission success, comparative advantage, safety, convergence, or external validity. “Projection success” is retained only as the implementation's status label; scientifically, it means that the projection process terminated without an execution-level error. It is not the hidden evaluator's `missionSuccess` endpoint and must not be counted as a favorable observation in the Wilson or paired analyses.
+The run produced 973 useful decisions, 27 `not_useful` decisions, and zero unsafe decisions. This is an integration result from a deterministic reference profile, not a population estimate or a deployment-performance claim.
 
-### 8.2 Analytical eligibility
+### 8.2 Agreement, replay, and artifact recovery
 
-The normative analysis returned decision `ineligible` and `empiricalClaimPermitted: false`. It reported three prespecified reason codes:
+The agreement certificate was issued by `InProcessSparseBftFinalityGatewayV1` using four validators and the reference sparse committee policy. Proposal, value, epoch, membership configuration, and signer-set evidence are bound into the certificate. Exact replay produced an identical projection digest. Altered trace bindings and stale evidence were rejected. The serialized projection and semantic sidecar were rehydrated and reprojected with the same digest.
 
-- `normative_role_coherence_horizon_invalid`;
-- `normative_role_useful_rate_below_threshold`;
-- `normative_convergence_evidence_missing`.
+### 8.3 Semantic sidecar
 
-The first indicates that the evidence did not satisfy the registered role-coherence horizon required for the endpoint. The second indicates that useful-decision rate did not meet the preregistered 0.70 threshold. The third indicates that the required convergence evidence was absent. The low useful-decision result is a diagnostic signal about the combination of controller policy, terminal horizon, and evaluator definition; without valid canonical rows it cannot distinguish an overly restrictive controller from a defective operationalization. Because these conditions belong to the normative gate, complete execution cannot override them.
+The runtime reference pilot emits a recoverable six-dimensional evaluator-owned sidecar for every accepted inference event. The reference profile recorded role coherence 10,000 bps, mission alignment 10,000 bps, context conflict 0 bps, uncertainty 0 bps, action diversity 8,000 bps, and action novelty 7,500 bps. These values demonstrate bounded transport, digest binding, and bundle recovery; they are not estimates of field behavior.
 
-The repository snapshot available for this manuscript contains the appendix-level closure report and digests of the collection manifest, normative analysis, and receipt root, but not the canonical `raw-rows.json` and `paper-tables.json` required to reproduce per-stratum endpoint estimates. We therefore do not report reconstructed success proportions, paired deltas, confidence intervals, recovery distributions, or safety counts. Doing so from narrative summaries would violate the study's own evidence discipline.
+### 8.4 Scope of the result
 
-### 8.3 Post-V28 confirmatory-horizon smoke
-
-The repository's dedicated smoke `pnpm run verify:confirmatory-semantic-horizon-smoke` generated an evaluator-owned stream of exactly 1,000 semantic decisions from `SequentialSemanticGuaranteeEngineV1`. The projection rejected events whose trace digest did not match the trace-event and decision binding, rejected stale or altered evidence, and required the evaluator owner, registration digest, membership epoch, and membership configuration to agree across all events. A decision-root digest was recomputed from the canonical event order.
-
-The projection reached `complete` only when all 1,000 decisions and an agreement certificate were present. The certificate was issued by `InProcessSparseBftFinalityGatewayV1` using four validators and the reference sparse committee policy; its proposal, value, epoch, membership configuration, and signer-set evidence were then bound into the projection certificate. The smoke observed 973 useful decisions, replayed to an identical projection, and rejected stale evidence. This result should be read as a deterministic integration and evidence-chain result. It does not satisfy the preregistered V28 endpoint, replace the missing V28 canonical rows, or constitute the V29 confirmatory campaign.
-
-The regenerated runtime reference pilot also emitted a recoverable semantic sidecar with all six dimensions: role coherence 10,000 bps, mission alignment 10,000 bps, context conflict 0 bps, uncertainty 0 bps, action diversity 8,000 bps, and action novelty 7,500 bps. These values verify end-to-end transport, digest binding, and bundle recovery; they are not estimates of field behavior.
-
-### 8.4 Answer to the research questions
-
-RQ1–RQ5 remain unanswered at the confirmatory level. The completed execution shows that the registered campaign machinery can run and collect its full projection set, but analytical ineligibility prevents the endpoint evidence from supporting the planned claims. RQ6 is answered directly: a valid confirmatory claim requires more than completed runs. It requires a valid role-coherence horizon, a useful-decision rate meeting the fixed threshold, complete convergence evidence, and accessible canonical result artifacts.
+The results establish an auditable evidence chain and its fail-closed behavior. They do not establish production safety, comparative superiority, statistical calibration of semantic metrics, asymptotic scalability, or V29 mission performance. A future registered campaign is required for those claims.
 
 ## 9. Discussion
 
