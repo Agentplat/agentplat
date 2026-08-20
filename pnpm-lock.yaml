@@ -80,6 +80,9 @@ importers:
       '@agentplat/mcp':
         specifier: workspace:*
         version: link:packages/mcp
+      '@agentplat/mcp-runtime':
+        specifier: workspace:*
+        version: link:packages/mcp-runtime
       '@agentplat/memory':
         specifier: workspace:*
         version: link:packages/memory
@@ -586,6 +589,24 @@ importers:
 
   packages/mcp-docs:
     dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@4.4.3)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+
+  packages/mcp-runtime:
+    dependencies:
+      '@agentplat/audit':
+        specifier: workspace:^
+        version: link:../audit
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/rooms':
+        specifier: workspace:^
+        version: link:../rooms
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.4.3)
