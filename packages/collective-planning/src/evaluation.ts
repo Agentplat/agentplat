@@ -75,6 +75,7 @@ const traceKindValues = new Set<CollectiveTraceEventKindV2>([
   "environment.observation.delivered",
   "environment.observation.rejected",
   "peer.decision.accepted",
+  "role.decision.observed",
   "peer.decision.rejected",
   "runner.directive.delivered",
   "planning.proposal",
@@ -464,7 +465,12 @@ function expectedTraceComponentV2(
   kind: CollectiveTraceEventKindV2
 ): CollectiveTraceEventV2["component"] {
   if (kind.startsWith("environment.")) return "environment";
-  if (kind.startsWith("peer.") || kind.startsWith("runner.")) return "runner";
+  if (
+    kind.startsWith("peer.") ||
+    kind.startsWith("runner.") ||
+    kind.startsWith("role.")
+  )
+    return "runner";
   if (kind.startsWith("planning.")) return "planning";
   if (
     kind.startsWith("mesh.") ||
@@ -498,6 +504,7 @@ function assertAccountedTraceStatusV2(
   > = {
     "environment.observation.delivered": "accepted",
     "peer.decision.accepted": "accepted",
+    "role.decision.observed": "accepted",
     "peer.decision.rejected": "rejected",
     "runner.directive.delivered": "accepted",
     "mesh.message.delivered": "accepted",
