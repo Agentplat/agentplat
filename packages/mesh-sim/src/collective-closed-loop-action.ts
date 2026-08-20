@@ -182,7 +182,7 @@ export async function runCollectiveClosedLoopActionV1(
     traceEventId: `inference.assessed:${input.assessment.assessmentId}`,
     assessmentDigest: asDigest(controlDigest("message", input.assessment as never)),
     evidenceDigest: asDigest(controlDigest("message", input.assessment as never)),
-    metrics: (input.assessment as unknown as { metrics?: Record<string, number | null> }).metrics ?? {},
+    metrics: semanticMetricsFromAssessment(input.assessment),
   });
   appendActionTrace(input, "inference.assessed", semanticEvidence.evidenceDigest);
 
@@ -351,6 +351,18 @@ export async function runCollectiveClosedLoopActionV1(
     effectAttempt,
     receipt,
   });
+}
+
+function semanticMetricsFromAssessment(assessment: InferenceAssessmentV1): Record<string, number | null> {
+  const reasons = new Set(assessment.reasonCodes);
+  return {
+    roleCoherenceBps: assessment.disposition === 'allow' ? 10_000 : null,
+    missionAlignmentBps: assessment.disposition === 'allow' ? 10_000 : null,
+    contextConflictBps: reasons.has('state_conflict') || reasons.has('context_zone_invalid') ? 10_000 : 0,
+    uncertaintyBps: assessment.uncertaintyBasisPoints,
+    courseActionDiversityBps: null,
+    courseActionNoveltyBps: null,
+  };
 }
 
 function reduceToIssuedGrant(
