@@ -50,6 +50,7 @@ import {
   type TrustEligibilityRequestV1,
 } from "@agentplat/trust";
 import { collectiveTraceJournalForOwnerV2 } from "./collective-trace-journal.js";
+import { createEvaluatorOwnedSemanticTraceEvidenceV1 } from './semantic-trace-evidence.js';
 import { recordCollectiveEffectReceiptProvenanceV1 } from "./collective-effect-provenance.js";
 
 /**
@@ -180,7 +181,12 @@ export async function runCollectiveClosedLoopActionV1(
   appendActionTrace(
     input,
     "inference.assessed",
-    asDigest(controlDigest("message", input.assessment as never)),
+    asDigest(controlDigest("message", createEvaluatorOwnedSemanticTraceEvidenceV1({
+      traceEventId: `inference.assessed:${input.assessment.assessmentId}`,
+      assessmentDigest: asDigest(controlDigest("message", input.assessment as never)),
+      evidenceDigest: asDigest(controlDigest("message", input.assessment as never)),
+      metrics: (input.assessment as unknown as { metrics?: Record<string, number | null> }).metrics ?? {},
+    }) as never)),
   );
 
   const grantLedger = new LocalGrantLedger(input.gatewayId);
