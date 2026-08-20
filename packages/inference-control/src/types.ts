@@ -358,6 +358,15 @@ export interface InferenceAssessmentV1 {
   readonly disposition: AssessmentDispositionV1;
   readonly reasonCodes: readonly InferenceControlReasonCodeV1[];
   readonly uncertaintyBasisPoints: number;
+  /** Optional semantic-alignment aggregate carried when the assessor exposes it. */
+  readonly semanticMetrics?: {
+    readonly roleCoherenceBps: number | null;
+    readonly missionAlignmentBps: number | null;
+    readonly contextConflictBps: number | null;
+    readonly uncertaintyBps: number | null;
+    readonly courseActionDiversityBps: number | null;
+    readonly courseActionNoveltyBps: number | null;
+  };
   readonly evidenceReferences: readonly string[];
   readonly revisedContent: JsonValue | null;
   readonly challenge: JsonValue | null;

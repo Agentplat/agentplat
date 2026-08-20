@@ -91,6 +91,7 @@ const ASSESSMENT_KEYS = [
   'assessedAtLogicalMs',
   'expiresAtLogicalMs',
 ] as const;
+const ASSESSMENT_KEYS_EXTENDED = [...ASSESSMENT_KEYS.slice(0, 20), 'semanticMetrics', ...ASSESSMENT_KEYS.slice(20)] as const;
 
 export function validateAssessmentRequestV1(
   value: unknown,
@@ -154,7 +155,10 @@ export function validateInferenceAssessmentV1(
   value: unknown,
   limits: InferenceControlLimitsV1,
 ): InferenceAssessmentV1 {
-  assertExactKeys(value, ASSESSMENT_KEYS, 'assessment');
+  const keys = Object.keys(value as object).sort();
+  const legacyKeys = [...ASSESSMENT_KEYS].sort();
+  const extendedKeys = [...ASSESSMENT_KEYS_EXTENDED].sort();
+  if (keys.join('|') !== legacyKeys.join('|') && keys.join('|') !== extendedKeys.join('|')) throw new TypeError('assessment_invalid');
   const assessment = value as unknown as InferenceAssessmentV1;
   if (assessment.schemaVersion !== 1) throw new TypeError('assessment_invalid');
   for (const [label, item] of [
@@ -195,6 +199,11 @@ export function validateInferenceAssessmentV1(
   );
   if (assessment.uncertaintyBasisPoints > 10_000)
     throw new TypeError('assessment_invalid');
+  if (assessment.semanticMetrics !== undefined) {
+    const metricKeys = ['roleCoherenceBps', 'missionAlignmentBps', 'contextConflictBps', 'uncertaintyBps', 'courseActionDiversityBps', 'courseActionNoveltyBps'];
+    if (Object.keys(assessment.semanticMetrics).sort().join('|') !== metricKeys.sort().join('|')) throw new TypeError('assessment_invalid');
+    for (const value of Object.values(assessment.semanticMetrics)) if (value !== null) assertSafeInteger(value, 'semanticMetric');
+  }
   if (
     !Array.isArray(assessment.evidenceReferences) ||
     assessment.evidenceReferences.length >
