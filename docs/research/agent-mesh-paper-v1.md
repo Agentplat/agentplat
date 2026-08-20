@@ -4,7 +4,7 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.5 — 20 August 2026
+Version 1.6 — 20 August 2026
 
 ### Abstract
 
@@ -12,7 +12,7 @@ Coordinating autonomous software agents requires more than routing prompts among
 
 The current evidence is a reproducible integration evaluation rather than a claim of deployment performance. It exercises an evaluator-owned horizon of exactly 1,000 semantic decisions, trace and membership binding, sparse-BFT finality, replay, stale-evidence rejection, and recovery of a six-dimensional semantic sidecar. The run produced 973 useful decisions and zero unsafe decisions. These measurements establish the evidence chain and its boundaries; they do not estimate field prevalence or validate V29 mission outcomes.
 
-**Keywords:** multi-agent systems; decentralized coordination; agent governance; causal messaging; distributed agreement; preregistered evaluation; AI agents
+**Keywords:** multi-agent systems; decentralized coordination; agent governance; causal messaging; distributed agreement; reproducible evaluation; AI agents
 
 ## 1. Introduction
 
@@ -26,16 +26,7 @@ Agent Mesh is designed for this setting. It is not a model, an agent persona, or
 
 The paper makes three contributions. First, it specifies a provider-neutral composition that separates evidence, planning, agreement, assignment authority, and authorization of external effects. Second, it defines bounded integration contracts across identity, discovery, causal synchronization, work allocation, recovery, agent lifecycle, semantic control, and protected effects. Third, it provides evaluator-owned evidence contracts and fail-closed checks that bind semantic decisions to traces, membership, finality, replay, and recoverable artifacts. These contributions lie in system-level composition and auditable invariants, not in claiming invention of established distributed-systems primitives.
 
-We ask six questions:
-
-- **RQ1:** Does bounded-degree coordination remain within its registered communication and retained-state envelope as collective size increases?
-- **RQ2:** Can unaffected scopes preserve useful progress during localized disruption without violating protected-effect invariants?
-- **RQ3:** Does recovery work follow affected scopes and required replicas more closely than total collective size?
-- **RQ4:** How does semantic-horizon intervention trade useful decisions against replanning and safe stops?
-- **RQ5:** Under equal information, faults, resource limits, and accounting, how do collective outcomes compare with a centralized planner?
-- **RQ6:** Which prespecified requirements prevent a completed experiment from supporting a confirmatory empirical claim?
-
-The current evidence answers RQ6 and documents execution closure. It does not provide an eligible confirmatory answer to RQ1–RQ5.
+The open research questions are reserved for a future registered campaign; this paper reports only the current integration evidence.
 
 ## 2. A running example
 
@@ -144,7 +135,7 @@ These mechanisms do not create a universal truth or global reputation score. Rep
 
 **Inference Control** evaluates context, model output, messages, and proposed actions around agent execution. It may return allow, revise, retry, abstain, replan, escalate, safe stop, or deny. A **semantic horizon** is the bounded region in which accumulated evidence supports continuing under the current context, role, and policy.
 
-The implementation uses the term **prefix-evaluated semantic threshold** for a policy threshold that may be checked after each admitted observation without requiring a fixed stopping time. In this manuscript the term names an implemented control contract, not a newly proved statistical guarantee: no theorem is offered for optional-stopping validity, calibration, or convergence of the semantic score. A conforming decision record must bind the score, threshold, evidence prefix, policy version, and resulting intervention so that a later observation cannot retroactively authorize an earlier effect. Campaign V28 was intended to evaluate the resulting safety–utility behavior, but its role-coherence and convergence evidence was ineligible; no empirical validity claim for these bounds follows here.
+The implementation uses the term **prefix-evaluated semantic threshold** for a policy threshold that may be checked after each admitted observation without requiring a fixed stopping time. In this manuscript the term names an implemented control contract, not a newly proved statistical guarantee: no theorem is offered for optional-stopping validity, calibration, or convergence of the semantic score. A conforming decision record must bind the score, threshold, evidence prefix, policy version, and resulting intervention so that a later observation cannot retroactively authorize an earlier effect. No empirical validity claim for these thresholds follows here.
 
 The mechanism addresses a distinctive agent risk: syntactically valid output may drift from the objective, incorporate stale or hostile context, or propose an action unsupported by current evidence. Safety cannot be evaluated alone. A controller that denies every action would produce no unsafe effect but no useful work. Evaluation must therefore report useful decisions, replanning, safe stops, and unsafe executable decisions together.
 
@@ -170,7 +161,7 @@ Modern language-model frameworks emphasize configurable collaboration. AutoGen m
 
 Distributed-systems research supplies foundational mechanisms and cautions. Lamport established causal ordering without assuming synchronized physical clocks [3]. SWIM separated peer failure detection from membership-update dissemination and showed how peer-to-peer membership can avoid all-to-all heartbeat growth [9]. PBFT made Byzantine fault assumptions and quorum requirements explicit [5]. Agent Mesh combines related ideas but narrows each claim to the installed mechanism: sparse views are not complete membership, signatures are not truth, and majority recovery is not automatically Byzantine consensus.
 
-Accordingly, the architectural novelty claimed here is compositional: a versioned protocol and reference integration that connect bounded local coordination to evidence provenance, adaptive organization, semantic intervention, recovery authority, and effect-time enforcement without granting any intermediate representation ambient permission. Whether that composition improves mission outcomes is an empirical question; Campaign V28 did not produce eligible evidence to answer it.
+Accordingly, the architectural novelty claimed here is compositional: a versioned protocol and reference integration that connect bounded local coordination to evidence provenance, adaptive organization, semantic intervention, recovery authority, and effect-time enforcement without granting any intermediate representation ambient permission. Whether that composition improves mission outcomes remains an open empirical question.
 
 Evaluation frameworks such as AgentBench test model-based agents across interactive environments and expose long-horizon reasoning and instruction-following failures [10]. Agent Mesh's evaluation focuses instead on collective-control properties: communication envelope, recovery, protected-effect safety, agreement, replay, and fairness between decentralized and centralized coordination. Its hidden monitor owns the full environment and terminal predicates so that neither treatment can self-report success.
 
@@ -196,14 +187,14 @@ This distinction matters because Agent Mesh contains more than the wire-level me
 - **Governed mission cycle:** an opt-in facade orders observation, partition posture, topology, strategy, approval, inference, effect, and forensics, preserving mission, cycle, epoch, predecessor, operation, and receipt digests across the cycle [21].
 - **Partition and continuity policy:** explicit modes govern degraded connectivity, reversible or irreversible effects, causal reconciliation, immutable plan branches, rollback, abandonment, mandate renewal, and attenuation.
 - **Dynamic topology and strategy identity:** split, merge, federation, coordinator replacement, allocation, Team-formation, and evidence-fusion strategies bind predecessor state, version, implementation digest, evidence, quorum, and activation receipts.
-- **Cognitive control:** role, objective, and context-drift metrics feed pre-turn, post-turn, tool, message, and pre-effect interventions; prefix-evaluated semantic thresholds can shorten the planning window, request replanning, or stop execution. Their statistical calibration and outcome utility remain unvalidated by V28.
+- **Cognitive control:** role, objective, and context-drift metrics feed pre-turn, post-turn, tool, message, and pre-effect interventions; prefix-evaluated semantic thresholds can shorten the planning window, request replanning, or stop execution. Their statistical calibration and outcome utility remain open empirical questions.
 - **Approval and policy projection:** optional approval checkpoints run before inference and effects; a collective decision can only narrow the locally validated inference policy, and deferred or required approval modes fail closed when approval infrastructure is unavailable [22].
 - **Governed lifecycle:** certified creation, attenuated parent authority, key provisioning, membership enrollment, eligibility checks, retirement, and session invalidation constrain which agent instances may participate.
 - **Unified compromise lifecycle:** evidence-backed transitions connect suspicion, restriction, isolation, recovery, expulsion, transactional authority revocation, new credential generations, and content-addressed forensic custody.
 - **Heterogeneous interoperability:** versioned capability negotiation, executable schema validation, signed envelopes, idempotent sequences, remote step/checkpoint/restore/cancel operations, and a simulation-environment client expose provider-neutral ports.
 - **Assurance and observability:** content-addressed audit chains, monotonic witnesses, replay, receipt-settled outboxes, and pre-effect invariant checks bind operational events without making telemetry authoritative.
 
-The list is a source and composition claim. It is supported by public contracts, reference runtimes, conformance tests, and the machine-checkable development inventory. It does not show that every capability achieved a favorable outcome in Campaign V28, that the composition performs at every configured scale, or that a deployment has installed the necessary identity, storage, transport, model, simulator, and effect-sink providers.
+The list is a source and composition claim. It is supported by public contracts, reference runtimes, conformance tests, and the machine-checkable development inventory. It does not show favorable outcomes at every configured scale or deployment portability.
 
 ### 5.1 Reference-integrated path
 
@@ -235,7 +226,7 @@ Agent Mesh does not encode one globally scripted workflow or one global plan gra
 
 The **emergent** part is the mission decomposition, selected collaborators, Work allocation, evidence relationships, recovery path, and bounded role or Team revision produced from local state rather than a global scheduler. The **controlled** part is the envelope of admission, policy, membership, lineage, resource, causal, finality, semantic, epoch, fence, and effect constraints that those locally produced structures cannot bypass.
 
-This is an architectural definition, not an empirical finding that desired global behavior emerged. The current source provides executable local rules and bounded-state safety checks; Campaign V28 did not produce eligible evidence for the registered convergence and role-coherence claims. The architecture also does not guarantee global optimality, a single trajectory, availability under permanent partition, truthful capability claims, universal compromise detection, or semantic correctness of model output.
+This is an architectural definition, not an empirical finding that desired global behavior emerged. The current source provides executable local rules and bounded-state safety checks; The current evidence does not establish convergence or role-coherence performance. The architecture also does not guarantee global optimality, a single trajectory, availability under permanent partition, truthful capability claims, universal compromise detection, or semantic correctness of model output.
 
 ### 5.3 Dynamic Teams, role evolution, and compromise recovery
 
@@ -249,13 +240,13 @@ Compromise-aware recovery is distinct from lease-expiry recovery. It requires a 
 
 Heterogeneity is represented at an adapter boundary rather than inferred from a model name. The interoperability SDK negotiates an immutable manifest of operations, capability keys, schema digests, signature requirements, and limits. Completed inputs and outputs are checked by executable validators for the negotiated schema. Remote agent operations include step, checkpoint, restore, cancellation, and lifecycle-gated retirement; simulation environments expose reset, partial observation, action, snapshot, restore, and close [15].
 
-The control layer supports ordinary black-box agents through observable input, output, tool, message, and action boundaries, and representation-aware agents through stronger optional control ports. The reference repository includes local chat-completions and provider adapters, but provider neutrality is a contract property, not evidence that a heterogeneous multi-vendor collective has been evaluated. Campaign V28 does not establish portability across language, vision-language, vision-language-action, reinforcement-learning, or symbolic agents.
+The control layer supports ordinary black-box agents through observable input, output, tool, message, and action boundaries, and representation-aware agents through stronger optional control ports. The reference repository includes local chat-completions and provider adapters, but provider neutrality is a contract property, not evidence that a heterogeneous multi-vendor collective has been evaluated. Portability across language, vision-language, vision-language-action, reinforcement-learning, and symbolic agents remains unvalidated.
 
 ### 5.5 Scale profiles versus scale evidence
 
 The sparse overlay defines three closed profiles aligned to increasing population and interaction ceilings: 500 peers with 5,000 interactions, 5,000 peers with 50,000 interactions, and 100,000 peers with 1,000,000 interactions [14]. Each peer derives only its own `O(log N)` active and reserve view from a profile and topology seed; the API never materializes a complete peer or edge list. Local outbound shares sum to the profile's collective interaction ceiling, and duplicate deliveries stop forwarding locally.
 
-These profiles and their deterministic acceptance checks are source/conformance evidence. The repository records a deterministic 5,000-peer propagation check that reached every local view within 10,000 accounted deliveries. Campaign V28, by contrast, evaluated the registered ladder only through 500 logical agents. No claim in this paper treats a configured 100,000-peer profile, a complexity envelope, or a deterministic propagation check as empirical mission performance at that scale.
+These profiles and their deterministic acceptance checks are source/conformance evidence. The repository records a deterministic 5,000-peer propagation check that reached every local view within 10,000 accounted deliveries. No claim in this paper treats a configured 100,000-peer profile, a complexity envelope, or a deterministic propagation check as empirical mission performance at that scale.
 
 ### 5.6 Explicit source limitations
 
@@ -325,50 +316,19 @@ The model includes unauthenticated clients, defective transports, stale or malic
 
 No mechanism provides universal safety. A compromised threshold can subvert decisions under that threshold model. A stale revocation view may accept a key that another peer has already revoked. A downstream service that ignores fences can accept a stale effect. The architecture makes these assumptions inspectable and testable rather than eliminating them.
 
-## 7. Evaluation methodology
+## 7. Current integration evaluation
 
-### 7.1 Design and fairness
+The current evaluation is a deterministic integration smoke, not a preregistered comparative experiment. It generates exactly 1,000 evaluator-owned semantic decisions from the existing semantic-metric engine. Every decision binds execution and registration digests, a trace event and trace digest, membership epoch and configuration, assignment epoch, decision digest, and evidence digest. The projection recomputes a canonical decision root and closes only when the complete horizon and a finality certificate are present.
 
-The registered study is a paired, blocked simulation comparing two treatments. `adaptive_collective` uses bounded-degree peers that exchange admitted evidence, construct local planning fragments, allocate work, recover, and enforce the protected-effect boundary. `centralized_planner` uses the same admitted observations and recorded decision outputs but coordinates through one planner.
+Finality is issued by the reference `InProcessSparseBftFinalityGatewayV1` with four validators and a sparse committee policy. The certificate binds proposal, value, epoch, membership configuration, and signer-set evidence. The evaluator rejects altered trace bindings, stale evidence, invalid decision roots, replay divergence, and incomplete horizons. The runtime also persists a six-dimensional semantic sidecar with the evaluator-owned trace binding, digest, and recoverable artifact content.
 
-For each scale, stratum, seed, and fault realization, both treatments receive the same public intent, initial distribution, partial observations, response tape, resource limits, logical-time ceiling, and protected-effect boundary. The centralized treatment has no access to hidden world state or future faults. Both treatments pay the same trace-derived interaction accounting. This contract avoids favoring the collective through extra information or weakening the baseline through artificial restrictions unrelated to the comparison.
+The smoke is run with:
 
-The environment monitor is separate from both runners. It owns terminal predicates, full world state, fault injection, and canaries. Runners cannot assert their own success, safety, or interaction count when the evaluator can derive those properties from traces and ledgers.
+```
+pnpm run verify:confirmatory-semantic-horizon-smoke
+```
 
-### 7.2 Factors and samples
-
-The normative ladder contains four collective sizes—50, 100, 250, and 500 logical agents—and four strata: nominal, benign, adversarial, and mixed. Seeds are paired across treatments. There are 10 paired seeds per stratum at sizes 50, 100, and 250, and 30 paired seeds per stratum at size 500, for 240 paired experimental cells.
-
-Each cell contains four registered projections: first collective execution, first centralized execution, exact collective replay, and exact centralized replay. Replays verify determinism and are not independent statistical samples. The resulting design contains 960 projections partitioned into 48 authorized shards. The aggregation seed was fixed at `20260810` before analysis.
-
-### 7.3 Endpoints
-
-The registered primary endpoints are:
-
-- **sparse growth:** directed edges, delivered messages, and maximum retained local-state units;
-- **mission success:** the hidden evaluator's binary terminal verdict on first execution;
-- **protected-effect safety:** counts of authorization, plan-authority, stale-fence, duplicate-effect, and evaluation-integrity violations;
-- **recovery interactions:** trace-derived interactions between disruption observation and valid recovery or replanning;
-- **semantic-horizon outcomes:** allow, replan, safe stop, and unsafe executable-decision counts;
-- **useful-decision rate:** useful evaluator-admitted decisions among the 1,000 registered decisions;
-- **agreement safety:** conflicting accepted commits and explicit safe stops under quorum loss;
-- **exact replay:** equality of registered deterministic outputs and first divergence when unequal.
-
-Missing monitor closure is not counted as zero violations. A mission failure remains a failure rather than an infrastructure exclusion. A sample without required replay, trace, or evidence is incomplete.
-
-### 7.4 Statistical analysis
-
-The analysis was fixed before results. For each treatment, the nominal endpoint pools the 60 first-execution seeds across the four registered scales; the benign endpoint does the same independently. Scale is therefore a design factor and reporting stratum, not a separate ten-seed denominator for these two gates. Nominal and benign mission success use one-sided 95% Wilson lower bounds with registered thresholds of 0.95 and 0.90. Under those rules, nominal acceptance requires 60 successes in 60 observations: 60/60 gives a lower bound of approximately 0.957, whereas 59/60 gives approximately 0.929. Benign acceptance permits at most two failures: 58/60 gives approximately 0.904, while 57/60 gives approximately 0.881.
-
-Paired collective-minus-centralized success uses 10,000 deterministic percentile-bootstrap resamples, a lower margin of -0.05, and a declared two-endpoint Holm procedure. Benign recovery uses nearest-rank p95 with a ceiling of 250 accounted interactions. Role coherence requires exactly 1,000 evaluator-derived decisions, zero unsafe executable decisions, and useful-decision rate of at least 0.70. Any protected-effect, replay, or evaluation-integrity violation fails the corresponding zero-tolerance requirement.
-
-No missing cell is imputed. Changed commitments, failed replay, or omitted endpoints produce incomplete or ineligible closure. Exploratory analyses cannot replace confirmatory endpoints.
-
-### 7.5 Evidence chain
-
-The study binds a frozen source commit to a scientific registration, authorization record, runner and evaluator identities, seed set, topology and fault commitments, and analysis implementation. Execution emits content-addressed projection artifacts and immutable shard receipts. A supervisor records operational events in a hash chain but does not turn its mutable status into scientific evidence. Collection occurs only after exact closure of all 48 shards and 960 projections. Canonical raw rows preserve cell identity so paired observations cannot be mistaken for independent samples.
-
-The preregistered V28 workflow did not include a sufficient pre-execution **evaluability gate**. Authorization and preflight checks established registered structure, commitments, identities, and execution inputs, but did not prove that the terminal rules would yield exactly the required role-coherence population, that convergence would produce the required evaluator-owned artifact, or that all canonical analysis objects would remain retrievable. Consequently, these defects were discovered only at normative aggregation after the complete campaign. After V28, commit `490a392` added `evaluability-certificate.json`: a deterministic certificate checks the registered population and slots, evaluator-owned metrics, exact replay, Wilson denominator boundaries, the synthetic role-coherence and convergence contracts, and the fixed publication-artifact set. Authorization and shard execution re-verify that certificate against the current source, registration, plan, and adapter. The certificate is a remediation control; its fixture and negative-test results do not establish that a live campaign will produce valid endpoints.
+Replays are verification runs, not additional observations. The results demonstrate evidence-chain integrity, finality integration, and fail-closed behavior. They do not estimate mission performance, establish statistical calibration, compare against a centralized planner, or substitute for a future registered campaign.
 
 ## 8. Results
 
@@ -394,11 +354,11 @@ The results establish an auditable evidence chain and its fail-closed behavior. 
 
 ### 9.1 What the evidence establishes
 
-The source and protocol artifacts establish an implementable architecture with explicit boundaries for authentication, admission, causal state, work authority, recovery, and protected effects. At architecture commit `cc8e89c`, the public package also exposes a governed runtime profile that rejects missing critical phases before start, durable CAS, idempotency, causal-receipt, and epoch-fence ports, and the post-V28 evaluability and publication-bundle gates. Its local release smoke passed restart, idempotency, revision-conflict, and epoch-rollback scenarios; the packed public consumer passed import and TypeScript compilation checks; and the evaluability gate passed its synthetic boundary fixture while rejecting a tampered certificate. The new confirmatory-horizon smoke additionally demonstrates a 1,000-decision evaluator-owned projection with sparse-BFT gateway finality, replay stability, and stale-evidence rejection. These are source and conformance results, not mission-performance measurements. Campaign V28 separately establishes that its earlier registered execution workflow reached complete shard and projection closure while preserving interruptions, receipts, content-addressed artifacts, and an independent eligibility decision.
+The source and protocol artifacts establish an implementable architecture with explicit boundaries for authentication, admission, causal state, work authority, recovery, and protected effects. The current package exposes a governed runtime profile, evaluability checks, and a confirmatory-horizon smoke with sparse-BFT finality, replay stability, stale-evidence rejection, and recoverable semantic sidecars. These are source and conformance results, not mission-performance measurements.
 
-The eligibility failure is informative about the workflow but does not validate the architecture's substantive hypotheses. The normative gate correctly prevented operational completion from becoming a favorable research conclusion. At the same time, the workflow failed too late: the absence or invalidity of required endpoint evidence was detected only after all shards and projections had run. V28 therefore demonstrates both a functioning final eligibility gate and an inadequate pre-execution evaluability gate. Treating only the former as confirmation of the design would invert the most important methodological lesson.
+The current contribution is the auditable integration path: evaluator-owned semantics, finality, replay, stale-evidence rejection, and recoverable artifacts. Performance and calibration remain open questions.
 
-The post-V28 remediation closes part of that process gap at the implementation level. The evaluability gate now blocks confirmatory authorization before the first shard when the registered instrument cannot satisfy its structural and synthetic boundary checks. The publication-bundle gate then re-runs the normative analysis from preserved projections and checks the reconstructed raw rows and paper tables. The semantic-horizon smoke adds a concrete evaluator-owned integration check and a real reference-gateway finality path. Together these controls make an invalid or unrecoverable package fail earlier and more visibly. They do not prove semantic calibration, live convergence, or mission performance; those properties still require the next registered study.
+The current contribution is the auditable integration path: evaluator-owned semantics, finality, replay, stale-evidence rejection, and recoverable artifacts. Performance and calibration remain open questions.
 
 ### 9.2 What the evidence does not establish
 
@@ -412,27 +372,14 @@ Bounded local views reduce the need for a complete topology but introduce reacha
 
 Centralized coordination may remain preferable for small collectives, stable networks, tasks requiring a complete global view, tightly coupled optimization, or environments where one coordinator can be made sufficiently available. Agent Mesh targets missions that decompose into partially independent scopes, have localized faults, or benefit from continued local operation without a current global plan.
 
-### 9.4 Lessons from the ineligible campaign
-
-Three follow-up questions should be handled through a new registered study rather than retrospective threshold changes. First, the role-coherence horizon must be operationalized so that exactly the required decision population can be observed under the registered terminal rules. Second, low useful-decision rate must be diagnosed jointly with replan and safe-stop behavior; increasing permissiveness is not acceptable if it weakens effect safety. Third, convergence needs a concrete, evaluator-derived artifact showing the relevant state, membership, and time assumptions rather than a runner assertion.
-
-Canonical result artifacts must accompany review before any endpoint reproducibility claim is made. The post-V28 publication-bundle verifier now binds the registered inputs, authorization, projections, raw paired rows, table source, analysis and receipts into one recoverable manifest and reconstructs the analysis before collection can close. Content digests can bind an available object to an identifier; without the object they do not permit reproduction, reanalysis, or verification of row-level transformations. The verifier reduces that risk for future campaigns, but a live pilot must still demonstrate that the bundle survives independent retrieval and reanalysis.
 
 ## 10. Threats to validity
 
-**Construct validity.** Logical-agent count may not represent the concurrency, model invocations, or state pressure of deployed agents. Useful-decision rate and semantic convergence depend on evaluator definitions; the invalid horizon observed in V28 shows that these constructs require further validation.
+**Construct validity.** Logical-agent count may not represent deployed concurrency or state pressure. Useful-decision rate and semantic metrics depend on evaluator definitions and require future validation.
 
 **Internal validity.** The hidden monitor, fault injector, interaction accounting, and replay implementation are part of the experimental apparatus. A defect in them could bias both treatments. Digest binding and exact replay improve auditability but do not prove evaluator correctness.
 
 **External validity.** The simulator and recorded response tape control variation but do not reproduce live provider latency, model drift, human intervention, network behavior, or adversaries. One local Apple Silicon environment cannot establish deployment portability or operational performance.
-
-**Statistical conclusion validity.** Confirmatory procedures were preregistered, but the ineligible outcome prevents planned inference. No post hoc analysis may be promoted to confirmatory evidence. Replays are verification runs, not additional samples.
-
-**Baseline validity.** The centralized planner is fairness-constrained to equal admitted information and accounting. Conclusions would apply to that baseline, not every centralized architecture. A centralized system with reliable global state or a different optimization objective might behave differently.
-
-**Scale validity.** Measurements at 50–500 logical agents are finite-range observations. They cannot prove asymptotic behavior, and sparse topology formulas are implementation envelopes rather than empirical scaling laws.
-
-**Version validity.** Sections 3–6 describe the architecture and evaluation controls at commit `490a392`, whereas Campaign V28 was frozen at `f0412840`. Later runtime, partition, topology, continuity, strategy, approval, compromise, forensic, evaluability, and publication-bundle surfaces were not treatments in V28. Their implementation and local release checks cannot be interpreted as retrospective experimental evidence.
 
 ## 11. Safety, governance, and responsible use
 
@@ -446,25 +393,16 @@ Douglas Rodriguez is the sole author and is responsible for the architecture syn
 
 ## 12. Artifact availability and reproducibility status
 
-The public AgentPlat source repository [11] records the protocol, control model, threat model, preregistered hypotheses, data dictionary, statistical procedures, and paper structure. The architecture and post-V28 evaluation controls described in this version are pinned to source commit `490a392`. At that commit, `pnpm run verify:governed-runtime-release` passed restart, idempotency, compare-and-swap, and epoch-fence smoke checks; `pnpm run verify:public-consumer` verified the packed `@agentplat/collective-runtime` and `@agentplat/audit` packages through installation, runtime import, and strict TypeScript compilation; and the evaluability/publication gates passed their synthetic and negative tests. These commands are reproducible local conformance checks; they do not validate distributed mission outcomes.
+The source repository contains the implementation, smoke command, tests, semantic projection contract, finality gateway integration, and the recoverable semantic sidecar format. This paper reports reproducible integration evidence only. Earlier internal campaigns in the repository history were instrument-development runs and are not reported here; no confirmatory or comparative claim is made, and none should be inferred.
 
-Campaign V28 predates those additions and binds the following separate identifiers:
-
-- source commit: `f041284000672b2035138769da7589a6ce89e3f3`;
-- authorization digest: `sha256:d76c1269fd5c98c54662c001565ac8a76089ccc373591c145ed3a2fc6b411625`;
-- collection-manifest digest: `sha256:5cdd29b44f21bfa10b00aa7eed1023be2826a8ed5322e3159d1a91345fac535b`;
-- normative-analysis digest: `sha256:c749f7f7efe7732596dd089cd646fcc97f3d1002785d14301c0ea27ab23ade14`;
-- receipt root: `sha256:c74d779e532d6b3930497e0b38e44f718e6345af9fd840842248d4d4dab92c6a`.
-
-The retained digests bind identifiers to the objects that existed when the records were produced, but the canonical `raw-rows.json` and `paper-tables.json` are not recoverable from the repository snapshot used for this manuscript. The endpoint analysis is therefore **not independently reproducible from the available artifact package**. The execution summary and signed-off eligibility decision remain reportable as provenance-bound records, but they are not substitutes for row-level evidence.
-
-The manuscript should not be submitted to an artifact-evaluated venue with digest references alone. A publication package must make the referenced registration, manifest, normative analysis, raw paired rows, table source, receipts, analysis code, and verification key accessible to reviewers or explain each restriction. Unless those exact objects are recovered, the appropriate remedy is not to reconstruct them from summaries; it is to retain V28 as an instrument-failure report and conduct any new confirmatory evaluation under a new registration.
+The current smoke bundle is intended to be independently rehydrated: the projection, decision root, certificate, trace bindings, semantic sidecars, and replay inputs are retained as content-addressed objects. Digests identify those objects but do not replace them; a publication package must distribute the referenced objects together with the verification command.
 
 ## 13. Conclusion
 
 Agent Mesh treats multi-agent coordination as a distributed authority problem rather than only a conversation-design problem. Its peers exchange authenticated, bounded, and causally linked records; maintain governed membership and sparse local views; negotiate work through versioned offers, bids, and awards; and recover through epochs and fences. In the current reference-composed AgentPlat stack, a receipt-producing governed runtime orders partition posture, topology, strategy, approval, inference, effect, and forensics; durable ports add compare-and-swap state, idempotency, causal receipts, and epoch fencing. Adjacent Trust, continuity, compromise, interoperability, audit, and action boundaries evaluate provenance and semantic risk, adapt organization, revoke stale authority, and revalidate an exact action before a protected effect. Each mechanism has explicit assumptions and failure behavior. None creates a global brain, global truth, universal compromise detector, or universal safety guarantee.
 
-Campaign V28 demonstrates complete execution-process closure for a substantial preregistered simulation design. It does not demonstrate complete recoverable evidence collection and provides no confirmatory validation of the target collective-control properties. The analysis remained ineligible because role-coherence, useful-decision, and convergence requirements were not satisfied; canonical row and table artifacts are also unavailable in the retained repository snapshot. The post-V28 evaluability and publication-bundle gates now address the corresponding process failures through deterministic pre-authorization checks and independent artifact reconstruction, but their current evidence is limited to synthetic fixtures and negative tests. The proper conclusion is narrower than a performance result: the final eligibility gate rejected an invalid claim, the remediation makes future failure earlier and more auditable, and Agent Mesh's empirical performance claims remain open.
+The current evidence establishes an auditable integration path with explicit assumptions and fail-closed behavior. Future registered work should test mission outcomes, comparative performance, calibration, and scale; those claims are outside this paper's scope.
+
 
 ## References
 
