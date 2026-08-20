@@ -46,14 +46,14 @@ test("release-line guard accepts the coordinated 36-package Beta 2 cohort", asyn
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test("release-line guard accepts the coordinated 52-package Beta 3 cohort", async (t) => {
+test("release-line guard accepts the coordinated 54-package Beta 4 cohort", async (t) => {
   const root = await createReleaseLineFixture({ line: BETA_3 });
   t.after(() => rm(root, { force: true, recursive: true }));
 
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test("release-line guard rejects Beta 2 versions in a 52-package cohort", async (t) => {
+test("release-line guard rejects Beta 2 versions in a 54-package cohort", async (t) => {
   const root = await createReleaseLineFixture({
     line: BETA_3,
     version: BETA_2.releaseVersion,
@@ -66,7 +66,7 @@ test("release-line guard rejects Beta 2 versions in a 52-package cohort", async 
   );
 });
 
-test("release-line guard rejects a 52-package Beta 2 cohort", async (t) => {
+test("release-line guard rejects a 54-package Beta 2 cohort", async (t) => {
   const root = await createReleaseLineFixture({
     line: BETA_2,
     packageCount: 52,
@@ -75,7 +75,7 @@ test("release-line guard rejects a 52-package Beta 2 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line beta3 requires root version 0\.3\.0-beta\.4/i,
+    /Release line requires exactly .*54 Beta 4 packages/i,
   );
 });
 

@@ -76,6 +76,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/interop",
   "@agentplat/interop-postgres",
   "@agentplat/mcp",
+  "@agentplat/mcp-docs",
+  "@agentplat/mcp-runtime",
   "@agentplat/memory",
   "@agentplat/mesh",
   "@agentplat/mesh-conformance",
