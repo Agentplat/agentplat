@@ -918,6 +918,13 @@ export class SemanticAlignmentAgilityRuntimeV1 implements SemanticControlRuntime
   }
 }
 
+/** Lossless adapter for carrying the evaluator-owned aggregate into an inference assessment. */
+export function semanticMetricsFromAggregateAssessmentV1(
+  aggregate: SemanticAggregateAssessmentV1,
+): NonNullable<import('./types.js').InferenceAssessmentV1['semanticMetrics']> {
+  return Object.freeze({ ...aggregate.metrics });
+}
+
 function validateInterventionAssessmentRecord(
   value: InferenceInterventionAssessmentV1,
 ): void {

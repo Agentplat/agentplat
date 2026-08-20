@@ -354,6 +354,7 @@ export async function runCollectiveClosedLoopActionV1(
 }
 
 function semanticMetricsFromAssessment(assessment: InferenceAssessmentV1): Record<string, number | null> {
+  if (assessment.semanticMetrics) return { ...assessment.semanticMetrics };
   const reasons = new Set(assessment.reasonCodes);
   return {
     roleCoherenceBps: assessment.disposition === 'allow' ? 10_000 : null,
