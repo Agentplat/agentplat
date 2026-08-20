@@ -16,8 +16,8 @@ This analysis reads the retained trace artifacts from `agent-mesh-semantic-pilot
 | Fault or recovery context | 48 | 0 |
 | Nominal useful path | 16 | 0 |
 
-These are operational proxies derived from trace records, not semantic endpoint labels. The retained runtime traces do not include the semantic metric vector required to distinguish context conflict, uncertainty, diversity, novelty, and controller restriction. Consequently, this analysis cannot legitimately claim a causal semantic classification or extrapolate to 1,000 runtime decisions.
+These are operational proxies derived from trace records, not semantic endpoint labels. The regenerated pilot now persists an evaluator-owned semantic sidecar in `semanticProjection.semanticEvidenceArtifacts`, and the trace `recordDigest` resolves to that sidecar. In the current reference scenario the metrics object is empty, so the run still cannot distinguish context conflict, uncertainty, diversity, novelty, and controller restriction. The binding and recovery path are now present; the assessor must populate the metric vector before causal semantic classification can be claimed.
 
 ## Implication for the paper
 
-The analysis provides real-runtime evidence that the pilot emits evaluator-readable inference events, fault/recovery context, accepted effects, and replay rows. It also identifies the remaining instrumentation gap precisely: the runtime trace must carry the evaluator-owned semantic metric vector and its evidence binding if causal semantic results are to be computed from live executions. The deterministic 1,000-decision smoke remains a contract/integration result; this 64-decision trace analysis is runtime evidence with a smaller denominator.
+The analysis provides real-runtime evidence that the pilot emits evaluator-readable inference events, fault/recovery context, accepted effects, replay rows, and a recoverable semantic sidecar binding. The remaining gap is now narrower: the assessor must populate the metric vector in the reference scenario. The deterministic 1,000-decision smoke remains a contract/integration result; this runtime trace analysis is evidence with a smaller denominator.

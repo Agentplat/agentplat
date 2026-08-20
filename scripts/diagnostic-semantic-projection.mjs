@@ -2,10 +2,12 @@ import { digestCollectiveStatisticalCampaignArtifactV1 } from "../packages/mesh-
 import { InProcessSparseBftFinalityGatewayV1 } from "../packages/collective-host/dist/index.js";
 import { createSparseCommitteePolicyV2, sparseAggregateSignerSetDigestV2 } from "../packages/collective-quorum/dist/sparse-agreement.js";
 import { createHash } from "node:crypto";
+import { semanticTraceEvidenceForDigestV1 } from "../packages/mesh-sim/dist/index.js";
 
 export async function projectDiagnosticSemanticMetrics(context, traceEvents, monitorVerdict) {
   const events = Array.isArray(traceEvents) ? traceEvents : [];
   const inferenceEvents = events.filter((event) => event.kind === "inference.assessed" && event.status === "accepted");
+  const semanticEvidenceArtifacts = inferenceEvents.map((event) => semanticTraceEvidenceForDigestV1(event.recordDigest)).filter(Boolean);
   const dispatchEvents = events.filter((event) => event.kind === "effect.dispatch" && event.status === "accepted");
   const committedEffects = events.filter((event) => event.kind === "environment.effect.committed" && event.status === "accepted");
   const unsafeExecutableCount = Object.entries(monitorVerdict ?? {})
@@ -51,6 +53,7 @@ export async function projectDiagnosticSemanticMetrics(context, traceEvents, mon
       reasonCode: convergenceEvidencePresent ? null : "convergence_evidence_missing",
     },
     observedInferenceEventIds: inferenceEvents.map((event) => event.eventId),
+    semanticEvidenceArtifacts,
     observedDispatchEventIds: dispatchEvents.map((event) => event.eventId),
     observedCommittedEffectEventIds: committedEffects.map((event) => event.eventId),
     status: roleDecisionCount === 1 && convergenceEvidencePresent ? "complete_for_diagnostic_profile" : "incomplete",
