@@ -1,11 +1,14 @@
 # @agentplat/mcp-docs
 
-Read-only, dependency-free MCP-style JSONL server for AgentPlat documentation. It exposes deterministic resources and tools without credentials or runtime mutation.
+Read-only MCP server for AgentPlat documentation using the official Model Context Protocol SDK. It exposes deterministic resources and tools without credentials or runtime mutation.
 
 ```sh
 pnpm --filter @agentplat/mcp-docs build
 node packages/mcp-docs/dist/cli.js
 ```
 
-Send one JSON request per line. Supported methods are `resources/list`, `resources/read`, `tools/list` and `tools/call`. The server is intentionally transport-light so it can be wrapped by an MCP client using stdio.
+The CLI speaks the official MCP stdio transport and can be configured directly in clients such as Claude Code, Codex or Cursor:
 
+```json
+{"mcpServers":{"agentplat-docs":{"command":"agentplat-mcp-docs","env":{"AGENTPLAT_ROOT":"/path/to/agentplat"}}}}
+```
