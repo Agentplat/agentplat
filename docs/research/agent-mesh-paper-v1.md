@@ -4,7 +4,7 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.3 — 19 August 2026
+Version 1.4 — 20 August 2026
 
 ### Abstract
 
@@ -15,6 +15,8 @@ We also report a preregistered paired simulation campaign comparing the adaptive
 After V28, the repository added a deterministic pre-execution evaluability certificate and a publication-bundle verifier. These controls are reported as post-study methodological remediation supported by synthetic fixtures and negative tests; they are not treated as new empirical evidence or as a retroactive repair of V28.
 
 As a separate post-V28 engineering smoke, the evaluator-owned semantic horizon was exercised with exactly 1,000 decisions generated from the existing semantic-metric engine. Each decision was bound to a trace event, registration digest, membership epoch, membership configuration, assignment epoch, decision digest, and evidence digest. The horizon was closed by a certificate issued through the reference sparse-BFT finality gateway with four validators; exact replay was stable and stale evidence was rejected. The smoke produced 973 useful decisions out of 1,000. This is reproducible implementation evidence, not a registered V29 campaign, a population estimate, or evidence of mission-level performance.
+
+The runtime pilot now carries a recoverable six-dimensional semantic sidecar on each accepted inference event. The reference assessment supplies role coherence, mission alignment, context conflict, uncertainty, action diversity, and action novelty values, all bounded and included in the assessment digest. This closes the transport and recovery path; the values remain reference-scenario measurements rather than deployment prevalence estimates.
 
 **Keywords:** multi-agent systems; decentralized coordination; agent governance; causal messaging; distributed agreement; preregistered evaluation; AI agents
 
@@ -401,6 +403,8 @@ The repository snapshot available for this manuscript contains the appendix-leve
 The repository's dedicated smoke `pnpm run verify:confirmatory-semantic-horizon-smoke` generated an evaluator-owned stream of exactly 1,000 semantic decisions from `SequentialSemanticGuaranteeEngineV1`. The projection rejected events whose trace digest did not match the trace-event and decision binding, rejected stale or altered evidence, and required the evaluator owner, registration digest, membership epoch, and membership configuration to agree across all events. A decision-root digest was recomputed from the canonical event order.
 
 The projection reached `complete` only when all 1,000 decisions and an agreement certificate were present. The certificate was issued by `InProcessSparseBftFinalityGatewayV1` using four validators and the reference sparse committee policy; its proposal, value, epoch, membership configuration, and signer-set evidence were then bound into the projection certificate. The smoke observed 973 useful decisions, replayed to an identical projection, and rejected stale evidence. This result should be read as a deterministic integration and evidence-chain result. It does not satisfy the preregistered V28 endpoint, replace the missing V28 canonical rows, or constitute the V29 confirmatory campaign.
+
+The regenerated runtime reference pilot also emitted a recoverable semantic sidecar with all six dimensions: role coherence 10,000 bps, mission alignment 10,000 bps, context conflict 0 bps, uncertainty 0 bps, action diversity 8,000 bps, and action novelty 7,500 bps. These values verify end-to-end transport, digest binding, and bundle recovery; they are not estimates of field behavior.
 
 ### 8.4 Answer to the research questions
 
