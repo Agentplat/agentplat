@@ -4,6 +4,7 @@ import re
 from docx import Document
 from docx.enum.section import WD_SECTION
 from docx.enum.style import WD_STYLE_TYPE
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -12,7 +13,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs/research/agent-mesh-paper-v1.md"
-OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.7.docx"
+OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.8.docx"
 
 FONT = "Calibri"
 INK = "17202A"
@@ -131,6 +132,33 @@ def shade_paragraph(paragraph, fill=LIGHT):
     ppr.append(shd)
 
 
+def add_markdown_table(doc, rows):
+    column_count = len(rows[0])
+    widths = ([1.45, 2.35, 2.65] if column_count == 3 else [1.35, 1.35, 2.0, 1.8])
+    table = doc.add_table(rows=len(rows), cols=column_count)
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    table.autofit = False
+    for row_index, values in enumerate(rows):
+        row_properties = table.rows[row_index]._tr.get_or_add_trPr()
+        row_properties.append(OxmlElement("w:cantSplit"))
+        for column_index, value in enumerate(values):
+            cell = table.cell(row_index, column_index)
+            cell.width = Inches(widths[column_index])
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            cell.text = ""
+            paragraph = cell.paragraphs[0]
+            paragraph.paragraph_format.space_after = Pt(2)
+            paragraph.paragraph_format.line_spacing = 1.0
+            add_inline(paragraph, value, size=8.5)
+            if row_index == 0:
+                shade_paragraph(paragraph, fill="D9EAF7")
+                for run in paragraph.runs:
+                    run.bold = True
+    table.rows[0]._tr.get_or_add_trPr().append(OxmlElement("w:tblHeader"))
+    return table
+
+
 INLINE = re.compile(r"(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)")
 
 
@@ -167,7 +195,7 @@ def build():
 
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    set_font(header.add_run("Agent Mesh | Preprint v1.7"), 8.5, color=MUTED)
+    set_font(header.add_run("Agent Mesh | Preprint v1.8"), 8.5, color=MUTED)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     set_font(footer.add_run("Page "), 8.5, color=MUTED)
@@ -229,6 +257,16 @@ def build():
             set_keep(caption_p)
             i += 1
             continue
+        if line.startswith("|") and i + 1 < len(lines) and re.match(r"^\|(?:\s*:?-+:?\s*\|)+$", lines[i + 1]):
+            table_rows = []
+            header = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            table_rows.append(header)
+            i += 2
+            while i < len(lines) and lines[i].startswith("|"):
+                table_rows.append([cell.strip() for cell in lines[i].strip().strip("|").split("|")])
+                i += 1
+            add_markdown_table(doc, table_rows)
+            continue
         if line.startswith("## "):
             abstract_mode = False
             references_mode = line == "## References"
@@ -268,10 +306,10 @@ def build():
         i += 1
 
     doc.core_properties.title = "Agent Mesh: Governed Decentralized Coordination Under Partial Information"
-    doc.core_properties.subject = "Architecture, control boundaries, and lessons from an inconclusive preregistered study"
+    doc.core_properties.subject = "Architectural invariants and reproducible integration evidence for governed decentralized agent coordination"
     doc.core_properties.author = "Douglas Rodriguez"
     doc.core_properties.keywords = "multi-agent systems; decentralized coordination; agent governance; controlled emergence; DARPA DICE"
-    doc.core_properties.comments = "Version 1.2 prepared for archival publication on Zenodo."
+    doc.core_properties.comments = "Version 1.8 prepared for archival publication on Zenodo."
     doc.save(OUTPUT)
     print(OUTPUT)
 

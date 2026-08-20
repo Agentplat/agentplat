@@ -4,7 +4,7 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.7 — 20 August 2026
+Version 1.8 — 20 August 2026
 
 ### Abstract
 
@@ -34,122 +34,38 @@ Consider five agents preparing an infrastructure inspection report. Agent A rece
 
 This example is intentionally small and non-safety-critical. It is not experimental evidence. Its purpose is to connect the paper's concepts. The objective specifies the outcome and constraints. Peer identities and signed messages establish who authored each record. Capability advertisements help A find candidates. Offers, bids, and awards allocate work. A lease bounds how long an assignment remains active. An assignment epoch and fencing token distinguish the replacement from the stale executor. Evidence claims and attestations preserve provenance. A quorum-backed recovery certificate supports takeover. Finally, a protected-effect gateway checks current authority before E publishes.
 
-## 3. Concepts and terminology
+## 3. Architectural invariants and essential concepts
 
-### 3.1 Agent, runtime, and Mesh Peer
+Agent Mesh treats coordination as a sequence of locally validated state transitions rather than as a shared conversation. Let `S` be a peer's admitted local state, `r` an incoming record, `a` a proposed protected action, `delta(S,r)` the state transition after admission, and `gate(S,a)` the effect-time authorization decision. A record that fails admission cannot change protocol-authoritative state, and a proposed action cannot reach an external effect without a permit bound to its exact authority context.
 
-An **agent** is a software component that selects or proposes actions in pursuit of an objective. It may use a language model, rules, search, code, or a combination of mechanisms. A **runtime** is the execution environment that supplies the agent with models, memory, tools, and lifecycle services. A **Mesh Peer** is an independently executing protocol participant with its own identity, local policy, bounded peer view, and work journal.
+The reference implementation targets eleven safety invariants. They are architectural obligations and conformance targets, not universal guarantees under compromised cryptography, storage, quorum assumptions, or effect sinks.
 
-The distinction matters. Reasoning belongs to the agent; execution services belong to the runtime; participation in the distributed protocol belongs to the peer. Agent Mesh does not assume that one model invocation equals one agent or that every agent occupies a separate machine. Deployment may colocate components, but protocol identity and authority remain explicit.
+- **I1 — Admission before influence:** a record changes protocol state only after bounded parsing, authentication, tenant and Mesh scope, membership, freshness, replay, and causal checks succeed.
+- **I2 — Evidence-authority separation:** evidence, Trust, planning, model output, telemetry, and agreement records cannot by themselves authorize a protected effect.
+- **I3 — Exact-effect binding:** a permit binds the normalized action, principal, Objective, Work Item, policy, resource envelope, expiry, idempotency key, assignment epoch, and fence.
+- **I4 — Monotonic recovery:** accepted recovery advances the assignment epoch and stable fence; an effect sink rejects lower fences.
+- **I5 — No authority by replay:** repeating a valid message or operation identifier cannot create another logical transition or external effect.
+- **I6 — Quorum-scoped finality:** a certificate is valid only for its decision coordinate, membership epoch, policy, and eligible voter set.
+- **I7 — Fail-closed incompleteness:** missing, stale, conflicting, expired, or unverifiable authority produces denial, replanning, recovery, or safe stop.
+- **I8 — Policy attenuation:** local projection may only narrow allowed context, actions, channels, and lifetimes; it cannot broaden the validated baseline.
+- **I9 — Composition completeness before start:** the reference-integrated profile cannot begin a mission or effect unless all safety-critical phase handlers are installed.
+- **I10 — Bounded degraded operation:** connectivity loss never authorizes an irreversible effect without the required quorum or reconciliation.
+- **I11 — Incident authority discontinuity:** recovery from restriction, isolation, or expulsion requires a later epoch, new credential generation, evidence, approval, and no broader successor authority.
 
-### 3.2 Agent Mesh, local state, and partial information
+These invariants depend on a small set of distinctions:
 
-An **Agent Mesh** is a set of independently executing peers that coordinate through bounded local state and a versioned protocol. Each peer validates and retains only the records needed for its role and installed limits. This retained projection is its **local state**. **Partial information** means that no peer is assumed to possess a complete and current view of all participants, messages, plans, or environmental facts. When this paper attributes planning, cognitive control, Trust, or protected effects to the system, it means the reference-composed AgentPlat stack around Agent Mesh, not an implicit expansion of the Mesh wire protocol.
+| Distinction | Meaning in Agent Mesh | Why it matters |
+|---|---|---|
+| Identity vs. admission | A signature identifies a key holder; membership determines whether that identity may participate in a policy domain. | Authenticated outsiders and removed members gain no protocol authority. |
+| Local view vs. global state | Each Mesh Peer retains a bounded neighborhood and scoped records; no complete current global view is assumed. | Absence from one view is not proof of global absence. |
+| Evidence vs. authority | Evidence and attestations describe claims and provenance; an explicit authorization transition creates permission. | Plausible or well-supported information cannot silently become effect authority. |
+| Allocation vs. assignment | Offers and bids are proposals; an accepted award with lease, epoch, and fence is active assignment authority. | Tentative coordination cannot authorize execution. |
+| Computation vs. permission | Successful planning or model output proposes an action; the Action Gateway revalidates current authority before dispatch. | Correct computation can still be unauthorized or stale. |
+| Signature vs. truth | A signature proves authorship and integrity, not correctness, competence, or honesty. | Trust remains evidence- and policy-dependent. |
 
-In the running example, C need not inspect E's private execution context. C needs the accepted objective, its assigned Work Item, relevant evidence references, and current assignment authority. This reduces global coupling, but it also limits what a local decision can establish. Absence from one peer's view is not proof of global absence. Agent Mesh therefore makes local scope part of every important claim.
+A **Mesh Peer** is an independently executing protocol participant with an identity, local policy, bounded Peer View, and work journal. **Partial information** means no peer is assumed to know every participant, message, plan, or environmental fact. **Membership epochs** order admitted configurations. **Causal links** name predecessor records so receivers can request missing dependencies. **Leases**, **assignment epochs**, and **fencing tokens** bound current execution authority and reject delayed predecessors. A **quorum certificate** proves that the policy-required eligible set accepted one value for an exact coordinate. A **semantic threshold** evaluates a bounded evidence prefix and may allow, steer, replan, abstain, or stop. A **protected effect** is an externally visible change whose gateway must re-resolve authority immediately before dispatch.
 
-### 3.3 Identity, signatures, admission, and membership
-
-A **peer identity** names a continuing participant. An **instance identity** names one authorized process lifetime of that peer; restart creates a new instance. A public/private key pair supports cryptographic authentication. A sender signs a canonical representation of a message, and a receiver uses the corresponding public key to verify authorship and integrity.
-
-Authentication is not authorization. A valid signature proves that the holder of a key signed particular bytes. It does not prove that the payload is true, that the sender belongs to the Mesh, or that the sender may perform an action. **Admission** is the separate decision that a peer/key binding may participate in a particular tenant and Mesh. **Membership** is an ordered sequence of immutable configurations defining the admitted peers for a policy domain. Each configuration is a **membership epoch**.
-
-Membership changes require certified transitions. Joins prove control of the joining key. Key rotation proves control of both retiring and replacement keys during a bounded overlap. Transitions use joint quorum: sufficient members of both the old and proposed configurations must support the change. The purpose is to prevent two disconnected groups from independently replacing the same configuration. The mechanism provides no protection if its key custody or threshold assumptions are violated.
-
-### 3.4 Peer Cards and capabilities
-
-A **Peer Card** is a signed, expiring declaration of a peer's supported protocol versions, transport hints, and self-claimed capabilities. A **capability** is a bounded contract describing a kind of input a peer accepts and output it can produce. A **capability advertisement** is a signed, expiring claim that the peer currently offers that capability.
-
-In the example, B and C advertise inspection capabilities and E advertises publication capability. These records help candidate discovery, but they are not proof of competence, availability, trustworthiness, or permission. Agent Mesh treats them as claims that must be combined with local policy, capacity, evidence, and authority.
-
-### 3.5 Peer Views and the sparse overlay
-
-A **Peer View** is one peer's bounded set of active neighbors and reserve candidates. The union of these local views forms a **sparse overlay**: a logical communication graph in which a peer interacts with a limited neighborhood instead of retaining a complete list of all possible peer-to-peer edges.
-
-Active neighbors receive eligible direct dissemination; reserve candidates support replacement when the active view changes. Fanout, hop count, queues, deduplication state, and outbound interactions are bounded by policy. This design can keep local coordination state proportional to the configured view size rather than the collective's complete graph. It does not prove universal or asymptotic scalability. The observed behavior still depends on topology, churn, workloads, and limits.
-
-### 3.6 Message envelopes and the wire protocol
-
-A **message envelope** is the signed container exchanged between peers. It binds protocol and wire versions, message identity, tenant and Mesh scope, optional objective scope, message type, sender peer and instance, audience, sequence, timestamps, payload digest, payload, and cryptographic proof. The **wire protocol** defines the exact serialization and validation rules that allow independent implementations to interpret the envelope consistently.
-
-Agent Mesh uses deterministic JSON canonicalization compatible with the JSON Canonicalization Scheme (JCS) [1], SHA-256 payload digests, base64url encoding, and Ed25519 signatures as specified by RFC 8032 [2]. Canonicalization ensures that logically identical signed data have one byte representation for hashing and verification. Closed schemas, input-size limits, depth limits, expiry, and critical-extension rules reject ambiguous or unbounded input before it reaches domain logic.
-
-A signature covers routing and authority-relevant fields as well as the payload digest. A direct audience is accepted only by the named peer; a Mesh-topic audience is accepted only by an admitted peer subscribed to the exact topic. Receiving a Mesh message does not automatically relay it. A peer that propagates information creates a new signed message with a new lifetime and explicit causal link.
-
-### 3.7 Replay protection, idempotency, and delivery
-
-**Replay protection** prevents a previously valid message from being accepted later as a new event. Agent Mesh combines unique message identifiers, sender-instance sequences, expiry, and bounded replay windows. A restarted peer uses a new authorized instance identity and restarts its sequence.
-
-**Idempotency** means that repeating one identified operation does not create a second logical transition. Duplicate delivery of the same valid record can therefore produce the same accepted state. This is distinct from **exactly-once delivery**, which Agent Mesh does not promise. Transports may lose, duplicate, delay, or reorder messages. Exactly-once external behavior requires an idempotent or atomically fenced downstream system.
-
-### 3.8 Causality and synchronization
-
-In a distributed system, physical timestamps alone cannot reliably establish every dependency. Lamport's “happened-before” relation formalized causal ordering among events [3]. Agent Mesh records explicit predecessors through message and artifact identifiers. **Causal synchronization** exchanges records while preserving these predecessor relationships.
-
-In the allocation sequence, a bid identifies the offer it answers, and an award identifies the selected bid. A receiver cannot interpret the award correctly without the accepted objective, offer, and bid lineage. If a required predecessor is missing, the transition remains unresolved or fails closed; it is not inferred from arrival order.
-
-### 3.9 Objective and policy
-
-An **Objective** is a signed, versioned goal containing constraints, success criteria, permitted capabilities, resource limits, risk policy, timers, recovery witnesses, and expiry. It is more specific than a natural-language prompt: it provides the policy context against which work and authority are evaluated. A revision is a complete, causally linked replacement. Cancellation creates a terminal head.
-
-**Policy** is the explicit set of rules used to admit records and authorize transitions. Policy is versioned and digest-bound. Changing it creates a new lineage rather than silently reinterpreting older observations. An Objective may authorize a kind of work, but possession of the document alone does not authorize a peer to execute it.
-
-### 3.10 Work allocation
-
-A **Work Item** is a bounded unit of work derived from an accepted Objective. Allocation follows a negotiation sequence related to the Contract Net tradition [4]:
-
-1. a **Work Offer** requests proposals for one Work Item revision;
-2. a **Work Bid** states a candidate's capability fit, capacity, estimates, and assumptions;
-3. a **Work Award** selects one assignee and binds an assignment epoch and fencing token;
-4. the assignee accepts or declines within the acceptance window.
-
-In the running example, A offers the inspection task; B and C may bid; A awards it to B; and B accepts. The award is not unlimited permission. It is bound to the exact Objective, Work Item revision, assignee, lease interval, assignment epoch, and authority record. Release, cancellation, decline, and reoffer are explicit transitions rather than conversational implications.
-
-### 3.11 Leases, epochs, fences, and assignment authority
-
-A **lease** is time-bounded authority to execute or coordinate a Work Item. An **assignment epoch** is the monotonically increasing generation of that assignment. A **fencing token** is a value that a state or effect sink can compare with its current head to reject an older executor. This follows the established fencing pattern for preventing a delayed lease holder from committing after a successor has advanced the token [18]. **Assignment authority** is the accepted award or recovery certificate that binds the active epoch and fence.
-
-Suppose B stops responding and its lease plus recovery grace expires. After certified takeover, C operates under epoch 2. If B later reconnects with an epoch-1 result, a conforming sink rejects it even though B was once the valid assignee. Fencing prevents a stale executor from committing after recovery. It remains conditional on the downstream sink actually checking the fence atomically.
-
-### 3.12 Quorum, certificates, and finality
-
-A **quorum** is the policy-required threshold of eligible members whose votes are necessary for a collective decision. A **certificate** is a verifiable record showing that the threshold was met. **Finality** means that one value has been accepted for an exact decision coordinate under a particular membership configuration and fault model.
-
-Different mechanisms require different assumptions. A strict majority can protect against conflicting decisions under authenticated non-Byzantine voting and appropriate intersection assumptions. Byzantine fault tolerance addresses arbitrary faulty behavior and conventionally requires stronger thresholds; Practical Byzantine Fault Tolerance, for example, assumes no more than one-third of replicas are faulty [5]. Agent Mesh does not describe every majority-based operation as Byzantine consensus. Each operation states its membership, intersection, authenticity, delivery, and honest-participant assumptions. When quorum is unavailable, the system safe-stops rather than converting absence into permission.
-
-### 3.13 Recovery, journals, checkpoints, and handoff
-
-A **recovery witness** is an Objective-named peer allowed to evaluate takeover after lease expiry and a recovery grace period. A **recovery certificate** combines the required distinct witness votes, targets exactly the next assignment epoch, and advances the stable fence. The unchanged owner then issues a matching recovery award, and the candidate accepts it. A proposal or vote alone creates no execution authority.
-
-A **Work Journal** is the append-only local history from which current Work Item state is projected. A **checkpoint** is a bounded, validated snapshot from which work may resume. A **handoff** transfers resumable context while preserving predecessor, authority, and provenance bindings. In the example, C may resume from B's latest accepted checkpoint only if the recovery award names it and the first replacement checkpoint extends it. Deserializing a checkpoint does not make it trusted, current, complete, or authorized.
-
-### 3.14 Evidence, attestations, and local trust
-
-An **Evidence Claim** is a signed statement about an observation or result with provenance. An **attestation** independently supports, contradicts, or marks one exact claim inconclusive. A **challenge** requests review without automatically creating a negative fact. A **retraction** is an append-only withdrawal by the original author.
-
-**Evidence fusion** applies a declared local policy to accepted claims and attestations. A **Trust Profile** is a local, capability-scoped, multidimensional estimate that includes uncertainty and decay. An **eligibility decision** compares one exact profile with explicit requirements. **Quarantine** temporarily isolates a peer within a defined scope after locally verifiable conditions are met.
-
-These mechanisms do not create a universal truth or global reputation score. Repeated claims from correlated sources do not become independent evidence merely because they carry different peer identifiers. Trust may narrow an existing choice, but it cannot create membership, assignment, or execution authority.
-
-### 3.15 Inference Control and the semantic horizon
-
-**Inference Control** evaluates context, model output, messages, and proposed actions around agent execution. It may return allow, revise, retry, abstain, replan, escalate, safe stop, or deny. A **semantic horizon** is the bounded region in which accumulated evidence supports continuing under the current context, role, and policy.
-
-The implementation uses the term **prefix-evaluated semantic threshold** for a policy threshold that may be checked after each admitted observation without requiring a fixed stopping time. In this manuscript the term names an implemented control contract, not a newly proved statistical guarantee: no theorem is offered for optional-stopping validity, calibration, or convergence of the semantic score. A conforming decision record must bind the score, threshold, evidence prefix, policy version, and resulting intervention so that a later observation cannot retroactively authorize an earlier effect. No empirical validity claim for these thresholds follows here.
-
-The mechanism addresses a distinctive agent risk: syntactically valid output may drift from the objective, incorporate stale or hostile context, or propose an action unsupported by current evidence. Safety cannot be evaluated alone. A controller that denies every action would produce no unsafe effect but no useful work. Evaluation must therefore report useful decisions, replanning, safe stops, and unsafe executable decisions together.
-
-### 3.16 Protected effects and the Action Gateway
-
-A **protected effect** changes external state—for example, publishing the final report, writing a database record, sending an external message, or invoking a consequential tool. The **Action Gateway** is the local enforcement boundary through which the effect must pass. An **Action Grant** is short-lived authority for one scoped action. A **Governed Action Permit** binds that grant to the current work contract, policy, resource limits, assignment epoch, fencing token, and exact proposed effect.
-
-The gateway re-resolves current authority immediately before dispatch. Tool availability, a plausible model output, a Work Award, or a quorum certificate is insufficient by itself. This separation is an application of established capability-security and confused-deputy principles rather than a new access-control theorem [16, 17]. Agent Mesh's contribution is the concrete binding of those principles to objective lineage, current assignment epoch, semantic decision, exact effect, idempotency key, and a fence enforced by the effect sink. Information and coordination records may contribute to an authorization decision, but they do not silently become authority.
-
-### 3.17 Planes and outcome classes
-
-The **control plane** configures, starts, or observes a Mesh but need not own steady-state coordination. The **coordination plane** carries peer records and local state transitions. The **observability plane** consumes audit events and metrics without deciding protocol behavior. Telemetry failure must not change a peer decision, and telemetry content must not become implicit authority.
-
-Four outcome classes are also distinct. A **safe stop** deliberately halts progress because required confidence or authority is unavailable. A **mission failure** is a valid but unsuccessful terminal outcome. **Infrastructure invalidity** means experimental infrastructure violated a registered condition and the execution cannot support inference. **Incomplete evidence** means a required cell, replay, trace, monitor verdict, or artifact is missing. Collapsing these classes would hide both safety behavior and scientific missingness.
+The novelty claim is compositional. Agent Mesh does not claim invention of signatures, capabilities, causal clocks, leases, fencing, idempotency, quorum protocols, or task negotiation. It specifies how their records compose across an agent lifecycle and where each boundary must fail closed.
 
 ## 4. Related work
 
@@ -173,98 +89,32 @@ Agent Mesh is relevant because its composition addresses several interfaces that
 
 The correspondence is incomplete. The source artifacts establish implemented mechanisms and integration paths, but they do not establish DICE's requested measurable gains, stochastic convergence guarantees, long-horizon role coherence, robustness against the full adversarial model, or operation at all program scales. DICE therefore motivates the architecture and helps delimit its research relevance; it is not used as evidence that Agent Mesh has met the program objectives.
 
-## 5. Capability scope and evidence classes
+## 5. Mechanisms and evidence
 
-The Mesh-centered collective stack is implemented as a set of independently deployable packages plus reference compositions. To make the scope auditable, the repository freezes a development baseline containing 19 source capabilities and governs source closure separately from empirical evaluation and operational validation [12]. Later control-plane and governed-runtime surfaces refine the integration of those capabilities without changing the frozen denominator. In this vocabulary, **implemented** means that a provider-neutral public contract has an executable reference runtime. **Integrated** means that a concrete composition connects the capability to an operational path and does not accept a caller-authored success value in place of the required records. Neither term means that a production deployment or empirical performance claim exists.
+The reference composition implements the invariants through a deliberately separated set of mechanisms. The table states what each mechanism protects, which evidence it emits, and how it fails when required inputs are unavailable or invalid.
 
-This distinction matters because Agent Mesh contains more than the wire-level mechanisms introduced in Section 3. The reference-integrated source path covers the following capability groups:
+| Mechanism | Primary invariants | Evidence produced | Fail-closed outcome |
+|---|---|---|---|
+| Envelope admission and membership | I1, I6 | canonical envelope digest, signer identity, membership epoch, admission decision | reject record |
+| Sparse Peer Views and causal synchronization | I1, I10 | view revision, causal parents, bounded delivery and synchronization receipts | defer, request predecessors, or stop propagation |
+| Offers, bids, awards, and Work Contracts | I2, I3 | signed proposals, accepted award, scope and resource bindings | no active assignment |
+| Leases, epochs, fences, journals, and recovery | I4, I5, I11 | lease state, checkpoint, recovery votes and certificate, successor fence | pause or reject stale executor |
+| Evidence Boundary and Trust | I2, I7 | claim digest, provenance, attestations, credibility and eligibility decisions | exclude or escalate |
+| Sparse-BFT finality | I6, I10 | proposal, value, membership, signer-set, shard, and finality certificate digests | unresolved or safe stop |
+| Inference Control and policy projection | I7, I8 | semantic metrics, evidence prefix, policy version, disposition, sidecar digest | revise, replan, abstain, deny, or safe stop |
+| Governed runtime and Action Gateway | I3, I5, I9 | ordered phase receipts, permit, reservation, idempotency and fence bindings | refuse start or deny effect |
 
-- **Peer-local operation:** an autonomous node connects admitted mission intent to distributed decomposition, allocation, finality, controlled execution, and adaptation without a global scheduler.
-- **Sparse communication:** bounded active and reserve views, authenticated overlay transport, causal predecessor recovery, deduplication, retry, and backpressure support partial peer knowledge.
-- **Planning and organization:** peers exchange graph fragments, reconcile dependencies, allocate Work through bounded negotiation, certify a roster, form a Team, and activate it through a separately fenced effect boundary.
-- **Agreement and adversarial context:** membership-bound sparse rounds, partial-view committee convergence, equivocation evidence, certified context fusion, and local credibility can resolve a bounded result or explicitly remain unresolved.
-- **Continuity and adaptation:** checkpoint availability, fenced takeover, exact restore, reauction, local replanning, and finalized mission, strategy, role, and Team changes support continued operation under declared assumptions.
-- **Governed mission cycle:** an opt-in facade orders observation, partition posture, topology, strategy, approval, inference, effect, and forensics, preserving mission, cycle, epoch, predecessor, operation, and receipt digests across the cycle [21].
-- **Partition and continuity policy:** explicit modes govern degraded connectivity, reversible or irreversible effects, causal reconciliation, immutable plan branches, rollback, abandonment, mandate renewal, and attenuation.
-- **Dynamic topology and strategy identity:** split, merge, federation, coordinator replacement, allocation, Team-formation, and evidence-fusion strategies bind predecessor state, version, implementation digest, evidence, quorum, and activation receipts.
-- **Cognitive control:** role, objective, and context-drift metrics feed pre-turn, post-turn, tool, message, and pre-effect interventions; prefix-evaluated semantic thresholds can shorten the planning window, request replanning, or stop execution. Their statistical calibration and outcome utility remain open empirical questions.
-- **Approval and policy projection:** optional approval checkpoints run before inference and effects; a collective decision can only narrow the locally validated inference policy, and deferred or required approval modes fail closed when approval infrastructure is unavailable [22].
-- **Governed lifecycle:** certified creation, attenuated parent authority, key provisioning, membership enrollment, eligibility checks, retirement, and session invalidation constrain which agent instances may participate.
-- **Unified compromise lifecycle:** evidence-backed transitions connect suspicion, restriction, isolation, recovery, expulsion, transactional authority revocation, new credential generations, and content-addressed forensic custody.
-- **Heterogeneous interoperability:** versioned capability negotiation, executable schema validation, signed envelopes, idempotent sequences, remote step/checkpoint/restore/cancel operations, and a simulation-environment client expose provider-neutral ports.
-- **Assurance and observability:** content-addressed audit chains, monotonic witnesses, replay, receipt-settled outboxes, and pre-effect invariant checks bind operational events without making telemetry authoritative.
+The mechanisms are independently deployable packages, but the paper evaluates their reference composition. Agent Mesh provides peer protocol, membership, sparse views, synchronization, allocation, agreement, and recovery. Adjacent AgentPlat packages supply Trust, Inference Control, governed mission phases, audit, interoperability, and protected-effect enforcement. Calling the composition “Agent Mesh” is shorthand; it does not imply that the wire protocol alone performs every control function.
 
-The list is a source and composition claim. It is supported by public contracts, reference runtimes, conformance tests, and the machine-checkable development inventory. It does not show favorable outcomes at every configured scale or deployment portability.
+Capability evidence is intentionally typed. A Peer Card or capability advertisement is a signed, expiring claim, not proof of competence or permission. Planning and Team decisions are versioned proposals until projected into current assignment authority. Trust and semantic records may narrow eligibility but cannot grant ambient authority. Effect permission appears only at the Action Gateway and remains conditional on downstream idempotency or fencing.
 
-### 5.1 Reference-integrated path
+The implemented scope includes provider-neutral adapters, bounded topology changes, dynamic Team and role decisions, compromise-response inputs, heterogeneous-agent integration surfaces, and deterministic simulation profiles. These are source and conformance capabilities. They do not establish optimal strategy selection, unrestricted organizational emergence, universal compromise detection, deployment-independent human control, or empirical performance at configured maximum scale.
 
-The reference composition [13] treats an end-to-end operation as a chain of independently validated records:
-
-![Figure 2. Evidence and planning remain non-authoritative until the current effect boundary admits an exact action.](figures/agent-mesh-effect-path.png)
-
-```text
-admitted mission intent
-→ sparse peer observations and causal records
-→ distributed planning fragments
-→ context fusion and candidate eligibility
-→ allocation decision and certified Team roster
-→ current Work Contract and adaptive role
-→ controlled heterogeneous execution
-→ agreement, semantic, and assurance receipts
-→ current authorization, epoch, fence, and protected effect
-```
-
-Each arrow is a boundary rather than an implication. A planning certificate cannot substitute for a Work Contract. A Trust result cannot create membership. A model or adapter output cannot create assignment authority. A semantic allow cannot bypass the current epoch or effect fence. The final gateway resolves the exact retained records again immediately before dispatch.
-
-At the application-composition layer, `@agentplat/collective-runtime/governed-collective-runtime` now exposes the ordered cycle `observe → partition → topology → strategy → approval → inference → effect → forensics`. The optional `reference-integrated` profile refuses construction unless every safety-critical phase except topology has a handler; topology remains optional for fixed-topology deployments. This closes a source-level fail-late gap: an incomplete reference composition is rejected before mission state or an effect is created. Durable ports add compare-and-swap state, an idempotency ledger, causal receipts, and epoch fencing. The local release verifier exercised restart, idempotency, revision conflict, and epoch-rollback rejection at commit `490a392` [21, 23].
-
-The implementation uses library-owned invokers, immutable construction-time bindings, canonical digests, revision-based compare-and-set, stable operation identifiers, and logical-time high-water marks to prevent a caller from replacing a validated component after construction. Durable variants still depend on application-supplied stores and effect sinks satisfying the exported atomicity and fencing contracts.
-
-### 5.2 Operational interpretation of controlled emergence
-
-Agent Mesh does not encode one globally scripted workflow or one global plan graph. Its intended form of **controlled emergence** is narrower and operational: useful collective structure may arise from admitted local proposals, bounded peer interactions, capability and Trust projections, allocation, agreement, and adaptation, while a fixed set of authority and safety invariants limits which results may affect the external world.
-
-The **emergent** part is the mission decomposition, selected collaborators, Work allocation, evidence relationships, recovery path, and bounded role or Team revision produced from local state rather than a global scheduler. The **controlled** part is the envelope of admission, policy, membership, lineage, resource, causal, finality, semantic, epoch, fence, and effect constraints that those locally produced structures cannot bypass.
-
-This is an architectural definition, not an empirical finding that desired global behavior emerged. The current source provides executable local rules and bounded-state safety checks; The current evidence does not establish convergence or role-coherence performance. The architecture also does not guarantee global optimality, a single trajectory, availability under permanent partition, truthful capability claims, universal compromise detection, or semantic correctness of model output.
-
-### 5.3 Dynamic Teams, role evolution, and compromise recovery
-
-Team formation is not a synonym for assigning one task. The distributed allocation path advances from locally admitted planning positions through mechanism events, a certified roster decision, formation, and activation. Activation retains the exact plan-derived bids and uses a durable authorization digest and compare-and-set fence; a crash can reconcile an already committed Team without creating a second Team or cancelling a replacement.
-
-The adaptation path accepts causal mission signals and can propose changes to mission strategy, role bindings, or Team structure. Role evolution is subject to catalog identity, mission binding, diversity and novelty signals, hysteresis, safety review, finality, and authority attenuation. Current topology contracts add deterministic split, merge, federation, coordinator replacement, prepare, activate, and rollback transitions. Every accepted transition binds predecessor topology, next epoch, membership, policy, evidence, strategy identity, and authority-concentration checks. These contracts permit dynamic reconfiguration, but the current paper does not claim empirical measurements of Team complexity, strategy novelty, topology quality, or adaptation benefit.
-
-Compromise-aware recovery is distinct from lease-expiry recovery. It requires a verified compromise verdict, sparse exclusion evidence, governed retirement where configured, rotation of the assignment fence, and then one exact continuation path: checkpoint restore, reauction, or replanning. A unified incident state machine now connects `healthy`, `suspicious`, `restricted`, `isolated`, `recovered`, and `expelled` states with transactional revocation of sessions, keys, roles, mandates, and effects. Reentry requires a new epoch and credential generation, approval, evidence, and attenuated authority; content-addressed forensic bundles retain custody and disposition records. These mechanisms coordinate response after a supplied verdict. Universal compromise detection and containment of every adversarial-content propagation path remain outside this claim.
-
-### 5.4 Heterogeneous agents and simulation environments
-
-Heterogeneity is represented at an adapter boundary rather than inferred from a model name. The interoperability SDK negotiates an immutable manifest of operations, capability keys, schema digests, signature requirements, and limits. Completed inputs and outputs are checked by executable validators for the negotiated schema. Remote agent operations include step, checkpoint, restore, cancellation, and lifecycle-gated retirement; simulation environments expose reset, partial observation, action, snapshot, restore, and close [15].
-
-The control layer supports ordinary black-box agents through observable input, output, tool, message, and action boundaries, and representation-aware agents through stronger optional control ports. The reference repository includes local chat-completions and provider adapters, but provider neutrality is a contract property, not evidence that a heterogeneous multi-vendor collective has been evaluated. Portability across language, vision-language, vision-language-action, reinforcement-learning, and symbolic agents remains unvalidated.
-
-### 5.5 Scale profiles versus scale evidence
-
-The sparse overlay defines three closed profiles aligned to increasing population and interaction ceilings: 500 peers with 5,000 interactions, 5,000 peers with 50,000 interactions, and 100,000 peers with 1,000,000 interactions [14]. Each peer derives only its own `O(log N)` active and reserve view from a profile and topology seed; the API never materializes a complete peer or edge list. Local outbound shares sum to the profile's collective interaction ceiling, and duplicate deliveries stop forwarding locally.
-
-These profiles and their deterministic acceptance checks are source/conformance evidence. The repository records a deterministic 5,000-peer propagation check that reached every local view within 10,000 accounted deliveries. No claim in this paper treats a configured 100,000-peer profile, a complexity envelope, or a deterministic propagation check as empirical mission performance at that scale.
-
-### 5.6 Explicit source limitations
-
-Several capabilities relevant to decentralized collectives remain narrower than a complete controlled-emergence solution. The current source should not be read as providing the following general mechanisms:
-
-- a universal projection that maps every certified Team or role change into new context zones, memory visibility, tool scope, and action authority for every agent adapter;
-- statistical guarantees that the implemented local rules converge to aligned collective behavior under optional stopping, long horizons, or the DICE adversarial model;
-- universal compromise detection or guaranteed containment after adversarial content has propagated through otherwise credible participants; the lifecycle governs response to supplied evidence and verdicts;
-- unrestricted or unbounded organizational emergence; the topology APIs implement declared split, merge, federation, election, activation, and rollback contracts under explicit policies and epochs;
-- evidence that one registered allocation, Team-formation, or fusion strategy is optimal; pluggable strategies make selection auditable but do not validate their outcome quality;
-- deployment-independent human control; approval checkpoints require application-owned authority, persistence, notification, and response providers; or
-- automatic containment of an external effect after a downstream system has committed it without honoring idempotency or fencing.
-
-These are scope statements, not empirical failures. Some can be added through existing ports, while others require new protocol or organizational mechanisms. Their absence does not negate the implemented capability groups above, but it limits claims that Agent Mesh by itself provides complete rogue-agent containment, unrestricted organizational emergence, or deployment-independent human control.
+In DICE terms, the composition addresses sparse local coordination, partial information, heterogeneous adapters, local inference control, dynamic organization, resilience mechanisms, and auditable control boundaries. This mapping establishes relevance, not compliance, endorsement, or complete satisfaction of the program's research goals.
 
 ## 6. System model and architecture
 
-Let `N` be collective size, `k` the bounded local Peer View, `f` dissemination fanout, `h` hop limit, `c` agreement committee size, `m` controlled semantic metrics, and `r` certified artifact replicas. Peer `i` at logical step `t` has durable state `x_i(t)`, local view `v_i(t)`, newly delivered records `e_i(t)`, installed policy `pi_i(t)`, and current effect fence `F_i(t)`. Its transition is:
+For peer `i` at logical step `t`, let `x_i(t)` be durable local state, `v_i(t)` its bounded Peer View, `e_i(t)` newly delivered records, `pi_i(t)` installed policy, and `F_i(t)` the current effect fence:
 
 ```text
 A_i(t) = admit(e_i(t), x_i(t), v_i(t), pi_i(t))
@@ -272,55 +122,37 @@ A_i(t) = admit(e_i(t), x_i(t), v_i(t), pi_i(t))
 effect_i(t) = commit(a_i(t), F_i(t)) only if gate_i(...) = allow
 ```
 
-`admit` checks bounded structure, authentication, membership, scope, freshness, canonical content, replay, and capacity. `delta` is a deterministic, revision-checked local reducer. `gate` re-resolves authority at effect time. The model makes no transition from message receipt directly to external action.
+Admission checks bounded structure, authentication, membership, scope, freshness, replay, causality, and capacity. The local reducer is deterministic and revision checked. The gateway re-resolves authority at effect time; there is no transition from message receipt directly to external action.
 
-### 6.1 Architectural invariants
+### 6.1 End-to-end lifecycle
 
-Let `S` be a peer's admitted local state, `r` an incoming record, `a` a proposed protected action, and `delta(S,r)` the deterministic state transition applied after admission. Let `gate(S,a)` return either a permit bound to `a` or a denial. The implementation is intended to preserve the following safety invariants. They are architectural obligations and conformance targets, not claims of universal correctness under violated cryptographic, storage, quorum, or effect-sink assumptions.
+An authorized issuer signs an Objective. A peer decomposes it into Work Items and discovers candidates from its bounded view. Offers and bids remain proposals until the owner issues an award and the assignee accepts it, producing a Work Contract with lease, epoch, and fence. During execution, journal events, checkpoints, evidence claims, attestations, Trust decisions, and semantic assessments accumulate without becoming ambient authority.
 
-- **I1 — Admission before influence:** a record can change protocol state only after bounded parsing, authentication, tenant/Mesh scoping, membership, freshness, replay, and causal checks succeed. Formally, `not admit(S,r)` implies `delta(S,r)=S` for protocol-authoritative state.
-- **I2 — Evidence-authority separation:** evidence, Trust, planning, model output, telemetry, and agreement records cannot by themselves authorize a protected effect. A permit requires an explicit authorization transition at the Action Gateway.
-- **I3 — Exact-effect binding:** a permit binds the action type, normalized parameters or digest, principal, Objective, Work Item, policy, resource envelope, expiry, idempotency key, assignment epoch, and fence. Changing a bound field requires a new decision.
-- **I4 — Monotonic recovery:** accepted recovery advances the assignment epoch and stable fence. An effect sink must reject a request whose fence is lower than the highest accepted fence for the protected coordinate.
-- **I5 — No authority by replay:** repeating a valid message or operation identifier cannot create a second logical transition or external effect. Exactly-once external behavior remains conditional on atomic idempotency or fencing at the sink.
-- **I6 — Quorum-scoped finality:** a certificate is valid only for its exact decision coordinate, membership epoch, policy, and eligible voter set. A certificate for one coordinate cannot be reused as authority for another.
-- **I7 — Fail-closed incompleteness:** missing, stale, conflicting, expired, or unverifiable required authority produces deny, replan, recovery, or safe stop; it is never interpreted as permission.
-- **I8 — Policy attenuation:** projecting a collective decision into local inference control may only intersect allowed context zones, actions, and message channels and shorten applicable lifetimes; it cannot broaden the validated local baseline policy.
-- **I9 — Composition completeness before start:** the `reference-integrated` runtime profile cannot create mission state or run an effect unless handlers exist for observation, partition, strategy, approval, inference, effect, and forensics. A fixed topology may omit only the topology phase.
-- **I10 — Bounded degraded operation:** loss of connectivity never authorizes an irreversible effect without the required quorum or reconciliation. Any permitted degraded action remains bounded by declared time, action, resource, risk, impact, and reversibility limits.
-- **I11 — Incident authority discontinuity:** recovery from restriction, isolation, or expulsion cannot reuse pre-incident authority. Reentry requires an advanced epoch, a new credential generation, explicit evidence and approval, and authority no broader than the permitted successor scope.
+Before a protected effect, the Action Gateway binds the exact action to current membership, Objective, Work Contract, finality record, lease, epoch, fence, semantic decision, and single-use grant. If an assignee fails, recovery witnesses wait for lease and grace expiry, certify at most one eligible next-epoch proposal, advance the fence, and resume from a named checkpoint. Old-epoch effects remain fenced.
 
-These invariants clarify the novelty boundary. Capability security, quorum intersection, leases, fencing, idempotency, and causal ordering are established ideas. Agent Mesh specifies how their records compose across an agent lifecycle and where each must be revalidated before an external effect.
-
-### 6.2 End-to-end lifecycle
-
-An authorized issuer signs an Objective. Peers admit it only after verifying its envelope, issuer authority, revision lineage, and local scope. A peer decomposes the Objective into Work Items and discovers candidates from its bounded view and accepted capability claims. It sends an offer; candidates return signed bids; the owner selects a bid and issues an award. The assignee accepts, producing an active assignment with a lease, epoch, and fence.
-
-During execution, the assignee writes journal events and checkpoints. Evidence claims carry provenance and may receive independent attestations. Local Trust and Inference Control can narrow candidate or action eligibility. When a proposed protected effect is ready, the gateway binds it to current membership, Objective, Work contract, finality record, lease, epoch, fence, semantic decision, and single-use grant.
-
-If the assignee fails, witnesses wait until the lease and recovery grace expire. They vote for at most one eligible next-epoch proposal. A threshold certificate advances the fence; the owner issues a recovery award; the successor accepts and resumes from the named checkpoint. Old-epoch progress or effects remain fenced after the original peer returns.
-
-The governed runtime facade does not replace these peer protocols. It orders application-level phase handlers around one mission cycle and records their evidence digests. Partition policy can defer or safe-stop the cycle; topology and strategy decisions contribute versioned digests; approval precedes inference; inference policy is an attenuation of local policy; the consumer-owned effect handler runs only in the ordered effect phase; and forensics receives the preceding digest chain. A failed critical phase follows the configured safe-stop policy. Durable restart restores the last state through compare-and-swap persistence, rejects stale revisions or epoch regressions, and returns the retained result for a repeated operation identifier only when its operation digest matches.
+The governed runtime orders observation, partition posture, topology, strategy, approval, inference, effect, and forensics. Missing critical handlers prevent start. Durable restart uses compare-and-swap state, rejects stale revisions and epoch regressions, and returns a retained result for a repeated operation only when its digest matches.
 
 ![Figure 3. Recovery advances both assignment epoch and fence, preventing a delayed predecessor from committing.](figures/agent-mesh-recovery.png)
 
-### 6.3 Bounds and conditional guarantees
+### 6.2 Bounds and conditional guarantees
 
-With (k) policy-bounded, sparse peer maintenance retains (O(k)) local neighbor state. Bounded dissemination admits at most a conservative (O(f^h)) attempted deliveries before duplicate suppression. Causal catch-up is proportional to requested missing predecessors but capped per response. Agreement state is bounded by committee size and rounds. These are implementation envelopes, not measured latency or success claims.
+With bounded Peer View size `k`, each peer retains `O(k)` neighbor state. Dissemination fanout and hop limits bound attempted delivery before duplicate suppression. Causal catch-up, agreement rounds, semantic metrics, and artifact replicas are capped by installed policies. These are implementation envelopes, not measured latency or success guarantees.
 
-Safety is conditional on correct cryptographic verification, fresh local membership and revocation state, durable monotonic storage, correct quorum configuration, and downstream fence enforcement. Liveness additionally requires eventual delivery along an authenticated path, sufficiently available eligible peers, stable policy long enough to complete, and required quorum. Permanent partition, loss of threshold, expired evidence, or conflicting state leads to pause, replanning, recovery, or safe stop rather than guaranteed progress.
+Safety depends on correct cryptographic verification, current membership and revocation state, durable monotonic storage, correct quorum configuration, and downstream fence enforcement. Liveness additionally requires eventual authenticated delivery, sufficiently available eligible peers, stable policy, and quorum. Permanent partition or threshold loss leads to pause, replanning, recovery, or safe stop.
 
-### 6.4 Threat model
+### 6.3 Threat model
 
-The model includes unauthenticated clients, defective transports, stale or malicious admitted peers, coordinated false evidence, compromised issuers or keys, adversarial JSON, context injection, and adapters that ignore authority. Protocol messages are signed but not inherently encrypted; confidentiality depends on transport and application adapters. Principal defenses include closed bounded parsing, tenant/Mesh scope, local key resolution, replay windows, causal lineage, membership epochs, monotonic assignment fences, evidence provenance, local trust policies, and pre-effect revalidation.
-
-No mechanism provides universal safety. A compromised threshold can subvert decisions under that threshold model. A stale revocation view may accept a key that another peer has already revoked. A downstream service that ignores fences can accept a stale effect. The architecture makes these assumptions inspectable and testable rather than eliminating them.
+The model includes unauthenticated clients, defective transports, stale or malicious admitted peers, coordinated false evidence, compromised issuers or keys, adversarial JSON, context injection, and adapters that ignore authority. Messages are signed but not inherently encrypted. A compromised threshold can subvert decisions under that threshold model; stale revocation can admit a retired key; and a downstream service that ignores fences can accept stale effects. The architecture makes these assumptions inspectable rather than eliminating them.
 
 ## 7. Current integration evaluation
 
 The current evaluation is a deterministic integration smoke, not a preregistered comparative experiment. It generates exactly 1,000 evaluator-owned semantic decisions from the existing semantic-metric engine. Every decision binds execution and registration digests, a trace event and trace digest, membership epoch and configuration, assignment epoch, decision digest, and evidence digest. The projection recomputes a canonical decision root and closes only when the complete horizon and a finality certificate are present.
 
+The evaluator, rather than the caller or runner, owns the decision projection. It orders decisions canonically, rejects duplicate identifiers, verifies that every event belongs to the same execution and registration, and recomputes the trace binding from the trace-event identifier and decision digest. The horizon remains `incomplete` at 999 decisions or when its certificate is absent. This prevents a caller-authored success flag from substituting for the required decision population or finality evidence.
+
 Finality is issued by the reference `InProcessSparseBftFinalityGatewayV1` with four validators and a sparse committee policy. The certificate binds proposal, value, epoch, membership configuration, and signer-set evidence. The evaluator rejects altered trace bindings, stale evidence, invalid decision roots, replay divergence, and incomplete horizons. The runtime also persists a six-dimensional semantic sidecar with the evaluator-owned trace binding, digest, and recoverable artifact content.
+
+The negative-test matrix covers an incomplete 999-decision horizon, caller-owned projections, stale membership or epoch bindings, altered trace identifiers, invalid certificate bindings, and divergent replay. Bundle recovery serializes the complete input and projection, rehydrates them in a fresh object graph, recomputes the projection, and requires equality of the resulting digest. No replay is counted as another decision or experimental sample.
 
 The smoke is run with:
 
@@ -337,6 +169,10 @@ Replays are verification runs, not additional observations. The results demonstr
 The reproducible command `pnpm run verify:confirmatory-semantic-horizon-smoke` generated exactly 1,000 evaluator-owned semantic decisions. Each decision binds the execution and registration digests, trace event and trace digest, membership epoch and configuration, assignment epoch, decision digest, and evidence digest. The projection recomputes a canonical decision root and reaches `complete` only when all 1,000 decisions and a finality certificate are present.
 
 The run produced 973 useful decisions, 27 `not_useful` decisions, and zero unsafe decisions. This is an integration result from a deterministic reference profile, not a population estimate or a deployment-performance claim.
+
+The 27 non-useful decisions were exercised under controlled evaluator profiles: five context-conflict cases, six high-uncertainty cases, six low-action-diversity cases, five low-action-novelty cases, and five controller-restriction cases. These categories demonstrate that the instrument retains reason-bearing semantic evidence. They do not estimate how frequently those causes occur in live workloads.
+
+An exploratory prefix view reported useful-decision rates of 0.980 at 100 decisions, 0.976 at 250, 0.974 at 500, and 0.973 at 1,000. These prefixes are nested views of the same deterministic stream, not independent samples or alternative stopping-rule claims.
 
 ### 8.2 Agreement, replay, and artifact recovery
 
@@ -387,7 +223,7 @@ The architecture intentionally fails closed when required authority is missing o
 
 ### 11.1 Author contribution, conflicts, and independence
 
-Douglas Rodriguez is the sole author and is responsible for the architecture synthesis, implementation analysis, study interpretation, manuscript preparation, and artifact packaging. The author declares no competing interests relevant to this manuscript. Agent Mesh and AgentPlat are not affiliated with, endorsed by, or evaluated by DARPA. References to DICE describe public program objectives and are used only to frame research relevance and unresolved gaps.
+Douglas Rodriguez is the sole author and is responsible for the architecture synthesis, implementation analysis, evidence interpretation, manuscript preparation, and artifact packaging. The author declares no competing interests relevant to this manuscript. Agent Mesh and AgentPlat are not affiliated with, endorsed by, or evaluated by DARPA. References to DICE describe public program objectives and are used only to frame research relevance and unresolved gaps.
 
 ## 12. Artifact availability and reproducibility status
 
@@ -400,6 +236,27 @@ The current smoke bundle is intended to be independently rehydrated: the project
 Agent Mesh treats multi-agent coordination as a distributed authority problem rather than only a conversation-design problem. Its peers exchange authenticated, bounded, and causally linked records; maintain governed membership and sparse local views; negotiate work through versioned offers, bids, and awards; and recover through epochs and fences. In the current reference-composed AgentPlat stack, a receipt-producing governed runtime orders partition posture, topology, strategy, approval, inference, effect, and forensics; durable ports add compare-and-swap state, idempotency, causal receipts, and epoch fencing. Adjacent Trust, continuity, compromise, interoperability, audit, and action boundaries evaluate provenance and semantic risk, adapt organization, revoke stale authority, and revalidate an exact action before a protected effect. Each mechanism has explicit assumptions and failure behavior. None creates a global brain, global truth, universal compromise detector, or universal safety guarantee.
 
 The current evidence establishes an auditable integration path with explicit assumptions and fail-closed behavior. Future registered work should test mission outcomes, comparative performance, calibration, and scale; those claims are outside this paper's scope.
+
+## Appendix A. Terminology reference
+
+This appendix expands terms used in the main argument without changing their authority semantics.
+
+- **Agent:** software that selects or proposes actions using models, rules, search, code, or combinations of them.
+- **Runtime:** execution environment that provides models, memory, tools, lifecycle services, and adapters to an agent.
+- **Mesh Peer:** independently executing participant in the Agent Mesh protocol. Several peers may share a host, but their identities and authority remain distinct.
+- **Peer Card:** signed, expiring declaration of supported protocol versions, transport hints, and claimed capabilities. It supports discovery but proves neither competence nor permission.
+- **Message envelope:** canonical wrapper binding payload type and digest to sender, instance, tenant, Mesh, protocol version, creation time, expiry, nonce, and causal parents. The signature authenticates this exact wrapper.
+- **Peer View:** bounded set of active neighbors and reserve candidates known locally by one peer. The union of Peer Views forms the sparse overlay.
+- **Objective:** versioned statement of intended outcome, constraints, policy references, resource bounds, and revision lineage.
+- **Work Item:** bounded unit derived from an Objective. An **offer** announces it, a **bid** proposes execution terms, and an **award** selects a candidate. These records remain proposals until accepted into a current Work Contract.
+- **Lease:** time-bounded assignment authority. The **assignment epoch** identifies its generation, while the **fencing token** lets state and effect sinks reject delayed predecessors.
+- **Causal synchronization:** exchange of records with explicit predecessor identifiers. A receiver that lacks a dependency requests it or defers the dependent transition rather than inventing order.
+- **Quorum certificate:** verifiable record that the policy-required eligible set accepted one value for an exact decision coordinate and membership epoch.
+- **Journal and checkpoint:** append-only execution history and named resumable state. They support recovery but do not independently authorize takeover.
+- **Evidence claim:** content-addressed assertion with provenance and scope. **Attestations** add independently signed evaluations. **Trust** is the local policy result derived from available evidence, not a global truth value.
+- **Inference Control:** boundary that evaluates context, role, uncertainty, proposed messages, tools, and actions. It may allow, steer, revise, replan, abstain, escalate, deny, or stop.
+- **Semantic sidecar:** recoverable evaluator-owned artifact carrying the six bounded semantic metrics and their trace and digest bindings.
+- **Protected effect:** externally visible change requiring explicit authorization. The **Action Gateway** revalidates current assignment, semantic, policy, idempotency, and fence state immediately before dispatch.
 
 
 ## References
