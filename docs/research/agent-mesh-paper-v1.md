@@ -4,7 +4,7 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.9 — 20 August 2026
+Version 1.10 — 20 August 2026
 
 ### Abstract
 
@@ -43,7 +43,7 @@ The reference implementation targets eleven safety invariants. They are architec
 - **I1 — Admission before influence:** a record changes protocol state only after bounded parsing, authentication, tenant and Mesh scope, membership, freshness, replay, and causal checks succeed.
 - **I2 — Evidence-authority separation:** evidence, Trust, planning, model output, telemetry, and agreement records cannot by themselves authorize a protected effect.
 - **I3 — Exact-effect binding:** a permit binds the normalized action, principal, Objective, Work Item, policy, resource envelope, expiry, idempotency key, assignment epoch, and fence.
-- **I4 — Monotonic recovery:** accepted recovery advances the assignment epoch and stable fence; an effect sink rejects lower fences.
+- **I4 — Monotonic recovery:** accepted recovery advances the assignment epoch and stable fence; an effect sink rejects lower fences, following the established fencing pattern [14].
 - **I5 — No authority by replay:** repeating a valid message or operation identifier cannot create another logical transition or external effect.
 - **I6 — Quorum-scoped finality:** a certificate is valid only for its decision coordinate, membership epoch, policy, and eligible voter set.
 - **I7 — Fail-closed incompleteness:** missing, stale, conflicting, expired, or unverifiable authority produces denial, replanning, recovery, or safe stop.
@@ -69,7 +69,7 @@ The novelty claim is compositional. Agent Mesh does not claim invention of signa
 
 ## 4. Related work
 
-Agent Mesh builds on established security and distributed-systems ideas. Dennis and Van Horn formalized capability-addressed protection [16], while Hardy's confused-deputy analysis showed the danger of ambient or incorrectly selected authority [17]. The Action Gateway applies those principles to agent effects through permits bound to current mission, assignment, semantics, replay state, and fencing. Contract Net introduced announcement, bidding, and award for distributed problem solving [4]; Agent Mesh adds signed scope, versioned objectives, explicit lease/fence authority, certified recovery, and effect-time revalidation.
+Agent Mesh builds on established security and distributed-systems ideas. Dennis and Van Horn formalized capability-addressed protection [12], while Hardy's confused-deputy analysis showed the danger of ambient or incorrectly selected authority [13]. The Action Gateway applies those principles to agent effects through permits bound to current mission, assignment, semantics, replay state, and fencing. Contract Net introduced announcement, bidding, and award for distributed problem solving [4]; Agent Mesh adds signed scope, versioned objectives, explicit lease/fence authority, certified recovery, and effect-time revalidation.
 
 Lamport established causal ordering without synchronized clocks [3]. SWIM separated failure detection from membership dissemination [9], and PBFT made Byzantine assumptions and quorum requirements explicit [5]. Agent Mesh composes related mechanisms but preserves their limits: sparse views are not complete membership, signatures are not truth, and a recovery majority is not automatically Byzantine consensus.
 
@@ -77,7 +77,7 @@ Modern frameworks such as AutoGen, CAMEL, and MetaGPT emphasize conversational d
 
 ### 4.1 Relation to DARPA DICE
 
-DARPA's Decentralized Artificial Intelligence through Controlled Emergence (DICE) program calls for decentralized coordination and local inference control in scalable, adaptive, resilient collectives of heterogeneous agents operating under partial information and contested conditions [19, 20]. Agent Mesh is relevant because it combines sparse coordination, partial views, heterogeneous adapters, dynamic organization, recovery, semantic intervention, and effect-time authority enforcement.
+DARPA's Decentralized Artificial Intelligence through Controlled Emergence (DICE) program calls for decentralized coordination and local inference control in scalable, adaptive, resilient collectives of heterogeneous agents operating under partial information and contested conditions [15, 16]. Agent Mesh is relevant because it combines sparse coordination, partial views, heterogeneous adapters, dynamic organization, recovery, semantic intervention, and effect-time authority enforcement.
 
 The correspondence is incomplete. The current evidence does not establish DICE's requested measurable gains, stochastic convergence guarantees, long-horizon role coherence, robustness against the full adversarial model, or operation at program scale. DICE motivates the research problem and delimits relevance; it is not evidence of compliance, endorsement, or complete satisfaction of program objectives.
 
@@ -217,7 +217,7 @@ Douglas Rodriguez is the sole author and is responsible for the architecture syn
 
 ## 12. Artifact availability and reproducibility status
 
-The source repository contains the implementation, smoke command, tests, semantic projection contract, finality gateway integration, and the recoverable semantic sidecar format. This paper reports reproducible integration evidence only. Earlier internal campaigns in the repository history were instrument-development runs and are not reported here; no confirmatory or comparative claim is made, and none should be inferred.
+The AgentPlat source repository [11] contains the implementation, smoke command, tests, semantic projection contract, finality gateway integration, and the recoverable semantic sidecar format. This paper reports reproducible integration evidence only. Earlier internal campaigns in the repository history were instrument-development runs and are not reported here; no confirmatory or comparative claim is made, and none should be inferred.
 
 The current smoke bundle is intended to be independently rehydrated: the projection, decision root, certificate, trace bindings, semantic sidecars, and replay inputs are retained as content-addressed objects. Digests identify those objects but do not replace them; a publication package must distribute the referenced objects together with the verification command.
 
@@ -235,7 +235,7 @@ This appendix expands terms used in the main argument without changing their aut
 - **Runtime:** execution environment that provides models, memory, tools, lifecycle services, and adapters to an agent.
 - **Mesh Peer:** independently executing participant in the Agent Mesh protocol. Several peers may share a host, but their identities and authority remain distinct.
 - **Peer Card:** signed, expiring declaration of supported protocol versions, transport hints, and claimed capabilities. It supports discovery but proves neither competence nor permission.
-- **Message envelope:** canonical wrapper binding payload type and digest to sender, instance, tenant, Mesh, protocol version, creation time, expiry, nonce, and causal parents. The signature authenticates this exact wrapper.
+- **Message envelope:** canonical wrapper binding payload type and digest to sender, instance, tenant, Mesh, protocol version, creation time, expiry, nonce, and causal parents. Agent Mesh uses a deterministic JSON representation based on JCS [1] and EdDSA signatures [2] so independent implementations can reproduce the authenticated bytes.
 - **Peer View:** bounded set of active neighbors and reserve candidates known locally by one peer. The union of Peer Views forms the sparse overlay.
 - **Objective:** versioned statement of intended outcome, constraints, policy references, resource bounds, and revision lineage.
 - **Work Item:** bounded unit derived from an Objective. An **offer** announces it, a **bid** proposes execution terms, and an **award** selects a candidate. These records remain proposals until accepted into a current Work Contract.
@@ -250,7 +250,6 @@ This appendix expands terms used in the main argument without changing their aut
 
 
 ## References
-
 [1] A. Rundgren, B. Jordan, and S. Erdtman. “JSON Canonicalization Scheme (JCS).” RFC 8785, 2020. https://www.rfc-editor.org/rfc/rfc8785
 
 [2] S. Josefsson and I. Liusvaara. “Edwards-Curve Digital Signature Algorithm (EdDSA).” RFC 8032, 2017. https://www.rfc-editor.org/rfc/rfc8032
@@ -273,30 +272,12 @@ This appendix expands terms used in the main argument without changing their aut
 
 [11] AgentPlat Contributors. “AgentPlat: Open-source runtime primitives for governed agentic platforms.” Source repository. https://github.com/Agentplat/agentplat
 
-[12] AgentPlat Contributors. “Collective Development Capability Matrix V1.” Source and integration inventory. https://github.com/Agentplat/agentplat/blob/main/docs/collective-runtime/development-capability-matrix-v1.md
+[12] J. B. Dennis and E. C. Van Horn. “Programming Semantics for Multiprogrammed Computations.” *Communications of the ACM*, 9(3):143–155, 1966. https://doi.org/10.1145/365230.365252
 
-[13] AgentPlat Contributors. “ADR 0042: Collective Capability Closure.” Reference-integrated architecture decision. https://github.com/Agentplat/agentplat/blob/main/docs/adr/0042-collective-capability-closure.md
+[13] N. Hardy. “The Confused Deputy (or why capabilities might have been invented).” *ACM SIGOPS Operating Systems Review*, 22(4):36–38, 1988. https://doi.org/10.1145/54289.871709
 
-[14] AgentPlat Contributors. “Sparse Collective Scale V2.” Capability and integration contract. https://github.com/Agentplat/agentplat/blob/main/docs/agent-mesh/sparse-collective-scale-v2.md
+[14] M. Kleppmann. “How to Do Distributed Locking.” 2016. https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html
 
-[15] AgentPlat Contributors. “AgentPlat Interoperability SDK.” Provider-neutral agent and simulation protocol. https://github.com/Agentplat/agentplat/tree/main/packages/interop
+[15] Defense Advanced Research Projects Agency. “Decentralized Artificial Intelligence through Controlled Emergence (DICE).” 2026. https://www.darpa.mil/research/programs/decentralized-artificial-intelligence-through-controlled-emergence
 
-[16] J. B. Dennis and E. C. Van Horn. “Programming Semantics for Multiprogrammed Computations.” *Communications of the ACM*, 9(3):143–155, 1966. https://doi.org/10.1145/365230.365252
-
-[17] N. Hardy. “The Confused Deputy (or why capabilities might have been invented).” *ACM SIGOPS Operating Systems Review*, 22(4):36–38, 1988. https://doi.org/10.1145/54289.871709
-
-[18] M. Kleppmann. “How to Do Distributed Locking.” 2016. https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html
-
-[19] Defense Advanced Research Projects Agency. “Decentralized Artificial Intelligence through Controlled Emergence (DICE).” 2026. https://www.darpa.mil/research/programs/decentralized-artificial-intelligence-through-controlled-emergence
-
-[20] Defense Advanced Research Projects Agency. “Decentralized Artificial Intelligence through Controlled Emergence (DICE): Questions and Answers.” 2026. https://www.darpa.mil/sites/default/files/attachment/2026-06/programs-dice-q-a.pdf
-
-[21] AgentPlat Contributors. “Governed Collective Runtime V1.” Provider-neutral receipt-producing mission-cycle facade. 2026. https://github.com/Agentplat/agentplat/blob/main/docs/collective-runtime/governed-collective-runtime-v1.md
-
-[22] AgentPlat Contributors. “Controlled-Emergence Control Plane V1.” Coordination, approval, inference-policy, and Trust-propagation contracts. 2026. https://github.com/Agentplat/agentplat/blob/main/docs/collective-runtime/controlled-emergence-control-plane-v1.md
-
-[23] AgentPlat Contributors. “Release Integration Matrix V1.” Public surfaces, runtime gates, receipt evidence, and release assertions. 2026. https://github.com/Agentplat/agentplat/blob/main/docs/collective-runtime/release-integration-matrix-v1.md
-
-[24] AgentPlat Contributors. “Empirical Evaluability Gate V1.” Deterministic pre-execution certificate for registered endpoints. Commit `490a392`, 2026. https://github.com/Agentplat/agentplat/blob/490a392/scripts/empirical-evaluability-gate.mjs
-
-[25] AgentPlat Contributors. “Empirical Publication Bundle Gate V1.” Independent artifact manifest and analysis reconstruction verifier. Commit `a099ef4`, 2026. https://github.com/Agentplat/agentplat/blob/a099ef4/scripts/empirical-publication-bundle.mjs
+[16] Defense Advanced Research Projects Agency. “Decentralized Artificial Intelligence through Controlled Emergence (DICE): Questions and Answers.” 2026. https://www.darpa.mil/sites/default/files/attachment/2026-06/programs-dice-q-a.pdf
