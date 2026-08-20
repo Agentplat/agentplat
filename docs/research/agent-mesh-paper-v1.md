@@ -4,7 +4,7 @@
 
 **Douglas Rodriguez**  
 douglas.rodriguez@trafilea.com  
-Version 1.8 — 20 August 2026
+Version 1.9 — 20 August 2026
 
 ### Abstract
 
@@ -69,25 +69,17 @@ The novelty claim is compositional. Agent Mesh does not claim invention of signa
 
 ## 4. Related work
 
-Capability-based protection predates contemporary agent systems. Dennis and Van Horn formalized capability-addressed protection in multiprogrammed systems [16], and Hardy's confused-deputy analysis showed why ambient or improperly selected authority can cause a program to exercise privilege on behalf of the wrong principal [17]. Agent Mesh does not claim either principle as novel. Its Action Gateway applies them at an agent-system effect boundary by requiring an effect-specific permit bound to current mission, policy, assignment, semantic, replay, and fencing state. Likewise, its monotonic fences instantiate an established technique for rejecting delayed holders after lease turnover [18].
+Agent Mesh builds on established security and distributed-systems ideas. Dennis and Van Horn formalized capability-addressed protection [16], while Hardy's confused-deputy analysis showed the danger of ambient or incorrectly selected authority [17]. The Action Gateway applies those principles to agent effects through permits bound to current mission, assignment, semantics, replay state, and fencing. Contract Net introduced announcement, bidding, and award for distributed problem solving [4]; Agent Mesh adds signed scope, versioned objectives, explicit lease/fence authority, certified recovery, and effect-time revalidation.
 
-Distributed task negotiation predates language-model agents. Smith's Contract Net Protocol defined announcement, bidding, and award as a high-level mechanism for distributed problem solving [4]. Agent Mesh retains this negotiation intuition but adds signed scope, versioned objectives, explicit lease/fence authority, recovery certificates, and pre-effect revalidation.
+Lamport established causal ordering without synchronized clocks [3]. SWIM separated failure detection from membership dissemination [9], and PBFT made Byzantine assumptions and quorum requirements explicit [5]. Agent Mesh composes related mechanisms but preserves their limits: sparse views are not complete membership, signatures are not truth, and a recovery majority is not automatically Byzantine consensus.
 
-Modern language-model frameworks emphasize configurable collaboration. AutoGen models applications as conversations among customizable agents [6]; CAMEL studies role-playing communication among agents [7]; and MetaGPT encodes role specialization and workflow structure into multi-agent software development [8]. These systems demonstrate the utility of conversational decomposition and specialized roles. Agent Mesh addresses a different layer: it specifies how independently executing participants authenticate records, maintain bounded local state, recover authority, and protect external effects. It can carry model-driven agents but does not depend on a particular model or prompting pattern.
-
-Distributed-systems research supplies foundational mechanisms and cautions. Lamport established causal ordering without assuming synchronized physical clocks [3]. SWIM separated peer failure detection from membership-update dissemination and showed how peer-to-peer membership can avoid all-to-all heartbeat growth [9]. PBFT made Byzantine fault assumptions and quorum requirements explicit [5]. Agent Mesh combines related ideas but narrows each claim to the installed mechanism: sparse views are not complete membership, signatures are not truth, and majority recovery is not automatically Byzantine consensus.
-
-Accordingly, the architectural novelty claimed here is compositional: a versioned protocol and reference integration that connect bounded local coordination to evidence provenance, adaptive organization, semantic intervention, recovery authority, and effect-time enforcement without granting any intermediate representation ambient permission. Whether that composition improves mission outcomes remains an open empirical question.
-
-Evaluation frameworks such as AgentBench test model-based agents across interactive environments and expose long-horizon reasoning and instruction-following failures [10]. The present Agent Mesh evaluation has a narrower purpose: it tests whether the reference composition produces evaluator-owned semantic evidence, finality, reproducible replay, and fail-closed rejection of altered or stale inputs. It does not compare reasoning quality or alternative orchestration strategies.
+Modern frameworks such as AutoGen, CAMEL, and MetaGPT emphasize conversational decomposition, role specialization, and configurable collaboration [6–8]. Agent Mesh addresses a complementary layer: independently executing participants, bounded local state, explicit authority recovery, and protected effects. AgentBench evaluates model-based agents across interactive environments [10]; the present evaluation instead tests evidence-chain integrity, finality, replay, and fail-closed rejection. The novelty claim is therefore compositional rather than primitive-level.
 
 ### 4.1 Relation to DARPA DICE
 
-DARPA's Decentralized Artificial Intelligence through Controlled Emergence (DICE) program calls for decentralized coordination and local inference control supporting scalable, adaptive, resilient collectives of heterogeneous AI agents under partial information and contested conditions [19]. Its public clarification further states that communication is sparse, agents lack complete collective knowledge, heterogeneous and vendor-agnostic adapters are expected, stochastic convergence should carry statistical guarantees, and resilience may be addressed at policy, substrate, and instrumentation levels [20]. These requirements identify a current research problem; satisfying part of them does not by itself make a mechanism novel or imply DARPA endorsement.
+DARPA's Decentralized Artificial Intelligence through Controlled Emergence (DICE) program calls for decentralized coordination and local inference control in scalable, adaptive, resilient collectives of heterogeneous agents operating under partial information and contested conditions [19, 20]. Agent Mesh is relevant because it combines sparse coordination, partial views, heterogeneous adapters, dynamic organization, recovery, semantic intervention, and effect-time authority enforcement.
 
-Agent Mesh is relevant because its composition addresses several interfaces that DICE requires to coexist: sparse peer coordination, partial views, heterogeneous adapters, dynamic Team formation, compromise-aware recovery, local semantic intervention, and effect-time authority enforcement. The potentially novel contribution is not any one primitive. It is the explicit cross-layer contract that prevents emergent planning or evidence from bypassing current assignment and effect authority while still permitting local reorganization.
-
-The correspondence is incomplete. The source artifacts establish implemented mechanisms and integration paths, but they do not establish DICE's requested measurable gains, stochastic convergence guarantees, long-horizon role coherence, robustness against the full adversarial model, or operation at all program scales. DICE therefore motivates the architecture and helps delimit its research relevance; it is not used as evidence that Agent Mesh has met the program objectives.
+The correspondence is incomplete. The current evidence does not establish DICE's requested measurable gains, stochastic convergence guarantees, long-horizon role coherence, robustness against the full adversarial model, or operation at program scale. DICE motivates the research problem and delimits relevance; it is not evidence of compliance, endorsement, or complete satisfaction of program objectives.
 
 ## 5. Mechanisms and evidence
 
@@ -110,8 +102,6 @@ Capability evidence is intentionally typed. A Peer Card or capability advertisem
 
 The implemented scope includes provider-neutral adapters, bounded topology changes, dynamic Team and role decisions, compromise-response inputs, heterogeneous-agent integration surfaces, and deterministic simulation profiles. These are source and conformance capabilities. They do not establish optimal strategy selection, unrestricted organizational emergence, universal compromise detection, deployment-independent human control, or empirical performance at configured maximum scale.
 
-In DICE terms, the composition addresses sparse local coordination, partial information, heterogeneous adapters, local inference control, dynamic organization, resilience mechanisms, and auditable control boundaries. This mapping establishes relevance, not compliance, endorsement, or complete satisfaction of the program's research goals.
-
 ## 6. System model and architecture
 
 For peer `i` at logical step `t`, let `x_i(t)` be durable local state, `v_i(t)` its bounded Peer View, `e_i(t)` newly delivered records, `pi_i(t)` installed policy, and `F_i(t)` the current effect fence:
@@ -132,7 +122,7 @@ Before a protected effect, the Action Gateway binds the exact action to current 
 
 The governed runtime orders observation, partition posture, topology, strategy, approval, inference, effect, and forensics. Missing critical handlers prevent start. Durable restart uses compare-and-swap state, rejects stale revisions and epoch regressions, and returns a retained result for a repeated operation only when its digest matches.
 
-![Figure 3. Recovery advances both assignment epoch and fence, preventing a delayed predecessor from committing.](figures/agent-mesh-recovery.png)
+![Figure 2. Recovery advances both assignment epoch and fence, preventing a delayed predecessor from committing.](figures/agent-mesh-recovery.png)
 
 ### 6.2 Bounds and conditional guarantees
 

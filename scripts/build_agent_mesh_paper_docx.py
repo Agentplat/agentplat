@@ -13,7 +13,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs/research/agent-mesh-paper-v1.md"
-OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.8.docx"
+OUTPUT = ROOT / "docs/research/agent-mesh-paper-v1.9.docx"
 
 FONT = "Calibri"
 INK = "17202A"
@@ -195,7 +195,7 @@ def build():
 
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    set_font(header.add_run("Agent Mesh | Preprint v1.8"), 8.5, color=MUTED)
+    set_font(header.add_run("Agent Mesh | Preprint v1.9"), 8.5, color=MUTED)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     set_font(footer.add_run("Page "), 8.5, color=MUTED)
@@ -309,7 +309,7 @@ def build():
     doc.core_properties.subject = "Architectural invariants and reproducible integration evidence for governed decentralized agent coordination"
     doc.core_properties.author = "Douglas Rodriguez"
     doc.core_properties.keywords = "multi-agent systems; decentralized coordination; agent governance; controlled emergence; DARPA DICE"
-    doc.core_properties.comments = "Version 1.8 prepared for archival publication on Zenodo."
+    doc.core_properties.comments = "Version 1.9 prepared for archival publication on Zenodo."
     doc.save(OUTPUT)
     print(OUTPUT)
 
