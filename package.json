@@ -2,7 +2,8 @@
   "name": "agentplat",
   "version": "0.3.0-beta.3",
   "private": true,
-  "description": "Open-source runtime primitives for building agentic platforms.",
+  "description": "Open-source runtime primitives for governed multi-agent systems, persistent Agent Rooms, distributed coordination, inference control and human-agent collaboration.",
+  "keywords": ["ai-agents", "multi-agent", "multi-agent-systems", "agent-orchestration", "agent-runtime", "agent-governance", "agent-memory", "human-ai-collaboration", "agent-rooms", "distributed-agents", "agent-mesh", "inference-control"],
   "license": "Apache-2.0",
   "packageManager": "pnpm@8.10.0",
   "engines": {
@@ -46,6 +47,8 @@
     "benchmark:mesh-adapters": "pnpm --filter @agentplat/mesh --filter @agentplat/mesh-crypto --filter @agentplat/mesh-protocol --filter @agentplat/mesh-http --filter @agentplat/mesh-postgres build && node scripts/mesh-adapters-benchmark.mjs",
     "example:rooms": "pnpm --dir examples/rooms-api start",
     "audit:public": "node scripts/audit-public.mjs",
+    "verify:agentplat-spec": "node scripts/verify-agentplat-spec.mjs",
+    "verify:agentplat-conformance": "node scripts/verify-agentplat-conformance.mjs",
     "audit:public:release": "node scripts/audit-public.mjs --require-terminology-denylist",
     "audit:dependencies:production": "node scripts/production-dependency-audit.mjs --mode run --allowlist config/production-dependency-audit-allowlist.json --output-directory dependency-audit",
     "verify:capability-baseline": "node scripts/verify-collective-capability-baseline.mjs",
@@ -110,7 +113,7 @@
     "version:set": "node scripts/set-version.mjs",
     "release:publish": "pnpm run audit:public:release && pnpm run check && node scripts/publish-packages.mjs",
     "release:publish:next": "NPM_DIST_TAG=next pnpm run release:publish",
-    "check": "pnpm run audit:public && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run verify:empirical-preregistration-contract && pnpm run verify:empirical-campaign-contract && pnpm run verify:empirical-supervisor-contract && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack && pnpm run verify:public-consumer"
+    "check": "pnpm run audit:public && pnpm run verify:agentplat-spec && pnpm run verify:agentplat-conformance && pnpm run verify:capability-baseline && pnpm run verify:capability-evidence-catalog && pnpm run verify:empirical-preregistration-contract && pnpm run verify:empirical-campaign-contract && pnpm run verify:empirical-supervisor-contract && pnpm run clean && pnpm run build && pnpm run audit:public && pnpm run type-check && pnpm run test:unit && pnpm run test:adapters && pnpm run verify:mesh-protocol-fixtures && pnpm run verify:mesh-persistence-fixtures && pnpm run verify:mesh-compatibility && pnpm run verify:alpha5-compatibility && pnpm run verify:collective-evaluation && pnpm run verify:collective-evaluation-v2-fixture && pnpm run verify:collective-statistical-campaign:contract-smoke && pnpm run verify:collective-normative-control-plane && pnpm run verify:collective-postgres && pnpm run verify:collective-compatibility && pnpm run verify:inference-control-scenarios && pnpm run verify:trust-scenarios && pnpm run verify:release && pnpm run verify:collective-planning-closed-loop && pnpm run verify:collective-closed-loop-resilience && pnpm run verify:pack && pnpm run verify:public-consumer"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

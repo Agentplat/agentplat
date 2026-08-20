@@ -1,0 +1,15 @@
+{
+  "name": "@agentplat/mcp-docs",
+  "version": "0.3.0-beta.3",
+  "description": "Read-only MCP documentation server for AgentPlat specifications, concepts, APIs and examples.",
+  "keywords": ["mcp", "ai-agents", "multi-agent", "agent-orchestration", "agentplat", "agent-governance"],
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {"agentplat-mcp-docs":"./dist/cli.js"},
+  "files": ["dist", "README.md"],
+  "scripts": {"build":"tsc -p tsconfig.json", "type-check":"tsc -p tsconfig.json --noEmit", "clean":"node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"", "test":"node --test tests/*.test.mjs"},
+  "publishConfig": {"access":"public"},
+  "repository": {"type":"git","url":"git+https://github.com/Agentplat/agentplat.git","directory":"packages/mcp-docs"}
+}
