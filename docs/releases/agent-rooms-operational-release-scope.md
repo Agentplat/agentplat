@@ -25,14 +25,11 @@ artifacts from entering the publication commit.
 
 ## Explicitly excluded
 
-- `docs/darpa-dice/**`
-- `docs/empirical-study/**`
-- `docs/research/**`
-- `output/**`
-- `scripts/build_empirical_study_v28_paper_appendix.py`
+- Unrelated research, study and generated-output directories
+- Research document-generation scripts
 - Source-comparison reports containing implementation-specific vocabulary
-- `docs/reviews/agent-rooms-operational-evolution-completion-2026-08-21.md`,
-  whose earlier V1–V9 evidence is superseded by the final closure record
+- Superseded completion evidence that covers only the earlier V1–V9 migration
+  range
 
 Use explicit paths when staging. Do not use `git add -A` or `git add .` for
 this release. The executable pathspec is
