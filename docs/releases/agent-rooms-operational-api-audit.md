@@ -97,3 +97,23 @@ Before publication, record green results for:
    `continueAsNew`;
 6. coordinated release verification, 56-package pack smoke and public consumer;
 7. dry-run publication under `next` from the exact PR commit.
+
+## Candidate evidence
+
+Commit `d8433ec4919df2478bbba6bf53680041472ce868` was checked from a clean
+temporary checkout with no unrelated workspace files:
+
+- the required external terminology audit passed across 1,691 source files;
+- `pnpm check` passed, including a post-build audit across 4,063 files, full
+  build and type-check, tests, compatibility gates, release verification,
+  56-package pack smoke, 190 packed API surfaces and the public consumer;
+- PostgreSQL 16 applied and rolled back V1–V11, passed the package integration
+  test, completed the reference scenario and recovered coordination, run,
+  intervention, execution session, Handoff, contribution and delivery state in
+  separate processes;
+- Temporal CLI 1.8.1 with Server 1.31.2 processed four persisted coordination
+  items through canonical activities, two sequential workers, signals and
+  `continueAsNew`;
+- the publication simulator prepacked all 56 packages, checked registry
+  rollback targets and reported that it would promote the complete cohort to
+  `next`; no packages were uploaded and no distribution tags changed.

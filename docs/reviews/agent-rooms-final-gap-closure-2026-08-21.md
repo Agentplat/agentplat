@@ -39,6 +39,9 @@ public names or architectural authority.
 - Workspace type-check, unit/adaptor suite, release verification and package
   smoke verification passed. The package smoke audited 56 tarballs and 190
   public API surfaces.
+- The `0.3.0-beta.5` candidate passed the complete clean-checkout `pnpm check`,
+  real PostgreSQL and Temporal scenarios, and a 56-package `next` publication
+  dry-run without changing npm registry state.
 
 ## Optional provider validation
 

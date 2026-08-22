@@ -18,6 +18,7 @@ artifacts from entering the publication commit.
 - `docs/adr/0043-agent-room-operational-coordination-boundaries.md`
 - `docs/agent-rooms-postgres-migration.md`
 - `docs/releases/agent-rooms-operational-api-audit.md`
+- `docs/releases/agent-rooms-operational-pr.md`
 - `docs/reviews/agent-rooms-final-gap-closure-2026-08-21.md`
 - `.github/workflows/agent-room-asana-sandbox.yml` as an optional provider
   validation workflow
