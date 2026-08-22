@@ -1,6 +1,7 @@
 :(literal).github/workflows/agent-room-asana-sandbox.yml
 :(literal)CHANGELOG.md
 :(literal)README.md
+:(literal)RELEASING.md
 :(literal)config/agent-rooms-operational-release-files.txt
 :(literal)config/public-packages.json
 :(literal)docs/adr/0043-agent-room-operational-coordination-boundaries.md
@@ -17,8 +18,11 @@
 :(literal)packages/runtime/README.md
 :(literal)packages/runtime/src/index.ts
 :(literal)packages/work-management-asana
+:(glob)packages/*/package.json
+:(literal)package.json
 :(literal)pnpm-lock.yaml
 :(literal)scripts/release-line.mjs
+:(literal)scripts/pack-consumers/collective-planning-resilience-conformance.mjs
 :(literal)scripts/verify-registry-consumer.mjs
 :(glob)tests/rooms-*.test.mjs
 :(literal)tests/public-package-catalog.test.mjs

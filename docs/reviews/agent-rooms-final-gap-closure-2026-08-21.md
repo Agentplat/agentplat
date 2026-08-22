@@ -2,6 +2,8 @@
 
 Date: 2026-08-21
 
+Release candidate: `0.3.0-beta.5`
+
 ## Scope
 
 This record tracks the final operational capabilities adopted into AgentPlat

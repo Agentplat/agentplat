@@ -23,6 +23,10 @@ version of both `@agentplat/rooms` and `@agentplat/core`. Therefore
 observation must be repeated immediately before changing versions and before
 publication.
 
+The read-only query was repeated immediately before version preparation and
+the workspace was then moved atomically to `0.3.0-beta.5` with the repository's
+`version:set` command. No registry mutation was performed.
+
 The two new package names returned npm `E404`, establishing that their first
 publication needs the first-package tag caveat documented in `RELEASING.md`.
 They must still be requested under `next`; npm may assign `latest`

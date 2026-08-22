@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0-beta.5 - 2026-08-21
+
 - Added provider-neutral Agent Room message routing with deterministic explicit
   participant references, an optional constrained router, a declared default
   participant and an `AgentRoomCoordinator` that operates only on persisted
