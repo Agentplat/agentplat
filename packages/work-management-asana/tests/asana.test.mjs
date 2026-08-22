@@ -84,3 +84,21 @@ test('Asana provider errors expose neither OAuth credentials nor response bodies
     }
   );
 });
+
+test('Asana provider normalizes long trailing-slash input in linear time', async () => {
+  let requestedUrl;
+  const provider = new AsanaWorkManagementProvider({
+    projectGid: 'project-1',
+    accessToken: async () => 'oauth-token',
+    baseUrl: `https://asana.example.test/api${'/'.repeat(100_000)}`,
+    fetch: async (url) => {
+      requestedUrl = url;
+      return new Response('', { status: 404 });
+    },
+  });
+  assert.equal(
+    await provider.lookupContributionTask({ idempotencyKey: 'stable-key' }),
+    null
+  );
+  assert.match(requestedUrl, /^https:\/\/asana\.example\.test\/api\/tasks/u);
+});

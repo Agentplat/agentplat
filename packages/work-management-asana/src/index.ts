@@ -20,9 +20,8 @@ export class AsanaWorkManagementProvider implements WorkManagementProvider {
     if (!options.projectGid.trim())
       throw new TypeError("Asana projectGid is required");
     this.fetch = options.fetch ?? globalThis.fetch;
-    this.baseUrl = (options.baseUrl ?? "https://app.asana.com/api/1.0").replace(
-      /\/+$/u,
-      "",
+    this.baseUrl = withoutTrailingSlashes(
+      options.baseUrl ?? "https://app.asana.com/api/1.0",
     );
   }
   async lookupContributionTask(input: { idempotencyKey: string }) {
@@ -121,4 +120,10 @@ function notes(contribution: HumanContributionRequest) {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+function withoutTrailingSlashes(value: string) {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }
