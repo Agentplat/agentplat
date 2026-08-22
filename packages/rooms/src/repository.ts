@@ -1,4 +1,4 @@
-import type { AgentPlatID } from '@agentplat/core';
+import type { AgentPlatID } from "@agentplat/core";
 import type {
   Approval,
   Artifact,
@@ -15,38 +15,49 @@ import type {
   RoomState,
   RoomTask,
   ToolCall,
-} from './models.js';
+} from "./models.js";
+import type { AgentRoomCoordinationState } from "./coordination-runtime.js";
 
 export interface RoomRepositoryReader {
   getRoom(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<Room | undefined>;
   listRooms(tenantId: AgentPlatID): Promise<Room[]>;
   getRoomState(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<RoomState | undefined>;
   getParticipant(
     tenantId: AgentPlatID,
-    participantId: AgentPlatID
+    participantId: AgentPlatID,
   ): Promise<Participant | undefined>;
   getTask(
     tenantId: AgentPlatID,
-    taskId: AgentPlatID
+    taskId: AgentPlatID,
   ): Promise<RoomTask | undefined>;
   getArtifact(
     tenantId: AgentPlatID,
-    artifactId: AgentPlatID
+    artifactId: AgentPlatID,
   ): Promise<Artifact | undefined>;
   getApproval(
     tenantId: AgentPlatID,
-    approvalId: AgentPlatID
+    approvalId: AgentPlatID,
   ): Promise<Approval | undefined>;
   listEvents(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<DomainEvent[]>;
+  /** Optional coordination read used by the repository-backed store adapter. */
+  getAgentRoomCoordinationState?(
+    tenantId: AgentPlatID,
+    roomId: AgentPlatID,
+    coordinationId: AgentPlatID,
+  ): Promise<AgentRoomCoordinationState | undefined>;
+  /** Optional discovery used by continuous coordination workers. */
+  listAgentRoomCoordinationStates?(
+    tenantId?: AgentPlatID,
+  ): Promise<AgentRoomCoordinationState[]>;
 }
 
 export interface RoomRepositoryTransaction extends RoomRepositoryReader {
@@ -70,11 +81,16 @@ export interface RoomRepositoryTransaction extends RoomRepositoryReader {
   insertToolCall(call: ToolCall): Promise<void>;
   updateToolCall(call: ToolCall): Promise<void>;
   appendEvent(event: DomainEvent): Promise<void>;
+  /** Optional transactional compare-and-set write for automatic coordination. */
+  saveAgentRoomCoordinationState?(
+    state: AgentRoomCoordinationState,
+    expectedRevision: number | null,
+  ): Promise<boolean>;
 }
 
 export interface RoomRepository extends RoomRepositoryReader {
   transaction<T>(
     tenantId: AgentPlatID,
-    work: (transaction: RoomRepositoryTransaction) => Promise<T>
+    work: (transaction: RoomRepositoryTransaction) => Promise<T>,
   ): Promise<T>;
 }

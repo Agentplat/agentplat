@@ -30,6 +30,20 @@ reuse the same value across every retry. Forward it to providers that support
 idempotency keys, or use it in the adapter's deduplication mechanism, so one
 logical run cannot apply the same effect twice.
 
+## Runtime checkpoints
+
+Providers may declare support for `pre_action` through
+`AgentProvider.supportedCheckpoints` and invoke the checkpoint callback supplied
+in `RuntimeExecutionContext` immediately before starting a tool or external
+effect. Higher-level runtimes use `pre_step` and `post_output` around provider
+execution. A denied checkpoint must stop the provider before the protected
+operation begins.
+
+`DefaultAgentRuntime.supportsCheckpoint` lets callers fail closed before
+invoking a provider that cannot enforce the required action boundary. Declared
+support is a provider conformance contract; adapters must be tested to ensure
+every protected path invokes `pre_action`.
+
 ## Durable cognitive effects
 
 `CognitiveAgentRuntimeV2` treats `memory_mutation` and `tool` as effectful. An

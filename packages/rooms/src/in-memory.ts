@@ -21,6 +21,7 @@ import type {
   RoomRepository,
   RoomRepositoryTransaction,
 } from './repository.js';
+import type { AgentRoomCoordinationState } from './coordination-runtime.js';
 
 interface MemoryState {
   rooms: Room[];
@@ -37,6 +38,7 @@ interface MemoryState {
   runs: RoomRun[];
   toolCalls: ToolCall[];
   events: DomainEvent[];
+  coordinationStates: AgentRoomCoordinationState[];
 }
 
 const emptyState = (): MemoryState => ({
@@ -54,6 +56,7 @@ const emptyState = (): MemoryState => ({
   runs: [],
   toolCalls: [],
   events: [],
+  coordinationStates: [],
 });
 
 class InMemoryTransaction implements RoomRepositoryTransaction {
@@ -432,6 +435,58 @@ class InMemoryTransaction implements RoomRepositoryTransaction {
     this.state.events.push(event);
   }
 
+  async getAgentRoomCoordinationState(
+    tenantId: string,
+    roomId: string,
+    coordinationId: string
+  ): Promise<AgentRoomCoordinationState | undefined> {
+    this.assertTenant(tenantId);
+    return structuredClone(
+      this.state.coordinationStates.find(
+        (state) =>
+          state.tenantId === tenantId &&
+          state.roomId === roomId &&
+          state.coordinationId === coordinationId
+      )
+    );
+  }
+
+  async listAgentRoomCoordinationStates(tenantId?: string) {
+    if (tenantId) this.assertTenant(tenantId);
+    return structuredClone(
+      this.state.coordinationStates.filter(
+        (state) => tenantId === undefined || state.tenantId === tenantId
+      )
+    );
+  }
+
+  async saveAgentRoomCoordinationState(
+    state: AgentRoomCoordinationState,
+    expectedRevision: number | null
+  ): Promise<boolean> {
+    this.assertTenant(state.tenantId);
+    const index = this.state.coordinationStates.findIndex(
+      (candidate) =>
+        candidate.tenantId === state.tenantId &&
+        candidate.roomId === state.roomId &&
+        candidate.coordinationId === state.coordinationId
+    );
+    if (expectedRevision === null) {
+      if (index >= 0 || state.revision !== 0) return false;
+      this.state.coordinationStates.push(structuredClone(state));
+      return true;
+    }
+    if (
+      index < 0 ||
+      this.state.coordinationStates[index]!.revision !== expectedRevision ||
+      state.revision !== expectedRevision + 1
+    ) {
+      return false;
+    }
+    this.state.coordinationStates[index] = structuredClone(state);
+    return true;
+  }
+
   private byRoom<T extends { tenantId: string; roomId: string }>(
     values: T[],
     tenantId: string,
@@ -558,6 +613,24 @@ export class InMemoryRoomRepository implements RoomRepository {
   async listEvents(tenantId: string, roomId: string): Promise<DomainEvent[]> {
     return structuredClone(
       await new InMemoryTransaction(this.state).listEvents(tenantId, roomId)
+    );
+  }
+
+  async getAgentRoomCoordinationState(
+    tenantId: string,
+    roomId: string,
+    coordinationId: string
+  ) {
+    return new InMemoryTransaction(this.state).getAgentRoomCoordinationState(
+      tenantId,
+      roomId,
+      coordinationId
+    );
+  }
+
+  async listAgentRoomCoordinationStates(tenantId?: string) {
+    return new InMemoryTransaction(this.state).listAgentRoomCoordinationStates(
+      tenantId
     );
   }
 

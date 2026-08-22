@@ -78,11 +78,11 @@ git tag -a v0.3.0-alpha.4 -m "Release 0.3.0-alpha.4"
 git push public v0.3.0-alpha.4
 ```
 
-The current `0.3.0-beta.4` cohort is a prerelease and must be promoted under
+The current `0.3.0-beta.5` cohort is a prerelease and must be promoted under
 `next`, never `latest`. External consumers pin exact versions, for example:
 
 ```sh
-npm install @agentplat/collective-runtime@0.3.0-beta.4 @agentplat/audit@0.3.0-beta.4
+npm install @agentplat/collective-runtime@0.3.0-beta.5 @agentplat/audit@0.3.0-beta.5
 ```
 
 Do not create the Git tag if the exact-version registry consumer fails. The

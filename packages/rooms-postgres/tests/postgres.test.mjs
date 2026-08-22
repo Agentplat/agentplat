@@ -3,6 +3,7 @@ import test from 'node:test';
 import { RoomService } from '@agentplat/rooms';
 import {
   createPostgresPool,
+  PostgresRoomExecutionSessionStore,
   PostgresRoomRepository,
   rollbackConfirmation,
   rollbackMigrations,
@@ -413,11 +414,110 @@ test(
         assert.equal(secondRun.status, 'completed');
         await assert.rejects(firstRun, (error) => error.code === 'CONFLICT');
         assert.equal(runtimeCalls, 1);
+
+        const executionStore = new PostgresRoomExecutionSessionStore(pool, {
+          schema,
+        });
+        const executionState = {
+          tenantId: 'tenant-concurrency',
+          roomId: concurrentRoom.id,
+          sessionId: 'execution-session-1',
+          runId: secondRun.id,
+          taskId: concurrentTask.id,
+          participantId: agent.id,
+          revision: 0,
+          status: 'completed',
+          interventions: [],
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+        assert.equal(
+          await executionStore.compareAndSet({
+            expectedRevision: null,
+            state: executionState,
+          }),
+          true
+        );
+        assert.deepEqual(
+          await executionStore.load(
+            'tenant-concurrency',
+            concurrentRoom.id,
+            executionState.sessionId
+          ),
+          executionState
+        );
+        assert.equal(
+          await executionStore.compareAndSet({
+            expectedRevision: null,
+            state: executionState,
+          }),
+          false
+        );
       } finally {
         releaseFirstPublish();
         await firstRun.catch(() => undefined);
       }
     } finally {
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 11,
+        schema,
+        confirm: rollbackConfirmation(schema, 11),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 10,
+        schema,
+        confirm: rollbackConfirmation(schema, 10),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 9,
+        schema,
+        confirm: rollbackConfirmation(schema, 9),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 8,
+        schema,
+        confirm: rollbackConfirmation(schema, 8),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 7,
+        schema,
+        confirm: rollbackConfirmation(schema, 7),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 6,
+        schema,
+        confirm: rollbackConfirmation(schema, 6),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 5,
+        schema,
+        confirm: rollbackConfirmation(schema, 5),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 4,
+        schema,
+        confirm: rollbackConfirmation(schema, 4),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 3,
+        schema,
+        confirm: rollbackConfirmation(schema, 3),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 2,
+        schema,
+        confirm: rollbackConfirmation(schema, 2),
+        allowDataLoss: true,
+      });
       await rollbackMigrations(pool, {
         expectedCurrentVersion: 1,
         schema,

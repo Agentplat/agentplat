@@ -158,7 +158,7 @@ const conformanceReport = validatePlanningConformanceReportV1(
   createPlanningConformanceReportV1({
     implementation: {
       name: "agentplat-planning-fixture-interpreter",
-      version: "0.3.0-beta.4",
+      version: "0.3.0-beta.5",
     },
     declaredCapabilities: PLANNING_CONFORMANCE_CAPABILITIES_V1,
     seed: 0,

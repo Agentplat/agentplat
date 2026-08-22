@@ -12,7 +12,9 @@
   "scripts": {
     "start": "node src/index.mjs",
     "migrate": "node scripts/migrate.mjs",
-    "demo": "bash scripts/demo.sh"
+    "demo": "bash scripts/demo.sh",
+    "scenario": "node scripts/end-to-end.mjs",
+    "scenario:restart": "node scripts/restart-recovery.mjs"
   },
   "dependencies": {
     "@agentplat/events": "link:../../packages/events",

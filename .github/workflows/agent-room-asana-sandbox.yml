@@ -1,0 +1,65 @@
+name: Agent Room Asana sandbox validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Confirm creation of one labelled task in the protected Asana sandbox project.
+        required: true
+        default: DO_NOT_RUN
+        type: choice
+        options: [DO_NOT_RUN, RUN_ASANA_SANDBOX]
+      source_sha:
+        description: Exact 40-hex commit on main to validate.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-room-asana-sandbox
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: inputs.confirm == 'RUN_ASANA_SANDBOX'
+    environment: asana-sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate protected source
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$SOURCE_SHA" == "$GITHUB_SHA" ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20.19.3
+      - name: Install exact workspace dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Validate Asana create, lookup, update and crash reconciliation
+        shell: bash
+        env:
+          ASANA_ACCESS_TOKEN: ${{ secrets.ASANA_ACCESS_TOKEN }}
+          ASANA_PROJECT_GID: ${{ secrets.ASANA_PROJECT_GID }}
+        run: |
+          set -euo pipefail
+          test -n "$ASANA_ACCESS_TOKEN"
+          test -n "$ASANA_PROJECT_GID"
+          pnpm --filter @agentplat/work-management-asana test:sandbox | tee "$RUNNER_TEMP/asana-sandbox-result.json"
+          printf '### Asana sandbox validation\n\n' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 1 "$RUNNER_TEMP/asana-sandbox-result.json" >> "$GITHUB_STEP_SUMMARY"

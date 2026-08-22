@@ -9,7 +9,7 @@ import {
   TRUST_PACKAGE_NAME,
 } from "../scripts/release-line.mjs";
 
-const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_3] = RELEASE_LINES;
+const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_5] = RELEASE_LINES;
 
 test("release-line guard accepts the historical 29-package Alpha 3 cohort before Trust is cataloged", async (t) => {
   const root = await createReleaseLineFixture({ line: ALPHA_3 });
@@ -46,27 +46,27 @@ test("release-line guard accepts the coordinated 36-package Beta 2 cohort", asyn
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test("release-line guard accepts the coordinated 54-package Beta 4 cohort", async (t) => {
-  const root = await createReleaseLineFixture({ line: BETA_3 });
+test("release-line guard accepts the coordinated 56-package Beta 5 cohort", async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_5 });
   t.after(() => rm(root, { force: true, recursive: true }));
 
   assert.equal(await assertReleaseLine({ root }), true);
 });
 
-test("release-line guard rejects Beta 2 versions in a 54-package cohort", async (t) => {
+test("release-line guard rejects Beta 2 versions in a 56-package cohort", async (t) => {
   const root = await createReleaseLineFixture({
-    line: BETA_3,
+    line: BETA_5,
     version: BETA_2.releaseVersion,
   });
   t.after(() => rm(root, { force: true, recursive: true }));
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /release line beta3 requires root version 0\.3\.0-beta\.4/i,
+    /release line beta5 requires root version 0\.3\.0-beta\.5/i,
   );
 });
 
-test("release-line guard rejects a 54-package Beta 2 cohort", async (t) => {
+test("release-line guard rejects a 56-package Beta 2 cohort", async (t) => {
   const root = await createReleaseLineFixture({
     line: BETA_2,
     packageCount: 52,
@@ -75,7 +75,7 @@ test("release-line guard rejects a 54-package Beta 2 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /Release line requires exactly .*54 Beta 4 packages/i,
+    /Release line requires exactly .*56 Beta 5 packages/i,
   );
 });
 

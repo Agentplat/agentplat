@@ -1,6 +1,6 @@
 # Agent Room API reference application
 
-This is the smallest deployable Agentplat application: a Hono API backed by
+This is the smallest deployable AgentPlat application: a Hono API backed by
 PostgreSQL, the public Room domain service, an in-process event bus, and the
 deterministic mock runtime. It makes no external model calls and imports no
 any service operated by AgentPlat or other private code.
@@ -34,6 +34,30 @@ bash scripts/demo.sh
 The demo runs the complete vertical slice and prints the resulting Room
 projection. It needs `curl` and `jq`. Override its defaults with `API_URL` and
 `AGENTPLAT_TENANT_ID`.
+
+The extended deterministic scenario exercises the integrated Agent Room stack
+directly against PostgreSQL:
+
+```sh
+pnpm scenario
+```
+
+It covers a versioned knowledge bundle, published agent revision, routing,
+durable coordination, task/run execution, execution session, artifact,
+structured human contribution and Work Management delivery.
+
+The restart scenario launches two separate Node.js processes against the same
+database. The first persists an in-flight coordination claim with an expired
+lease; the second recovers it with the same stable operation ID:
+
+```sh
+pnpm scenario:restart
+```
+
+The extended recovery worker also covers an expired Room run, an intervention
+delivery lease, an accepted Handoff, a pending human contribution and an
+abandoned external delivery. Every recovery phase runs in a fresh Node.js
+process over the same PostgreSQL state.
 
 Stop the application without deleting data:
 
@@ -141,7 +165,7 @@ The assembly in `src/index.mjs` is intentionally explicit:
 - Pass `auth` to `createRoomsApp` to map verified identities to a
   `TenantContext`.
 - Build custom tool, MCP, and memory adapters against the corresponding public
-  Agentplat contracts.
+  AgentPlat contracts.
 
 The default policy only allows low-risk local/mock execution. External writes,
 privileged actions, and unapproved tools remain denied until an application

@@ -43,7 +43,24 @@ export interface RuntimeExecutionContext {
   policies?: JsonObject;
   tools?: ToolRegistry;
   metadata?: Metadata;
+  /** Fail-closed checkpoint callback supplied by a governed caller. */
+  checkpoint?: (
+    request: RuntimeCheckpointRequest
+  ) => Promise<RuntimeCheckpointDecision>;
 }
+
+/** Governed provider boundary before execution, output commit or an action. */
+export type RuntimeCheckpoint = 'pre_step' | 'post_output' | 'pre_action';
+
+/** Provider-supplied checkpoint name and bounded contextual payload. */
+export interface RuntimeCheckpointRequest {
+  checkpoint: RuntimeCheckpoint;
+  payload?: JsonObject;
+}
+
+/** Fail-closed decision returned to a checkpoint-aware provider. */
+export type RuntimeCheckpointDecision =
+  { allowed: true } | { allowed: false; reason: string };
 
 export interface AgentRunInput {
   /** Plain text or provider-neutral structured input items. */
@@ -102,6 +119,8 @@ export type AgentStreamEvent =
   | (StreamEvent<'failed'> & { content: string });
 
 export interface AgentProvider {
+  /** Checkpoints this provider invokes at their defined execution boundary. */
+  readonly supportedCheckpoints?: readonly RuntimeCheckpoint[];
   run(
     agent: AgentDefinition,
     input: AgentRunInput,
@@ -118,6 +137,8 @@ export interface AgentRuntime {
   registerProvider(platform: string, provider: AgentProvider): void;
   /** Optional capability used by higher-level composition validation. */
   hasProvider?(platform: string): boolean;
+  /** Whether the selected provider declares one checkpoint capability. */
+  supportsCheckpoint?(platform: string, checkpoint: RuntimeCheckpoint): boolean;
   run(
     agent: AgentDefinition,
     input: AgentRunInput,
@@ -161,6 +182,14 @@ export class DefaultAgentRuntime implements AgentRuntime {
 
   hasProvider(platform: string): boolean {
     return this.providers.has(platform.trim().toLowerCase());
+  }
+
+  supportsCheckpoint(platform: string, checkpoint: RuntimeCheckpoint): boolean {
+    return (
+      this.providers
+        .get(platform.trim().toLowerCase())
+        ?.supportedCheckpoints?.includes(checkpoint) ?? false
+    );
   }
 
   async run(

@@ -1,0 +1,4 @@
+DROP TRIGGER IF EXISTS knowledge_bundle_revisions_immutable_delete ON __AGENTPLAT_SCHEMA__.knowledge_bundle_revisions;
+DROP TRIGGER IF EXISTS knowledge_bundle_revisions_immutable_update ON __AGENTPLAT_SCHEMA__.knowledge_bundle_revisions;
+DROP FUNCTION IF EXISTS __AGENTPLAT_SCHEMA__.agentplat_prevent_knowledge_bundle_mutation();
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.knowledge_bundle_revisions;
