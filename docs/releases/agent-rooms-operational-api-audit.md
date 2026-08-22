@@ -100,8 +100,9 @@ Before publication, record green results for:
 
 ## Candidate evidence
 
-Commit `d8433ec4919df2478bbba6bf53680041472ce868` was checked from a clean
-temporary checkout with no unrelated workspace files:
+The release candidate tree was checked from a clean temporary checkout with no
+unrelated workspace files. CI and the pull request bind these results to the
+exact reviewed commit:
 
 - the required external terminology audit passed across 1,691 source files;
 - `pnpm check` passed, including a post-build audit across 4,063 files, full
