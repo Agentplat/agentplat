@@ -100,6 +100,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/rooms-api",
   "@agentplat/rooms-mesh",
   "@agentplat/rooms-postgres",
+  "@agentplat/rooms-temporal",
   "@agentplat/runtime",
   "@agentplat/runtime-mock",
   "@agentplat/sessions",
@@ -107,6 +108,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/streaming",
   "@agentplat/tools",
   "@agentplat/trust",
+  "@agentplat/work-management-asana",
   "@agentplat/workflows",
 ]);
 

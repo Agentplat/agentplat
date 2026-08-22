@@ -75,7 +75,7 @@ test("release-line guard rejects a 54-package Beta 2 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /Release line requires exactly .*54 Beta 4 packages/i,
+    /Release line requires exactly .*56 Beta 4 packages/i,
   );
 });
 

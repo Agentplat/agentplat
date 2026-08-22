@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.agent_room_projection_checkpoints;

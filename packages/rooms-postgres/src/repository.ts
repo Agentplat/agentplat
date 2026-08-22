@@ -26,6 +26,7 @@ import type {
   RoomState,
   RoomTask,
   ToolCall,
+  AgentRoomCoordinationState,
 } from '@agentplat/rooms';
 import {
   defaultPostgresSchema,
@@ -442,6 +443,35 @@ class PostgresRoomReader {
     return result.rows.map(mapEvent);
   }
 
+  async getAgentRoomCoordinationState(
+    tenantId: AgentPlatID,
+    roomId: AgentPlatID,
+    coordinationId: AgentPlatID
+  ): Promise<AgentRoomCoordinationState | undefined> {
+    this.assertTenant(tenantId);
+    const result = await this.database.query<Row>(
+      `SELECT state FROM public.room_coordination_state
+       WHERE tenant_id=$1 AND room_id=$2 AND coordination_id=$3${this.rowLock}`,
+      [tenantId, roomId, coordinationId]
+    );
+    return result.rows[0]?.state
+      ? structuredClone(result.rows[0].state as AgentRoomCoordinationState)
+      : undefined;
+  }
+
+  async listAgentRoomCoordinationStates(tenantId?: AgentPlatID) {
+    if (tenantId) this.assertTenant(tenantId);
+    const result = await this.database.query<Row>(
+      `SELECT state FROM public.room_coordination_state
+       WHERE ($1::text IS NULL OR tenant_id=$1)
+       ORDER BY updated_at,coordination_id`,
+      [tenantId ?? null]
+    );
+    return result.rows.map((row) =>
+      structuredClone(row.state as AgentRoomCoordinationState)
+    );
+  }
+
   async getRoomState(
     tenantId: AgentPlatID,
     roomId: AgentPlatID
@@ -586,6 +616,50 @@ class PostgresRoomTransaction
         statusCode: 404,
       });
     }
+  }
+
+  async saveAgentRoomCoordinationState(
+    state: AgentRoomCoordinationState,
+    expectedRevision: number | null
+  ): Promise<boolean> {
+    this.assertEntityTenant(state);
+    if (expectedRevision === null) {
+      if (state.revision !== 0) return false;
+      const result = await this.database.query(
+        `INSERT INTO public.room_coordination_state
+          (tenant_id,room_id,coordination_id,revision,status,state,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
+         ON CONFLICT (tenant_id,room_id,coordination_id) DO NOTHING`,
+        [
+          state.tenantId,
+          state.roomId,
+          state.coordinationId,
+          state.revision,
+          state.status,
+          json(state),
+          state.createdAt,
+          state.updatedAt,
+        ]
+      );
+      return result.rowCount === 1;
+    }
+    if (state.revision !== expectedRevision + 1) return false;
+    const result = await this.database.query(
+      `UPDATE public.room_coordination_state
+       SET revision=$4,status=$5,state=$6::jsonb,updated_at=$7
+       WHERE tenant_id=$1 AND room_id=$2 AND coordination_id=$3 AND revision=$8`,
+      [
+        state.tenantId,
+        state.roomId,
+        state.coordinationId,
+        state.revision,
+        state.status,
+        json(state),
+        state.updatedAt,
+        expectedRevision,
+      ]
+    );
+    return result.rowCount === 1;
   }
 
   async insertRoom(room: Room): Promise<void> {

@@ -1,6 +1,6 @@
 # `@agentplat/rooms-postgres`
 
-PostgreSQL persistence for the public Agentplat Agent Room framework. It
+PostgreSQL persistence for the public AgentPlat Agent Room framework. It
 implements the `RoomRepository` and `RoomRepositoryTransaction` contracts from
 `@agentplat/rooms` and stores room state plus its durable domain events in one
 database transaction.
@@ -19,20 +19,60 @@ on a mutable `search_path`.
 ```ts
 import {
   createPostgresPool,
+  PostgresAgentDefinitionRegistryStore,
+  PostgresRoomHandoffStore,
+  PostgresAgentRoomCoordinationStore,
+  PostgresAgentRoomPlanStore,
+  PostgresHumanContributionStore,
+  PostgresKnowledgeBundleStore,
+  PostgresRoomParticipantMembershipStore,
+  PostgresRoomExecutionSessionStore,
   PostgresRoomRepository,
   runMigrations,
-} from '@agentplat/rooms-postgres';
+} from "@agentplat/rooms-postgres";
 
 const pool = createPostgresPool();
 await runMigrations(pool, {
-  schema: 'agentplat_orders',
+  schema: "agentplat_orders",
   createSchema: false, // Prefer a DBA-created, role-owned schema.
 });
 
 const repository = new PostgresRoomRepository(pool, {
-  schema: 'agentplat_orders',
+  schema: "agentplat_orders",
 });
 // Inject repository into RoomService.
+
+const executionSessions = new PostgresRoomExecutionSessionStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const agentDefinitions = new PostgresAgentDefinitionRegistryStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const handoffs = new PostgresRoomHandoffStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const coordination = new PostgresAgentRoomCoordinationStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const humanContributions = new PostgresHumanContributionStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const knowledge = new PostgresKnowledgeBundleStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const plans = new PostgresAgentRoomPlanStore(pool, {
+  schema: "agentplat_orders",
+});
+
+const memberships = new PostgresRoomParticipantMembershipStore(pool, {
+  schema: "agentplat_orders",
+});
 
 await pool.end();
 ```
@@ -56,6 +96,9 @@ prefer a forward fix in production.
 The packaged SQL uses the explicit `__AGENTPLAT_SCHEMA__` token. Use the
 package runner to render it, or replace it with a quoted identifier when a
 separate migration orchestrator owns execution.
+
+For the capability-by-capability V1–V11 inventory, rollout order and rollback
+boundary, see the [Agent Room PostgreSQL migration guide](../../docs/agent-rooms-postgres-migration.md).
 
 ## Transaction model
 

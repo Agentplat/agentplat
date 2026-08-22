@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS deliveries_operational_outbox ON __AGENTPLAT_SCHEMA__.human_contribution_deliveries;
+DROP TRIGGER IF EXISTS contributions_operational_outbox ON __AGENTPLAT_SCHEMA__.human_contributions;
+DROP TRIGGER IF EXISTS memberships_operational_outbox ON __AGENTPLAT_SCHEMA__.room_participant_membership;
+DROP TRIGGER IF EXISTS plans_operational_outbox ON __AGENTPLAT_SCHEMA__.room_plans;
+DROP TRIGGER IF EXISTS handoffs_operational_outbox ON __AGENTPLAT_SCHEMA__.room_handoffs;
+DROP TRIGGER IF EXISTS execution_sessions_operational_outbox ON __AGENTPLAT_SCHEMA__.room_execution_sessions;
+DROP TRIGGER IF EXISTS coordination_operational_outbox ON __AGENTPLAT_SCHEMA__.room_coordination_state;
+DROP TRIGGER IF EXISTS events_operational_outbox ON __AGENTPLAT_SCHEMA__.events;
+DROP FUNCTION IF EXISTS __AGENTPLAT_SCHEMA__.agentplat_emit_room_operational_event();
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.agent_room_operational_events;

@@ -634,6 +634,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/model-openai-compatible`        | Dependency-light Chat Completions adapter for compatible servers.                                                          |
 | `@agentplat/rooms`                          | Agent Room domain, lifecycle, policy, context and repository contracts.                                                    |
 | `@agentplat/rooms-postgres`                 | Durable PostgreSQL repository, migrations and transactional events.                                                        |
+| `@agentplat/rooms-temporal`                 | Optional Temporal wakeup, activity retry and rollover adapter for durable Room coordination.                               |
 | `@agentplat/postgres`                       | Shared pool health, schema safety and versioned migration primitives.                                                      |
 | `@agentplat/audit-postgres`                 | PostgreSQL audit and Session event sinks without Agent Rooms.                                                              |
 | `@agentplat/rooms-api`                      | Injectable Hono REST API for the Agent Room lifecycle.                                                                     |
@@ -644,6 +645,7 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/streaming`                      | Versioned SSE server helpers, parser and thin browser subscription API.                                                    |
 | `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                                                              |
 | `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                                                                    |
+| `@agentplat/work-management-asana`          | OAuth-backed Asana projection for durable human contributions with external-identity recovery.                             |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                                                         |
 | `@agentplat/inference-control`              | Inference gates, heterogeneous assessor ensembles, context and role continuity.                                            |
 | `@agentplat/interop`                        | Versioned heterogeneous agent/environment adapters with governed lifecycle gating.                                         |

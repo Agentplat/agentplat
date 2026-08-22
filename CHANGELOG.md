@@ -2,6 +2,88 @@
 
 ## Unreleased
 
+- Added provider-neutral Agent Room message routing with deterministic explicit
+  participant references, an optional constrained router, a declared default
+  participant and an `AgentRoomCoordinator` that operates only on persisted
+  messages in active Rooms. Routing selects eligible participants but grants no
+  task, tool or effect authority.
+- Added backward-compatible cursor pagination for Agent Room events through
+  `RoomService.listEventPage` and the existing Rooms API event route.
+- Added opt-in revisioned Agent Room execution sessions with compare-and-set
+  persistence, idempotent human-in-the-loop run interventions, terminal run
+  reconciliation and same-task recovery bound to a failed predecessor.
+- Added leased intervention dispatch at `pre_step`, `post_output` and
+  `pre_action` checkpoints, stable retry idempotency, a cognitive Runtime V2
+  adapter with authority/role bindings, durable execution-session events, REST
+  commands and an optional versioned SSE event stream.
+- Added a tenant-scoped Agent Definition Registry with stable identities,
+  immutable content-addressed revisions, CAS lifecycle transitions across
+  `draft`, `published` and `deprecated`, execution-session binding, REST routes
+  and a PostgreSQL V3 persistence adapter.
+- Added durable AgentPlat Handoff for Agent Rooms with explicit target
+  acceptance, exact agent-revision bindings, bounded Room context, monotonic
+  authority, depth/cycle guards, target-run reconciliation, predecessor-bound
+  recovery, REST routes and a PostgreSQL V4 CAS store.
+- Added an opt-in durable Agent Room coordination loop with a revisioned inbox,
+  message routing, accepted-Handoff dispatch, stable operation IDs, bounded
+  worker leases, retry fencing, outcome reconciliation and a PostgreSQL V5 CAS
+  store.
+- Added the default Agent Room coordination execution adapter with
+  deterministic task identity, published revision selection, policy-checked
+  Room runs, pre-provider execution-session/Handoff binding, terminal
+  reconciliation and replay-safe reuse of completed tasks and runs.
+- Added provider-neutral Runtime checkpoints and checkpoint-aware Agent Room
+  execution across `pre_step`, `post_output` and provider-enforced
+  `pre_action`, including durable intervention draining and opt-in fail-closed
+  refusal of protected tasks on non-conforming providers.
+- Added durable human contribution requests with permissions, assignment,
+  dependencies, deadlines, structured completion, coordination resumption,
+  provider-neutral work-management delivery contracts and PostgreSQL V6
+  persistence.
+- Added the operational Work Management delivery runtime with idempotent
+  enqueue, leased CAS dispatch, provider lookup recovery, revision updates,
+  exponential backoff, attempt bounds, queue metrics, retry REST routes and a
+  deterministic local provider.
+- Added immutable content-addressed knowledge bundles, PostgreSQL V7
+  persistence and standard Agent Room tool bridges for revision-authorized
+  knowledge reads, scoped memory and versioned artifact emission with
+  provenance.
+- Expanded the PostgreSQL Agent Room reference application with an integrated
+  deterministic end-to-end scenario and a two-process expired-lease recovery
+  scenario that preserves stable coordination operation identity.
+- Added a unified Agent Room live view with a composite multi-source cursor and
+  SSE, plus durable classified/redacted coordination failures with bounded
+  exponential retry and stable operation identity.
+- Added typed Agent Room plan materialization with predecessor-bound replanning,
+  PostgreSQL V8 state, and revisioned participant membership with routing and
+  Handoff eligibility plus PostgreSQL V9 persistence.
+- Added the optional `@agentplat/rooms-temporal` workflow adapter and the real
+  OAuth-backed `@agentplat/work-management-asana` provider using Asana Custom
+  External Data for crash-safe stable identity lookup.
+- Connected persisted human and agent messages to the coordination inbox in
+  the same repository transaction, removing application-level manual enqueue
+  while retaining an explicit opt-in service boundary.
+- Added `AgentRoomCoordinationWorker` with Room-scoped discovery, bounded
+  concurrency, wakeup, lease heartbeat renewal, classified retries, metrics
+  and graceful drain, plus multiprocess recovery scenarios over PostgreSQL.
+- Bound Temporal activities to the canonical Agent Room coordination runtime
+  and durable store, with a real-server scenario covering signals, worker
+  restart and history rollover through `continueAsNew`.
+- Added typed tool-to-Handoff proposals and an idempotent operational projector
+  that coordinates accepted Handoffs while preserving Room and Handoff policy
+  authority.
+- Made Planner materialization progressive across dependency-complete agent
+  tasks, human contributions, approvals and Handoffs, with event-driven step
+  reconciliation and terminal completion or failure.
+- Added automatic Room-scoped discovery of execution sessions, Handoffs,
+  plans, human contributions, memberships and deliveries in AgentRoom LiveView
+  and SSE without requiring client-supplied projection identifiers.
+- Added PostgreSQL V10 transactional operational events across Room,
+  coordination, execution sessions, Handoffs, plans, memberships,
+  contributions and deliveries, plus V11 durable projection checkpoints.
+- Added the Agent Room operational-boundary ADR, the PostgreSQL V1–V11
+  migration guide and a final requirement-by-requirement evidence record.
+
 ## 0.3.0-beta.4 - 2026-08-17
 
 - Added the provider-neutral governed collective runtime facade, which composes

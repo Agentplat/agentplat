@@ -1,0 +1,6 @@
+DROP TRIGGER IF EXISTS agent_definition_revisions_immutable_delete ON __AGENTPLAT_SCHEMA__.agent_definition_revisions;
+DROP TRIGGER IF EXISTS agent_definition_revisions_immutable_update ON __AGENTPLAT_SCHEMA__.agent_definition_revisions;
+DROP FUNCTION IF EXISTS __AGENTPLAT_SCHEMA__.agentplat_prevent_agent_revision_mutation();
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.agent_revision_lifecycle;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.agent_definition_revisions;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.registered_agents;

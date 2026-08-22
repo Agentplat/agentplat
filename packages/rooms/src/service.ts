@@ -1,8 +1,14 @@
 import { AgentPlatError } from '@agentplat/core';
 import type { AgentPlatID, JsonObject, JsonValue } from '@agentplat/core';
 import type { EventPublisher } from '@agentplat/events';
-import type { AgentRuntime } from '@agentplat/runtime';
+import type {
+  AgentRuntime,
+  RuntimeCheckpoint,
+  RuntimeCheckpointDecision,
+} from '@agentplat/runtime';
 import { BoundedContextBuilder } from './context.js';
+import { roomEventPage } from './event-page.js';
+import type { RoomEventPage, RoomEventPageInput } from './event-page.js';
 import type {
   ActionLevel,
   Approval,
@@ -28,6 +34,7 @@ import type {
   RoomRepository,
   RoomRepositoryTransaction,
 } from './repository.js';
+import type { AgentRoomCoordinationState } from './coordination-runtime.js';
 import type {
   PromoteSessionToRoomInput,
   SessionRoomPromotion,
@@ -57,6 +64,11 @@ export interface RoomServiceOptions {
   clock?: () => Date;
   /** Runtime timeout and recovery lease. Defaults to five minutes. */
   runTimeoutMs?: number;
+  /** Opt-in fail-closed enforcement for tools and external writes. */
+  requireProtectedActionCheckpoints?: boolean;
+  automaticCoordination?: {
+    coordinationId?(input: { tenantId: string; roomId: string }): string;
+  };
   onEventPublishError?: (error: unknown, event: DomainEvent) => void;
 }
 
@@ -96,6 +108,23 @@ export interface CreateTaskInput {
   approvalRequired?: boolean;
   toolIds?: string[];
   metadata?: RoomTask['metadata'];
+}
+
+/** Durable-start and governed-checkpoint callbacks for one Room task run. */
+export interface RunTaskHooks {
+  onStarted?(input: {
+    run: RoomRun;
+    task: RoomTask;
+    participant: Participant;
+    contextSnapshotId: AgentPlatID;
+  }): Promise<void>;
+  onCheckpoint?(input: {
+    checkpoint: RuntimeCheckpoint;
+    run: RoomRun;
+    task: RoomTask;
+    participant: Participant;
+    payload?: JsonObject;
+  }): Promise<RuntimeCheckpointDecision>;
 }
 
 export interface CreateArtifactInput {
@@ -150,6 +179,8 @@ export class RoomService {
   private readonly clock: () => Date;
   private readonly runTimeoutMs: number;
   private readonly runLeaseGraceMs: number;
+  private readonly requireProtectedActionCheckpoints: boolean;
+  private readonly automaticCoordination?: RoomServiceOptions['automaticCoordination'];
   private readonly onEventPublishError: (
     error: unknown,
     event: DomainEvent
@@ -167,6 +198,9 @@ export class RoomService {
       options.contextBuilder ??
       new BoundedContextBuilder({ clock: this.clock });
     this.runTimeoutMs = options.runTimeoutMs ?? 300_000;
+    this.requireProtectedActionCheckpoints =
+      options.requireProtectedActionCheckpoints ?? false;
+    this.automaticCoordination = options.automaticCoordination;
     if (!Number.isInteger(this.runTimeoutMs) || this.runTimeoutMs <= 0) {
       throw new AgentPlatError(
         'VALIDATION_ERROR',
@@ -723,6 +757,12 @@ export class RoomService {
       );
       await transaction.insertMessage(message);
       await transaction.appendEvent(event);
+      if (
+        this.automaticCoordination &&
+        (message.role === 'human' || message.role === 'agent')
+      ) {
+        await this.enqueueMessageForCoordination(transaction, message);
+      }
       return { value: message, events: [event] };
     });
   }
@@ -836,7 +876,8 @@ export class RoomService {
   async runTask(
     tenantId: string,
     roomId: string,
-    taskId: string
+    taskId: string,
+    hooks: RunTaskHooks = {}
   ): Promise<RoomRun> {
     if (!this.runtime) {
       throw new AgentPlatError(
@@ -1040,6 +1081,46 @@ export class RoomService {
     const startedMs = this.clock().getTime();
     const abortController = new AbortController();
     try {
+      const protectedAction =
+        task.actionLevel === 'external_write' || task.toolIds.length > 0;
+      if (
+        this.requireProtectedActionCheckpoints &&
+        protectedAction &&
+        this.runtime.supportsCheckpoint?.(
+          participant.runtime?.platform ?? 'mock',
+          'pre_action'
+        ) !== true
+      ) {
+        throw new AgentPlatError(
+          'FORBIDDEN',
+          'Protected Room task requires a pre_action checkpoint-capable Runtime'
+        );
+      }
+      let preActionObserved = false;
+      const checkpoint = async (
+        checkpointName: RuntimeCheckpoint,
+        payload?: JsonObject
+      ): Promise<RuntimeCheckpointDecision> => {
+        if (checkpointName === 'pre_action') preActionObserved = true;
+        const decision = (await hooks.onCheckpoint?.({
+          checkpoint: checkpointName,
+          run: running,
+          task,
+          participant,
+          payload,
+        })) ?? { allowed: true as const };
+        if (!decision.allowed) {
+          throw new AgentPlatError('FORBIDDEN', decision.reason);
+        }
+        return decision;
+      };
+      await hooks.onStarted?.({
+        run: running,
+        task,
+        participant,
+        contextSnapshotId: snapshotId,
+      });
+      await checkpoint('pre_step');
       const runtimeResult = await this.withTimeout(
         this.runtime.run(
           {
@@ -1067,6 +1148,8 @@ export class RoomService {
             signal: abortController.signal,
             policies: this.toJson({ policies }),
             metadata: { roomId, taskId, contextSnapshotId: snapshotId },
+            checkpoint: (request) =>
+              checkpoint(request.checkpoint, request.payload),
           }
         ),
         this.runTimeoutMs,
@@ -1078,6 +1161,20 @@ export class RoomService {
           runtimeResult.errorMessage ?? 'Agent runtime did not complete'
         );
       }
+      if (
+        this.requireProtectedActionCheckpoints &&
+        protectedAction &&
+        !preActionObserved
+      ) {
+        throw new AgentPlatError(
+          'ADAPTER_ERROR',
+          'Runtime completed protected work without invoking pre_action'
+        );
+      }
+      await checkpoint('post_output', {
+        output: runtimeResult.output ?? null,
+        result: runtimeResult.result ?? null,
+      });
       const completedAt = this.now();
       const latencyMs = Math.max(0, this.clock().getTime() - startedMs);
       const artifactOutput = this.parseArtifactOutput(
@@ -1769,6 +1866,18 @@ export class RoomService {
     return this.repository.listEvents(tenantId, roomId);
   }
 
+  async listEventPage(
+    tenantId: string,
+    roomId: string,
+    input: RoomEventPageInput = {}
+  ): Promise<RoomEventPage> {
+    return roomEventPage(
+      roomId,
+      await this.listEvents(tenantId, roomId),
+      input
+    );
+  }
+
   private async mutate<T>(
     tenantId: string,
     work: (transaction: RoomRepositoryTransaction) => Promise<MutationResult<T>>
@@ -1777,6 +1886,70 @@ export class RoomService {
     const result = await this.repository.transaction(tenantId, work);
     await this.publish(result.events);
     return result.value;
+  }
+
+  private async enqueueMessageForCoordination(
+    transaction: RoomRepositoryTransaction,
+    message: RoomMessage
+  ) {
+    if (
+      !transaction.getAgentRoomCoordinationState ||
+      !transaction.saveAgentRoomCoordinationState
+    ) {
+      throw new AgentPlatError(
+        'ADAPTER_ERROR',
+        'Automatic coordination requires repository transaction support'
+      );
+    }
+    const coordinationId =
+      this.automaticCoordination?.coordinationId?.({
+        tenantId: message.tenantId,
+        roomId: message.roomId,
+      }) ?? `room:${message.roomId}`;
+    const current = await transaction.getAgentRoomCoordinationState(
+      message.tenantId,
+      message.roomId,
+      coordinationId
+    );
+    const now = message.createdAt;
+    const item = {
+      itemId: `message:${message.id}`,
+      kind: 'message' as const,
+      referenceId: message.id,
+      status: 'pending' as const,
+      operationId: `${coordinationId}:message:message:${message.id}`,
+      attempts: 0,
+      runIds: [],
+    };
+    const next: AgentRoomCoordinationState = current
+      ? {
+          ...current,
+          revision: current.revision + 1,
+          status: 'idle',
+          items: [...current.items, item],
+          updatedAt: now,
+        }
+      : {
+          tenantId: message.tenantId,
+          roomId: message.roomId,
+          coordinationId,
+          revision: 0,
+          status: 'idle',
+          items: [item],
+          createdAt: now,
+          updatedAt: now,
+        };
+    if (
+      !(await transaction.saveAgentRoomCoordinationState(
+        next,
+        current?.revision ?? null
+      ))
+    ) {
+      throw new AgentPlatError(
+        'CONFLICT',
+        'Automatic coordination inbox changed concurrently'
+      );
+    }
   }
 
   private async publish(events: DomainEvent[]): Promise<void> {

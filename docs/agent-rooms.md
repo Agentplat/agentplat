@@ -19,6 +19,48 @@ The public framework is self-contained: a company can clone this repository, run
 
 The Room service also composes the existing runtime, event, tool, MCP and memory contracts. Applications can use the included local adapters or supply their own implementations.
 
+Optional message routing resolves explicit participant references first, then
+an injected provider-neutral router, then a declared default participant. The
+router can select only from eligible agent participants and never grants task,
+tool or effect authority. Applications may use `AgentRoomCoordinator` to bind
+this routing decision to a persisted message in an active Agent Room.
+
+For long-running work, the optional `RoomExecutionCoordinator` binds a
+revisioned execution session to one active `RoomRun`. Human participants can
+request idempotent interventions that an execution adapter later applies or
+rejects at its supported checkpoints. Compare-and-set revisions prevent lost
+updates, while predecessor-bound recovery preserves the original Room task.
+
+The provider-neutral intervention dispatcher claims pending work under a
+bounded lease and delivers it only at the requested Runtime checkpoint.
+Delivery through the cognitive Runtime binds the operation to current session,
+authority and role revisions; conflicting workers fail the execution-session
+CAS. REST event reads and an optional versioned SSE stream expose the durable
+transition history to applications.
+
+The optional agent-definition registry separates stable agent identity from
+immutable content-addressed revisions and a revision-checked lifecycle. An
+execution session configured with the registry accepts only a published
+revision whose agent identity and Runtime profile match the assigned Room
+participant, then preserves the exact revision ID and digest for replay.
+
+AgentPlat Handoff provides a bounded, attributable transfer between Room agent
+participants. It binds source and target runs, exact agent revisions,
+Room-scoped context references and a non-expanding authority ceiling. Explicit
+target acceptance, revision fencing, depth/cycle guards and predecessor-bound
+recovery keep delegation separate from unrestricted conversation forwarding.
+
+The optional coordination runtime connects persisted messages and accepted
+Handoffs to application execution through a revisioned inbox. Stable operation
+IDs, bounded leases and CAS fencing support retry and restart recovery without
+making a workflow engine part of the Agent Room domain.
+
+The default coordination execution adapter turns stable coordination
+operations into deterministic Room tasks and policy-checked runs. It fixes the
+published agent revision, opens the execution session after durable run claim
+but before provider dispatch, and reconciles execution and Handoff state when
+the run terminates.
+
 ## Run the reference platform
 
 The [`examples/rooms-api`](../examples/rooms-api/README.md) application wires PostgreSQL, `RoomService`, the Hono API, an in-process event bus and the mock runtime. Docker Compose runs the migration before accepting API traffic.
@@ -58,6 +100,46 @@ That header assumes a trusted caller and is intended for local development or a 
 - The mock runtime is deterministic and performs no model or external network calls.
 
 ## Replace adapters
+
+Checkpoint-aware Room execution intercepts `pre_step`, `post_output` and
+provider-enforced `pre_action` boundaries. Durable human interventions are
+applied through the execution session before continuation. Protected tasks
+can be configured to fail before provider invocation when the provider cannot
+enforce `pre_action`; the opt-in preserves existing release-line defaults.
+
+Human contribution requests represent durable human work rather than
+authorization. They support assignment, dependencies, deadlines, structured
+results and Room artifact references. Completion can requeue coordination that
+was waiting for human input; external work-management systems remain optional
+projections behind provider-neutral adapters.
+
+The delivery runtime provides a durable external projection with stable
+idempotency keys, lookup-based crash reconciliation, leases, backoff and queue
+metrics. External completion never grants authority or completes the AgentPlat
+human contribution automatically.
+
+Versioned knowledge bundles provide content-addressed, tenant-scoped documents
+bound to published agent revisions. Standard Room tool bridges expose only
+authorized bundle references and persist memory/artifact outputs through the
+existing Agent Room domain with provenance.
+
+The unified live view exposes coordination, active runs, execution sessions,
+Handoffs, human contributions, deliveries and events through a composite
+cursor and optional SSE. Coordination failures are durable, categorized,
+redacted and retried only when their category and attempt budget permit it.
+
+Typed plans materialize agent tasks, human contributions, approvals and
+Handoffs with deterministic identities and predecessor-bound replanning.
+Materialization is progressive: a step is created only after every declared
+dependency reaches `completed`, and Room events reconcile step and terminal
+plan status before unlocking the next steps.
+Revisioned participant membership controls routing, Handoff acceptance and
+allowed agent revisions without rewriting historical Room participation.
+
+The cross-package authority and persistence boundaries are recorded in
+[ADR 0043](./adr/0043-agent-room-operational-coordination-boundaries.md).
+Applications upgrading an existing PostgreSQL deployment should follow the
+[V1–V11 migration guide](./agent-rooms-postgres-migration.md).
 
 The reference assembly in [`examples/rooms-api/src/index.mjs`](../examples/rooms-api/src/index.mjs) is deliberately explicit. A downstream platform can:
 
