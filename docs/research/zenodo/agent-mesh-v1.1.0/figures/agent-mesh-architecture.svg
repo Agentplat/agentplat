@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="720" viewBox="0 0 1400 720">
+  <defs>
+    <style>
+      .title{font-family:Arial,sans-serif;font-size:30px;font-weight:700;fill:#17202a}.label{font-family:Arial,sans-serif;font-size:22px;font-weight:700;fill:#17202a}.body{font-family:Arial,sans-serif;font-size:18px;fill:#303b47}.small{font-family:Arial,sans-serif;font-size:16px;fill:#4b5866}.box{rx:18;stroke-width:3}.arrow{stroke:#456b8a;stroke-width:4;fill:none;marker-end:url(#m)}
+    </style>
+    <marker id="m" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#456b8a"/></marker>
+  </defs>
+  <rect width="1400" height="720" fill="#ffffff"/>
+  <text x="700" y="45" text-anchor="middle" class="title">Reference-composed Agent Mesh stack</text>
+  <rect x="75" y="90" width="1250" height="105" class="box" fill="#eef5fa" stroke="#2e74b5"/>
+  <text x="700" y="130" text-anchor="middle" class="label">Agent / model / deterministic runtime</text>
+  <text x="700" y="165" text-anchor="middle" class="body">Produces observations, proposals, plans, messages, and candidate actions</text>
+  <path d="M700 195 L700 235" class="arrow"/>
+  <text x="700" y="222" text-anchor="middle" class="label" fill="#456b8a">↓</text>
+  <rect x="75" y="235" width="1250" height="155" class="box" fill="#dcecf7" stroke="#1f4d78"/>
+  <text x="700" y="275" text-anchor="middle" class="label">Agent Mesh coordination substrate</text>
+  <text x="700" y="312" text-anchor="middle" class="body">Identity · membership · sparse peer views · causal records · allocation</text>
+  <text x="700" y="345" text-anchor="middle" class="body">agreement · leases · epochs · fencing · recovery</text>
+  <text x="700" y="375" text-anchor="middle" class="small">Produces bounded coordination state — not permission to affect external systems</text>
+  <path d="M700 390 L700 430" class="arrow"/>
+  <text x="700" y="418" text-anchor="middle" class="label" fill="#456b8a">↓</text>
+  <rect x="75" y="430" width="380" height="135" class="box" fill="#f4f6f9" stroke="#7b8794"/>
+  <text x="265" y="470" text-anchor="middle" class="label">Trust &amp; evidence</text>
+  <text x="265" y="505" text-anchor="middle" class="body">Provenance, attestations,</text>
+  <text x="265" y="535" text-anchor="middle" class="body">eligibility, quarantine</text>
+  <rect x="510" y="430" width="380" height="135" class="box" fill="#f4f6f9" stroke="#7b8794"/>
+  <text x="700" y="470" text-anchor="middle" class="label">Governed runtime &amp; local control</text>
+  <text x="700" y="505" text-anchor="middle" class="body">Partition · topology · strategy · approval</text>
+  <text x="700" y="535" text-anchor="middle" class="body">Inference · effect · forensics</text>
+  <rect x="945" y="430" width="380" height="135" class="box" fill="#f4f6f9" stroke="#7b8794"/>
+  <text x="1135" y="470" text-anchor="middle" class="label">Interop &amp; assurance</text>
+  <text x="1135" y="505" text-anchor="middle" class="body">Adapters, receipts, audit,</text>
+  <text x="1135" y="535" text-anchor="middle" class="body">replay, invariant checks</text>
+  <path d="M265 565 L520 615" class="arrow"/><path d="M700 565 L700 610" class="arrow"/><path d="M1135 565 L880 615" class="arrow"/>
+  <text x="470" y="598" text-anchor="middle" class="label" fill="#456b8a">↘</text><text x="700" y="598" text-anchor="middle" class="label" fill="#456b8a">↓</text><text x="930" y="598" text-anchor="middle" class="label" fill="#456b8a">↙</text>
+  <rect x="430" y="610" width="540" height="85" class="box" fill="#e5f4ea" stroke="#2d7d46"/>
+  <text x="700" y="647" text-anchor="middle" class="label">Action Gateway + effect sink</text>
+  <text x="700" y="678" text-anchor="middle" class="body">Re-resolve current authority; admit one exact protected effect</text>
+</svg>

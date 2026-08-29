@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="640" viewBox="0 0 1500 640">
+  <defs><style>.title{font-family:Arial,sans-serif;font-size:30px;font-weight:700;fill:#17202a}.label{font-family:Arial,sans-serif;font-size:19px;font-weight:700;fill:#17202a}.body{font-family:Arial,sans-serif;font-size:16px;fill:#3f4b57}.box{rx:16;stroke-width:3}.arrow{stroke:#456b8a;stroke-width:4;fill:none;marker-end:url(#a)}.deny{stroke:#a23b3b;stroke-width:4;fill:none;marker-end:url(#d)}</style><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#456b8a"/></marker><marker id="d" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#a23b3b"/></marker></defs>
+  <rect width="1500" height="640" fill="white"/><text x="750" y="45" text-anchor="middle" class="title">From information to an authorized protected effect</text>
+  <g transform="translate(45 110)"><rect width="230" height="110" class="box" fill="#eef5fa" stroke="#2e74b5"/><text x="115" y="42" text-anchor="middle" class="label">Admitted evidence</text><text x="115" y="75" text-anchor="middle" class="body">Claims · attestations</text></g>
+  <path d="M275 165 L335 165" class="arrow"/>
+  <text x="305" y="175" text-anchor="middle" class="label" fill="#456b8a">→</text>
+  <g transform="translate(335 110)"><rect width="230" height="110" class="box" fill="#eef5fa" stroke="#2e74b5"/><text x="115" y="42" text-anchor="middle" class="label">Planning</text><text x="115" y="75" text-anchor="middle" class="body">Fragments · eligibility</text></g>
+  <path d="M565 165 L625 165" class="arrow"/>
+  <text x="595" y="175" text-anchor="middle" class="label" fill="#456b8a">→</text>
+  <g transform="translate(625 110)"><rect width="230" height="110" class="box" fill="#eef5fa" stroke="#2e74b5"/><text x="115" y="42" text-anchor="middle" class="label">Coordination</text><text x="115" y="75" text-anchor="middle" class="body">Award · Team · finality</text></g>
+  <path d="M855 165 L915 165" class="arrow"/>
+  <text x="885" y="175" text-anchor="middle" class="label" fill="#456b8a">→</text>
+  <g transform="translate(915 110)"><rect width="230" height="110" class="box" fill="#fff5df" stroke="#b57a15"/><text x="115" y="42" text-anchor="middle" class="label">Candidate action</text><text x="115" y="75" text-anchor="middle" class="body">Exact type + parameters</text></g>
+  <path d="M1145 165 L1205 165" class="arrow"/>
+  <text x="1175" y="175" text-anchor="middle" class="label" fill="#456b8a">→</text>
+  <g transform="translate(1205 95)"><rect width="250" height="140" class="box" fill="#e5f4ea" stroke="#2d7d46"/><text x="125" y="38" text-anchor="middle" class="label">Action Gateway</text><text x="125" y="70" text-anchor="middle" class="body">Re-resolve membership,</text><text x="125" y="94" text-anchor="middle" class="body">policy, grant, epoch,</text><text x="125" y="118" text-anchor="middle" class="body">fence, semantics, replay</text></g>
+  <path d="M1330 235 L1330 300" class="arrow"/><rect x="1205" y="300" width="250" height="95" class="box" fill="#dff1e5" stroke="#2d7d46"/><text x="1330" y="342" text-anchor="middle" class="label">Effect sink</text><text x="1330" y="372" text-anchor="middle" class="body">Atomic fence + idempotency</text>
+  <text x="1330" y="275" text-anchor="middle" class="label" fill="#456b8a">↓</text>
+  <path d="M1205 205 C1050 275 980 330 900 420" class="deny"/><rect x="650" y="410" width="320" height="100" class="box" fill="#fae6e6" stroke="#a23b3b"/><text x="810" y="450" text-anchor="middle" class="label">Deny / replan / safe stop</text><text x="810" y="480" text-anchor="middle" class="body">Any required authority is absent or stale</text>
+  <text x="1045" y="325" text-anchor="middle" class="label" fill="#a23b3b">↙</text>
+  <rect x="55" y="300" width="1010" height="100" rx="16" fill="#f4f6f9" stroke="#7b8794" stroke-width="2"/><text x="560" y="340" text-anchor="middle" class="label">Non-authoritative zone</text><text x="560" y="372" text-anchor="middle" class="body">Valid information can influence a decision, but cannot dispatch an external effect</text>
+  <text x="750" y="585" text-anchor="middle" class="body">Invariant: no arrow runs directly from evidence, planning, or coordination to the effect sink.</text>
+</svg>
