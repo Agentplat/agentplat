@@ -19,6 +19,7 @@ operational schema. Migrations are additive and must be applied in order by
 | 009     | Participant membership    | Routing and Handoff eligibility plus allowed agent revisions                                      |
 | 010     | Operational stream        | Transactional Room-scoped transition stream                                                       |
 | 011     | Projection checkpoints    | Durable projector high-water positions                                                            |
+| 012     | Approval expiry/events    | Terminal approval deadlines and full bounded Room-event payloads in the operational stream        |
 
 ## Before upgrading
 
@@ -45,7 +46,7 @@ underlying failure.
 
 ## Application rollout
 
-1. Deploy the coordinated package version after migration 011 is present.
+1. Deploy the coordinated package version after migration 012 is present.
 2. Start only one worker cohort for each coordination scope during the rollout;
    revision fencing still prevents stale workers from committing.
 3. Confirm that new messages produce both a Room domain event and coordination

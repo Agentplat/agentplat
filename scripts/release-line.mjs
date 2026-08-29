@@ -45,6 +45,12 @@ export const RELEASE_LINES = Object.freeze([
     releaseVersion: "0.3.0-beta.5",
     trustPackageCount: 1,
   }),
+  Object.freeze({
+    catalogPackageCount: 62,
+    id: "beta6",
+    releaseVersion: "0.3.0-beta.6",
+    trustPackageCount: 1,
+  }),
 ]);
 
 /**
@@ -70,7 +76,7 @@ export async function assertReleaseLine({
 
   assert.ok(
     line,
-    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, or 56 Beta 5 packages with it exactly once`,
+    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, or 62 Beta 6 packages with it exactly once`,
   );
 
   const resolvedRootManifest =

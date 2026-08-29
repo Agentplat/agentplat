@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "sourceRules": [
+    {
+      "id": "workflows-portable-root",
+      "paths": ["packages/workflows/src"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "autonomy-portable-core",
+      "paths": [
+        "packages/autonomy/src/canonical.ts",
+        "packages/autonomy/src/contracts.ts",
+        "packages/autonomy/src/runtime.ts",
+        "packages/autonomy/src/sha256.ts"
+      ],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/collective-control",
+        "@agentplat/inference-control",
+        "@agentplat/rooms",
+        "@agentplat/workflows",
+        "@agentplat/postgres",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "autonomy-actions-boundary",
+      "paths": ["packages/autonomy/src/actions.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/workflows",
+        "@agentplat/postgres",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "autonomy-workflow-evidence-boundary",
+      "paths": ["packages/autonomy/src/workflows.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    }
+  ],
+  "portableManifests": [
+    {
+      "package": "@agentplat/workflows",
+      "forbiddenDependencies": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@temporalio/",
+        "pg",
+        "hono"
+      ]
+    }
+  ],
+  "terminology": {
+    "paths": [
+      "packages/workflows/src",
+      "packages/workflows/tests",
+      "packages/autonomy/src",
+      "packages/autonomy/tests",
+      "packages/workflows-rooms/src",
+      "packages/workflows-rooms/tests"
+    ],
+    "terms": [
+      "cadence",
+      "crm",
+      "hubspot",
+      "lead",
+      "opportunity",
+      "prospect",
+      "salesforce"
+    ]
+  },
+  "adapterAdmissions": [
+    {
+      "package": "@agentplat/autonomy-postgres",
+      "portPackage": "@agentplat/autonomy",
+      "providerSpecific": false,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    },
+    {
+      "package": "@agentplat/work-management-asana",
+      "portPackage": "@agentplat/rooms",
+      "providerSpecific": true,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    },
+    {
+      "package": "@agentplat/workflows-postgres",
+      "portPackage": "@agentplat/workflows",
+      "providerSpecific": false,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    },
+    {
+      "package": "@agentplat/workflows-rooms",
+      "portPackage": "@agentplat/workflows",
+      "providerSpecific": false,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    },
+    {
+      "package": "@agentplat/workflows-temporal",
+      "portPackage": "@agentplat/workflows",
+      "providerSpecific": true,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    }
+  ]
+}

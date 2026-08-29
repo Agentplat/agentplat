@@ -29,6 +29,24 @@
       "packSmoke": true
     },
     {
+      "name": "@agentplat/autonomy",
+      "directory": "packages/autonomy",
+      "layer": "foundation",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [".", "./actions", "./workflows"],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/autonomy-postgres",
+      "directory": "packages/autonomy-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/collective-control",
       "directory": "packages/collective-control",
       "layer": "collaboration",
@@ -604,7 +622,43 @@
       "layer": "foundation",
       "publish": true,
       "providerNeutral": true,
-      "browserEntrypoints": ["."],
+      "browserEntrypoints": [".", "./outcomes"],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/workflows-conformance",
+      "directory": "packages/workflows-conformance",
+      "layer": "testing",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/workflows-postgres",
+      "directory": "packages/workflows-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/workflows-rooms",
+      "directory": "packages/workflows-rooms",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/workflows-temporal",
+      "directory": "packages/workflows-temporal",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": false,
+      "browserEntrypoints": [],
       "packSmoke": true
     }
   ]

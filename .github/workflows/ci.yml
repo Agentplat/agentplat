@@ -26,6 +26,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      temporal:
+        image: temporalio/auto-setup:1.31.2
+        env:
+          DB: postgres12
+          DB_PORT: "5432"
+          POSTGRES_SEEDS: postgres
+          POSTGRES_USER: agentplat_test
+          POSTGRES_PWD: agentplat_test
+        ports:
+          - 7233:7233
+        options: >-
+          --health-cmd "temporal operator cluster health --address 127.0.0.1:7233"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -96,6 +111,25 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - run: pnpm --filter @agentplat/workflows-postgres test
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
+      - run: pnpm --filter @agentplat/autonomy-postgres test
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
+      - run: pnpm --filter @agentplat/workflows-temporal test:real
+        env:
+          TEMPORAL_ADDRESS: 127.0.0.1:7233
 
   node22-npm-consumer:
     runs-on: ubuntu-latest

@@ -57,6 +57,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/audit",
   "@agentplat/audit-postgres",
   "@agentplat/auth",
+  "@agentplat/autonomy",
+  "@agentplat/autonomy-postgres",
   "@agentplat/collective-control",
   "@agentplat/collective-control-postgres",
   "@agentplat/collective-host",
@@ -110,6 +112,10 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/trust",
   "@agentplat/work-management-asana",
   "@agentplat/workflows",
+  "@agentplat/workflows-conformance",
+  "@agentplat/workflows-postgres",
+  "@agentplat/workflows-rooms",
+  "@agentplat/workflows-temporal",
 ]);
 
 export const REGISTRY_CONSUMER_SCRIPTS = Object.freeze([

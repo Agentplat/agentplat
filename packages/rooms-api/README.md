@@ -51,6 +51,7 @@ deployment.
 - `POST /rooms/:roomId/artifacts/:artifactId/versions`
 - `POST /rooms/:roomId/approvals`
 - `POST /approvals/:approvalId/approve|reject|request-revision`
+- `POST /approvals/:approvalId/expire` (authorized machine/system actor only)
 - `GET /rooms/:roomId/events` (optional `cursor` and `limit` for bounded pages)
 
 When an optional `RoomExecutionCoordinator` is injected:

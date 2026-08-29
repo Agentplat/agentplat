@@ -5,21 +5,21 @@ import type {
   JsonValue,
   Metadata,
   TenantScoped,
-} from '@agentplat/core';
-import type { AgentPlatEvent } from '@agentplat/events';
+} from "@agentplat/core";
+import type { AgentPlatEvent } from "@agentplat/events";
 
-export type RoomStatus = 'active' | 'paused' | 'completed' | 'archived';
-export type ParticipantType = 'human' | 'agent';
+export type RoomStatus = "active" | "paused" | "completed" | "archived";
+export type ParticipantType = "human" | "agent";
 export type MemoryScope =
-  'ephemeral' | 'agent' | 'role' | 'room' | 'artifact' | 'organization';
+  "ephemeral" | "agent" | "role" | "room" | "artifact" | "organization";
 export type TaskStatus =
-  'pending' | 'running' | 'completed' | 'failed' | 'canceled';
-export type ActionLevel = 'read' | 'draft' | 'execute' | 'external_write';
+  "pending" | "running" | "completed" | "failed" | "canceled";
+export type ActionLevel = "read" | "draft" | "execute" | "external_write";
 export type ArtifactStatus =
-  'draft' | 'pending_approval' | 'approved' | 'rejected' | 'needs_revision';
+  "draft" | "pending_approval" | "approved" | "rejected" | "needs_revision";
 export type ApprovalStatus =
-  'requested' | 'approved' | 'rejected' | 'needs_revision';
-export type RunStatus = 'running' | 'completed' | 'failed' | 'canceled';
+  "requested" | "approved" | "rejected" | "needs_revision" | "expired";
+export type RunStatus = "running" | "completed" | "failed" | "canceled";
 
 export interface Room extends TenantScoped {
   id: AgentPlatID;
@@ -65,7 +65,7 @@ export interface RoomMessage extends TenantScoped {
   id: AgentPlatID;
   roomId: AgentPlatID;
   authorParticipantId?: AgentPlatID;
-  role: 'human' | 'agent' | 'system' | 'tool';
+  role: "human" | "agent" | "system" | "tool";
   content: string;
   metadata?: Metadata;
   createdAt: ISODateTime;
@@ -129,7 +129,7 @@ export interface ArtifactVersion extends TenantScoped {
 export interface Approval extends TenantScoped {
   id: AgentPlatID;
   roomId: AgentPlatID;
-  targetType: 'room' | 'task' | 'artifact' | 'action';
+  targetType: "room" | "task" | "artifact" | "action";
   targetId: AgentPlatID;
   /** Artifact version reviewed by this approval; undefined for other targets. */
   targetVersion?: number;
@@ -138,6 +138,9 @@ export interface Approval extends TenantScoped {
   requestedBy?: AgentPlatID;
   decidedBy?: AgentPlatID;
   comment?: string;
+  expiresAt?: ISODateTime;
+  expiredBy?: AgentPlatID;
+  expiredAt?: ISODateTime;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   decidedAt?: ISODateTime;
@@ -165,7 +168,7 @@ export interface MemoryEntry extends TenantScoped {
   content: JsonValue;
   source: string;
   confidence: number;
-  retention: 'transient' | 'session' | 'durable' | 'until';
+  retention: "transient" | "session" | "durable" | "until";
   retainUntil?: ISODateTime;
   provenance: JsonObject;
   createdAt: ISODateTime;
@@ -234,35 +237,36 @@ export interface ToolCall extends TenantScoped {
   toolId: string;
   input: JsonObject;
   output?: JsonValue;
-  status: 'requested' | 'completed' | 'failed' | 'denied';
+  status: "requested" | "completed" | "failed" | "denied";
   latencyMs?: number;
   createdAt: ISODateTime;
   completedAt?: ISODateTime;
 }
 
 export type RoomEventType =
-  | 'room_created'
-  | 'room_updated'
-  | 'room_paused'
-  | 'room_resumed'
-  | 'participant_added'
-  | 'message_created'
-  | 'task_created'
-  | 'task_assigned'
-  | 'task_run_started'
-  | 'task_run_completed'
-  | 'task_run_failed'
-  | 'artifact_created'
-  | 'artifact_updated'
-  | 'approval_requested'
-  | 'approval_granted'
-  | 'approval_rejected'
-  | 'approval_needs_revision'
-  | 'memory_written'
-  | 'policy_created'
-  | 'subroom_created'
-  | 'room_completed'
-  | 'room_archived';
+  | "room_created"
+  | "room_updated"
+  | "room_paused"
+  | "room_resumed"
+  | "participant_added"
+  | "message_created"
+  | "task_created"
+  | "task_assigned"
+  | "task_run_started"
+  | "task_run_completed"
+  | "task_run_failed"
+  | "artifact_created"
+  | "artifact_updated"
+  | "approval_requested"
+  | "approval_granted"
+  | "approval_rejected"
+  | "approval_needs_revision"
+  | "approval_expired"
+  | "memory_written"
+  | "policy_created"
+  | "subroom_created"
+  | "room_completed"
+  | "room_archived";
 
 export interface DomainEvent extends AgentPlatEvent {
   type: RoomEventType;

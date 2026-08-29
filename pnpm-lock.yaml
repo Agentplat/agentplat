@@ -13,6 +13,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      eslint-scope:
+        specifier: ^5.1.1
+        version: 5.1.1
     devDependencies:
       '@agentplat/audit':
         specifier: workspace:*
@@ -23,6 +27,12 @@ importers:
       '@agentplat/auth':
         specifier: workspace:*
         version: link:packages/auth
+      '@agentplat/autonomy':
+        specifier: workspace:*
+        version: link:packages/autonomy
+      '@agentplat/autonomy-postgres':
+        specifier: workspace:*
+        version: link:packages/autonomy-postgres
       '@agentplat/collective-control':
         specifier: workspace:*
         version: link:packages/collective-control
@@ -167,6 +177,18 @@ importers:
       '@agentplat/workflows':
         specifier: workspace:*
         version: link:packages/workflows
+      '@agentplat/workflows-conformance':
+        specifier: workspace:*
+        version: link:packages/workflows-conformance
+      '@agentplat/workflows-postgres':
+        specifier: workspace:*
+        version: link:packages/workflows-postgres
+      '@agentplat/workflows-rooms':
+        specifier: workspace:*
+        version: link:packages/workflows-rooms
+      '@agentplat/workflows-temporal':
+        specifier: workspace:*
+        version: link:packages/workflows-temporal
       pg:
         specifier: ^8.13.1
         version: 8.22.0
@@ -219,6 +241,39 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+
+  packages/autonomy:
+    dependencies:
+      '@agentplat/collective-control':
+        specifier: workspace:^
+        version: link:../collective-control
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/inference-control':
+        specifier: workspace:^
+        version: link:../inference-control
+      '@agentplat/workflows':
+        specifier: workspace:^
+        version: link:../workflows
+
+  packages/autonomy-postgres:
+    dependencies:
+      '@agentplat/autonomy':
+        specifier: workspace:^
+        version: link:../autonomy
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
 
   packages/collective-control:
     dependencies:
@@ -1047,6 +1102,74 @@ importers:
       '@agentplat/core':
         specifier: workspace:^
         version: link:../core
+
+  packages/workflows-conformance:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/workflows':
+        specifier: workspace:^
+        version: link:../workflows
+
+  packages/workflows-postgres:
+    dependencies:
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      '@agentplat/workflows':
+        specifier: workspace:^
+        version: link:../workflows
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.43
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.20.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.22.0
+    devDependencies:
+      '@agentplat/workflows-conformance':
+        specifier: workspace:*
+        version: link:../workflows-conformance
+
+  packages/workflows-rooms:
+    dependencies:
+      '@agentplat/autonomy':
+        specifier: workspace:^
+        version: link:../autonomy
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/rooms':
+        specifier: workspace:^
+        version: link:../rooms
+      '@agentplat/workflows':
+        specifier: workspace:^
+        version: link:../workflows
+
+  packages/workflows-temporal:
+    dependencies:
+      '@agentplat/workflows':
+        specifier: workspace:^
+        version: link:../workflows
+      '@temporalio/worker':
+        specifier: ^1.11.0
+        version: 1.22.0
+      '@temporalio/workflow':
+        specifier: ^1.11.0
+        version: 1.22.0
+      source-map:
+        specifier: ^0.7.6
+        version: 0.7.6
+    devDependencies:
+      '@agentplat/workflows-conformance':
+        specifier: workspace:*
+        version: link:../workflows-conformance
+      '@temporalio/client':
+        specifier: ^1.11.0
+        version: 1.22.0
 
 packages:
 

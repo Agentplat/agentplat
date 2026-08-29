@@ -25,6 +25,7 @@ const roomPlansMigrationName = "008_room_plans";
 const participantMembershipMigrationName = "009_participant_membership";
 const operationalOutboxMigrationName = "010_operational_outbox";
 const projectionCheckpointsMigrationName = "011_projection_checkpoints";
+const approvalExpiryMigrationName = "012_approval_expiry_and_event_payload";
 
 /** Filesystem directory containing the packaged ordered SQL migrations. */
 export const migrationDirectory = fileURLToPath(
@@ -61,6 +62,8 @@ async function migrations(): Promise<PostgresMigration[]> {
     operationalOutboxDown,
     projectionCheckpointsUp,
     projectionCheckpointsDown,
+    approvalExpiryUp,
+    approvalExpiryDown,
   ] = await Promise.all([
     readFile(
       new URL(`../migrations/${initialMigrationName}.up.sql`, import.meta.url),
@@ -213,6 +216,20 @@ async function migrations(): Promise<PostgresMigration[]> {
       ),
       "utf8",
     ),
+    readFile(
+      new URL(
+        `../migrations/${approvalExpiryMigrationName}.up.sql`,
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        `../migrations/${approvalExpiryMigrationName}.down.sql`,
+        import.meta.url,
+      ),
+      "utf8",
+    ),
   ]);
   return [
     {
@@ -300,6 +317,13 @@ async function migrations(): Promise<PostgresMigration[]> {
       down: projectionCheckpointsDown,
       destructiveDown: true,
     },
+    {
+      version: 12,
+      name: approvalExpiryMigrationName,
+      up: approvalExpiryUp,
+      down: approvalExpiryDown,
+      destructiveDown: true,
+    },
   ];
 }
 
@@ -331,7 +355,7 @@ export async function getMigrationStatus(
 /** Returns the exact confirmation required for one destructive rollback. */
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 11,
+  version = 12,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

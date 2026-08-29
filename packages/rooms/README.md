@@ -6,6 +6,11 @@ Infrastructure-neutral Agent Room domain contracts and lifecycle services.
 approvals, policy checks, bounded context and durable domain events. Storage,
 agent execution and event delivery are injected through public interfaces.
 
+Approvals may declare `expiresAt`. Human decisions are valid only before that
+deadline; an authorized host can apply the separate replay-safe
+`requested → expired` transition. Expiry is auditable and can never become an
+approval.
+
 ```ts
 import { InMemoryRoomRepository, RoomService } from "@agentplat/rooms";
 

@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_projection_checkpoints;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_outcome_expectations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_gate_requests;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_outcomes;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_signals;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_operations;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_task_runs;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_transition_events;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_process_runs;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_process_definitions;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.workflow_task_definitions;

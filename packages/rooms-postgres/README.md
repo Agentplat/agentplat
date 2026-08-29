@@ -97,7 +97,7 @@ The packaged SQL uses the explicit `__AGENTPLAT_SCHEMA__` token. Use the
 package runner to render it, or replace it with a quoted identifier when a
 separate migration orchestrator owns execution.
 
-For the capability-by-capability V1–V11 inventory, rollout order and rollback
+For the capability-by-capability V1–V12 inventory, rollout order and rollback
 boundary, see the [Agent Room PostgreSQL migration guide](../../docs/agent-rooms-postgres-migration.md).
 
 ## Transaction model

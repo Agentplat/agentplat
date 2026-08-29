@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/workflows",
-  "version": "0.3.0-beta.5",
+  "version": "0.3.0-beta.6",
   "description": "Workflow contracts and an in-memory workflow store for AgentPlat.",
   "type": "module",
   "license": "Apache-2.0",
@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./outcomes": {
+      "types": "./dist/v1-outcomes.d.ts",
+      "import": "./dist/v1-outcomes.js"
     }
   },
   "files": [
@@ -20,6 +24,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test tests/*.test.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

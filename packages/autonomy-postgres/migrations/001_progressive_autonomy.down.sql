@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.autonomy_decisions;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.autonomy_states;
+DROP TABLE IF EXISTS __AGENTPLAT_SCHEMA__.autonomy_policies;

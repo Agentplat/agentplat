@@ -1,14 +1,14 @@
-import { AgentPlatError } from '@agentplat/core';
-import type { AgentPlatID, JsonObject, JsonValue } from '@agentplat/core';
-import type { EventPublisher } from '@agentplat/events';
+import { AgentPlatError } from "@agentplat/core";
+import type { AgentPlatID, JsonObject, JsonValue } from "@agentplat/core";
+import type { EventPublisher } from "@agentplat/events";
 import type {
   AgentRuntime,
   RuntimeCheckpoint,
   RuntimeCheckpointDecision,
-} from '@agentplat/runtime';
-import { BoundedContextBuilder } from './context.js';
-import { roomEventPage } from './event-page.js';
-import type { RoomEventPage, RoomEventPageInput } from './event-page.js';
+} from "@agentplat/runtime";
+import { BoundedContextBuilder } from "./context.js";
+import { roomEventPage } from "./event-page.js";
+import type { RoomEventPage, RoomEventPageInput } from "./event-page.js";
 import type {
   ActionLevel,
   Approval,
@@ -28,31 +28,31 @@ import type {
   RoomState,
   RoomStatus,
   RoomTask,
-} from './models.js';
-import { BasicPolicyEngine } from './policy.js';
+} from "./models.js";
+import { BasicPolicyEngine } from "./policy.js";
 import type {
   RoomRepository,
   RoomRepositoryTransaction,
-} from './repository.js';
-import type { AgentRoomCoordinationState } from './coordination-runtime.js';
+} from "./repository.js";
+import type { AgentRoomCoordinationState } from "./coordination-runtime.js";
 import type {
   PromoteSessionToRoomInput,
   SessionRoomPromotion,
-} from './promotion.js';
+} from "./promotion.js";
 
-const participantTypes = new Set(['human', 'agent']);
-const messageRoles = new Set(['human', 'agent', 'system', 'tool']);
-const actionLevels = new Set(['read', 'draft', 'execute', 'external_write']);
-const approvalTargetTypes = new Set(['room', 'task', 'artifact', 'action']);
+const participantTypes = new Set(["human", "agent"]);
+const messageRoles = new Set(["human", "agent", "system", "tool"]);
+const actionLevels = new Set(["read", "draft", "execute", "external_write"]);
+const approvalTargetTypes = new Set(["room", "task", "artifact", "action"]);
 const memoryScopes = new Set([
-  'ephemeral',
-  'agent',
-  'role',
-  'room',
-  'artifact',
-  'organization',
+  "ephemeral",
+  "agent",
+  "role",
+  "room",
+  "artifact",
+  "organization",
 ]);
-const memoryRetentions = new Set(['transient', 'session', 'durable', 'until']);
+const memoryRetentions = new Set(["transient", "session", "durable", "until"]);
 
 export interface RoomServiceOptions {
   repository: RoomRepository;
@@ -77,21 +77,21 @@ export interface CreateRoomInput {
   parentRoomId?: AgentPlatID;
   title: string;
   goal: string;
-  metadata?: Room['metadata'];
+  metadata?: Room["metadata"];
   createdBy?: AgentPlatID;
 }
 
 export interface AddParticipantInput {
   id?: AgentPlatID;
-  type: Participant['type'];
+  type: Participant["type"];
   displayName: string;
   role: string;
   authorityLevel?: number;
   permissions?: string[];
   boundaries?: string[];
   memoryScope?: MemoryScope;
-  runtime?: Participant['runtime'];
-  metadata?: Participant['metadata'];
+  runtime?: Participant["runtime"];
+  metadata?: Participant["metadata"];
 }
 
 export interface CreateTaskInput {
@@ -107,7 +107,7 @@ export interface CreateTaskInput {
   actionLevel?: ActionLevel;
   approvalRequired?: boolean;
   toolIds?: string[];
-  metadata?: RoomTask['metadata'];
+  metadata?: RoomTask["metadata"];
 }
 
 /** Durable-start and governed-checkpoint callbacks for one Room task run. */
@@ -138,7 +138,7 @@ export interface CreateArtifactInput {
   assumptions?: string[];
   risks?: string[];
   createdBy?: AgentPlatID;
-  metadata?: Artifact['metadata'];
+  metadata?: Artifact["metadata"];
 }
 
 export interface CreatePolicyInput {
@@ -159,7 +159,7 @@ export interface WriteMemoryInput {
   content: JsonValue;
   source: string;
   confidence?: number;
-  retention?: MemoryEntry['retention'];
+  retention?: MemoryEntry["retention"];
   retainUntil?: string;
   provenance?: JsonObject;
 }
@@ -180,10 +180,10 @@ export class RoomService {
   private readonly runTimeoutMs: number;
   private readonly runLeaseGraceMs: number;
   private readonly requireProtectedActionCheckpoints: boolean;
-  private readonly automaticCoordination?: RoomServiceOptions['automaticCoordination'];
+  private readonly automaticCoordination?: RoomServiceOptions["automaticCoordination"];
   private readonly onEventPublishError: (
     error: unknown,
-    event: DomainEvent
+    event: DomainEvent,
   ) => void;
 
   constructor(options: RoomServiceOptions) {
@@ -203,32 +203,32 @@ export class RoomService {
     this.automaticCoordination = options.automaticCoordination;
     if (!Number.isInteger(this.runTimeoutMs) || this.runTimeoutMs <= 0) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'runTimeoutMs must be a positive integer'
+        "VALIDATION_ERROR",
+        "runTimeoutMs must be a positive integer",
       );
     }
     // Leave enough time for the timeout handler to fence and persist a failed
     // run before another process can recover the lease.
     this.runLeaseGraceMs = Math.min(
       30_000,
-      Math.max(1_000, Math.ceil(this.runTimeoutMs * 0.1))
+      Math.max(1_000, Math.ceil(this.runTimeoutMs * 0.1)),
     );
     this.onEventPublishError = options.onEventPublishError ?? (() => undefined);
   }
 
   async createRoom(tenantId: string, input: CreateRoomInput): Promise<Room> {
-    this.required(tenantId, 'tenantId');
-    this.required(input.title, 'title');
-    this.required(input.goal, 'goal');
+    this.required(tenantId, "tenantId");
+    this.required(input.title, "title");
+    this.required(input.goal, "goal");
     const result = await this.repository.transaction(
       tenantId,
       async (transaction) => {
         if (input.parentRoomId) {
           const parent = await transaction.getRoom(
             tenantId,
-            input.parentRoomId
+            input.parentRoomId,
           );
-          if (!parent) throw this.notFound('Parent room', input.parentRoomId);
+          if (!parent) throw this.notFound("Parent room", input.parentRoomId);
           this.assertRoomWritable(parent);
         }
         const now = this.now();
@@ -238,7 +238,7 @@ export class RoomService {
           parentRoomId: input.parentRoomId,
           title: input.title.trim(),
           goal: input.goal.trim(),
-          status: 'active',
+          status: "active",
           metadata: input.metadata,
           createdBy: input.createdBy,
           createdAt: now,
@@ -248,19 +248,19 @@ export class RoomService {
           this.event(
             tenantId,
             room.id,
-            input.parentRoomId ? 'subroom_created' : 'room_created',
+            input.parentRoomId ? "subroom_created" : "room_created",
             {
               roomId: room.id,
               parentRoomId: room.parentRoomId ?? null,
               title: room.title,
             },
-            input.createdBy
+            input.createdBy,
           ),
         ];
         await transaction.insertRoom(room);
         await this.appendEvents(transaction, events);
         return { value: room, events };
-      }
+      },
     );
     await this.publish(result.events);
     return result.value;
@@ -268,30 +268,30 @@ export class RoomService {
 
   /** Atomically promote one Session transcript into existing Room models. */
   async promoteSessionToRoom(
-    input: PromoteSessionToRoomInput
+    input: PromoteSessionToRoomInput,
   ): Promise<SessionRoomPromotion> {
-    this.required(input.tenantId, 'tenantId');
-    this.required(input.session.sessionId, 'sessionId');
-    this.required(input.room.title, 'title');
-    this.required(input.room.goal, 'goal');
+    this.required(input.tenantId, "tenantId");
+    this.required(input.session.sessionId, "sessionId");
+    this.required(input.room.title, "title");
+    this.required(input.room.goal, "goal");
     if (
-      input.session.status !== 'completed' &&
+      input.session.status !== "completed" &&
       input.allowIncomplete !== true
     ) {
       throw new AgentPlatError(
-        'CONFLICT',
+        "CONFLICT",
         `Session "${input.session.sessionId}" is ${input.session.status}; set allowIncomplete to preserve its partial transcript`,
-        { statusCode: 409 }
+        { statusCode: 409 },
       );
     }
     const sourceSpeakers = new Map<string, (typeof input.speakers)[number]>();
     for (const speaker of input.speakers) {
-      this.required(speaker.id, 'speaker.id');
-      this.required(speaker.name, 'speaker.name');
+      this.required(speaker.id, "speaker.id");
+      this.required(speaker.name, "speaker.name");
       if (sourceSpeakers.has(speaker.id)) {
         throw new AgentPlatError(
-          'VALIDATION_ERROR',
-          `Session speaker "${speaker.id}" is duplicated`
+          "VALIDATION_ERROR",
+          `Session speaker "${speaker.id}" is duplicated`,
         );
       }
       sourceSpeakers.set(speaker.id, speaker);
@@ -299,8 +299,8 @@ export class RoomService {
     for (const message of input.session.history) {
       if (!sourceSpeakers.has(message.speakerId)) {
         throw new AgentPlatError(
-          'VALIDATION_ERROR',
-          `Session speaker "${message.speakerId}" is missing from promotion input`
+          "VALIDATION_ERROR",
+          `Session speaker "${message.speakerId}" is missing from promotion input`,
         );
       }
     }
@@ -314,7 +314,7 @@ export class RoomService {
           tenantId: input.tenantId,
           title: input.room.title.trim(),
           goal: input.room.goal.trim(),
-          status: 'active',
+          status: "active",
           createdBy: input.room.createdBy,
           createdAt: now,
           updatedAt: now,
@@ -339,14 +339,14 @@ export class RoomService {
           this.event(
             input.tenantId,
             room.id,
-            'room_created',
+            "room_created",
             {
               roomId: room.id,
               parentRoomId: null,
               title: room.title,
               sourceSessionId: input.session.sessionId,
             },
-            input.room.createdBy
+            input.room.createdBy,
           ),
         ];
         await transaction.insertRoom(room);
@@ -363,23 +363,23 @@ export class RoomService {
           const mappedSpeaker = speakerByParticipantId.get(id);
           if (mappedSpeaker) {
             throw new AgentPlatError(
-              'VALIDATION_ERROR',
-              `Session speakers "${mappedSpeaker}" and "${speaker.id}" map to participant "${id}"`
+              "VALIDATION_ERROR",
+              `Session speakers "${mappedSpeaker}" and "${speaker.id}" map to participant "${id}"`,
             );
           }
           speakerByParticipantId.set(id, speaker.id);
           const existing = await transaction.getParticipant(input.tenantId, id);
-          if (existing && existing.type !== 'agent') {
+          if (existing && existing.type !== "agent") {
             throw new AgentPlatError(
-              'CONFLICT',
+              "CONFLICT",
               `Session speaker "${speaker.id}" cannot reuse non-agent participant "${id}"`,
-              { statusCode: 409 }
+              { statusCode: 409 },
             );
           }
           const participant: Participant = existing ?? {
             id,
             tenantId: input.tenantId,
-            type: 'agent',
+            type: "agent",
             displayName: speaker.name,
             role: speaker.description ?? speaker.name,
             authorityLevel: 0,
@@ -413,7 +413,7 @@ export class RoomService {
             this.event(
               input.tenantId,
               room.id,
-              'participant_added',
+              "participant_added",
               {
                 roomId: room.id,
                 participantId: id,
@@ -421,8 +421,8 @@ export class RoomService {
                 role: participant.role,
                 sourceSpeakerId: speaker.id,
               },
-              input.room.createdBy
-            )
+              input.room.createdBy,
+            ),
           );
         }
 
@@ -439,7 +439,7 @@ export class RoomService {
             tenantId: input.tenantId,
             roomId: room.id,
             authorParticipantId: participant.id,
-            role: 'agent',
+            role: "agent",
             content: source.content,
             metadata: {
               sourceSessionId: input.session.sessionId,
@@ -457,15 +457,15 @@ export class RoomService {
             this.event(
               input.tenantId,
               room.id,
-              'message_created',
+              "message_created",
               {
                 roomId: room.id,
                 messageId: message.id,
                 role: message.role,
                 sourceTurn: source.turn,
               },
-              participant.id
-            )
+              participant.id,
+            ),
           );
         }
 
@@ -479,7 +479,7 @@ export class RoomService {
           },
           events,
         };
-      }
+      },
     );
     await this.publish(result.events);
     return result.value;
@@ -491,12 +491,12 @@ export class RoomService {
     input: {
       title?: string;
       goal?: string;
-      metadata?: Room['metadata'];
+      metadata?: Room["metadata"];
       actorId?: string;
-    }
+    },
   ): Promise<Room> {
-    if (input.title !== undefined) this.required(input.title, 'title');
-    if (input.goal !== undefined) this.required(input.goal, 'goal');
+    if (input.title !== undefined) this.required(input.title, "title");
+    if (input.goal !== undefined) this.required(input.goal, "goal");
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
       this.assertRoomWritable(room);
@@ -510,9 +510,9 @@ export class RoomService {
       const event = this.event(
         tenantId,
         roomId,
-        'room_updated',
+        "room_updated",
         { roomId },
-        input.actorId
+        input.actorId,
       );
       await transaction.updateRoom(updated);
       await transaction.appendEvent(event);
@@ -523,22 +523,22 @@ export class RoomService {
   async transitionRoom(
     tenantId: string,
     roomId: string,
-    action: 'pause' | 'resume' | 'complete' | 'archive',
-    actorId?: string
+    action: "pause" | "resume" | "complete" | "archive",
+    actorId?: string,
   ): Promise<Room> {
     const transitions: Record<
       typeof action,
       { from: RoomStatus; to: RoomStatus; event: RoomEventType }
     > = {
-      pause: { from: 'active', to: 'paused', event: 'room_paused' },
-      resume: { from: 'paused', to: 'active', event: 'room_resumed' },
-      complete: { from: 'active', to: 'completed', event: 'room_completed' },
-      archive: { from: 'completed', to: 'archived', event: 'room_archived' },
+      pause: { from: "active", to: "paused", event: "room_paused" },
+      resume: { from: "paused", to: "active", event: "room_resumed" },
+      complete: { from: "active", to: "completed", event: "room_completed" },
+      archive: { from: "completed", to: "archived", event: "room_archived" },
     };
     if (!Object.hasOwn(transitions, action)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'Room transition action is not supported'
+        "VALIDATION_ERROR",
+        "Room transition action is not supported",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -546,29 +546,29 @@ export class RoomService {
       const transition = transitions[action];
       if (room.status !== transition.from) {
         throw new AgentPlatError(
-          'CONFLICT',
+          "CONFLICT",
           `Room cannot ${action} from status \"${room.status}\"`,
-          { statusCode: 409 }
+          { statusCode: 409 },
         );
       }
-      if (action === 'complete') {
+      if (action === "complete") {
         const state = await transaction.getRoomState(tenantId, roomId);
         if (
           state?.tasks.some(
-            (task) => !['completed', 'canceled'].includes(task.status)
+            (task) => !["completed", "canceled"].includes(task.status),
           ) ||
           state?.approvals.some(
-            (approval) => approval.status === 'requested'
+            (approval) => approval.status === "requested",
           ) ||
-          state?.artifacts.some((artifact) => artifact.status !== 'approved') ||
+          state?.artifacts.some((artifact) => artifact.status !== "approved") ||
           state?.childRooms.some(
-            (child) => !['completed', 'archived'].includes(child.status)
+            (child) => !["completed", "archived"].includes(child.status),
           )
         ) {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Complete tasks and subrooms, resolve approvals, and approve all artifacts before completing the room',
-            { statusCode: 409 }
+            "CONFLICT",
+            "Complete tasks and subrooms, resolve approvals, and approve all artifacts before completing the room",
+            { statusCode: 409 },
           );
         }
       }
@@ -577,15 +577,15 @@ export class RoomService {
         ...room,
         status: transition.to,
         updatedAt: now,
-        completedAt: action === 'complete' ? now : room.completedAt,
-        archivedAt: action === 'archive' ? now : room.archivedAt,
+        completedAt: action === "complete" ? now : room.completedAt,
+        archivedAt: action === "archive" ? now : room.archivedAt,
       };
       const event = this.event(
         tenantId,
         roomId,
         transition.event,
         { roomId, status: updated.status },
-        actorId
+        actorId,
       );
       await transaction.updateRoom(updated);
       await transaction.appendEvent(event);
@@ -596,49 +596,49 @@ export class RoomService {
   async pauseRoom(
     tenantId: string,
     roomId: string,
-    actorId?: string
+    actorId?: string,
   ): Promise<Room> {
-    return this.transitionRoom(tenantId, roomId, 'pause', actorId);
+    return this.transitionRoom(tenantId, roomId, "pause", actorId);
   }
 
   async resumeRoom(
     tenantId: string,
     roomId: string,
-    actorId?: string
+    actorId?: string,
   ): Promise<Room> {
-    return this.transitionRoom(tenantId, roomId, 'resume', actorId);
+    return this.transitionRoom(tenantId, roomId, "resume", actorId);
   }
 
   async completeRoom(
     tenantId: string,
     roomId: string,
-    actorId?: string
+    actorId?: string,
   ): Promise<Room> {
-    return this.transitionRoom(tenantId, roomId, 'complete', actorId);
+    return this.transitionRoom(tenantId, roomId, "complete", actorId);
   }
 
   async archiveRoom(
     tenantId: string,
     roomId: string,
-    actorId?: string
+    actorId?: string,
   ): Promise<Room> {
-    return this.transitionRoom(tenantId, roomId, 'archive', actorId);
+    return this.transitionRoom(tenantId, roomId, "archive", actorId);
   }
 
   async addParticipant(
     tenantId: string,
     roomId: string,
     input: AddParticipantInput,
-    actorId?: string
+    actorId?: string,
   ): Promise<Participant> {
-    this.required(input.displayName, 'displayName');
-    this.required(input.role, 'role');
-    this.stringArray(input.permissions, 'permissions');
-    this.stringArray(input.boundaries, 'boundaries');
+    this.required(input.displayName, "displayName");
+    this.required(input.role, "role");
+    this.stringArray(input.permissions, "permissions");
+    this.stringArray(input.boundaries, "boundaries");
     if (!participantTypes.has(input.type)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'type must be human or agent'
+        "VALIDATION_ERROR",
+        "type must be human or agent",
       );
     }
     if (
@@ -646,22 +646,22 @@ export class RoomService {
       (input.authorityLevel ?? 0) < 0
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'authorityLevel must be a non-negative integer'
+        "VALIDATION_ERROR",
+        "authorityLevel must be a non-negative integer",
       );
     }
-    if (input.type === 'agent' && !input.runtime?.platform) {
+    if (input.type === "agent" && !input.runtime?.platform) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'Agent participants require runtime.platform'
+        "VALIDATION_ERROR",
+        "Agent participants require runtime.platform",
       );
     }
     if (input.runtime)
-      this.required(input.runtime.platform, 'runtime.platform');
+      this.required(input.runtime.platform, "runtime.platform");
     if (input.memoryScope && !memoryScopes.has(input.memoryScope)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'memoryScope is not supported'
+        "VALIDATION_ERROR",
+        "memoryScope is not supported",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -695,14 +695,14 @@ export class RoomService {
       const event = this.event(
         tenantId,
         roomId,
-        'participant_added',
+        "participant_added",
         {
           roomId,
           participantId: id,
           participantType: participant.type,
           role: participant.role,
         },
-        actorId
+        actorId,
       );
       await transaction.appendEvent(event);
       return { value: participant, events: [event] };
@@ -715,16 +715,16 @@ export class RoomService {
     input: {
       id?: string;
       authorParticipantId?: string;
-      role: RoomMessage['role'];
+      role: RoomMessage["role"];
       content: string;
-      metadata?: RoomMessage['metadata'];
-    }
+      metadata?: RoomMessage["metadata"];
+    },
   ): Promise<RoomMessage> {
-    this.required(input.content, 'content');
+    this.required(input.content, "content");
     if (!messageRoles.has(input.role)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'role is not a supported message role'
+        "VALIDATION_ERROR",
+        "role is not a supported message role",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -735,7 +735,7 @@ export class RoomService {
           transaction,
           tenantId,
           roomId,
-          input.authorParticipantId
+          input.authorParticipantId,
         );
       }
       const message: RoomMessage = {
@@ -751,15 +751,15 @@ export class RoomService {
       const event = this.event(
         tenantId,
         roomId,
-        'message_created',
+        "message_created",
         { roomId, messageId: message.id, role: message.role },
-        input.authorParticipantId
+        input.authorParticipantId,
       );
       await transaction.insertMessage(message);
       await transaction.appendEvent(event);
       if (
         this.automaticCoordination &&
-        (message.role === 'human' || message.role === 'agent')
+        (message.role === "human" || message.role === "agent")
       ) {
         await this.enqueueMessageForCoordination(transaction, message);
       }
@@ -771,28 +771,28 @@ export class RoomService {
     tenantId: string,
     roomId: string,
     input: CreateTaskInput,
-    actorId?: string
+    actorId?: string,
   ): Promise<RoomTask> {
-    this.required(input.stepId, 'stepId');
-    this.required(input.instruction, 'instruction');
-    this.required(input.expectedOutput, 'expectedOutput');
-    this.required(input.expectedArtifactKind, 'expectedArtifactKind');
-    this.stringArray(input.dependencies, 'dependencies');
-    this.stringArray(input.acceptanceCriteria, 'acceptanceCriteria');
-    this.stringArray(input.toolIds, 'toolIds');
+    this.required(input.stepId, "stepId");
+    this.required(input.instruction, "instruction");
+    this.required(input.expectedOutput, "expectedOutput");
+    this.required(input.expectedArtifactKind, "expectedArtifactKind");
+    this.stringArray(input.dependencies, "dependencies");
+    this.stringArray(input.acceptanceCriteria, "acceptanceCriteria");
+    this.stringArray(input.toolIds, "toolIds");
     if (input.actionLevel && !actionLevels.has(input.actionLevel)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'actionLevel is not supported'
+        "VALIDATION_ERROR",
+        "actionLevel is not supported",
       );
     }
     if (
       input.approvalRequired !== undefined &&
-      typeof input.approvalRequired !== 'boolean'
+      typeof input.approvalRequired !== "boolean"
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'approvalRequired must be a boolean'
+        "VALIDATION_ERROR",
+        "approvalRequired must be a boolean",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -803,12 +803,12 @@ export class RoomService {
           transaction,
           tenantId,
           roomId,
-          input.assignedParticipantId
+          input.assignedParticipantId,
         );
-        if (assignedParticipant.type !== 'agent') {
+        if (assignedParticipant.type !== "agent") {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            'Executable Room tasks can only be assigned to agent participants'
+            "VALIDATION_ERROR",
+            "Executable Room tasks can only be assigned to agent participants",
           );
         }
       }
@@ -816,8 +816,8 @@ export class RoomService {
         const dependency = await transaction.getTask(tenantId, dependencyId);
         if (!dependency || dependency.roomId !== roomId) {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            `Dependency \"${dependencyId}\" is not in this room`
+            "VALIDATION_ERROR",
+            `Dependency \"${dependencyId}\" is not in this room`,
           );
         }
       }
@@ -834,10 +834,10 @@ export class RoomService {
         expectedArtifactKind: input.expectedArtifactKind,
         dependencies: input.dependencies ?? [],
         acceptanceCriteria: input.acceptanceCriteria ?? [],
-        actionLevel: input.actionLevel ?? 'execute',
+        actionLevel: input.actionLevel ?? "execute",
         approvalRequired: input.approvalRequired ?? false,
         toolIds: input.toolIds ?? [],
-        status: 'pending',
+        status: "pending",
         metadata: input.metadata,
         createdAt: now,
         updatedAt: now,
@@ -846,9 +846,9 @@ export class RoomService {
         this.event(
           tenantId,
           roomId,
-          'task_created',
+          "task_created",
           { roomId, taskId: task.id, stepId: task.stepId },
-          actorId
+          actorId,
         ),
       ];
       if (task.assignedParticipantId || task.assignedRole) {
@@ -856,15 +856,15 @@ export class RoomService {
           this.event(
             tenantId,
             roomId,
-            'task_assigned',
+            "task_assigned",
             {
               roomId,
               taskId: task.id,
               participantId: task.assignedParticipantId ?? null,
               role: task.assignedRole ?? null,
             },
-            actorId
-          )
+            actorId,
+          ),
         );
       }
       await transaction.insertTask(task);
@@ -877,12 +877,12 @@ export class RoomService {
     tenantId: string,
     roomId: string,
     taskId: string,
-    hooks: RunTaskHooks = {}
+    hooks: RunTaskHooks = {},
   ): Promise<RoomRun> {
     if (!this.runtime) {
       throw new AgentPlatError(
-        'ADAPTER_ERROR',
-        'No agent runtime is configured'
+        "ADAPTER_ERROR",
+        "No agent runtime is configured",
       );
     }
     const runId = this.id();
@@ -891,84 +891,84 @@ export class RoomService {
       tenantId,
       async (transaction) => {
         const state = await transaction.getRoomState(tenantId, roomId);
-        if (!state) throw this.notFound('Room', roomId);
-        if (state.room.status !== 'active') {
+        if (!state) throw this.notFound("Room", roomId);
+        if (state.room.status !== "active") {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Tasks can only run in active rooms',
+            "CONFLICT",
+            "Tasks can only run in active rooms",
             {
               statusCode: 409,
-            }
+            },
           );
         }
         let currentTask = await transaction.getTask(tenantId, taskId);
         if (!currentTask || currentTask.roomId !== roomId)
-          throw this.notFound('Task', taskId);
+          throw this.notFound("Task", taskId);
         const startedAt = this.now();
         const claimEvents: DomainEvent[] = [];
-        if (currentTask.status === 'running') {
+        if (currentTask.status === "running") {
           const staleRun = state.runs.find(
             (run) =>
               run.taskId === taskId &&
-              run.status === 'running' &&
+              run.status === "running" &&
               new Date(run.leaseExpiresAt).getTime() <=
-                new Date(startedAt).getTime()
+                new Date(startedAt).getTime(),
           );
           if (!staleRun) {
             throw new AgentPlatError(
-              'CONFLICT',
-              'Task was already claimed by another run'
+              "CONFLICT",
+              "Task was already claimed by another run",
             );
           }
-          const staleMessage = 'Run lease expired before completion';
+          const staleMessage = "Run lease expired before completion";
           await transaction.updateRun({
             ...staleRun,
-            status: 'failed',
+            status: "failed",
             errorMessage: staleMessage,
             completedAt: startedAt,
           });
           currentTask = {
             ...currentTask,
-            status: 'failed',
+            status: "failed",
             errorMessage: staleMessage,
             updatedAt: startedAt,
           };
           await transaction.updateTask(currentTask);
           claimEvents.push(
-            this.event(tenantId, roomId, 'task_run_failed', {
+            this.event(tenantId, roomId, "task_run_failed", {
               roomId,
               taskId,
               runId: staleRun.id,
               error: staleMessage,
               recovered: true,
-            })
+            }),
           );
         }
-        if (!['pending', 'failed'].includes(currentTask.status)) {
+        if (!["pending", "failed"].includes(currentTask.status)) {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Task was already claimed by another run'
+            "CONFLICT",
+            "Task was already claimed by another run",
           );
         }
         const incompleteDependencyId = currentTask.dependencies.find(
           (id) =>
             state.tasks.find((candidate) => candidate.id === id)?.status !==
-            'completed'
+            "completed",
         );
         if (incompleteDependencyId) {
           throw new AgentPlatError(
-            'CONFLICT',
-            `Dependency \"${incompleteDependencyId}\" is missing or not completed`
+            "CONFLICT",
+            `Dependency \"${incompleteDependencyId}\" is missing or not completed`,
           );
         }
         const participant = this.resolveAgentParticipant(state, currentTask);
         const decision = this.policyEngine.evaluateTask(
           currentTask,
           participant,
-          state.policies
+          state.policies,
         );
         if (!decision.allowed) {
-          throw new AgentPlatError('FORBIDDEN', decision.reason, {
+          throw new AgentPlatError("FORBIDDEN", decision.reason, {
             statusCode: 403,
           });
         }
@@ -976,22 +976,22 @@ export class RoomService {
           decision.approvalRequired &&
           !state.approvals.some(
             (approval) =>
-              approval.targetType === 'task' &&
+              approval.targetType === "task" &&
               approval.targetId === currentTask.id &&
               approval.action === `task.run.${currentTask.actionLevel}` &&
-              approval.status === 'approved'
+              approval.status === "approved",
           )
         ) {
           throw new AgentPlatError(
-            'FORBIDDEN',
-            'Task execution requires a granted approval',
-            { statusCode: 403 }
+            "FORBIDDEN",
+            "Task execution requires a granted approval",
+            { statusCode: 403 },
           );
         }
         const context = this.contextBuilder.build(
           state,
           currentTask,
-          participant
+          participant,
         );
         const running: RoomRun = {
           id: runId,
@@ -999,16 +999,16 @@ export class RoomService {
           roomId,
           taskId,
           participantId: participant.id,
-          runtime: participant.runtime?.platform ?? 'unknown',
-          status: 'running',
+          runtime: participant.runtime?.platform ?? "unknown",
+          status: "running",
           startedAt,
           leaseExpiresAt: new Date(
-            new Date(startedAt).getTime() + this.runTimeoutMs
+            new Date(startedAt).getTime() + this.runTimeoutMs,
           ).toISOString(),
         };
         await transaction.updateTask({
           ...currentTask,
-          status: 'running',
+          status: "running",
           errorMessage: undefined,
           updatedAt: startedAt,
         });
@@ -1025,9 +1025,9 @@ export class RoomService {
         const event = this.event(
           tenantId,
           roomId,
-          'task_run_started',
+          "task_run_started",
           { roomId, taskId, runId, participantId: participant.id },
-          participant.id
+          participant.id,
         );
         claimEvents.push(event);
         await this.appendEvents(transaction, claimEvents);
@@ -1041,7 +1041,7 @@ export class RoomService {
           },
           events: claimEvents,
         };
-      }
+      },
     );
     await this.publish(claim.events);
     const { context, participant, task, policies } = claim.value;
@@ -1056,17 +1056,17 @@ export class RoomService {
         const state = await transaction.getRoomState(tenantId, roomId);
         const currentTask = await transaction.getTask(tenantId, taskId);
         const currentRun = state?.runs.find(
-          (candidate) => candidate.id === runId
+          (candidate) => candidate.id === runId,
         );
         if (
           !currentTask ||
-          currentTask.status !== 'running' ||
-          currentRun?.status !== 'running'
+          currentTask.status !== "running" ||
+          currentRun?.status !== "running"
         ) {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Run no longer owns the task execution lease',
-            { statusCode: 409 }
+            "CONFLICT",
+            "Run no longer owns the task execution lease",
+            { statusCode: 409 },
           );
         }
         const renewed: RoomRun = {
@@ -1075,33 +1075,33 @@ export class RoomService {
         };
         await transaction.updateRun(renewed);
         return renewed;
-      }
+      },
     );
 
     const startedMs = this.clock().getTime();
     const abortController = new AbortController();
     try {
       const protectedAction =
-        task.actionLevel === 'external_write' || task.toolIds.length > 0;
+        task.actionLevel === "external_write" || task.toolIds.length > 0;
       if (
         this.requireProtectedActionCheckpoints &&
         protectedAction &&
         this.runtime.supportsCheckpoint?.(
-          participant.runtime?.platform ?? 'mock',
-          'pre_action'
+          participant.runtime?.platform ?? "mock",
+          "pre_action",
         ) !== true
       ) {
         throw new AgentPlatError(
-          'FORBIDDEN',
-          'Protected Room task requires a pre_action checkpoint-capable Runtime'
+          "FORBIDDEN",
+          "Protected Room task requires a pre_action checkpoint-capable Runtime",
         );
       }
       let preActionObserved = false;
       const checkpoint = async (
         checkpointName: RuntimeCheckpoint,
-        payload?: JsonObject
+        payload?: JsonObject,
       ): Promise<RuntimeCheckpointDecision> => {
-        if (checkpointName === 'pre_action') preActionObserved = true;
+        if (checkpointName === "pre_action") preActionObserved = true;
         const decision = (await hooks.onCheckpoint?.({
           checkpoint: checkpointName,
           run: running,
@@ -1110,7 +1110,7 @@ export class RoomService {
           payload,
         })) ?? { allowed: true as const };
         if (!decision.allowed) {
-          throw new AgentPlatError('FORBIDDEN', decision.reason);
+          throw new AgentPlatError("FORBIDDEN", decision.reason);
         }
         return decision;
       };
@@ -1120,7 +1120,7 @@ export class RoomService {
         participant,
         contextSnapshotId: snapshotId,
       });
-      await checkpoint('pre_step');
+      await checkpoint("pre_step");
       const runtimeResult = await this.withTimeout(
         this.runtime.run(
           {
@@ -1128,13 +1128,13 @@ export class RoomService {
             tenantId,
             name: participant.displayName,
             instructions: participant.runtime?.instructions,
-            platform: participant.runtime?.platform ?? 'mock',
+            platform: participant.runtime?.platform ?? "mock",
             modelName: participant.runtime?.modelName,
             config: participant.runtime?.config,
           },
           {
             input: [this.toJson(context)],
-            mode: 'invoke',
+            mode: "invoke",
             metadata: {
               roomId,
               taskId,
@@ -1150,15 +1150,15 @@ export class RoomService {
             metadata: { roomId, taskId, contextSnapshotId: snapshotId },
             checkpoint: (request) =>
               checkpoint(request.checkpoint, request.payload),
-          }
+          },
         ),
         this.runTimeoutMs,
-        (timeoutError) => abortController.abort(timeoutError)
+        (timeoutError) => abortController.abort(timeoutError),
       );
-      if (runtimeResult.status !== 'completed') {
+      if (runtimeResult.status !== "completed") {
         throw new AgentPlatError(
-          'ADAPTER_ERROR',
-          runtimeResult.errorMessage ?? 'Agent runtime did not complete'
+          "ADAPTER_ERROR",
+          runtimeResult.errorMessage ?? "Agent runtime did not complete",
         );
       }
       if (
@@ -1167,11 +1167,11 @@ export class RoomService {
         !preActionObserved
       ) {
         throw new AgentPlatError(
-          'ADAPTER_ERROR',
-          'Runtime completed protected work without invoking pre_action'
+          "ADAPTER_ERROR",
+          "Runtime completed protected work without invoking pre_action",
         );
       }
-      await checkpoint('post_output', {
+      await checkpoint("post_output", {
         output: runtimeResult.output ?? null,
         result: runtimeResult.result ?? null,
       });
@@ -1180,23 +1180,23 @@ export class RoomService {
       const artifactOutput = this.parseArtifactOutput(
         runtimeResult.result,
         task,
-        runtimeResult.output
+        runtimeResult.output,
       );
       return this.mutate(tenantId, async (transaction) => {
         const state = await transaction.getRoomState(tenantId, roomId);
         const currentTask = await transaction.getTask(tenantId, taskId);
         const currentRun = state?.runs.find(
-          (candidate) => candidate.id === runId
+          (candidate) => candidate.id === runId,
         );
         if (
           !currentTask ||
-          currentTask.status !== 'running' ||
-          currentRun?.status !== 'running'
+          currentTask.status !== "running" ||
+          currentRun?.status !== "running"
         ) {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Run no longer owns the task completion lease',
-            { statusCode: 409 }
+            "CONFLICT",
+            "Run no longer owns the task completion lease",
+            { statusCode: 409 },
           );
         }
         const artifactId = this.id();
@@ -1206,7 +1206,7 @@ export class RoomService {
           roomId,
           type: artifactOutput.type,
           title: artifactOutput.title,
-          status: 'draft',
+          status: "draft",
           currentVersion: 1,
           authors: [participant.id],
           provenance: {
@@ -1232,7 +1232,7 @@ export class RoomService {
         };
         const completedRun: RoomRun = {
           ...running,
-          status: 'completed',
+          status: "completed",
           output: runtimeResult.output,
           latencyMs,
           completedAt,
@@ -1240,7 +1240,7 @@ export class RoomService {
         await transaction.insertArtifact(artifact, version);
         await transaction.updateTask({
           ...currentTask,
-          status: 'completed',
+          status: "completed",
           errorMessage: undefined,
           updatedAt: completedAt,
           completedAt,
@@ -1250,16 +1250,16 @@ export class RoomService {
           this.event(
             tenantId,
             roomId,
-            'artifact_created',
+            "artifact_created",
             { roomId, artifactId, taskId, runId },
-            participant.id
+            participant.id,
           ),
           this.event(
             tenantId,
             roomId,
-            'task_run_completed',
+            "task_run_completed",
             { roomId, taskId, runId, artifactId },
-            participant.id
+            participant.id,
           ),
         ];
         await this.appendEvents(transaction, events);
@@ -1268,34 +1268,34 @@ export class RoomService {
     } catch (error) {
       const failedAt = this.now();
       const message =
-        error instanceof Error ? error.message : 'Agent runtime failed';
+        error instanceof Error ? error.message : "Agent runtime failed";
       await this.mutate(tenantId, async (transaction) => {
         const state = await transaction.getRoomState(tenantId, roomId);
         const currentTask = await transaction.getTask(tenantId, taskId);
         const currentRun = state?.runs.find(
-          (candidate) => candidate.id === runId
+          (candidate) => candidate.id === runId,
         );
         if (
           !currentTask ||
-          currentTask.status !== 'running' ||
-          currentRun?.status !== 'running'
+          currentTask.status !== "running" ||
+          currentRun?.status !== "running"
         ) {
           return { value: currentRun ?? running, events: [] };
         }
         const failedRun: RoomRun = {
           ...running,
-          status: 'failed',
+          status: "failed",
           errorMessage: message,
           completedAt: failedAt,
         };
         await transaction.updateTask({
           ...currentTask,
-          status: 'failed',
+          status: "failed",
           errorMessage: message,
           updatedAt: failedAt,
         });
         await transaction.updateRun(failedRun);
-        const event = this.event(tenantId, roomId, 'task_run_failed', {
+        const event = this.event(tenantId, roomId, "task_run_failed", {
           roomId,
           taskId,
           runId,
@@ -1311,30 +1311,30 @@ export class RoomService {
   async createArtifact(
     tenantId: string,
     roomId: string,
-    input: CreateArtifactInput
+    input: CreateArtifactInput,
   ): Promise<Artifact> {
-    this.required(input.type, 'type');
-    this.required(input.title, 'title');
-    this.stringArray(input.authors, 'authors');
-    this.stringArray(input.assumptions, 'assumptions');
-    this.stringArray(input.risks, 'risks');
+    this.required(input.type, "type");
+    this.required(input.title, "title");
+    this.stringArray(input.authors, "authors");
+    this.stringArray(input.assumptions, "assumptions");
+    this.stringArray(input.risks, "risks");
     this.stringArray(
       input.provenance?.sourceMessageIds,
-      'provenance.sourceMessageIds'
+      "provenance.sourceMessageIds",
     );
     this.stringArray(
       input.provenance?.sourceArtifactIds,
-      'provenance.sourceArtifactIds'
+      "provenance.sourceArtifactIds",
     );
     this.stringArray(
       input.provenance?.sourceMemoryIds,
-      'provenance.sourceMemoryIds'
+      "provenance.sourceMemoryIds",
     );
     if (input.content === undefined) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'content is required');
+      throw new AgentPlatError("VALIDATION_ERROR", "content is required");
     }
     if (input.contentType !== undefined)
-      this.required(input.contentType, 'contentType');
+      this.required(input.contentType, "contentType");
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
       this.assertRoomWritable(room);
@@ -1345,7 +1345,7 @@ export class RoomService {
         roomId,
         type: input.type,
         title: input.title,
-        status: 'draft',
+        status: "draft",
         currentVersion: 1,
         authors: input.authors ?? (input.createdBy ? [input.createdBy] : []),
         provenance: {
@@ -1366,16 +1366,16 @@ export class RoomService {
         artifactId: artifact.id,
         version: 1,
         content: input.content,
-        contentType: input.contentType ?? 'application/json',
+        contentType: input.contentType ?? "application/json",
         createdBy: input.createdBy,
         createdAt: now,
       };
       const event = this.event(
         tenantId,
         roomId,
-        'artifact_created',
+        "artifact_created",
         { roomId, artifactId: artifact.id },
-        input.createdBy
+        input.createdBy,
       );
       await transaction.insertArtifact(artifact, version);
       await transaction.appendEvent(event);
@@ -1387,30 +1387,30 @@ export class RoomService {
     tenantId: string,
     roomId: string,
     artifactId: string,
-    input: { content: JsonValue; contentType?: string; createdBy?: string }
+    input: { content: JsonValue; contentType?: string; createdBy?: string },
   ): Promise<ArtifactVersion> {
     if (input.content === undefined) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'content is required');
+      throw new AgentPlatError("VALIDATION_ERROR", "content is required");
     }
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
       this.assertRoomWritable(room);
       const artifact = await transaction.getArtifact(tenantId, artifactId);
       if (!artifact || artifact.roomId !== roomId)
-        throw this.notFound('Artifact', artifactId);
+        throw this.notFound("Artifact", artifactId);
       const state = await transaction.getRoomState(tenantId, roomId);
       if (
         state?.approvals.some(
           (approval) =>
-            approval.targetType === 'artifact' &&
+            approval.targetType === "artifact" &&
             approval.targetId === artifactId &&
-            approval.status === 'requested'
+            approval.status === "requested",
         )
       ) {
         throw new AgentPlatError(
-          'CONFLICT',
-          'Resolve the requested approval before creating a new artifact version',
-          { statusCode: 409 }
+          "CONFLICT",
+          "Resolve the requested approval before creating a new artifact version",
+          { statusCode: 409 },
         );
       }
       const now = this.now();
@@ -1420,7 +1420,7 @@ export class RoomService {
         artifactId,
         version: artifact.currentVersion + 1,
         content: input.content,
-        contentType: input.contentType ?? 'application/json',
+        contentType: input.contentType ?? "application/json",
         createdBy: input.createdBy,
         createdAt: now,
       };
@@ -1428,15 +1428,15 @@ export class RoomService {
       await transaction.updateArtifact({
         ...artifact,
         currentVersion: version.version,
-        status: 'draft',
+        status: "draft",
         updatedAt: now,
       });
       const event = this.event(
         tenantId,
         roomId,
-        'artifact_updated',
+        "artifact_updated",
         { roomId, artifactId, version: version.version },
-        input.createdBy
+        input.createdBy,
       );
       await transaction.appendEvent(event);
       return { value: version, events: [event] };
@@ -1448,78 +1448,96 @@ export class RoomService {
     roomId: string,
     input: {
       id?: string;
-      targetType: Approval['targetType'];
+      targetType: Approval["targetType"];
       targetId: string;
       action?: string;
       requestedBy?: string;
-    }
+      expiresAt?: string;
+    },
   ): Promise<Approval> {
     if (!approvalTargetTypes.has(input.targetType)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'targetType is not supported'
+        "VALIDATION_ERROR",
+        "targetType is not supported",
       );
     }
-    this.required(input.targetId, 'targetId');
-    if (input.action !== undefined) this.required(input.action, 'action');
+    this.required(input.targetId, "targetId");
+    if (input.action !== undefined) this.required(input.action, "action");
+    let expiresAt: string | undefined;
+    if (input.expiresAt !== undefined) {
+      const expiration = new Date(input.expiresAt);
+      if (!Number.isFinite(expiration.getTime())) {
+        throw new AgentPlatError(
+          "VALIDATION_ERROR",
+          "expiresAt must be a valid ISO date-time",
+        );
+      }
+      expiresAt = expiration.toISOString();
+    }
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
       this.assertRoomWritable(room);
       let targetVersion: number | undefined;
       let action = input.action;
-      if (input.targetType === 'artifact') {
+      if (input.targetType === "artifact") {
         const artifact = await transaction.getArtifact(
           tenantId,
-          input.targetId
+          input.targetId,
         );
         if (!artifact || artifact.roomId !== roomId)
-          throw this.notFound('Artifact', input.targetId);
+          throw this.notFound("Artifact", input.targetId);
         targetVersion = artifact.currentVersion;
         await transaction.updateArtifact({
           ...artifact,
-          status: 'pending_approval',
+          status: "pending_approval",
           updatedAt: this.now(),
         });
-      } else if (input.targetType === 'task') {
+      } else if (input.targetType === "task") {
         const task = await transaction.getTask(tenantId, input.targetId);
         if (!task || task.roomId !== roomId)
-          throw this.notFound('Task', input.targetId);
+          throw this.notFound("Task", input.targetId);
         action ??= `task.run.${task.actionLevel}`;
-      } else if (input.targetType === 'room' && input.targetId !== roomId) {
+      } else if (input.targetType === "room" && input.targetId !== roomId) {
         throw new AgentPlatError(
-          'VALIDATION_ERROR',
-          'Approval room target must match the current room'
+          "VALIDATION_ERROR",
+          "Approval room target must match the current room",
         );
       }
       const state = await transaction.getRoomState(tenantId, roomId);
       if (
         input.requestedBy &&
         !state?.participants.some(
-          (participant) => participant.id === input.requestedBy
+          (participant) => participant.id === input.requestedBy,
         )
       ) {
         throw new AgentPlatError(
-          'VALIDATION_ERROR',
-          'requestedBy must be a room participant'
+          "VALIDATION_ERROR",
+          "requestedBy must be a room participant",
         );
       }
       if (
         state?.approvals.some(
           (candidate) =>
-            candidate.status === 'requested' &&
+            candidate.status === "requested" &&
             candidate.targetType === input.targetType &&
             candidate.targetId === input.targetId &&
             candidate.targetVersion === targetVersion &&
-            candidate.action === action
+            candidate.action === action,
         )
       ) {
         throw new AgentPlatError(
-          'CONFLICT',
-          'An approval is already requested for this target and action',
-          { statusCode: 409 }
+          "CONFLICT",
+          "An approval is already requested for this target and action",
+          { statusCode: 409 },
         );
       }
       const now = this.now();
+      if (expiresAt && Date.parse(expiresAt) <= Date.parse(now)) {
+        throw new AgentPlatError(
+          "VALIDATION_ERROR",
+          "expiresAt must be later than the approval request",
+        );
+      }
       const approval: Approval = {
         id: input.id ?? this.id(),
         tenantId,
@@ -1528,23 +1546,25 @@ export class RoomService {
         targetId: input.targetId,
         targetVersion,
         action,
-        status: 'requested',
+        status: "requested",
         requestedBy: input.requestedBy,
+        expiresAt,
         createdAt: now,
         updatedAt: now,
       };
       const event = this.event(
         tenantId,
         roomId,
-        'approval_requested',
+        "approval_requested",
         {
           roomId,
           approvalId: approval.id,
           targetType: approval.targetType,
           targetId: approval.targetId,
           targetVersion: approval.targetVersion ?? null,
+          expiresAt: approval.expiresAt ?? null,
         },
-        input.requestedBy
+        input.requestedBy,
       );
       await transaction.insertApproval(approval);
       await transaction.appendEvent(event);
@@ -1555,55 +1575,65 @@ export class RoomService {
   async resolveApproval(
     tenantId: string,
     approvalId: string,
-    status: Exclude<ApprovalStatus, 'requested'>,
-    input: { decidedBy: string; comment?: string }
+    status: Exclude<ApprovalStatus, "requested" | "expired">,
+    input: { decidedBy: string; comment?: string },
   ): Promise<Approval> {
-    this.required(input.decidedBy, 'decidedBy');
-    if (!['approved', 'rejected', 'needs_revision'].includes(status)) {
+    this.required(input.decidedBy, "decidedBy");
+    if (!["approved", "rejected", "needs_revision"].includes(status)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'Approval status is not supported'
+        "VALIDATION_ERROR",
+        "Approval status is not supported",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
       const approval = await transaction.getApproval(tenantId, approvalId);
-      if (!approval) throw this.notFound('Approval', approvalId);
-      if (approval.status !== 'requested') {
+      if (!approval) throw this.notFound("Approval", approvalId);
+      if (approval.status !== "requested") {
         throw new AgentPlatError(
-          'CONFLICT',
-          'Approval has already been resolved'
+          "CONFLICT",
+          "Approval has already been resolved",
         );
       }
       const state = await transaction.getRoomState(tenantId, approval.roomId);
-      if (!state) throw this.notFound('Room', approval.roomId);
+      if (!state) throw this.notFound("Room", approval.roomId);
       this.assertRoomWritable(state.room);
-      const decider = state.participants.find(
-        (participant) => participant.id === input.decidedBy
-      );
-      if (!decider || decider.type !== 'human') {
+      const now = this.now();
+      if (
+        approval.expiresAt &&
+        Date.parse(now) >= Date.parse(approval.expiresAt)
+      ) {
         throw new AgentPlatError(
-          'FORBIDDEN',
-          'Approvals must be resolved by a human room participant'
+          "CONFLICT",
+          "Approval has expired and cannot be resolved",
+          { statusCode: 409 },
+        );
+      }
+      const decider = state.participants.find(
+        (participant) => participant.id === input.decidedBy,
+      );
+      if (!decider || decider.type !== "human") {
+        throw new AgentPlatError(
+          "FORBIDDEN",
+          "Approvals must be resolved by a human room participant",
         );
       }
       const approvalPermissions = [
-        '*',
-        'approve',
-        'approval.resolve',
+        "*",
+        "approve",
+        "approval.resolve",
         `approve:${approval.targetType}`,
         ...(approval.action ? [`approve:${approval.action}`] : []),
       ];
       if (
         !decider.permissions.some((permission) =>
-          approvalPermissions.includes(permission)
+          approvalPermissions.includes(permission),
         )
       ) {
         throw new AgentPlatError(
-          'FORBIDDEN',
-          'Participant does not have permission to resolve this approval'
+          "FORBIDDEN",
+          "Participant does not have permission to resolve this approval",
         );
       }
-      const now = this.now();
       const resolved: Approval = {
         ...approval,
         status,
@@ -1613,19 +1643,19 @@ export class RoomService {
         decidedAt: now,
       };
       await transaction.updateApproval(resolved);
-      if (approval.targetType === 'artifact') {
+      if (approval.targetType === "artifact") {
         const artifact = await transaction.getArtifact(
           tenantId,
-          approval.targetId
+          approval.targetId,
         );
         if (!artifact || artifact.roomId !== approval.roomId) {
-          throw this.notFound('Artifact', approval.targetId);
+          throw this.notFound("Artifact", approval.targetId);
         }
         if (artifact.currentVersion !== approval.targetVersion) {
           throw new AgentPlatError(
-            'CONFLICT',
-            'Approval does not target the artifact current version',
-            { statusCode: 409 }
+            "CONFLICT",
+            "Approval does not target the artifact current version",
+            { statusCode: 409 },
           );
         }
         await transaction.updateArtifact({
@@ -1633,34 +1663,115 @@ export class RoomService {
           status,
           updatedAt: now,
         });
-      } else if (approval.targetType === 'task') {
+      } else if (approval.targetType === "task") {
         const task = await transaction.getTask(tenantId, approval.targetId);
         if (!task || task.roomId !== approval.roomId) {
-          throw this.notFound('Task', approval.targetId);
+          throw this.notFound("Task", approval.targetId);
         }
       } else if (
-        approval.targetType === 'room' &&
+        approval.targetType === "room" &&
         approval.targetId !== approval.roomId
       ) {
         throw new AgentPlatError(
-          'VALIDATION_ERROR',
-          'Approval room target is invalid'
+          "VALIDATION_ERROR",
+          "Approval room target is invalid",
         );
       }
       const eventTypes: Record<typeof status, RoomEventType> = {
-        approved: 'approval_granted',
-        rejected: 'approval_rejected',
-        needs_revision: 'approval_needs_revision',
+        approved: "approval_granted",
+        rejected: "approval_rejected",
+        needs_revision: "approval_needs_revision",
       };
       const event = this.event(
         tenantId,
         approval.roomId,
         eventTypes[status],
         { roomId: approval.roomId, approvalId, targetId: approval.targetId },
-        input.decidedBy
+        input.decidedBy,
       );
       await transaction.appendEvent(event);
       return { value: resolved, events: [event] };
+    });
+  }
+
+  async expireApproval(
+    tenantId: string,
+    approvalId: string,
+    input: { expiredBy?: string; expectedExpiresAt?: string } = {},
+  ): Promise<Approval> {
+    if (input.expiredBy !== undefined)
+      this.required(input.expiredBy, "expiredBy");
+    if (input.expectedExpiresAt !== undefined) {
+      const expected = new Date(input.expectedExpiresAt);
+      if (!Number.isFinite(expected.getTime())) {
+        throw new AgentPlatError(
+          "VALIDATION_ERROR",
+          "expectedExpiresAt must be a valid ISO date-time",
+        );
+      }
+      input = { ...input, expectedExpiresAt: expected.toISOString() };
+    }
+    return this.mutate(tenantId, async (transaction) => {
+      const approval = await transaction.getApproval(tenantId, approvalId);
+      if (!approval) throw this.notFound("Approval", approvalId);
+      if (
+        input.expectedExpiresAt !== undefined &&
+        approval.expiresAt !== input.expectedExpiresAt
+      ) {
+        throw new AgentPlatError(
+          "CONFLICT",
+          "Approval expiration binding changed",
+          { statusCode: 409 },
+        );
+      }
+      if (approval.status === "expired") return { value: approval, events: [] };
+      if (approval.status !== "requested") {
+        throw new AgentPlatError(
+          "CONFLICT",
+          "Approval has already been resolved",
+          { statusCode: 409 },
+        );
+      }
+      if (!approval.expiresAt) {
+        throw new AgentPlatError(
+          "VALIDATION_ERROR",
+          "Approval does not declare an expiration",
+        );
+      }
+      const state = await transaction.getRoomState(tenantId, approval.roomId);
+      if (!state) throw this.notFound("Room", approval.roomId);
+      this.assertRoomWritable(state.room);
+      const now = this.now();
+      if (Date.parse(now) < Date.parse(approval.expiresAt)) {
+        throw new AgentPlatError(
+          "CONFLICT",
+          "Approval cannot expire before expiresAt",
+          { statusCode: 409 },
+        );
+      }
+      const expired: Approval = {
+        ...approval,
+        status: "expired",
+        expiredBy: input.expiredBy,
+        expiredAt: now,
+        updatedAt: now,
+      };
+      await transaction.updateApproval(expired);
+      const event = this.event(
+        tenantId,
+        approval.roomId,
+        "approval_expired",
+        {
+          roomId: approval.roomId,
+          approvalId,
+          targetId: approval.targetId,
+          targetVersion: approval.targetVersion ?? null,
+          expiresAt: approval.expiresAt,
+        },
+        input.expiredBy,
+      );
+      await transaction.appendEvent(event);
+      return { value: expired, events: [event] };
     });
   }
 
@@ -1668,32 +1779,32 @@ export class RoomService {
     tenantId: string,
     roomId: string,
     input: CreatePolicyInput,
-    actorId?: string
+    actorId?: string,
   ): Promise<Policy> {
-    this.required(input.name, 'name');
-    this.stringArray(input.allowedActions, 'allowedActions');
-    this.stringArray(input.deniedActions, 'deniedActions');
-    this.stringArray(input.requiredApprovals, 'requiredApprovals');
-    this.stringArray(input.toolPermissions, 'toolPermissions');
-    this.stringArray(input.memoryAccessRules, 'memoryAccessRules');
+    this.required(input.name, "name");
+    this.stringArray(input.allowedActions, "allowedActions");
+    this.stringArray(input.deniedActions, "deniedActions");
+    this.stringArray(input.requiredApprovals, "requiredApprovals");
+    this.stringArray(input.toolPermissions, "toolPermissions");
+    this.stringArray(input.memoryAccessRules, "memoryAccessRules");
     if (
       input.escalationRules !== undefined &&
       (!Array.isArray(input.escalationRules) ||
         input.escalationRules.some(
-          (rule) => !rule || typeof rule !== 'object' || Array.isArray(rule)
+          (rule) => !rule || typeof rule !== "object" || Array.isArray(rule),
         ))
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'escalationRules must be an array of objects'
+        "VALIDATION_ERROR",
+        "escalationRules must be an array of objects",
       );
     }
     if (
       (input.memoryAccessRules ?? []).some((scope) => !memoryScopes.has(scope))
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'memoryAccessRules contains an unsupported scope'
+        "VALIDATION_ERROR",
+        "memoryAccessRules contains an unsupported scope",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -1710,16 +1821,16 @@ export class RoomService {
         requiredApprovals: input.requiredApprovals ?? [],
         escalationRules: input.escalationRules ?? [],
         toolPermissions: input.toolPermissions ?? [],
-        memoryAccessRules: input.memoryAccessRules ?? ['room'],
+        memoryAccessRules: input.memoryAccessRules ?? ["room"],
         createdAt: now,
         updatedAt: now,
       };
       const event = this.event(
         tenantId,
         roomId,
-        'policy_created',
+        "policy_created",
         { roomId, policyId: policy.id },
-        actorId
+        actorId,
       );
       await transaction.insertPolicy(policy);
       await transaction.appendEvent(event);
@@ -1731,31 +1842,31 @@ export class RoomService {
     tenantId: string,
     roomId: string,
     input: WriteMemoryInput,
-    actorId?: string
+    actorId?: string,
   ): Promise<MemoryEntry> {
-    this.required(input.source, 'source');
+    this.required(input.source, "source");
     if (input.content === undefined) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'content is required');
+      throw new AgentPlatError("VALIDATION_ERROR", "content is required");
     }
     if (!memoryScopes.has(input.scope)) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'scope is not supported');
+      throw new AgentPlatError("VALIDATION_ERROR", "scope is not supported");
     }
     if (input.retention && !memoryRetentions.has(input.retention)) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'retention is not supported'
+        "VALIDATION_ERROR",
+        "retention is not supported",
       );
     }
-    if (input.retention === 'until' && !input.retainUntil) {
+    if (input.retention === "until" && !input.retainUntil) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'retainUntil is required when retention is until'
+        "VALIDATION_ERROR",
+        "retainUntil is required when retention is until",
       );
     }
-    if (['agent', 'role', 'artifact'].includes(input.scope) && !input.scopeId) {
+    if (["agent", "role", "artifact"].includes(input.scope) && !input.scopeId) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'scopeId is required for scoped memory'
+        "VALIDATION_ERROR",
+        "scopeId is required for scoped memory",
       );
     }
     if (
@@ -1764,8 +1875,8 @@ export class RoomService {
       (input.confidence ?? 1) > 1
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'confidence must be between 0 and 1'
+        "VALIDATION_ERROR",
+        "confidence must be between 0 and 1",
       );
     }
     if (
@@ -1773,8 +1884,8 @@ export class RoomService {
       Number.isNaN(new Date(input.retainUntil).getTime())
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'retainUntil must be a valid ISO date-time'
+        "VALIDATION_ERROR",
+        "retainUntil must be a valid ISO date-time",
       );
     }
     return this.mutate(tenantId, async (transaction) => {
@@ -1782,41 +1893,41 @@ export class RoomService {
       this.assertRoomWritable(room);
       const state = await transaction.getRoomState(tenantId, roomId);
       let scopeId = input.scopeId;
-      if (input.scope === 'agent') {
+      if (input.scope === "agent") {
         if (
           !state?.participants.some((participant) => participant.id === scopeId)
         ) {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            'Agent memory scopeId must be a room participant'
+            "VALIDATION_ERROR",
+            "Agent memory scopeId must be a room participant",
           );
         }
-      } else if (input.scope === 'role') {
+      } else if (input.scope === "role") {
         if (
           !state?.participants.some(
-            (participant) => participant.role === scopeId
+            (participant) => participant.role === scopeId,
           )
         ) {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            'Role memory scopeId must be present in the room'
+            "VALIDATION_ERROR",
+            "Role memory scopeId must be present in the room",
           );
         }
-      } else if (input.scope === 'artifact') {
+      } else if (input.scope === "artifact") {
         const artifact = scopeId
           ? await transaction.getArtifact(tenantId, scopeId)
           : undefined;
         if (!artifact || artifact.roomId !== roomId) {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            'Artifact memory scopeId must belong to the room'
+            "VALIDATION_ERROR",
+            "Artifact memory scopeId must belong to the room",
           );
         }
-      } else if (input.scope === 'organization') {
+      } else if (input.scope === "organization") {
         if (scopeId && scopeId !== tenantId) {
           throw new AgentPlatError(
-            'VALIDATION_ERROR',
-            'Organization memory scopeId must match the current tenant'
+            "VALIDATION_ERROR",
+            "Organization memory scopeId must match the current tenant",
           );
         }
         scopeId = tenantId;
@@ -1826,13 +1937,13 @@ export class RoomService {
       const entry: MemoryEntry = {
         id: input.id ?? this.id(),
         tenantId,
-        roomId: input.scope === 'organization' ? undefined : roomId,
+        roomId: input.scope === "organization" ? undefined : roomId,
         scope: input.scope,
         scopeId,
         content: input.content,
         source: input.source,
         confidence: input.confidence ?? 1,
-        retention: input.retention ?? 'durable',
+        retention: input.retention ?? "durable",
         retainUntil: input.retainUntil,
         provenance: input.provenance ?? {},
         createdAt: this.now(),
@@ -1840,9 +1951,9 @@ export class RoomService {
       const event = this.event(
         tenantId,
         roomId,
-        'memory_written',
+        "memory_written",
         { roomId, memoryId: entry.id, scope: entry.scope },
-        actorId
+        actorId,
       );
       await transaction.insertMemory(entry);
       await transaction.appendEvent(event);
@@ -1852,7 +1963,7 @@ export class RoomService {
 
   async getRoomState(tenantId: string, roomId: string): Promise<RoomState> {
     const state = await this.repository.getRoomState(tenantId, roomId);
-    if (!state) throw this.notFound('Room', roomId);
+    if (!state) throw this.notFound("Room", roomId);
     return state;
   }
 
@@ -1862,27 +1973,29 @@ export class RoomService {
 
   async listEvents(tenantId: string, roomId: string): Promise<DomainEvent[]> {
     if (!(await this.repository.getRoom(tenantId, roomId)))
-      throw this.notFound('Room', roomId);
+      throw this.notFound("Room", roomId);
     return this.repository.listEvents(tenantId, roomId);
   }
 
   async listEventPage(
     tenantId: string,
     roomId: string,
-    input: RoomEventPageInput = {}
+    input: RoomEventPageInput = {},
   ): Promise<RoomEventPage> {
     return roomEventPage(
       roomId,
       await this.listEvents(tenantId, roomId),
-      input
+      input,
     );
   }
 
   private async mutate<T>(
     tenantId: string,
-    work: (transaction: RoomRepositoryTransaction) => Promise<MutationResult<T>>
+    work: (
+      transaction: RoomRepositoryTransaction,
+    ) => Promise<MutationResult<T>>,
   ): Promise<T> {
-    this.required(tenantId, 'tenantId');
+    this.required(tenantId, "tenantId");
     const result = await this.repository.transaction(tenantId, work);
     await this.publish(result.events);
     return result.value;
@@ -1890,15 +2003,15 @@ export class RoomService {
 
   private async enqueueMessageForCoordination(
     transaction: RoomRepositoryTransaction,
-    message: RoomMessage
+    message: RoomMessage,
   ) {
     if (
       !transaction.getAgentRoomCoordinationState ||
       !transaction.saveAgentRoomCoordinationState
     ) {
       throw new AgentPlatError(
-        'ADAPTER_ERROR',
-        'Automatic coordination requires repository transaction support'
+        "ADAPTER_ERROR",
+        "Automatic coordination requires repository transaction support",
       );
     }
     const coordinationId =
@@ -1909,14 +2022,14 @@ export class RoomService {
     const current = await transaction.getAgentRoomCoordinationState(
       message.tenantId,
       message.roomId,
-      coordinationId
+      coordinationId,
     );
     const now = message.createdAt;
     const item = {
       itemId: `message:${message.id}`,
-      kind: 'message' as const,
+      kind: "message" as const,
       referenceId: message.id,
-      status: 'pending' as const,
+      status: "pending" as const,
       operationId: `${coordinationId}:message:message:${message.id}`,
       attempts: 0,
       runIds: [],
@@ -1925,7 +2038,7 @@ export class RoomService {
       ? {
           ...current,
           revision: current.revision + 1,
-          status: 'idle',
+          status: "idle",
           items: [...current.items, item],
           updatedAt: now,
         }
@@ -1934,7 +2047,7 @@ export class RoomService {
           roomId: message.roomId,
           coordinationId,
           revision: 0,
-          status: 'idle',
+          status: "idle",
           items: [item],
           createdAt: now,
           updatedAt: now,
@@ -1942,12 +2055,12 @@ export class RoomService {
     if (
       !(await transaction.saveAgentRoomCoordinationState(
         next,
-        current?.revision ?? null
+        current?.revision ?? null,
       ))
     ) {
       throw new AgentPlatError(
-        'CONFLICT',
-        'Automatic coordination inbox changed concurrently'
+        "CONFLICT",
+        "Automatic coordination inbox changed concurrently",
       );
     }
   }
@@ -1970,7 +2083,7 @@ export class RoomService {
 
   private async appendEvents(
     transaction: RoomRepositoryTransaction,
-    events: DomainEvent[]
+    events: DomainEvent[],
   ): Promise<void> {
     for (const event of events) await transaction.appendEvent(event);
   }
@@ -1978,10 +2091,10 @@ export class RoomService {
   private async requireRoom(
     transaction: RoomRepositoryTransaction,
     tenantId: string,
-    roomId: string
+    roomId: string,
   ): Promise<Room> {
     const room = await transaction.getRoom(tenantId, roomId);
-    if (!room) throw this.notFound('Room', roomId);
+    if (!room) throw this.notFound("Room", roomId);
     return room;
   }
 
@@ -1989,16 +2102,16 @@ export class RoomService {
     transaction: RoomRepositoryTransaction,
     tenantId: string,
     roomId: string,
-    participantId: string
+    participantId: string,
   ): Promise<Participant> {
     const state = await transaction.getRoomState(tenantId, roomId);
     const participant = state?.participants.find(
-      (item) => item.id === participantId
+      (item) => item.id === participantId,
     );
     if (!participant) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        `Participant \"${participantId}\" is not in this room`
+        "VALIDATION_ERROR",
+        `Participant \"${participantId}\" is not in this room`,
       );
     }
     return participant;
@@ -2006,32 +2119,32 @@ export class RoomService {
 
   private resolveAgentParticipant(
     state: RoomState,
-    task: RoomTask
+    task: RoomTask,
   ): Participant {
     const participant = task.assignedParticipantId
       ? state.participants.find(
-          (candidate) => candidate.id === task.assignedParticipantId
+          (candidate) => candidate.id === task.assignedParticipantId,
         )
       : state.participants.find(
           (candidate) =>
-            candidate.type === 'agent' &&
-            (!task.assignedRole || candidate.role === task.assignedRole)
+            candidate.type === "agent" &&
+            (!task.assignedRole || candidate.role === task.assignedRole),
         );
-    if (!participant || participant.type !== 'agent') {
+    if (!participant || participant.type !== "agent") {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'Task requires an assigned agent participant'
+        "VALIDATION_ERROR",
+        "Task requires an assigned agent participant",
       );
     }
     return participant;
   }
 
   private assertRoomWritable(room: Room): void {
-    if (room.status === 'completed' || room.status === 'archived') {
+    if (room.status === "completed" || room.status === "archived") {
       throw new AgentPlatError(
-        'CONFLICT',
+        "CONFLICT",
         `Room is ${room.status} and cannot be modified`,
-        { statusCode: 409 }
+        { statusCode: 409 },
       );
     }
   }
@@ -2039,7 +2152,7 @@ export class RoomService {
   private parseArtifactOutput(
     result: JsonObject | undefined,
     task: RoomTask,
-    output?: string
+    output?: string,
   ): {
     type: string;
     title: string;
@@ -2050,27 +2163,27 @@ export class RoomService {
   } {
     const candidate = result?.artifact;
     const artifact =
-      candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+      candidate && typeof candidate === "object" && !Array.isArray(candidate)
         ? (candidate as JsonObject)
         : {};
     const strings = (value: JsonValue | undefined): string[] =>
       Array.isArray(value)
-        ? value.filter((item): item is string => typeof item === 'string')
+        ? value.filter((item): item is string => typeof item === "string")
         : [];
     return {
       type:
-        typeof artifact.type === 'string'
+        typeof artifact.type === "string"
           ? artifact.type
           : task.expectedArtifactKind,
       title:
-        typeof artifact.title === 'string'
+        typeof artifact.title === "string"
           ? artifact.title
           : `${task.stepId} output`,
-      content: artifact.content ?? output ?? '',
+      content: artifact.content ?? output ?? "",
       contentType:
-        typeof artifact.contentType === 'string'
+        typeof artifact.contentType === "string"
           ? artifact.contentType
-          : 'text/plain',
+          : "text/plain",
       assumptions: strings(artifact.assumptions),
       risks: strings(artifact.risks),
     };
@@ -2081,15 +2194,15 @@ export class RoomService {
     roomId: string,
     type: RoomEventType,
     payload: JsonObject,
-    actorId?: string
+    actorId?: string,
   ): DomainEvent {
     return {
       id: this.id(),
       tenantId,
       roomId,
       type,
-      source: 'agentplat.rooms',
-      subject: { type: 'room', id: roomId, tenantId },
+      source: "agentplat.rooms",
+      subject: { type: "room", id: roomId, tenantId },
       payload,
       metadata: actorId ? { actorId } : undefined,
       actorId,
@@ -2104,14 +2217,14 @@ export class RoomService {
   private async withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
-    onTimeout?: (error: AgentPlatError) => void
+    onTimeout?: (error: AgentPlatError) => void,
   ): Promise<T> {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const timedOut = new Promise<never>((_resolve, reject) => {
       timeout = setTimeout(() => {
         const error = new AgentPlatError(
-          'ADAPTER_ERROR',
-          `Agent runtime timed out after ${timeoutMs}ms`
+          "ADAPTER_ERROR",
+          `Agent runtime timed out after ${timeoutMs}ms`,
         );
         try {
           onTimeout?.(error);
@@ -2135,7 +2248,7 @@ export class RoomService {
 
   private leaseExpiresAt(startedAt: string): string {
     return new Date(
-      new Date(startedAt).getTime() + this.runTimeoutMs + this.runLeaseGraceMs
+      new Date(startedAt).getTime() + this.runTimeoutMs + this.runLeaseGraceMs,
     ).toISOString();
   }
 
@@ -2144,25 +2257,25 @@ export class RoomService {
   }
 
   private required(value: unknown, field: string): void {
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new AgentPlatError('VALIDATION_ERROR', `${field} is required`);
+    if (typeof value !== "string" || !value.trim()) {
+      throw new AgentPlatError("VALIDATION_ERROR", `${field} is required`);
     }
   }
 
   private stringArray(value: unknown, field: string): void {
     if (
       value !== undefined &&
-      (!Array.isArray(value) || value.some((item) => typeof item !== 'string'))
+      (!Array.isArray(value) || value.some((item) => typeof item !== "string"))
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        `${field} must be an array of strings`
+        "VALIDATION_ERROR",
+        `${field} must be an array of strings`,
       );
     }
   }
 
   private notFound(label: string, id: string): AgentPlatError {
-    return new AgentPlatError('NOT_FOUND', `${label} \"${id}\" was not found`, {
+    return new AgentPlatError("NOT_FOUND", `${label} \"${id}\" was not found`, {
       statusCode: 404,
     });
   }

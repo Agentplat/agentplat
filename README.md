@@ -644,7 +644,11 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/sessions-redis`                 | Redis pub/sub control for Sessions across service instances.                                                               |
 | `@agentplat/streaming`                      | Versioned SSE server helpers, parser and thin browser subscription API.                                                    |
 | `@agentplat/provider-openai`                | OpenAI Agents SDK execution with tenant-isolated credentials.                                                              |
-| `@agentplat/workflows`                      | Process/task contracts and an in-memory workflow store.                                                                    |
+| `@agentplat/workflows`                      | Governed process/task DAGs, in-memory runner, task integrity, usage and delayed outcomes.                                  |
+| `@agentplat/workflows-conformance`          | Shared compatibility suite for workflow runners, stores, outcomes and durable restart.                                    |
+| `@agentplat/workflows-postgres`             | Durable workflow definitions, CAS runs, signals, task attempts, transition journal and outcomes in PostgreSQL.             |
+| `@agentplat/workflows-rooms`                | Version-bound Agent Room approval gates, revision chains, expiry and replay-safe workflow wakeups.                         |
+| `@agentplat/workflows-temporal`             | Optional Temporal wakeups, activity retry, durable timers, notification recovery and history rollover.                     |
 | `@agentplat/work-management-asana`          | OAuth-backed Asana projection for durable human contributions with external-identity recovery.                             |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                                                         |
 | `@agentplat/inference-control`              | Inference gates, heterogeneous assessor ensembles, context and role continuity.                                            |
@@ -662,6 +666,8 @@ record](./docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/events`                         | Event contracts and an in-memory event bus.                                                                                |
 | `@agentplat/audit`                          | Audit contracts, recursive redaction and signed causal telemetry/replay.                                                   |
 | `@agentplat/auth`                           | Auth, permission and tenant-resolution contracts with local adapters.                                                      |
+| `@agentplat/autonomy`                       | Evidence-gated progressive supervision, deterministic sampling and Action Gateway narrowing.                              |
+| `@agentplat/autonomy-postgres`              | Durable autonomy policies, segment CAS state and atomic decision journal.                                                  |
 
 ## Agent Room quickstart
 

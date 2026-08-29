@@ -1,10 +1,10 @@
-import { AgentPlatError } from '@agentplat/core';
+import { AgentPlatError } from "@agentplat/core";
 import type {
   AgentPlatID,
   JsonObject,
   JsonValue,
   Metadata,
-} from '@agentplat/core';
+} from "@agentplat/core";
 import type {
   Approval,
   Artifact,
@@ -27,18 +27,18 @@ import type {
   RoomTask,
   ToolCall,
   AgentRoomCoordinationState,
-} from '@agentplat/rooms';
+} from "@agentplat/rooms";
 import {
   defaultPostgresSchema,
   normalizePostgresIdentifier,
   quotePostgresIdentifier,
-} from '@agentplat/postgres';
-import type { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+} from "@agentplat/postgres";
+import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 interface Database {
   query<R extends QueryResultRow = QueryResultRow>(
     text: string,
-    values?: unknown[]
+    values?: unknown[],
   ): Promise<QueryResult<R>>;
 }
 type Row = QueryResultRow & Record<string, unknown>;
@@ -48,9 +48,9 @@ function scopedDatabase(database: Pool | PoolClient, schema: string): Database {
   return {
     query<R extends QueryResultRow = QueryResultRow>(
       text: string,
-      values?: unknown[]
+      values?: unknown[],
     ) {
-      return database.query<R>(text.replaceAll('public.', prefix), values);
+      return database.query<R>(text.replaceAll("public.", prefix), values);
     },
   };
 }
@@ -84,7 +84,7 @@ function mapRoom(row: Row): Room {
     parentRoomId: optionalString(row.parent_room_id),
     title: String(row.title),
     goal: String(row.goal),
-    status: row.status as Room['status'],
+    status: row.status as Room["status"],
     metadata: metadata(row),
     createdBy: optionalString(row.created_by),
     createdAt: iso(row.created_at),
@@ -98,14 +98,14 @@ function mapParticipant(row: Row): Participant {
   return {
     tenantId: String(row.tenant_id),
     id: String(row.id),
-    type: row.type as Participant['type'],
+    type: row.type as Participant["type"],
     displayName: String(row.display_name),
     role: String(row.role),
     authorityLevel: Number(row.authority_level),
     permissions: row.permissions as string[],
     boundaries: row.boundaries as string[],
     memoryScope: row.memory_scope as MemoryScope | undefined,
-    runtime: row.runtime as Participant['runtime'],
+    runtime: row.runtime as Participant["runtime"],
     metadata: metadata(row),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
@@ -118,7 +118,7 @@ function mapMessage(row: Row): RoomMessage {
     id: String(row.id),
     roomId: String(row.room_id),
     authorParticipantId: optionalString(row.author_participant_id),
-    role: row.role as RoomMessage['role'],
+    role: row.role as RoomMessage["role"],
     content: String(row.content),
     metadata: metadata(row),
     createdAt: iso(row.created_at),
@@ -138,10 +138,10 @@ function mapTask(row: Row): RoomTask {
     expectedArtifactKind: String(row.expected_artifact_kind),
     dependencies: row.dependencies as string[],
     acceptanceCriteria: row.acceptance_criteria as string[],
-    actionLevel: row.action_level as RoomTask['actionLevel'],
+    actionLevel: row.action_level as RoomTask["actionLevel"],
     approvalRequired: Boolean(row.approval_required),
     toolIds: row.tool_ids as string[],
-    status: row.status as RoomTask['status'],
+    status: row.status as RoomTask["status"],
     errorMessage: optionalString(row.error_message),
     metadata: metadata(row),
     createdAt: iso(row.created_at),
@@ -157,7 +157,7 @@ function mapArtifact(row: Row): Artifact {
     roomId: String(row.room_id),
     type: String(row.type),
     title: String(row.title),
-    status: row.status as Artifact['status'],
+    status: row.status as Artifact["status"],
     currentVersion: Number(row.current_version),
     authors: row.authors as string[],
     provenance: row.provenance as unknown as ArtifactProvenance,
@@ -187,17 +187,20 @@ function mapApproval(row: Row): Approval {
     tenantId: String(row.tenant_id),
     id: String(row.id),
     roomId: String(row.room_id),
-    targetType: row.target_type as Approval['targetType'],
+    targetType: row.target_type as Approval["targetType"],
     targetId: String(row.target_id),
     targetVersion:
       row.target_version === null || row.target_version === undefined
         ? undefined
         : Number(row.target_version),
     action: optionalString(row.action),
-    status: row.status as Approval['status'],
+    status: row.status as Approval["status"],
     requestedBy: optionalString(row.requested_by),
     decidedBy: optionalString(row.decided_by),
     comment: optionalString(row.comment),
+    expiresAt: optionalIso(row.expires_at),
+    expiredBy: optionalString(row.expired_by),
+    expiredAt: optionalIso(row.expired_at),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
     decidedAt: optionalIso(row.decided_at),
@@ -231,7 +234,7 @@ function mapMemory(row: Row): MemoryEntry {
     content: row.content as JsonValue,
     source: String(row.source),
     confidence: Number(row.confidence),
-    retention: row.retention as MemoryEntry['retention'],
+    retention: row.retention as MemoryEntry["retention"],
     retainUntil: optionalIso(row.retain_until),
     provenance: row.provenance as JsonObject,
     createdAt: iso(row.created_at),
@@ -258,7 +261,7 @@ function mapRun(row: Row): RoomRun {
     taskId: String(row.task_id),
     participantId: String(row.participant_id),
     runtime: String(row.runtime),
-    status: row.status as RoomRun['status'],
+    status: row.status as RoomRun["status"],
     output: optionalString(row.output),
     errorMessage: optionalString(row.error_message),
     tokenUsage: row.token_usage as JsonObject | undefined,
@@ -281,7 +284,7 @@ function mapToolCall(row: Row): ToolCall {
     toolId: String(row.tool_id),
     input: row.input as JsonObject,
     output: row.output as JsonValue | undefined,
-    status: row.status as ToolCall['status'],
+    status: row.status as ToolCall["status"],
     latencyMs:
       row.latency_ms === null || row.latency_ms === undefined
         ? undefined
@@ -296,9 +299,9 @@ function mapEvent(row: Row): DomainEvent {
     tenantId: String(row.tenant_id),
     id: String(row.id),
     roomId: String(row.room_id),
-    type: row.type as DomainEvent['type'],
+    type: row.type as DomainEvent["type"],
     source: String(row.source),
-    subject: row.subject as DomainEvent['subject'],
+    subject: row.subject as DomainEvent["subject"],
     payload: row.payload as JsonObject,
     metadata: metadata(row),
     occurredAt: iso(row.occurred_at),
@@ -309,28 +312,28 @@ function mapEvent(row: Row): DomainEvent {
 function translatePostgresError(error: unknown): unknown {
   if (error instanceof AgentPlatError) return error;
   const code =
-    typeof error === 'object' && error !== null && 'code' in error
+    typeof error === "object" && error !== null && "code" in error
       ? String(error.code)
       : undefined;
-  if (code === '23505') {
-    return new AgentPlatError('CONFLICT', 'The resource already exists', {
+  if (code === "23505") {
+    return new AgentPlatError("CONFLICT", "The resource already exists", {
       statusCode: 409,
       details: error,
     });
   }
   if (
-    code === '23502' ||
-    code === '23503' ||
-    code === '23514' ||
-    code === '22P02'
+    code === "23502" ||
+    code === "23503" ||
+    code === "23514" ||
+    code === "22P02"
   ) {
     return new AgentPlatError(
-      'VALIDATION_ERROR',
-      'The persisted room data is invalid',
+      "VALIDATION_ERROR",
+      "The persisted room data is invalid",
       {
         statusCode: 400,
         details: error,
-      }
+      },
     );
   }
   return error;
@@ -340,11 +343,11 @@ class PostgresRoomReader {
   constructor(
     protected readonly database: Database,
     private readonly transactionTenantId?: AgentPlatID,
-    private readonly lockRows = false
+    private readonly lockRows = false,
   ) {}
 
   private get rowLock(): string {
-    return this.lockRows ? ' FOR UPDATE' : '';
+    return this.lockRows ? " FOR UPDATE" : "";
   }
 
   protected assertTenant(tenantId: AgentPlatID): void {
@@ -353,21 +356,21 @@ class PostgresRoomReader {
       tenantId !== this.transactionTenantId
     ) {
       throw new AgentPlatError(
-        'FORBIDDEN',
-        'A room transaction cannot access another tenant',
-        { statusCode: 403 }
+        "FORBIDDEN",
+        "A room transaction cannot access another tenant",
+        { statusCode: 403 },
       );
     }
   }
 
   async getRoom(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<Room | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.rooms WHERE tenant_id = $1 AND id = $2${this.rowLock}`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     return result.rows[0] ? mapRoom(result.rows[0]) : undefined;
   }
@@ -375,70 +378,70 @@ class PostgresRoomReader {
   async listRooms(tenantId: AgentPlatID): Promise<Room[]> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
-      'SELECT * FROM public.rooms WHERE tenant_id = $1 ORDER BY created_at DESC, id',
-      [tenantId]
+      "SELECT * FROM public.rooms WHERE tenant_id = $1 ORDER BY created_at DESC, id",
+      [tenantId],
     );
     return result.rows.map(mapRoom);
   }
 
   async getParticipant(
     tenantId: AgentPlatID,
-    participantId: AgentPlatID
+    participantId: AgentPlatID,
   ): Promise<Participant | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.participants WHERE tenant_id = $1 AND id = $2${this.rowLock}`,
-      [tenantId, participantId]
+      [tenantId, participantId],
     );
     return result.rows[0] ? mapParticipant(result.rows[0]) : undefined;
   }
 
   async getTask(
     tenantId: AgentPlatID,
-    taskId: AgentPlatID
+    taskId: AgentPlatID,
   ): Promise<RoomTask | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.tasks WHERE tenant_id = $1 AND id = $2${this.rowLock}`,
-      [tenantId, taskId]
+      [tenantId, taskId],
     );
     return result.rows[0] ? mapTask(result.rows[0]) : undefined;
   }
 
   async getArtifact(
     tenantId: AgentPlatID,
-    artifactId: AgentPlatID
+    artifactId: AgentPlatID,
   ): Promise<Artifact | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.artifacts WHERE tenant_id = $1 AND id = $2${this.rowLock}`,
-      [tenantId, artifactId]
+      [tenantId, artifactId],
     );
     return result.rows[0] ? mapArtifact(result.rows[0]) : undefined;
   }
 
   async getApproval(
     tenantId: AgentPlatID,
-    approvalId: AgentPlatID
+    approvalId: AgentPlatID,
   ): Promise<Approval | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.approvals WHERE tenant_id = $1 AND id = $2${this.rowLock}`,
-      [tenantId, approvalId]
+      [tenantId, approvalId],
     );
     return result.rows[0] ? mapApproval(result.rows[0]) : undefined;
   }
 
   async listEvents(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<DomainEvent[]> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT * FROM public.events
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY sequence`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     return result.rows.map(mapEvent);
   }
@@ -446,13 +449,13 @@ class PostgresRoomReader {
   async getAgentRoomCoordinationState(
     tenantId: AgentPlatID,
     roomId: AgentPlatID,
-    coordinationId: AgentPlatID
+    coordinationId: AgentPlatID,
   ): Promise<AgentRoomCoordinationState | undefined> {
     this.assertTenant(tenantId);
     const result = await this.database.query<Row>(
       `SELECT state FROM public.room_coordination_state
        WHERE tenant_id=$1 AND room_id=$2 AND coordination_id=$3${this.rowLock}`,
-      [tenantId, roomId, coordinationId]
+      [tenantId, roomId, coordinationId],
     );
     return result.rows[0]?.state
       ? structuredClone(result.rows[0].state as AgentRoomCoordinationState)
@@ -465,16 +468,16 @@ class PostgresRoomReader {
       `SELECT state FROM public.room_coordination_state
        WHERE ($1::text IS NULL OR tenant_id=$1)
        ORDER BY updated_at,coordination_id`,
-      [tenantId ?? null]
+      [tenantId ?? null],
     );
     return result.rows.map((row) =>
-      structuredClone(row.state as AgentRoomCoordinationState)
+      structuredClone(row.state as AgentRoomCoordinationState),
     );
   }
 
   async getRoomState(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<RoomState | undefined> {
     this.assertTenant(tenantId);
     const room = await this.getRoom(tenantId, roomId);
@@ -488,25 +491,25 @@ class PostgresRoomReader {
         AND participant.id = link.participant_id
        WHERE link.tenant_id = $1 AND link.room_id = $2
        ORDER BY link.joined_at, participant.id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const messages = await this.database.query<Row>(
       `SELECT * FROM public.messages
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const tasks = await this.database.query<Row>(
       `SELECT * FROM public.tasks
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const artifacts = await this.database.query<Row>(
       `SELECT * FROM public.artifacts
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const versions = await this.database.query<Row>(
       `SELECT version.*
@@ -516,50 +519,50 @@ class PostgresRoomReader {
         AND artifact.id = version.artifact_id
        WHERE artifact.tenant_id = $1 AND artifact.room_id = $2
        ORDER BY artifact.created_at, artifact.id, version.version`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const approvals = await this.database.query<Row>(
       `SELECT * FROM public.approvals
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const policies = await this.database.query<Row>(
       `SELECT * FROM public.policies
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const memory = await this.database.query<Row>(
       `SELECT * FROM public.memory_entries
        WHERE tenant_id = $1
          AND (room_id = $2 OR (scope = 'organization' AND scope_id = $1))
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const snapshots = await this.database.query<Row>(
       `SELECT * FROM public.context_snapshots
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const runs = await this.database.query<Row>(
       `SELECT * FROM public.runs
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY started_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const toolCalls = await this.database.query<Row>(
       `SELECT * FROM public.tool_calls
        WHERE tenant_id = $1 AND room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const childRooms = await this.database.query<Row>(
       `SELECT * FROM public.rooms
        WHERE tenant_id = $1 AND parent_room_id = $2
        ORDER BY created_at, id`,
-      [tenantId, roomId]
+      [tenantId, roomId],
     );
     const roomEvents = await this.listEvents(tenantId, roomId);
     const mappedVersions = versions.rows.map(mapArtifactVersion);
@@ -574,7 +577,7 @@ class PostgresRoomReader {
         return {
           ...artifact,
           versions: mappedVersions.filter(
-            (version) => version.artifactId === artifact.id
+            (version) => version.artifactId === artifact.id,
           ),
         };
       }),
@@ -597,7 +600,7 @@ class PostgresRoomTransaction
   constructor(
     client: PoolClient,
     private readonly tenantId: AgentPlatID,
-    schema: string
+    schema: string,
   ) {
     super(scopedDatabase(client, schema), tenantId, true);
   }
@@ -609,10 +612,10 @@ class PostgresRoomTransaction
   private async assertUpdated(
     result: { rowCount: number | null },
     label: string,
-    id: AgentPlatID
+    id: AgentPlatID,
   ): Promise<void> {
     if ((result.rowCount ?? 0) === 0) {
-      throw new AgentPlatError('NOT_FOUND', `${label} "${id}" was not found`, {
+      throw new AgentPlatError("NOT_FOUND", `${label} "${id}" was not found`, {
         statusCode: 404,
       });
     }
@@ -620,7 +623,7 @@ class PostgresRoomTransaction
 
   async saveAgentRoomCoordinationState(
     state: AgentRoomCoordinationState,
-    expectedRevision: number | null
+    expectedRevision: number | null,
   ): Promise<boolean> {
     this.assertEntityTenant(state);
     if (expectedRevision === null) {
@@ -639,7 +642,7 @@ class PostgresRoomTransaction
           json(state),
           state.createdAt,
           state.updatedAt,
-        ]
+        ],
       );
       return result.rowCount === 1;
     }
@@ -657,7 +660,7 @@ class PostgresRoomTransaction
         json(state),
         state.updatedAt,
         expectedRevision,
-      ]
+      ],
     );
     return result.rowCount === 1;
   }
@@ -682,7 +685,7 @@ class PostgresRoomTransaction
         room.updatedAt,
         room.completedAt ?? null,
         room.archivedAt ?? null,
-      ]
+      ],
     );
   }
 
@@ -707,9 +710,9 @@ class PostgresRoomTransaction
         room.updatedAt,
         room.completedAt ?? null,
         room.archivedAt ?? null,
-      ]
+      ],
     );
-    await this.assertUpdated(result, 'Room', room.id);
+    await this.assertUpdated(result, "Room", room.id);
   }
 
   async insertParticipant(participant: Participant): Promise<void> {
@@ -734,7 +737,7 @@ class PostgresRoomTransaction
         json(participant.metadata ?? {}),
         participant.createdAt,
         participant.updatedAt,
-      ]
+      ],
     );
   }
 
@@ -744,7 +747,7 @@ class PostgresRoomTransaction
       `INSERT INTO public.room_participants (
          tenant_id, room_id, participant_id, joined_at
        ) VALUES ($1,$2,$3,$4)`,
-      [link.tenantId, link.roomId, link.participantId, link.joinedAt]
+      [link.tenantId, link.roomId, link.participantId, link.joinedAt],
     );
   }
 
@@ -764,7 +767,7 @@ class PostgresRoomTransaction
         message.content,
         json(message.metadata ?? {}),
         message.createdAt,
-      ]
+      ],
     );
   }
 
@@ -781,7 +784,7 @@ class PostgresRoomTransaction
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,
          $14::jsonb,$15,$16,$17::jsonb,$18,$19,$20
        )`,
-      this.taskValues(task)
+      this.taskValues(task),
     );
   }
 
@@ -798,9 +801,9 @@ class PostgresRoomTransaction
          error_message = $16, metadata = $17::jsonb, created_at = $18,
          updated_at = $19, completed_at = $20
        WHERE tenant_id = $1 AND id = $2`,
-      values
+      values,
     );
-    await this.assertUpdated(result, 'Task', task.id);
+    await this.assertUpdated(result, "Task", task.id);
   }
 
   private taskValues(task: RoomTask): unknown[] {
@@ -830,7 +833,7 @@ class PostgresRoomTransaction
 
   async insertArtifact(
     artifact: Artifact,
-    version: ArtifactVersion
+    version: ArtifactVersion,
   ): Promise<void> {
     this.assertEntityTenant(artifact);
     this.assertEntityTenant(version);
@@ -839,9 +842,9 @@ class PostgresRoomTransaction
       version.version !== artifact.currentVersion
     ) {
       throw new AgentPlatError(
-        'VALIDATION_ERROR',
-        'The initial artifact version must match the artifact current version',
-        { statusCode: 400 }
+        "VALIDATION_ERROR",
+        "The initial artifact version must match the artifact current version",
+        { statusCode: 400 },
       );
     }
     await this.database.query(
@@ -852,7 +855,7 @@ class PostgresRoomTransaction
          $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,
          $11::jsonb,$12::jsonb,$13,$14
        )`,
-      this.artifactValues(artifact)
+      this.artifactValues(artifact),
     );
     await this.insertArtifactVersion(version);
   }
@@ -867,9 +870,9 @@ class PostgresRoomTransaction
          assumptions = $10::jsonb, risks = $11::jsonb,
          metadata = $12::jsonb, created_at = $13, updated_at = $14
        WHERE tenant_id = $1 AND id = $2`,
-      values
+      values,
     );
-    await this.assertUpdated(result, 'Artifact', artifact.id);
+    await this.assertUpdated(result, "Artifact", artifact.id);
   }
 
   private artifactValues(artifact: Artifact): unknown[] {
@@ -907,7 +910,7 @@ class PostgresRoomTransaction
         version.contentType,
         version.createdBy ?? null,
         version.createdAt,
-      ]
+      ],
     );
   }
 
@@ -916,10 +919,10 @@ class PostgresRoomTransaction
     await this.database.query(
       `INSERT INTO public.approvals (
          tenant_id, id, room_id, target_type, target_id, target_version,
-         action, status, requested_by, decided_by, comment, created_at,
-         updated_at, decided_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-      this.approvalValues(approval)
+         action, status, requested_by, decided_by, comment, expires_at,
+         expired_by, created_at, updated_at, decided_at, expired_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      this.approvalValues(approval),
     );
   }
 
@@ -931,11 +934,12 @@ class PostgresRoomTransaction
          room_id = $3, target_type = $4, target_id = $5,
          target_version = $6, action = $7, status = $8,
          requested_by = $9, decided_by = $10, comment = $11,
-         created_at = $12, updated_at = $13, decided_at = $14
+         expires_at = $12, expired_by = $13, created_at = $14,
+         updated_at = $15, decided_at = $16, expired_at = $17
        WHERE tenant_id = $1 AND id = $2`,
-      values
+      values,
     );
-    await this.assertUpdated(result, 'Approval', approval.id);
+    await this.assertUpdated(result, "Approval", approval.id);
   }
 
   private approvalValues(approval: Approval): unknown[] {
@@ -951,9 +955,12 @@ class PostgresRoomTransaction
       approval.requestedBy ?? null,
       approval.decidedBy ?? null,
       approval.comment ?? null,
+      approval.expiresAt ?? null,
+      approval.expiredBy ?? null,
       approval.createdAt,
       approval.updatedAt,
       approval.decidedAt ?? null,
+      approval.expiredAt ?? null,
     ];
   }
 
@@ -981,7 +988,7 @@ class PostgresRoomTransaction
         json(policy.memoryAccessRules),
         policy.createdAt,
         policy.updatedAt,
-      ]
+      ],
     );
   }
 
@@ -1005,7 +1012,7 @@ class PostgresRoomTransaction
         entry.retainUntil ?? null,
         json(entry.provenance),
         entry.createdAt,
-      ]
+      ],
     );
   }
 
@@ -1023,7 +1030,7 @@ class PostgresRoomTransaction
         snapshot.runId,
         json(snapshot.context),
         snapshot.createdAt,
-      ]
+      ],
     );
   }
 
@@ -1035,7 +1042,7 @@ class PostgresRoomTransaction
          output, error_message, token_usage, latency_ms, started_at,
          lease_expires_at, completed_at
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)`,
-      this.runValues(run)
+      this.runValues(run),
     );
   }
 
@@ -1049,9 +1056,9 @@ class PostgresRoomTransaction
          token_usage = $10::jsonb, latency_ms = $11, started_at = $12,
          lease_expires_at = $13, completed_at = $14
        WHERE tenant_id = $1 AND id = $2`,
-      values
+      values,
     );
-    await this.assertUpdated(result, 'Run', run.id);
+    await this.assertUpdated(result, "Run", run.id);
   }
 
   private runValues(run: RoomRun): unknown[] {
@@ -1080,7 +1087,7 @@ class PostgresRoomTransaction
          tenant_id, id, room_id, run_id, tool_id, input, output,
          status, latency_ms, created_at, completed_at
        ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11)`,
-      this.toolCallValues(call)
+      this.toolCallValues(call),
     );
   }
 
@@ -1093,9 +1100,9 @@ class PostgresRoomTransaction
          output = $7::jsonb, status = $8, latency_ms = $9,
          created_at = $10, completed_at = $11
        WHERE tenant_id = $1 AND id = $2`,
-      values
+      values,
     );
-    await this.assertUpdated(result, 'Tool call', call.id);
+    await this.assertUpdated(result, "Tool call", call.id);
   }
 
   private toolCallValues(call: ToolCall): unknown[] {
@@ -1117,7 +1124,7 @@ class PostgresRoomTransaction
   async appendEvent(event: DomainEvent): Promise<void> {
     this.assertEntityTenant(event);
     if (event.roomId.length === 0) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'Event roomId is required', {
+      throw new AgentPlatError("VALIDATION_ERROR", "Event roomId is required", {
         statusCode: 400,
       });
     }
@@ -1137,7 +1144,7 @@ class PostgresRoomTransaction
         json(event.metadata ?? {}),
         event.occurredAt,
         event.actorId ?? null,
-      ]
+      ],
     );
   }
 }
@@ -1150,11 +1157,11 @@ export class PostgresRoomRepository
 
   constructor(
     private readonly pool: Pool,
-    options: PostgresRoomRepositoryOptions = {}
+    options: PostgresRoomRepositoryOptions = {},
   ) {
     const schema = normalizePostgresIdentifier(
       options.schema ?? defaultPostgresSchema,
-      'schema'
+      "schema",
     );
     super(scopedDatabase(pool, schema));
     this.schema = schema;
@@ -1162,19 +1169,19 @@ export class PostgresRoomRepository
 
   override async getRoomState(
     tenantId: AgentPlatID,
-    roomId: AgentPlatID
+    roomId: AgentPlatID,
   ): Promise<RoomState | undefined> {
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+      await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const state = await new PostgresRoomReader(
         scopedDatabase(client, this.schema),
-        tenantId
+        tenantId,
       ).getRoomState(tenantId, roomId);
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return state;
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => undefined);
+      await client.query("ROLLBACK").catch(() => undefined);
       throw error;
     } finally {
       client.release();
@@ -1183,21 +1190,21 @@ export class PostgresRoomRepository
 
   async transaction<T>(
     tenantId: AgentPlatID,
-    work: (transaction: RoomRepositoryTransaction) => Promise<T>
+    work: (transaction: RoomRepositoryTransaction) => Promise<T>,
   ): Promise<T> {
     if (!tenantId.trim()) {
-      throw new AgentPlatError('VALIDATION_ERROR', 'tenantId is required');
+      throw new AgentPlatError("VALIDATION_ERROR", "tenantId is required");
     }
     const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
       const result = await work(
-        new PostgresRoomTransaction(client, tenantId, this.schema)
+        new PostgresRoomTransaction(client, tenantId, this.schema),
       );
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return result;
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => undefined);
+      await client.query("ROLLBACK").catch(() => undefined);
       throw translatePostgresError(error);
     } finally {
       client.release();

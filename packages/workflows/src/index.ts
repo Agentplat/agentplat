@@ -6,11 +6,19 @@ import type {
   Metadata,
   TenantScoped,
   Timestamped,
-} from '@agentplat/core';
+} from "@agentplat/core";
+
+export * from "./v1-canonical.js";
+export * from "./v1-contracts.js";
+export * from "./v1-legacy.js";
+export * from "./v1-outcomes.js";
+export * from "./v1-runtime.js";
+export * from "./v1-task-runs.js";
+export * from "./v1-validation.js";
 
 export type RunStatus = Extract<
   LifecycleStatus,
-  'pending' | 'running' | 'completed' | 'failed' | 'canceled'
+  "pending" | "running" | "completed" | "failed" | "canceled"
 >;
 export type StageStatus = RunStatus;
 
@@ -18,7 +26,7 @@ export interface TaskDefinition extends Timestamped {
   id: AgentPlatID;
   name: string;
   version: string;
-  runtime: 'lambda' | 'fargate' | 'local' | 'external';
+  runtime: "lambda" | "fargate" | "local" | "external";
   description?: string;
   parameters?: JsonObject;
   status?: LifecycleStatus;
@@ -92,16 +100,16 @@ export interface ProcessRun extends TenantScoped, Timestamped {
 
 export interface WorkflowStore {
   getProcessDefinition(
-    processId: AgentPlatID
+    processId: AgentPlatID,
   ): Promise<ProcessDefinition | undefined>;
   getProcessRun(
     tenantId: AgentPlatID,
-    runId: AgentPlatID
+    runId: AgentPlatID,
   ): Promise<ProcessRun | undefined>;
   saveProcessRun(run: ProcessRun): Promise<void>;
   getTaskRun(
     tenantId: AgentPlatID,
-    taskRunId: AgentPlatID
+    taskRunId: AgentPlatID,
   ): Promise<TaskRun | undefined>;
   saveTaskRun(run: TaskRun): Promise<void>;
 }
@@ -116,14 +124,14 @@ export class InMemoryWorkflowStore implements WorkflowStore {
   }
 
   async getProcessDefinition(
-    processId: AgentPlatID
+    processId: AgentPlatID,
   ): Promise<ProcessDefinition | undefined> {
     return this.definitions.get(processId);
   }
 
   async getProcessRun(
     tenantId: AgentPlatID,
-    runId: AgentPlatID
+    runId: AgentPlatID,
   ): Promise<ProcessRun | undefined> {
     return this.processRuns.get(this.runKey(tenantId, runId));
   }
@@ -134,7 +142,7 @@ export class InMemoryWorkflowStore implements WorkflowStore {
 
   async getTaskRun(
     tenantId: AgentPlatID,
-    taskRunId: AgentPlatID
+    taskRunId: AgentPlatID,
   ): Promise<TaskRun | undefined> {
     return this.taskRuns.get(this.runKey(tenantId, taskRunId));
   }

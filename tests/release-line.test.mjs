@@ -9,7 +9,8 @@ import {
   TRUST_PACKAGE_NAME,
 } from "../scripts/release-line.mjs";
 
-const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_5] = RELEASE_LINES;
+const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_5, BETA_6] =
+  RELEASE_LINES;
 
 test("release-line guard accepts the historical 29-package Alpha 3 cohort before Trust is cataloged", async (t) => {
   const root = await createReleaseLineFixture({ line: ALPHA_3 });
@@ -48,6 +49,13 @@ test("release-line guard accepts the coordinated 36-package Beta 2 cohort", asyn
 
 test("release-line guard accepts the coordinated 56-package Beta 5 cohort", async (t) => {
   const root = await createReleaseLineFixture({ line: BETA_5 });
+  t.after(() => rm(root, { force: true, recursive: true }));
+
+  assert.equal(await assertReleaseLine({ root }), true);
+});
+
+test("release-line guard accepts the coordinated 62-package Beta 6 cohort", async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_6 });
   t.after(() => rm(root, { force: true, recursive: true }));
 
   assert.equal(await assertReleaseLine({ root }), true);
