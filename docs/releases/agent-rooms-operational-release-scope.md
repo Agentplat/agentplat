@@ -25,7 +25,6 @@ artifacts from entering the publication commit.
 
 ## Explicitly excluded
 
-- `docs/darpa-dice/**`
 - `docs/empirical-study/**`
 - `docs/research/**`
 - `output/**`
