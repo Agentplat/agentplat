@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Added the opt-in `@agentplat/collective-runtime/morphogenesis` future-baseline
+  surface for bounded morphology observation, exact proposals, policy-selected
+  human/agent/collective decisions, catalog-backed lifecycle composition,
+  successor Team and individual Work activation, causal continuity, morphology
+  epochs, authority fencing, detach/retirement, budget release and auditable
+  receipts through Governed Durable Workflows.
+- Added Collective Host, Collective Agreement, Agent Room/Mesh, PostgreSQL,
+  Temporal and signed telemetry compositions plus a runnable reference example
+  covering recruit-existing, catalog creation and crash reconciliation.
+- Fixed dormant Workflow compensation stages incorrectly failing successful
+  normal runs and normalized absent agent enrollment phases before reserving a
+  governed membership effect.
+
 ## 0.3.0-beta.5 - 2026-08-21
 
 - Added provider-neutral Agent Room message routing with deterministic explicit

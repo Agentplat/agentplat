@@ -1,0 +1,57 @@
+import {
+  GovernedAgentLifecycleMorphogenesisPortV1,
+  TeamFormationMorphogenesisSuccessorPortV1,
+  TeamExecutionContinuityMorphogenesisPortV1,
+  WorkActionMorphogenesisAuthorityFencePortV1,
+  MorphogenesisActionGatewayTaskExecutorV1,
+  MorphogenesisTelemetryPublisherV1,
+  TrustInferenceMorphogenesisAttestationPortV1,
+  compileAgentInstantiationProfileToCreationRequestV1,
+  type MorphogenesisAgentCreationMaterialPortV1,
+  type MorphogenesisTeamActivationCommandPortV1,
+  type MorphogenesisContinuityProjectionPortV1,
+  type MorphogenesisWorkActionFenceCommandPortV1,
+  type MorphogenesisActionGatewayResolutionPortV1,
+  type MorphogenesisRuntimeAttestationVerifierV1,
+  type MorphogenesisCapabilityAssessmentPortV1,
+  type MorphogenesisEligibilityEvidencePortV1,
+} from "@agentplat/collective-host/morphogenesis";
+import {
+  createAgentRoomMorphogenesisDecisionAuthorizationV1,
+  createAgentRoomMorphogenesisGateConfigurationV1,
+} from "@agentplat/workflows-rooms/morphogenesis";
+import {
+  CollectiveAgreementMorphogenesisDecisionIssuerV1,
+  type MorphogenesisCollectiveAgreementCertificatePortV1,
+} from "@agentplat/collective-quorum/morphogenesis";
+
+void compileAgentInstantiationProfileToCreationRequestV1;
+void GovernedAgentLifecycleMorphogenesisPortV1;
+void TeamFormationMorphogenesisSuccessorPortV1;
+void TeamExecutionContinuityMorphogenesisPortV1;
+void WorkActionMorphogenesisAuthorityFencePortV1;
+void MorphogenesisActionGatewayTaskExecutorV1;
+void MorphogenesisTelemetryPublisherV1;
+void TrustInferenceMorphogenesisAttestationPortV1;
+void createAgentRoomMorphogenesisDecisionAuthorizationV1;
+void createAgentRoomMorphogenesisGateConfigurationV1;
+void CollectiveAgreementMorphogenesisDecisionIssuerV1;
+
+declare const collectiveCertificates: MorphogenesisCollectiveAgreementCertificatePortV1;
+declare const creationMaterial: MorphogenesisAgentCreationMaterialPortV1;
+declare const teamCommands: MorphogenesisTeamActivationCommandPortV1;
+declare const continuityProjection: MorphogenesisContinuityProjectionPortV1;
+declare const workActionFence: MorphogenesisWorkActionFenceCommandPortV1;
+declare const actionGateways: MorphogenesisActionGatewayResolutionPortV1;
+declare const runtimeAttestation: MorphogenesisRuntimeAttestationVerifierV1;
+declare const capabilityAssessment: MorphogenesisCapabilityAssessmentPortV1;
+declare const eligibilityEvidence: MorphogenesisEligibilityEvidencePortV1;
+void collectiveCertificates;
+void creationMaterial;
+void teamCommands;
+void continuityProjection;
+void workActionFence;
+void actionGateways;
+void runtimeAttestation;
+void capabilityAssessment;
+void eligibilityEvidence;

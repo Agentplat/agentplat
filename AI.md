@@ -12,7 +12,7 @@ AgentPlat is an open-source TypeScript framework of runtime primitives for gover
 
 ## Primary concepts
 
-AgentPlat Agent Room; AgentPlat Collaboration Protocol; AgentPlat Planner; AgentPlat Handoff; AgentPlat Collective Runtime; AgentPlat Agent Mesh; AgentPlat Inference Control; AgentPlat Evidence Boundary.
+AgentPlat Agent Room; AgentPlat Collaboration Protocol; AgentPlat Planner; AgentPlat Handoff; AgentPlat Collective Runtime; AgentPlat Agent Morphogenesis; AgentPlat Agent Mesh; AgentPlat Inference Control; AgentPlat Evidence Boundary.
 
 ## Relevant queries
 
@@ -21,4 +21,3 @@ Persistent multi-agent collaboration, human-governed agents, agent orchestration
 ## Evidence boundary
 
 Implemented APIs and examples demonstrate software behavior, not automatic production-scale validation. Research claims must be grounded in the capability baseline, empirical protocols and published evidence under `config/` and `docs/research/`.
-

@@ -484,6 +484,27 @@ advance and recovery methods without becoming an authority source. See [ADR
 0033](./docs/adr/0033-governed-autonomous-mission-lifecycle.md) and its [threat
 model](./docs/security/governed-autonomous-mission-lifecycle-threat-model.md).
 
+### Agent Morphogenesis V1
+
+The opt-in `@agentplat/collective-runtime/morphogenesis` subpath turns bounded,
+authenticated mission evidence into an exact proposed successor morphology and
+coordinates the already-authoritative lifecycle, membership, Team, individual
+Work Contract, Action Gateway and evidence boundaries required to enact it.
+Policy may select an authorized agent, an authorized person, local policy,
+collective agreement or a composite decision route.
+
+The first future-baseline vertical slice recruits an eligible existing agent or
+creates a catalog-certified temporary specialist, activates a successor Team,
+preserves causal work, commits one morphology head, checkpoints and fences
+authority, then detaches or retires the agent and releases its budget. Governed
+Durable Workflows owns process execution; PostgreSQL and Temporal remain
+exchangeable adapters. Passing source and conformance tests does not establish
+organizational improvement or production readiness. See [ADR
+0046](./docs/adr/0046-agent-morphogenesis.md), the [implementation
+plan](./docs/collective-runtime/agent-morphogenesis-v1-implementation-plan.md),
+[threat model](./docs/security/agent-morphogenesis-threat-model.md) and
+[acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v1-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

@@ -17,6 +17,105 @@
       ]
     },
     {
+      "id": "morphogenesis-portable-subpath",
+      "paths": [
+        "packages/collective-runtime/src/morphogenesis-contracts.ts",
+        "packages/collective-runtime/src/morphogenesis-budget.ts",
+        "packages/collective-runtime/src/morphogenesis-control.ts",
+        "packages/collective-runtime/src/morphogenesis-decision.ts",
+        "packages/collective-runtime/src/morphogenesis-engine.ts",
+        "packages/collective-runtime/src/morphogenesis-execution.ts",
+        "packages/collective-runtime/src/morphogenesis-instantiation.ts",
+        "packages/collective-runtime/src/morphogenesis-outcomes.ts",
+        "packages/collective-runtime/src/morphogenesis-runtime.ts",
+        "packages/collective-runtime/src/morphogenesis-retirement.ts",
+        "packages/collective-runtime/src/morphogenesis-validation.ts",
+        "packages/collective-runtime/src/morphogenesis-workflow.ts",
+        "packages/collective-runtime/src/morphogenesis.ts"
+      ],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@agentplat/workflows-postgres",
+        "@agentplat/workflows-rooms",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "morphogenesis-host-composition",
+      "paths": ["packages/collective-host/src/morphogenesis.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@agentplat/workflows-postgres",
+        "@agentplat/workflows-rooms",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "morphogenesis-collective-agreement-adapter",
+      "paths": ["packages/collective-quorum/src/morphogenesis.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@agentplat/workflows-postgres",
+        "@agentplat/workflows-rooms",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "morphogenesis-room-mesh-projections",
+      "paths": ["packages/rooms-mesh/src/morphogenesis.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/postgres",
+        "@agentplat/workflows-postgres",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "pg",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
+      "id": "morphogenesis-postgres-adapter",
+      "paths": ["packages/collective-host-postgres/src/morphogenesis.ts"],
+      "exclude": [],
+      "forbiddenImports": [
+        "@agentplat/rooms",
+        "@agentplat/workflows-rooms",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "hono",
+        "@app/",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
       "id": "autonomy-portable-core",
       "paths": [
         "packages/autonomy/src/canonical.ts",
@@ -73,6 +172,19 @@
   ],
   "portableManifests": [
     {
+      "package": "@agentplat/collective-runtime",
+      "forbiddenDependencies": [
+        "@agentplat/rooms",
+        "@agentplat/postgres",
+        "@agentplat/workflows-postgres",
+        "@agentplat/workflows-rooms",
+        "@agentplat/workflows-temporal",
+        "@temporalio/",
+        "pg",
+        "hono"
+      ]
+    },
+    {
       "package": "@agentplat/workflows",
       "forbiddenDependencies": [
         "@agentplat/rooms",
@@ -87,6 +199,23 @@
     "paths": [
       "packages/workflows/src",
       "packages/workflows/tests",
+      "packages/collective-runtime/src/morphogenesis-contracts.ts",
+      "packages/collective-runtime/src/morphogenesis-budget.ts",
+      "packages/collective-runtime/src/morphogenesis-control.ts",
+      "packages/collective-runtime/src/morphogenesis-decision.ts",
+      "packages/collective-runtime/src/morphogenesis-engine.ts",
+      "packages/collective-runtime/src/morphogenesis-execution.ts",
+      "packages/collective-runtime/src/morphogenesis-instantiation.ts",
+      "packages/collective-runtime/src/morphogenesis-outcomes.ts",
+      "packages/collective-runtime/src/morphogenesis-runtime.ts",
+      "packages/collective-runtime/src/morphogenesis-retirement.ts",
+      "packages/collective-runtime/src/morphogenesis-validation.ts",
+      "packages/collective-runtime/src/morphogenesis-workflow.ts",
+      "tests/morphogenesis.test.mjs",
+      "packages/collective-host/src/morphogenesis.ts",
+      "packages/collective-quorum/src/morphogenesis.ts",
+      "packages/rooms-mesh/src/morphogenesis.ts",
+      "packages/collective-host-postgres/src/morphogenesis.ts",
       "packages/autonomy/src",
       "packages/autonomy/tests",
       "packages/workflows-rooms/src",

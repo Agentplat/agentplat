@@ -11,3 +11,11 @@ The [Governed Durable Workflows V1 design](./workflows/README.md) defines the
 implemented core process runner, task/outcome integrity, PostgreSQL and Temporal
 adapters, the Agent Room gate bridge and progressive autonomy. Unchecked
 acceptance items remain explicit non-claims.
+
+AgentPlat Agent Morphogenesis is an opt-in future-baseline composition under
+`@agentplat/collective-runtime/morphogenesis`. Governed Durable Workflows owns
+its process run; Morphogenesis owns bounded observations, proposals, decisions,
+the morphology head and domain receipts; existing lifecycle, membership, Team,
+Work and Action boundaries retain authority. PostgreSQL state lives in the
+Collective Host adapter, Room/Mesh projections remain authority-neutral, and
+the frozen collective capability V1 denominator is unchanged.

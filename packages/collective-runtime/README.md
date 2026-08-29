@@ -24,6 +24,28 @@ void auditSink;
 void createCollective; // Configure runtime, agents and a plan before creating one.
 ```
 
+## Agent Morphogenesis
+
+`@agentplat/collective-runtime/morphogenesis` is the opt-in, provider-neutral
+future-baseline surface for governed mission-scoped organizational change. It
+exports bounded morphology observations, needs, targets and proposals;
+catalog-backed instantiation profiles; human/agent/policy/collective decisions;
+budget and churn controls; the fixed Governed Durable Workflow definition;
+CAS-safe execution and morphology heads; continuity, fencing, retirement and
+final receipts; and in-memory reference stores.
+
+Application and host adapters continue to own authenticated discovery,
+identity/key material, profile certification, Agent Rooms, Agent Mesh,
+individual Work Contracts, Action Gateway effects and external resources.
+`@agentplat/collective-host/morphogenesis` composes the existing governed agent
+lifecycle and Team Formation APIs. Durable morphology state is available from
+`@agentplat/collective-host-postgres`; generic process state remains in
+`@agentplat/workflows-postgres` and Temporal remains a wakeup transport.
+
+See the [reference example](../../examples/agent-morphogenesis/README.md),
+[ADR 0046](../../docs/adr/0046-agent-morphogenesis.md) and [acceptance
+checklist](../../docs/collective-runtime/agent-morphogenesis-v1-acceptance-checklist.md).
+
 ```ts
 import { createCollective } from "@agentplat/collective-runtime";
 import { DefaultAgentRuntime } from "@agentplat/runtime";

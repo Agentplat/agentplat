@@ -856,7 +856,11 @@ export class GovernedAgentLineageRuntimeV1 {
         );
         if (!retained || retained.status !== "pending_enrollment")
           fail("agent pending enrollment changed before reservation");
-        if (retained.enrollmentPhase !== null) return current;
+        if (
+          retained.enrollmentPhase !== null &&
+          retained.enrollmentPhase !== undefined
+        )
+          return current;
         const prepared = await createLineageRecord(
           {
             ...retained,

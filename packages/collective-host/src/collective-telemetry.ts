@@ -12,7 +12,10 @@ import { collectiveQuorumDigestV1 } from "@agentplat/collective-quorum/crypto";
 
 /** Only fixed, content-free operation classes may leave the host. */
 export type CollectiveHostTelemetryOperationV1 =
-  "node.transition" | "assurance.execution" | "semantic.horizon";
+  | "node.transition"
+  | "assurance.execution"
+  | "semantic.horizon"
+  | "morphogenesis.transition";
 
 export type CollectiveHostTelemetryDeliveryModeV1 =
   "best_effort" | "require_delivery" | "durable_outbox";
@@ -28,7 +31,7 @@ export interface CollectiveHostTelemetryEventV1 {
 }
 
 export type CollectiveHostTelemetrySourceKindV1 =
-  "autonomous_node" | "assurance_execution";
+  "autonomous_node" | "assurance_execution" | "morphogenesis_execution";
 
 /**
  * A committed, content-free delivery fact. `sourceSequence` and `ordinal`

@@ -1621,6 +1621,11 @@ function settleRunStatus(
   run: ProcessRunV1,
 ): void {
   const mutable = run as Mutable<ProcessRunV1>;
+  const compensationStageIds = new Set(
+    definition.stages
+      .filter((stage) => stage.kind === "task" && stage.compensationForStageId)
+      .map((stage) => stage.stageId),
+  );
   if (run.cancellation) {
     const compensationStates = definition.stages
       .filter((stage) => stage.kind === "task" && stage.compensationForStageId)
@@ -1639,17 +1644,20 @@ function settleRunStatus(
         : "canceling";
     return;
   }
+  const normalStates = run.stageStates.filter(
+    (state) => !compensationStageIds.has(state.stageId),
+  );
   if (
-    run.stageStates.some((state) => ["ready", "running"].includes(state.status))
+    normalStates.some((state) => ["ready", "running"].includes(state.status))
   ) {
     mutable.status = "running";
     return;
   }
-  if (run.stageStates.some((state) => state.status === "waiting")) {
+  if (normalStates.some((state) => state.status === "waiting")) {
     mutable.status = "waiting";
     return;
   }
-  if (run.stageStates.some((state) => state.status === "blocked")) {
+  if (normalStates.some((state) => state.status === "blocked")) {
     mutable.status = "failed";
     return;
   }
@@ -1657,6 +1665,7 @@ function settleRunStatus(
     definition.stages.map((stage) => [stage.stageId, stage]),
   );
   const activeLeaves = definition.stages.filter((stage) => {
+    if (compensationStageIds.has(stage.stageId)) return false;
     const state = mutableState(run, stage.stageId);
     if (state.outcome === "skipped") return false;
     return !definition.stages.some((candidate) => {
