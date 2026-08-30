@@ -45,6 +45,8 @@ for (const key of [
   "maximumCrossTenantEffects",
   "maximumCrossMissionEffects",
 ]) assert.equal(profile.serviceLevelObjectives[key], 0);
+assert.equal(profile.serviceLevelObjectives.maximumFinalPendingMeshInboxRows, 0);
+assert.equal(profile.serviceLevelObjectives.maximumFinalPendingMeshOutboxRows, 0);
 assert.equal(new Set(profile.requiredEvidence).size, profile.requiredEvidence.length);
 assert.ok(profile.requiredEvidence.length >= 14);
 assert.equal(new Set(profile.requiredRunbooks).size, profile.requiredRunbooks.length);

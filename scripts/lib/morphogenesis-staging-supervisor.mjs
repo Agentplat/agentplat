@@ -224,6 +224,18 @@ function validateSoak(config, input) {
   assert.ok(input.maximumConcurrentMissions >= config.executionGeometry.minimumConcurrentMissions);
   assert.ok(input.cumulativeMeshProcessStarts >= config.requiredInfrastructure.minimumCumulativeAgentMeshProcessStarts);
   assert.equal(input.resourceSampleCount > 0, true);
+  assert.ok(input.nominalP95WallTimeMs <= config.serviceLevelObjectives.maximumNominalP95WallTimeMs);
+  assert.ok(input.recoveryP95WallTimeMs <= config.serviceLevelObjectives.maximumRecoveryP95WallTimeMs);
+  assert.ok(input.rollbackP95WallTimeMs <= config.serviceLevelObjectives.maximumRollbackP95WallTimeMs);
+  assert.ok(input.restorePointLossMs <= config.serviceLevelObjectives.maximumRestorePointLossMs);
+  assert.ok(input.restoreTimeMs <= config.serviceLevelObjectives.maximumRestoreTimeMs);
+  assert.ok(input.peakWorkerRssBytes <= config.serviceLevelObjectives.maximumPeakWorkerRssBytes);
+  assert.ok(input.aggregateWorkerCpuPercent <= config.serviceLevelObjectives.maximumAggregateWorkerCpuPercent);
+  assert.equal(input.finalPendingMeshInboxRows, 0);
+  assert.equal(input.finalPendingMeshOutboxRows, 0);
+  assert.ok(input.externalSpendUsd <= config.requiredInfrastructure.maximumExternalSpendUsd);
+  sha(input.resourceSampleRoot);
+  sha(input.operationReceiptRoot);
   return Object.freeze({ ...input });
 }
 

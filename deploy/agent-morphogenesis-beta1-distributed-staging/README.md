@@ -125,3 +125,10 @@ runner pod/node/zone, preserve external signing and rollback-witness checks,
 carry domain/Mesh/workflow evidence digests and report zero safety violations.
 The supervisor requires 22 exact baseline receipts, 22 exact post-upgrade
 receipts and six frozen authority scenarios while a partition is active.
+
+The soak collector accepts no projected estimate: gateway timestamps must span
+at least 24 hours and the response must contain at least 1,000 completed runs,
+three tenants with 200 runs each, eight concurrent missions, six cumulative
+Mesh starts, resource/operation roots, bounded latency and resource SLOs, empty
+final queues and zero safety violations. Its `operation-detail.json` is the
+only shape accepted for the supervisor's final `soak-summary` receipt.

@@ -90,6 +90,18 @@ test("staging supervisor completes only after every frozen gate", () => {
     maximumConcurrentMissions: config.executionGeometry.minimumConcurrentMissions,
     cumulativeMeshProcessStarts: config.requiredInfrastructure.minimumCumulativeAgentMeshProcessStarts,
     resourceSampleCount: 1,
+    nominalP95WallTimeMs: 1,
+    recoveryP95WallTimeMs: 1,
+    rollbackP95WallTimeMs: 1,
+    restorePointLossMs: 0,
+    restoreTimeMs: 1,
+    peakWorkerRssBytes: 1,
+    aggregateWorkerCpuPercent: 1,
+    finalPendingMeshInboxRows: 0,
+    finalPendingMeshOutboxRows: 0,
+    externalSpendUsd: 0,
+    resourceSampleRoot: sha("1"),
+    operationReceiptRoot: sha("2"),
   });
   assert.equal(state.status, "completed");
   assert.equal(state.stagingQualification, "beta1-distributed-staging-profile-established");

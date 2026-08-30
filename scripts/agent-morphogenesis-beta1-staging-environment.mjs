@@ -317,6 +317,7 @@ function validateInventory(value) {
     "host-loss", "network-partition", "postgres-failover", "temporal-worker-loss",
   ]);
   https(value.scenarioExecution.gatewayEndpoint, "scenario execution gateway endpoint");
+  https(value.soakExecution.gatewayEndpoint, "soak execution gateway endpoint");
   https(value.observability.otlpEndpoint, "OTLP endpoint");
   https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
@@ -434,6 +435,9 @@ function boundFixture(template) {
     },
     scenarioExecution: {
       gatewayEndpoint: "https://scenarios.staging.invalid/v1/execute",
+    },
+    soakExecution: {
+      gatewayEndpoint: "https://soak.staging.invalid/v1/collect",
     },
   };
 }
