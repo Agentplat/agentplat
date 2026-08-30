@@ -15,6 +15,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
 
 import { createPostgresPool } from "../packages/postgres/dist/index.js";
 
@@ -272,7 +273,7 @@ async function runSupervisor(directory, resume) {
               PGHOST: process.env.PGHOST ?? "127.0.0.1",
               PGPORT: process.env.PGPORT ?? "5432",
               PGDATABASE: process.env.PGDATABASE ?? "postgres",
-              ...(process.env.PGUSER ? { PGUSER: process.env.PGUSER } : {}),
+              PGUSER: process.env.PGUSER ?? os.userInfo().username,
               ...(process.env.PGPASSWORD
                 ? { PGPASSWORD: process.env.PGPASSWORD }
                 : {}),
