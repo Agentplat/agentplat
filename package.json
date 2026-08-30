@@ -100,6 +100,7 @@
     "verify:agent-morphogenesis-beta1-adversarial": "node scripts/agent-morphogenesis-beta1-adversarial.mjs --diagnostic-only",
     "verify:agent-morphogenesis-beta1-early-crashes": "pnpm --filter @agentplat/postgres --filter @agentplat/workflows-postgres --filter @agentplat/collective-host-postgres --filter @agentplat/collective-runtime --filter @agentplat/workflows --filter @agentplat/workflows-temporal build && node scripts/agent-morphogenesis-beta1-early-crashes.mjs --diagnostic-only",
     "verify:agent-morphogenesis-beta1-bundle-cli": "node scripts/agent-morphogenesis-beta1-bundle.mjs --mode contract-smoke",
+    "verify:agent-morphogenesis-beta1-release": "node scripts/verify-agent-morphogenesis-beta1-release.mjs",
     "sign:agent-morphogenesis-beta1-bundle": "node scripts/agent-morphogenesis-beta1-bundle.mjs --mode sign",
     "preflight:agent-morphogenesis-beta1": "node scripts/agent-morphogenesis-beta1-preflight.mjs",
     "verify:agent-morphogenesis-beta1-postgres-nominal": "pnpm --filter @agentplat/postgres --filter @agentplat/workflows-postgres --filter @agentplat/collective-host-postgres --filter @agentplat/collective-runtime --filter @agentplat/workflows build && node scripts/agent-morphogenesis-beta1-postgres-nominal.mjs --diagnostic-only",

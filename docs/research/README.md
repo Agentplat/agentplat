@@ -24,6 +24,9 @@ organize that material for research communication.
 - [Agent Morphogenesis Beta 1 operational validation V1](./agent-morphogenesis-beta1-operational-validation-v1.md):
   planned PostgreSQL, Temporal and multi-process Agent Mesh campaign with
   actor-neutral governed decisions and an explicit production-claim boundary.
+- [Agent Morphogenesis Beta 1 release evidence V1](./agent-morphogenesis-beta1-release-v1/README.md):
+  signed, commit-bound 18-scenario local-profile evidence with explicit
+  separation from experiments, operational readiness and production claims.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):
