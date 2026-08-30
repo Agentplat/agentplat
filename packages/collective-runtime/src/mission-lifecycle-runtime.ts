@@ -243,6 +243,9 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
       throw new TypeError(
         "mission control proposal is stale, expired, or out of scope",
       );
+    if (proposal.action === "request_morphogenesis" &&
+        !this.#options.policy.enabledExtensions?.includes("agent_morphogenesis"))
+      throw new TypeError("mission Morphogenesis extension is not enabled");
     if (proposal.action === "continue") {
       const next = this.#state(state, request.logicalTimeMs, {
         phase: "completed",
@@ -348,6 +351,7 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
           controlProposal: null,
         };
       case "enact_team_adaptation":
+      case "enact_morphogenesis":
         return {
           phase: "formation",
           teamDigest: null,
@@ -395,6 +399,8 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
         return "enact_work_reassignment";
       case "request_team_adaptation":
         return "enact_team_adaptation";
+      case "request_morphogenesis":
+        return "enact_morphogenesis";
       case "request_replanning":
         return "enact_replanning";
       default:

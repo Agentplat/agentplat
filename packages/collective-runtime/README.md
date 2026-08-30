@@ -877,6 +877,16 @@ application-provided idempotent ports. Control output remains advisory until a
 separate reconfiguration port enacts the approved pause, restriction, role
 transition, reassignment, team adaptation or replanning action.
 
+Agent Morphogenesis is a distinct opt-in extension, not an alias for team
+adaptation. A policy must include `agent_morphogenesis` in
+`enabledExtensions`; control then emits `request_morphogenesis` with an exact
+`morphogenesisRequestDigest`, which prepares `enact_morphogenesis` through the
+ordinary durable outbox and authorization fence.
+`GovernedMissionMorphogenesisReconfigurationPortV2` delegates only that action
+to a provider-neutral Morphogenesis cycle port, verifies the Mission scope and
+authorization, requires an exact successful outcome and successor morphology
+epoch, and forwards every other reconfiguration to its existing owner.
+
 The runtime enforces action, reconfiguration, transition and CAS budgets.
 Replanning, formation and execution changes return to their corresponding
 phase instead of being reported as completed. The optional peer-host facade
