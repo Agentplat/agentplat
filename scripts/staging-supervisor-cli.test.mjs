@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { generateKeyPairSync } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { chmod, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { digest } from "./lib/morphogenesis-staging-supervisor.mjs";
+import {
+  acceptStagingOperationReceiptV1,
+  digest,
+} from "./lib/morphogenesis-staging-supervisor.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 
@@ -129,10 +132,186 @@ test("staging supervisor plans, authorizes, ingests and rejects replay end-to-en
       { cwd: root, encoding: "utf8" },
     );
     assert.notEqual(replay.status, 0);
+    await completeSupervisor(supervisorDirectory, privateKey);
+    const bundleDirectory = path.join(temporary, "bundle");
+    run("scripts/agent-morphogenesis-beta1-staging-bundle.mjs", [
+      "--mode", "assemble-sign",
+      "--confirm", "ASSEMBLE_MORPHOGENESIS_DISTRIBUTED_STAGING_BUNDLE",
+      "--supervisor-directory", supervisorDirectory,
+      "--output-directory", bundleDirectory,
+      "--aws-cli", fakeAws,
+    ], commandEnvironment);
+    run("scripts/agent-morphogenesis-beta1-staging-bundle.mjs", [
+      "--mode", "verify",
+      "--bundle-directory", bundleDirectory,
+    ]);
+    const bundle = JSON.parse(await readFile(
+      path.join(bundleDirectory, "staging-bundle.json"),
+      "utf8",
+    ));
+    assert.equal(bundle.stagingQualification, "beta1-distributed-staging-profile-established");
+    assert.equal(bundle.operationalReadiness, "staging-profile-established");
+    assert.equal(bundle.productionReadiness, "not-established");
+    assert.equal(bundle.productionClaimPermitted, false);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
 });
+
+async function completeSupervisor(directory, privateKey) {
+  const config = JSON.parse(await readFile(path.join(directory, "supervisor-config.json"), "utf8"));
+  let state = JSON.parse(await readFile(path.join(directory, "supervisor-state.json"), "utf8"));
+  const events = (await readFile(path.join(directory, "supervisor-events.jsonl"), "utf8"))
+    .split("\n").filter(Boolean).map(JSON.parse);
+  const operations = [];
+  for (const phase of ["baseline", "post-upgrade"])
+    for (const scenarioId of config.operationalScenarioIds)
+      operations.push(["canonical-scenario", { phase, scenarioId }]);
+  for (const scenarioId of config.partitionAuthorityScenarioIds)
+    operations.push(["canonical-scenario", { phase: "partition", scenarioId }]);
+  for (const [faultClass, key] of [
+    ["network-partition", "minimumNetworkPartitionCycles"],
+    ["host-loss", "minimumHostLossCycles"],
+    ["postgres-failover", "minimumPostgresFailoverCycles"],
+    ["temporal-worker-loss", "minimumTemporalWorkerLossCycles"],
+  ]) for (let index = 0; index < config.executionGeometry[key]; index += 1)
+    operations.push(["fault-cycle", { faultClass, cycle: index + 1 }]);
+  for (const [type, key] of [
+    ["rolling-deployment", "minimumRollingDeploymentCycles"],
+    ["schema-upgrade", "minimumSchemaUpgradeCycles"],
+    ["backup-restore", "minimumBackupRestoreCycles"],
+    ["key-rotation", "minimumKeyRotationCycles"],
+  ]) for (let index = 0; index < config.executionGeometry[key]; index += 1)
+    operations.push([type, maintenanceDetail(type, index + 1)]);
+  operations.push(["tenant-mission-isolation", {
+    tenantCount: 3, missionsPerTenant: 2, completedExecutions: 6,
+    attemptedCrossTenantReads: 24, attemptedCrossMissionReads: 6,
+    failureDomainCount: 3, crossTenantReadsAccepted: 0,
+    crossTenantWritesAccepted: 0, crossMissionAuthorityUsesAccepted: 0,
+    crossScopeReceiptsAccepted: 0, durableStateRoot: sha("a"),
+    externalIsolationReceiptDigest: sha("b"),
+  }]);
+  operations.push(["soak-summary", {
+    durationMs: config.executionGeometry.minimumSoakDurationMs,
+    completedMorphogenesisRuns: config.executionGeometry.minimumCompletedMorphogenesisRuns,
+    minimumRunsPerTenant: config.executionGeometry.minimumRunsPerTenant,
+    tenantCount: config.executionGeometry.minimumTenants,
+    maximumConcurrentMissions: config.executionGeometry.minimumConcurrentMissions,
+    cumulativeMeshProcessStarts: config.requiredInfrastructure.minimumCumulativeAgentMeshProcessStarts,
+    resourceSampleCount: 1_000, nominalP95WallTimeMs: 100,
+    recoveryP95WallTimeMs: 500, rollbackP95WallTimeMs: 500,
+    restorePointLossMs: 0, restoreTimeMs: 1_000,
+    peakWorkerRssBytes: 100_000_000, aggregateWorkerCpuPercent: 200,
+    finalPendingMeshInboxRows: 0, finalPendingMeshOutboxRows: 0,
+    externalSpendUsd: 0, resourceSampleRoot: sha("c"),
+    operationReceiptRoot: sha("d"),
+  }]);
+  for (const [operationType, detail] of operations) {
+    const sequence = state.nextReceiptSequence;
+    const operationId = `operation:test:${sequence}`;
+    const body = {
+      schemaVersion: 1,
+      kind: "agentplat-agent-morphogenesis-beta1-staging-operation-receipt-v1",
+      configDigest: config.configDigest,
+      sourceCommit: config.sourceCommit,
+      sequence,
+      operationId,
+      operationType,
+      status: "passed",
+      detail,
+      invariants: {
+        duplicateMaterialEffects: 0, unauthorizedActivations: 0,
+        lostCommittedReceipts: 0, morphologyHeadForks: 0,
+        crossTenantEffects: 0, crossMissionEffects: 0,
+        missionContinuityRatio: 1,
+      },
+      productionReadiness: "not-established",
+      productionClaimPermitted: false,
+    };
+    const signingBytes = Buffer.from(
+      `agentplat-agent-morphogenesis-beta1-staging-operation-receipt-v1\n${JSON.stringify(body)}`,
+    );
+    const receiptDigest = digest(
+      "agentplat-agent-morphogenesis-beta1-staging-operation-receipt-v1",
+      body,
+    );
+    const signed = {
+      ...body,
+      receiptDigest,
+      proof: {
+        algorithm: "Ed25519",
+        keyId: config.campaignKeyId,
+        signature: sign(null, signingBytes, privateKey).toString("base64url"),
+      },
+    };
+    const name = `${String(sequence).padStart(4, "0")}-${createHash("sha256")
+      .update(operationId).digest("hex").slice(0, 16)}.json`;
+    await writeFile(
+      path.join(directory, "receipts", name),
+      `${JSON.stringify(signed, null, 2)}\n`,
+      { flag: "wx" },
+    );
+    const previous = state;
+    state = acceptStagingOperationReceiptV1(config, state, body);
+    const eventBody = {
+      schemaVersion: 1,
+      sequence: previous.nextEventSequence,
+      type: "receipt-accepted",
+      previousEventDigest: previous.lastEventDigest,
+      detail: {
+        operationId,
+        operationType,
+        receiptDigest,
+        resultingStatus: state.status,
+      },
+    };
+    const event = {
+      ...eventBody,
+      eventDigest: digest("staging-supervisor-event-v1", eventBody),
+    };
+    events.push(event);
+    state = {
+      ...state,
+      acceptedReceiptDigests: [...previous.acceptedReceiptDigests, receiptDigest],
+      nextEventSequence: previous.nextEventSequence + 1,
+      lastEventDigest: event.eventDigest,
+    };
+  }
+  assert.equal(state.status, "completed");
+  await Promise.all([
+    writeFile(
+      path.join(directory, "supervisor-state.json"),
+      `${JSON.stringify(state, null, 2)}\n`,
+    ),
+    writeFile(
+      path.join(directory, "supervisor-events.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`,
+    ),
+  ]);
+}
+
+function maintenanceDetail(type, cycle) {
+  const common = { cycle, externalMaintenanceReceiptDigest: sha("1") };
+  if (type === "rolling-deployment") return { ...common,
+    predecessorImage: `registry.invalid/a@sha256:${"2".repeat(64)}`,
+    successorImage: `registry.invalid/a@sha256:${"3".repeat(64)}`,
+    failureDomainCount: 3, allPeersReady: true, versionSkewObserved: true };
+  if (type === "schema-upgrade") return { ...common,
+    previousMigration: cycle - 1, successorMigration: cycle,
+    backwardRestoreTested: true, migrationReceiptDigest: sha("4") };
+  if (type === "backup-restore") return { ...common,
+    backupDigest: sha("5"), sourceCanonicalRoot: sha("6"),
+    restoredCanonicalRoot: sha("6"), cleanRestoreResourceId: `restore:${cycle}`,
+    restorePointLossMs: 0, restoreTimeMs: 1 };
+  return { ...common, predecessorKeyId: `key:old:${cycle}`,
+    successorKeyId: `key:new:${cycle}`, activeSignerKeyId: `key:new:${cycle}`,
+    predecessorSigningDenied: true, predecessorHistoricalVerificationPassed: true,
+    rotationReceiptDigest: sha("7") };
+}
+
+function sha(character) {
+  return `sha256:${character.repeat(64)}`;
+}
 
 function run(script, args, env = process.env) {
   return execFileSync(process.execPath, [script, ...args], {
