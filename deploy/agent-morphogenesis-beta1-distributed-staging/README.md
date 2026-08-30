@@ -38,3 +38,11 @@ Resolution requires the exact kube context, API server, namespace UID, three
 declared Ready node UIDs and zone labels. It also resolves the canonical KMS
 ARN, enabled state, Ed25519 key spec, signing usage and public-key fingerprint.
 It performs no mutation and still produces no runtime qualification evidence.
+
+The Mesh peer used by the multiprocess campaign also supports an opt-in remote
+control plane for placement in separate pods or hosts. Set a dedicated
+`MESH_CONTROL_TOKEN` and `MESH_LISTEN_HOST`; `/healthz` reports identity, while
+authenticated `/agentplat/staging/v1/commands` and `/events` expose bounded
+commands and a 4,096-entry content-free event journal. When no control token is
+configured, both control routes return 404. Mesh envelope authentication remains
+separate and the control plane never grants Morphogenesis authority.

@@ -120,6 +120,8 @@ if (mode === "contract-smoke") {
   assert.ok(mesh.processesStarted >= 6);
   assert.equal(mesh.morphogenesisAuthorityGrantedByTransport, false);
   assert.equal(mesh.duplicateMaterialEffectCount, 0);
+  assert.equal(mesh.remoteControlPlaneAuthenticated, true);
+  assert.equal(mesh.remoteControlEventJournalObserved, true);
   assert.equal(isolation.completedExecutions, 6);
   assert.equal(isolation.crossTenantReadsAccepted, 0);
   assert.equal(isolation.crossMissionAuthorityUsesAccepted, 0);
@@ -151,6 +153,7 @@ if (mode === "contract-smoke") {
     meshPeerIdentities: mesh.peerIdentities,
     meshProcessesStarted: mesh.processesStarted,
     meshReceiptDigest: digest(mesh),
+    meshRemoteControlPlaneAuthenticated: true,
     isolationReceiptDigest: isolation.receiptDigest,
     backupRestoreReceiptDigest: backupRestore.receiptDigest,
     tenantCount: isolation.tenantCount,

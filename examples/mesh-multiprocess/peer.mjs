@@ -29,12 +29,14 @@ import {
   normalizeMeshEvidenceClaimV1,
 } from "@agentplat/trust/mesh-records";
 
-const tenantId = "tenant-demo";
-const meshId = "mesh-demo";
+const tenantId = process.env.MESH_TENANT_ID ?? "tenant-demo";
+const meshId = process.env.MESH_ID ?? "mesh-demo";
 const peerId = required("PEER_ID");
-const instanceId = `${peerId}-process-1`;
-const keyId = `${peerId}-key-1`;
+const instanceId = process.env.INSTANCE_ID ?? `${peerId}-process-1`;
+const keyId = process.env.KEY_ID ?? `${peerId}-key-1`;
 const port = Number(required("PEER_PORT"));
+const listenHost = process.env.MESH_LISTEN_HOST ?? "127.0.0.1";
+const controlToken = process.env.MESH_CONTROL_TOKEN;
 const endpoints = JSON.parse(required("PEER_ENDPOINTS"));
 const targetWireVersions = JSON.parse(required("TARGET_WIRE_VERSIONS"));
 const currentSigner = createWebCryptoMeshEnvelopeSigner();
@@ -45,6 +47,14 @@ const channelToken = required("CHANNEL_TOKEN");
 const schema = required("MESH_SCHEMA");
 const soakSeed = process.env.MESH_SOAK_SEED ?? "agentplat-beta1-soak";
 const processEpoch = Number(process.env.PROCESS_EPOCH ?? "1");
+let controlSequence = 0;
+const controlEvents = [];
+const emit = (event) => {
+  process.send?.(event);
+  controlSequence += 1;
+  controlEvents.push({ sequence: controlSequence, recordedAt: new Date().toISOString(), ...event });
+  if (controlEvents.length > 4_096) controlEvents.shift();
+};
 const pool = createPostgresPool({
   max: 4,
 });
@@ -233,7 +243,7 @@ const accept = async (envelope) => {
   const ingressDelay = delayedIngressMs;
   delayedIngressMs = 0;
   if (ingressDelay > 0) {
-    process.send?.({ kind: "ingress_delayed", messageId: envelope.messageId });
+    emit({ kind: "ingress_delayed", messageId: envelope.messageId });
     await new Promise((resolve) => setTimeout(resolve, ingressDelay));
   }
   const accepted = await repository.receive({ scope, envelope });
@@ -281,11 +291,56 @@ const server = createServer(async (incoming, outgoing) => {
           : { body: Readable.toWeb(incoming), duplex: "half" }),
       },
     );
-    const response = await (
-      requestUrlPath(request) === "/agentplat/mesh/v0/envelopes"
-        ? compatibilityHandler
-        : currentHandler
-    )(request);
+    const pathname = requestUrlPath(request);
+    let response;
+    if (pathname === "/healthz" && method === "GET") {
+      response = Response.json({
+        status: "ready",
+        tenantId,
+        meshId,
+        peerId,
+        instanceId,
+        processEpoch,
+        controlEnabled: controlToken !== undefined,
+      });
+    } else if (pathname === "/agentplat/staging/v1/events" && method === "GET") {
+      if (!authorizedControl(request)) response = new Response(null, { status: 404 });
+      else {
+        const after = Number(new URL(request.url).searchParams.get("after") ?? "0");
+        if (!Number.isSafeInteger(after) || after < 0)
+          response = Response.json({ error: "invalid_cursor" }, { status: 400 });
+        else response = Response.json({
+          peerId,
+          instanceId,
+          latestSequence: controlSequence,
+          events: controlEvents.filter(({ sequence }) => sequence > after),
+        });
+      }
+    } else if (pathname === "/agentplat/staging/v1/commands" && method === "POST") {
+      if (!authorizedControl(request)) response = new Response(null, { status: 404 });
+      else {
+        const bytes = Buffer.from(await request.arrayBuffer());
+        if (bytes.byteLength > 65_536)
+          response = Response.json({ error: "command_oversized" }, { status: 413 });
+        else {
+          let command;
+          try { command = JSON.parse(bytes.toString("utf8")); }
+          catch { command = null; }
+          if (!command || typeof command !== "object")
+            response = Response.json({ error: "command_invalid" }, { status: 400 });
+          else {
+            await handleCommand(command);
+            response = Response.json({ accepted: true, peerId, latestSequence: controlSequence }, { status: 202 });
+          }
+        }
+      }
+    } else {
+      response = await (
+        pathname === "/agentplat/mesh/v0/envelopes"
+          ? compatibilityHandler
+          : currentHandler
+      )(request);
+    }
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch {
@@ -295,12 +350,12 @@ const server = createServer(async (incoming, outgoing) => {
 
 await new Promise((resolve, reject) => {
   server.once("error", reject);
-  server.listen(port, "127.0.0.1", resolve);
+  server.listen(port, listenHost, resolve);
 });
-process.send?.({ kind: "ready", peerId });
+emit({ kind: "ready", peerId });
 
 let stopped = false;
-const paused = process.env.START_PAUSED === "1";
+let paused = process.env.START_PAUSED === "1";
 const existingSnapshot = await repository.loadSnapshot(scope);
 const notifiedAcknowledgements = new Set(
   existingSnapshot?.state.received
@@ -331,7 +386,7 @@ const loop = (async () => {
       ) ?? [];
     for (const acknowledgement of acknowledgements) {
       notifiedAcknowledgements.add(acknowledgement.messageId);
-      process.send?.({ kind: "acknowledged", ...acknowledgement });
+      emit({ kind: "acknowledged", ...acknowledgement });
     }
     const evidenceRecords =
       snapshot?.state.received.filter(
@@ -341,12 +396,18 @@ const loop = (async () => {
       ) ?? [];
     for (const evidence of evidenceRecords) {
       notifiedEvidence.add(evidence.messageId);
-      process.send?.({ kind: "evidence_applied", ...evidence });
+      emit({ kind: "evidence_applied", ...evidence });
     }
   }
 })();
 
-process.on("message", async (command) => {
+process.on("message", (command) => {
+  handleCommand(command).catch((error) => {
+    emit({ kind: "command_failed", code: error?.message ?? "unknown" });
+  });
+});
+
+async function handleCommand(command) {
   if (command?.kind === "ping") {
     const now = new Date();
     const wireVersion = wireVersionFor(command.peerId);
@@ -372,7 +433,7 @@ process.on("message", async (command) => {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       await httpClient.deliver({ envelope });
     }
-    process.send?.({ kind: "ping_sent", messageId: envelope.messageId });
+    emit({ kind: "ping_sent", messageId: envelope.messageId });
   } else if (command?.kind === "evidence") {
     const now = new Date();
     const wireVersion = wireVersionFor(command.peerId);
@@ -449,7 +510,7 @@ process.on("message", async (command) => {
     const attempts = command.attempts ?? 2;
     for (let attempt = 0; attempt < attempts; attempt += 1)
       await httpClient.deliver({ envelope });
-    process.send?.({
+    emit({
       kind: "evidence_sent",
       messageId: envelope.messageId,
       payloadHash: envelope.payloadHash,
@@ -464,26 +525,31 @@ process.on("message", async (command) => {
     });
   } else if (command?.kind === "delay_next_receipt") {
     delayedReceiptMs = command.delayMs;
-    process.send?.({ kind: "fault_armed", fault: command.kind });
+    emit({ kind: "fault_armed", fault: command.kind });
   } else if (command?.kind === "delay_next_ingress") {
     delayedIngressMs = command.delayMs;
-    process.send?.({ kind: "fault_armed", fault: command.kind });
+    emit({ kind: "fault_armed", fault: command.kind });
   } else if (command?.kind === "overload_next_receipt") {
     overloadNextReceipt = true;
-    process.send?.({ kind: "fault_armed", fault: command.kind });
+    emit({ kind: "fault_armed", fault: command.kind });
   } else if (command?.kind === "state") {
-    process.send?.({
+    emit({
       kind: "state",
       snapshot: await repository.loadSnapshot(scope),
     });
+  } else if (command?.kind === "resume") {
+    paused = false;
+    emit({ kind: "resumed", peerId });
   } else if (command?.kind === "shutdown") {
     stopped = true;
     server.close();
     await loop;
     await pool.end();
     process.exit(0);
+  } else {
+    throw new TypeError("unsupported_mesh_control_command");
   }
-});
+}
 
 let localSequence = 0;
 
@@ -521,6 +587,11 @@ function requestUrlPath(request) {
   } catch {
     return "";
   }
+}
+
+function authorizedControl(request) {
+  return controlToken !== undefined &&
+    request.headers.get("authorization") === `Bearer ${controlToken}`;
 }
 
 function required(name) {

@@ -50,6 +50,7 @@ const additionalMessages = boundedCount(
 const soakSeed = process.env.MESH_SOAK_SEED ?? "agentplat-beta1-soak";
 const schema = `mesh_demo_${randomBytes(8).toString("hex")}`;
 const channelToken = randomBytes(32).toString("base64url");
+const controlToken = randomBytes(32).toString("base64url");
 const pool = createPostgresPool({
   ...("DATABASE_URL" in databaseEnvironment
     ? { connectionString: databaseEnvironment.DATABASE_URL }
@@ -123,6 +124,7 @@ try {
         ),
         TARGET_WIRE_VERSIONS: JSON.stringify(targetWireVersions[peerId]),
         CHANNEL_TOKEN: channelToken,
+        MESH_CONTROL_TOKEN: controlToken,
         PRIVATE_KEY_JWK: JSON.stringify(
           await crypto.subtle.exportKey("jwk", keyPairs[peerId].privateKey),
         ),
@@ -148,6 +150,7 @@ try {
   await Promise.all(
     peerIds.map((peerId) => waitFor(live.get(peerId), "ready", 15_000)),
   );
+  await remoteControlSmoke();
 
   const firstAcknowledged = waitFor(live.get("peer-a"), "acknowledged", 30_000);
   const firstSent = waitFor(live.get("peer-a"), "ping_sent", 5_000);
@@ -355,6 +358,8 @@ try {
         collectiveDecision.minorityPartitionAuthorization === null,
       morphogenesisDependentCollusionRejected:
         collectiveDecision.dependentCollusionRejected,
+      remoteControlPlaneAuthenticated: true,
+      remoteControlEventJournalObserved: true,
       wallTimeMs: Math.max(0, Math.round(performance.now() - exampleStartedAt)),
       inputTokens: 0,
       outputTokens: 0,
@@ -393,6 +398,37 @@ try {
     duplicateAttempts += 1;
     recordExpected(sender, receiver);
     await acknowledged;
+  }
+
+  async function remoteControlSmoke() {
+    const base = `http://127.0.0.1:${ports["peer-a"]}`;
+    const health = await fetch(`${base}/healthz`);
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).controlEnabled, true);
+    const hidden = await fetch(`${base}/agentplat/staging/v1/events`);
+    assert.equal(hidden.status, 404);
+    const headers = { authorization: `Bearer ${controlToken}` };
+    const initial = await fetch(`${base}/agentplat/staging/v1/events`, { headers });
+    assert.equal(initial.status, 200);
+    const initialBody = await initial.json();
+    assert.ok(initialBody.events.some(({ kind }) => kind === "ready"));
+    const command = await fetch(`${base}/agentplat/staging/v1/commands`, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ kind: "state" }),
+    });
+    assert.equal(command.status, 202);
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const events = await fetch(
+        `${base}/agentplat/staging/v1/events?after=${initialBody.latestSequence}`,
+        { headers },
+      );
+      const body = await events.json();
+      if (body.events.some(({ kind }) => kind === "state")) return;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error("mesh_remote_control_event_timeout");
   }
 
   async function sendEvidence(sender, receiver, payload, causationId) {
