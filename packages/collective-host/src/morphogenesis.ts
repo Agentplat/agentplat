@@ -25,7 +25,6 @@ import {
   type AgentInstantiationProfileCertificationPortV2,
   type AgentInstantiationProfileCertificationV1,
   type AgentInstantiationProfileAnyV1,
-  type AgentInstantiationProfileV1,
   type AgentInstantiationProfileV2Context,
   type AgentInstantiationAuthorityAttenuationPortV1,
   type AgentInstantiationSynthesisCertificationPortV1,
@@ -238,7 +237,7 @@ export interface MorphogenesisAgentCreationMaterialPortV1 {
     readonly operationId: string;
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly logicalTimeMs: number;
   }): Promise<{
     readonly request: AgentCreationRequestV1;
@@ -272,7 +271,7 @@ export class GovernedAgentLifecycleMorphogenesisPortV1
         correlation: { missionId: input.scope.missionId },
       },
     );
-    return lifecycleAgent(agent, "catalog_created");
+    return lifecycleAgent(agent, createdSource(input.profile));
   }
 
   async reconcileCreateAndEnroll(
@@ -290,7 +289,7 @@ export class GovernedAgentLifecycleMorphogenesisPortV1
         correlation: { missionId: input.scope.missionId },
       },
     );
-    return lifecycleAgent(agent, "catalog_created");
+    return lifecycleAgent(agent, createdSource(input.profile));
   }
 
   async eligibility(
@@ -363,7 +362,7 @@ export class GovernedAgentLifecycleMorphogenesisPortV1
     readonly operationId: string;
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly logicalTimeMs: number;
   }) {
     const prepared = await this.options.material.prepare(input);
@@ -830,7 +829,7 @@ function lifecycleAgent(
     readonly membershipEpoch: number | null;
     readonly status: string;
   },
-  source: "existing" | "catalog_created",
+  source: MorphogenesisLifecycleAgentV1["source"],
 ): MorphogenesisLifecycleAgentV1 {
   if (
     input.status !== "active" ||
@@ -855,6 +854,16 @@ function lifecycleAgent(
     membershipEpoch: input.membershipEpoch,
     source,
   });
+}
+
+function createdSource(
+  profile: AgentInstantiationProfileAnyV1,
+): Exclude<MorphogenesisLifecycleAgentV1["source"], "existing"> {
+  return profile.creationMode === "derived"
+    ? "derived_created"
+    : profile.creationMode === "synthesized"
+      ? "synthesized_created"
+      : "catalog_created";
 }
 
 function asDigest(value: string, label: string): PlanningDigestV1 {

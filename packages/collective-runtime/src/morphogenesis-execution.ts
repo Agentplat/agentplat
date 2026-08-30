@@ -29,7 +29,7 @@ import {
   type MorphogenesisReceiptV1,
   type MorphogenesisTerminalAgentReceiptV1,
 } from "./morphogenesis-retirement.js";
-import type { AgentInstantiationProfileV1 } from "./morphogenesis-instantiation.js";
+import type { AgentInstantiationProfileAnyV1 } from "./morphogenesis-instantiation.js";
 import { validateMorphogenesisScopeV1 } from "./morphogenesis-validation.js";
 
 export interface MorphogenesisCandidateSearchRequestV1 {
@@ -90,7 +90,7 @@ export interface MorphogenesisInstantiationProfileResolutionPortV1 {
   resolve(
     profileDigest: PlanningDigestV1,
   ): Promise<{
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly certificationDigest: PlanningDigestV1;
     readonly validUntilLogicalMs: number;
     readonly status: "certified";
@@ -107,7 +107,11 @@ export interface MorphogenesisLifecycleAgentV1 {
   readonly roleDefinitionDigest: PlanningDigestV1;
   readonly membershipConfigurationDigest: PlanningDigestV1;
   readonly membershipEpoch: number;
-  readonly source: "existing" | "catalog_created";
+  readonly source:
+    | "existing"
+    | "catalog_created"
+    | "derived_created"
+    | "synthesized_created";
   readonly agentDigest: PlanningDigestV1;
 }
 
@@ -116,7 +120,7 @@ export interface MorphogenesisAgentLifecyclePortV1 {
     readonly operationId: AgentPlatID;
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisLifecycleAgentV1>;
@@ -124,7 +128,7 @@ export interface MorphogenesisAgentLifecyclePortV1 {
     readonly operationId: AgentPlatID;
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisLifecycleAgentV1>;
@@ -158,7 +162,7 @@ export interface MorphogenesisAgentAttestationPortV1 {
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
     readonly agent: MorphogenesisLifecycleAgentV1;
-    readonly profile: AgentInstantiationProfileV1 | null;
+    readonly profile: AgentInstantiationProfileAnyV1 | null;
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisAgentAttestationV1>;
@@ -167,7 +171,7 @@ export interface MorphogenesisAgentAttestationPortV1 {
     readonly scope: MorphogenesisScopeV1;
     readonly proposalDigest: PlanningDigestV1;
     readonly agent: MorphogenesisLifecycleAgentV1;
-    readonly profile: AgentInstantiationProfileV1 | null;
+    readonly profile: AgentInstantiationProfileAnyV1 | null;
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisAgentAttestationV1>;
@@ -255,7 +259,7 @@ export interface MorphogenesisExecutionRecordV1 {
   readonly positionDigest: PlanningDigestV1;
   readonly requiredCapabilityKeys: readonly string[];
   readonly searchRequest: MorphogenesisCandidateSearchRequestV1;
-  readonly profile: AgentInstantiationProfileV1 | null;
+  readonly profile: AgentInstantiationProfileAnyV1 | null;
   readonly profileCertificationDigest: PlanningDigestV1 | null;
   readonly phase:
     | "prepared"
@@ -278,7 +282,12 @@ export interface MorphogenesisExecutionRecordV1 {
     | "releasing_budget"
     | "budget_released"
     | "completed";
-  readonly branch: "recruit_existing" | "catalog_created" | null;
+  readonly branch:
+    | "recruit_existing"
+    | "catalog_created"
+    | "derived_created"
+    | "synthesized_created"
+    | null;
   readonly searchResult: MorphogenesisCandidateSearchResultV1 | null;
   readonly selectedCandidate: MorphogenesisExistingCandidateV1 | null;
   readonly agent: MorphogenesisLifecycleAgentV1 | null;
@@ -378,7 +387,7 @@ export class MorphogenesisExecutionRuntimeV1 {
     readonly positionDigest: PlanningDigestV1;
     readonly requiredCapabilityKeys: readonly string[];
     readonly searchRequest: MorphogenesisCandidateSearchRequestV1;
-    readonly profile: AgentInstantiationProfileV1 | null;
+    readonly profile: AgentInstantiationProfileAnyV1 | null;
     readonly profileCertificationDigest: PlanningDigestV1 | null;
     readonly logicalTimeMs: number;
   }): Promise<MorphogenesisExecutionRecordV1> {
@@ -523,7 +532,7 @@ export class MorphogenesisExecutionRuntimeV1 {
         current.profileCertificationDigest ||
       input.logicalTimeMs >= resolvedProfile.validUntilLogicalMs
     )
-      fail("catalog instantiation profile is unavailable or substituted");
+      fail("instantiation profile is unavailable or substituted");
     if (resolvedProfile.profile !== current.profile)
       current = await this.saveNext(current, {
         profile: resolvedProfile.profile,
@@ -532,7 +541,7 @@ export class MorphogenesisExecutionRuntimeV1 {
     const operationId = `${current.stateKey}:create-and-enroll` as AgentPlatID;
     current = await this.saveNext(current, {
       phase: "creating",
-      branch: "catalog_created",
+      branch: createdBranch(current.profile!),
       searchResult,
       selectedCandidate: null,
       pendingOperation: {
@@ -704,7 +713,7 @@ export class MorphogenesisExecutionRuntimeV1 {
   async drain(input: { readonly stateKey: AgentPlatID; readonly logicalTimeMs: number; readonly reasonCode?: string }): Promise<MorphogenesisExecutionRecordV1> {
     let current = await this.required(input.stateKey);
     if (["detached", "retired", "releasing_budget", "budget_released", "completed"].includes(current.phase)) return current;
-    const created = current.agent!.source === "catalog_created";
+    const created = current.agent!.source !== "existing";
     if (current.phase === "draining") {
       const receipt = created
         ? await this.options.retirement.reconcile(this.retirementInput(current, input.logicalTimeMs, input.reasonCode))
@@ -811,7 +820,7 @@ export class MorphogenesisExecutionRuntimeV1 {
 
   async applyAgent(current: MorphogenesisExecutionRecordV1, input: MorphogenesisLifecycleAgentV1, logicalTimeMs: number): Promise<MorphogenesisExecutionRecordV1> {
     const agent = validateLifecycleAgent(input);
-    if (current.profile && current.branch === "catalog_created" && agent.roleDefinitionDigest !== current.profile.roleDefinitionDigest)
+    if (current.profile && current.branch !== "recruit_existing" && agent.roleDefinitionDigest !== current.profile.roleDefinitionDigest)
       fail("created agent does not match the instantiation profile role");
     if (current.requiredCapabilityKeys.some((key) => !agent.capabilityKeys.includes(key)))
       fail("selected agent lacks a required capability");
@@ -866,7 +875,7 @@ export class MorphogenesisExecutionRuntimeV1 {
   }
 
   async applyTerminalAgent(current: MorphogenesisExecutionRecordV1, receipt: MorphogenesisTerminalAgentReceiptV1, logicalTimeMs: number): Promise<MorphogenesisExecutionRecordV1> {
-    const expected = current.agent!.source === "catalog_created" ? "retired" : "detached";
+    const expected = current.agent!.source === "existing" ? "detached" : "retired";
     if (receipt.operationId !== current.pendingOperation!.operationId || receipt.agentDigest !== current.agent!.agentDigest || receipt.disposition !== expected)
       fail("Morphogenesis terminal agent receipt is invalid");
     return this.saveNext(current, { phase: receipt.disposition, terminalAgent: receipt, pendingOperation: { ...current.pendingOperation!, status: "applied", resultDigest: receipt.terminalReceiptDigest }, logicalTimeMs });
@@ -1020,7 +1029,15 @@ export function createMorphogenesisCandidateSearchResultV1(input: Omit<Morphogen
 function validateSearchResult(input: MorphogenesisCandidateSearchResultV1, request: MorphogenesisCandidateSearchRequestV1): MorphogenesisCandidateSearchResultV1 { const { schemaVersion: _schema, resultDigest, ...body } = input; const result = createMorphogenesisCandidateSearchResultV1(body, request); if (resultDigest !== result.resultDigest) fail("candidate search result digest is invalid"); return result; }
 function selectExistingCandidates(result: MorphogenesisCandidateSearchResultV1): readonly MorphogenesisExistingCandidateV1[] { return result.candidates.filter((item) => item.validUntilLogicalMs > result.observedAtLogicalMs).sort(candidateOrder); }
 function candidateOrder(left: MorphogenesisExistingCandidateV1, right: MorphogenesisExistingCandidateV1): number { return right.locallyEvaluatedScoreMicros - left.locallyEvaluatedScoreMicros || left.budgetUnits - right.budgetUnits || left.candidateDigest.localeCompare(right.candidateDigest); }
-function validateLifecycleAgent(input: MorphogenesisLifecycleAgentV1): MorphogenesisLifecycleAgentV1 { const body = freeze({ schemaVersion: 1 as const, agentId: id(input.agentId, "lifecycle agent ID"), peerId: id(input.peerId, "lifecycle peer ID"), instanceId: id(input.instanceId, "lifecycle instance ID"), lineageDigest: sha(input.lineageDigest, "lifecycle lineage digest"), capabilityKeys: ids(input.capabilityKeys, "lifecycle capabilities", 1, 256), roleDefinitionDigest: sha(input.roleDefinitionDigest, "lifecycle role digest"), membershipConfigurationDigest: sha(input.membershipConfigurationDigest, "lifecycle membership digest"), membershipEpoch: positive(input.membershipEpoch, "lifecycle membership epoch"), source: input.source }); if (!new Set(["existing", "catalog_created"]).has(body.source)) fail("lifecycle agent source is invalid"); const result = freeze({ ...body, agentDigest: digest("morphogenesis-lifecycle-agent", body) }); if (input.agentDigest !== result.agentDigest) fail("lifecycle agent digest is invalid"); return result; }
+function validateLifecycleAgent(input: MorphogenesisLifecycleAgentV1): MorphogenesisLifecycleAgentV1 { const body = freeze({ schemaVersion: 1 as const, agentId: id(input.agentId, "lifecycle agent ID"), peerId: id(input.peerId, "lifecycle peer ID"), instanceId: id(input.instanceId, "lifecycle instance ID"), lineageDigest: sha(input.lineageDigest, "lifecycle lineage digest"), capabilityKeys: ids(input.capabilityKeys, "lifecycle capabilities", 1, 256), roleDefinitionDigest: sha(input.roleDefinitionDigest, "lifecycle role digest"), membershipConfigurationDigest: sha(input.membershipConfigurationDigest, "lifecycle membership digest"), membershipEpoch: positive(input.membershipEpoch, "lifecycle membership epoch"), source: input.source }); if (!new Set(["existing", "catalog_created", "derived_created", "synthesized_created"]).has(body.source)) fail("lifecycle agent source is invalid"); const result = freeze({ ...body, agentDigest: digest("morphogenesis-lifecycle-agent", body) }); if (input.agentDigest !== result.agentDigest) fail("lifecycle agent digest is invalid"); return result; }
+
+function createdBranch(profile: AgentInstantiationProfileAnyV1): Exclude<MorphogenesisExecutionRecordV1["branch"], "recruit_existing" | null> {
+  return profile.creationMode === "derived"
+    ? "derived_created"
+    : profile.creationMode === "synthesized"
+      ? "synthesized_created"
+      : "catalog_created";
+}
 export function createMorphogenesisLifecycleAgentV1(input: Omit<MorphogenesisLifecycleAgentV1, "schemaVersion" | "agentDigest">): MorphogenesisLifecycleAgentV1 { const partial = { schemaVersion: 1 as const, ...input, agentDigest: "sha256:" + "0".repeat(64) } as MorphogenesisLifecycleAgentV1; const body = { ...partial }; delete (body as { agentDigest?: string }).agentDigest; return freeze({ ...body, agentDigest: digest("morphogenesis-lifecycle-agent", body) }) as MorphogenesisLifecycleAgentV1; }
 export function createMorphogenesisAgentAttestationV1(input: Omit<MorphogenesisAgentAttestationV1, "schemaVersion" | "attestationDigest">): MorphogenesisAgentAttestationV1 { const body = freeze({ schemaVersion: 1 as const, operationId: id(input.operationId, "attestation operation ID"), agentDigest: sha(input.agentDigest, "attestation agent digest"), profileDigest: input.profileDigest === null ? null : sha(input.profileDigest, "attestation profile digest"), runtimeAttestationDigest: sha(input.runtimeAttestationDigest, "runtime attestation digest"), capabilityAssessmentDigests: digests(input.capabilityAssessmentDigests, "capability assessment digests", 1, 128), eligibilityEvidenceDigests: digests(input.eligibilityEvidenceDigests, "eligibility evidence digests", 1, 128), attestedAtLogicalMs: nonNegative(input.attestedAtLogicalMs, "attestation time"), validUntilLogicalMs: positive(input.validUntilLogicalMs, "attestation validity") }); if (body.validUntilLogicalMs <= body.attestedAtLogicalMs) fail("attestation validity is invalid"); return freeze({ ...body, attestationDigest: digest("morphogenesis-agent-attestation", body) }); }
 function validateAttestation(input: MorphogenesisAgentAttestationV1): MorphogenesisAgentAttestationV1 { const result = createMorphogenesisAgentAttestationV1(stripDigest(input)); if (input.attestationDigest !== result.attestationDigest) fail("agent attestation digest is invalid"); return result; }
