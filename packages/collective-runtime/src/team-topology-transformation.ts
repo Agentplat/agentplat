@@ -189,6 +189,7 @@ export function createTeamTopologyTransformationRequestV1(input: Omit<TeamTopolo
 export function certifyTeamTopologyTransformationV1(input: { readonly state: TeamTopologyStateV1; readonly request: TeamTopologyTransformationRequestV1; }): TeamTopologyStateV1 {
   validateTeamTopologyTransformationRequestV1(input.request);
   if (input.request.priorTopologyDigest !== topologyDigest(input.state.topology)) throw new TypeError("topology request is based on a stale topology");
+  validateTransformationSemantics(input.state.topology, input.request);
   const nextTopologyDigest = topologyDigest(input.request.targetTeams);
   const transformationBody = {
     schemaVersion: 1 as const,
@@ -207,6 +208,64 @@ export function certifyTeamTopologyTransformationV1(input: { readonly state: Tea
   };
   const transformation = Object.freeze({ ...transformationBody, transformationDigest: digest("team-topology-transformation", transformationBody) });
   return createTeamTopologyStateV1({ topologyId: input.state.topologyId, epoch: input.state.epoch, topology: input.state.topology, transformations: [...input.state.transformations, transformation], predecessorStateDigest: input.state.stateDigest });
+}
+
+function validateTransformationSemantics(
+  current: readonly TeamTopologyNodeV1[],
+  request: TeamTopologyTransformationRequestV1,
+): void {
+  const currentById = new Map(current.map((node) => [node.teamId, node]));
+  const sourceIds = new Set(request.sourceTeamIds);
+  if (sourceIds.size !== request.sourceTeamIds.length)
+    throw new TypeError("topology source team IDs are duplicated");
+  const sources = request.sourceTeamIds.map((teamId) => {
+    const source = currentById.get(teamId);
+    if (!source) throw new TypeError("topology source team is not current");
+    return source;
+  });
+  const targetsById = new Map(request.targetTeams.map((node) => [node.teamId, node]));
+  if (targetsById.size !== request.targetTeams.length)
+    throw new TypeError("topology target team ID is duplicated");
+  const unaffected = current.filter(({ teamId }) => !sourceIds.has(teamId));
+  for (const node of unaffected) {
+    if (targetsById.get(node.teamId)?.nodeDigest !== node.nodeDigest)
+      throw new TypeError("topology transformation changed an unaffected team");
+  }
+  const sourceMembers = [...new Set(sources.flatMap(({ memberIds }) => memberIds))].sort();
+  const descendants = request.targetTeams.filter((node) =>
+    node.parentTeamIds.some((teamId) => sourceIds.has(teamId)),
+  );
+  if (request.operation === "split") {
+    if (sources.length !== 1 || targetsById.has(sources[0]!.teamId) || descendants.length < 2)
+      throw new TypeError("split topology shape is invalid");
+    const members = descendants.flatMap(({ memberIds }) => memberIds);
+    if (new Set(members).size !== members.length || !sameIds(members, sourceMembers))
+      throw new TypeError("split must partition every source member exactly once");
+    if (descendants.some(({ parentTeamIds }) =>
+      parentTeamIds.length !== 1 || parentTeamIds[0] !== sources[0]!.teamId))
+      throw new TypeError("split target lineage is invalid");
+    return;
+  }
+  if (request.operation === "merge") {
+    const merged = descendants.filter(({ teamId }) => !sourceIds.has(teamId));
+    if (request.sourceTeamIds.some((teamId) => targetsById.has(teamId)) ||
+        merged.length !== 1 ||
+        !sameIds(merged[0]!.parentTeamIds, request.sourceTeamIds) ||
+        !sameIds(merged[0]!.memberIds, sourceMembers))
+      throw new TypeError("merge must replace its sources with one complete successor");
+    return;
+  }
+  const federation = descendants.filter(({ teamId }) => !sourceIds.has(teamId));
+  if (sources.some((source) => targetsById.get(source.teamId)?.nodeDigest !== source.nodeDigest) ||
+      federation.length !== 1 ||
+      !sameIds(federation[0]!.parentTeamIds, request.sourceTeamIds) ||
+      !sameIds(federation[0]!.memberIds, sourceMembers))
+    throw new TypeError("federation must preserve its sources and add one complete federation team");
+}
+
+function sameIds(left: readonly AgentPlatID[], right: readonly AgentPlatID[]): boolean {
+  return left.length === right.length &&
+    [...left].sort().every((value, index) => value === [...right].sort()[index]);
 }
 
 export function activateTeamTopologyTransformationV1(input: { readonly state: TeamTopologyStateV1; readonly transformationId: AgentPlatID; }): TeamTopologyStateV1 {

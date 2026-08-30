@@ -544,7 +544,7 @@ export class TeamTopologyMorphogenesisBoundaryV2
   ): Promise<MorphogenesisOperatorStepResolutionV2> {
     if (input.step.boundary !== "team_topology_transformation")
       throw new TypeError("Morphogenesis topology adapter boundary is invalid");
-    const resolved = await this.#resolve(input.step.targetDigest);
+    const resolved = await this.#resolve(input);
     const current = await this.options.store.load(resolved.topologyId);
     if (!current) throw new TypeError("Morphogenesis topology state is unavailable");
     if (input.step.operation.startsWith("certify_")) {
@@ -605,7 +605,7 @@ export class TeamTopologyMorphogenesisBoundaryV2
   ): Promise<MorphogenesisOperatorStepResolutionV2> {
     if (input.step.boundary !== "team_topology_transformation")
       throw new TypeError("Morphogenesis topology adapter boundary is invalid");
-    const resolved = await this.#resolve(input.step.targetDigest);
+    const resolved = await this.#resolve(input);
     const current = await this.options.store.load(resolved.topologyId);
     if (!current) throw new TypeError("Morphogenesis topology state is unavailable");
     const retained = current.transformations.find(
@@ -622,10 +622,26 @@ export class TeamTopologyMorphogenesisBoundaryV2
     return this.#indeterminate(retained.transformationDigest);
   }
 
-  async #resolve(requestDigest: PlanningDigestV1) {
+  async #resolve(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    const binding = input.plan.binding;
+    if (binding.operator !== "split_team" && binding.operator !== "merge_teams" &&
+        binding.operator !== "federate_teams")
+      throw new TypeError("Morphogenesis topology binding is invalid");
+    const requestDigest = binding.transformationRequestDigest;
+    if (requestDigest !== input.step.targetDigest)
+      throw new TypeError("Morphogenesis topology step target is invalid");
     const resolved = await this.options.requests.resolve(requestDigest);
-    if (!resolved || resolved.request.requestDigest !== requestDigest)
+    const expectedOperation = binding.operator === "split_team"
+      ? "split"
+      : binding.operator === "merge_teams" ? "merge" : "federate";
+    if (!resolved || resolved.request.requestDigest !== requestDigest ||
+        resolved.request.operation !== expectedOperation ||
+        resolved.request.policyDigest !== binding.topologyPolicyDigest ||
+        binding.topologyPolicyDigest !== input.plan.policyDigest)
       throw new TypeError("Morphogenesis topology request is unavailable or substituted");
+    if (input.logicalTimeMs < resolved.request.requestedAtLogicalMs ||
+        input.logicalTimeMs > resolved.request.validUntilLogicalMs)
+      throw new TypeError("Morphogenesis topology request is outside its validity window");
     return resolved;
   }
 

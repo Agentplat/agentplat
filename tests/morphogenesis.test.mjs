@@ -127,6 +127,7 @@ import {
   createTeamTopologyNodeV1,
   createTeamTopologyStateV1,
   createTeamTopologyTransformationRequestV1,
+  certifyTeamTopologyTransformationV1,
   teamTopologyDigestV1,
 } from "../packages/collective-runtime/dist/team-topology-transformation.js";
 import {
@@ -4218,6 +4219,201 @@ test("split_team executes through the existing durable Team topology reducer", a
     "activated",
   );
   assert.equal(state.receipts.length, 2);
+});
+
+test("merge_teams and federate_teams preserve topology lineage and membership", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "split_team", "merge_teams", "federate_teams"].sort(),
+    enabledAdvancedCapabilities: ["team_topology_transformations"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 1,
+    maximumCreationDepth: 0,
+  });
+  const sourceA = createTeamTopologyNodeV1({
+    teamId: "team:source:a",
+    parentTeamIds: [],
+    memberIds: ["agent:a"],
+    coordinatorId: "agent:a",
+    membershipEpoch: 1,
+    membershipConfigurationDigest: sha("1"),
+  });
+  const sourceB = createTeamTopologyNodeV1({
+    teamId: "team:source:b",
+    parentTeamIds: [],
+    memberIds: ["agent:b"],
+    coordinatorId: "agent:b",
+    membershipEpoch: 1,
+    membershipConfigurationDigest: sha("1"),
+  });
+  const unaffected = createTeamTopologyNodeV1({
+    teamId: "team:unaffected",
+    parentTeamIds: [],
+    memberIds: ["agent:c"],
+    coordinatorId: "agent:c",
+    membershipEpoch: 1,
+    membershipConfigurationDigest: sha("1"),
+  });
+  for (const specification of [
+    { operator: "merge_teams", operation: "merge", preserveSources: false },
+    { operator: "federate_teams", operation: "federate", preserveSources: true },
+  ]) {
+    const topology = createTeamTopologyStateV1({
+      topologyId: `topology:${specification.operation}:test`,
+      epoch: 1,
+      topology: [sourceA, sourceB, unaffected],
+    });
+    const successor = createTeamTopologyNodeV1({
+      teamId: `team:${specification.operation}:successor`,
+      parentTeamIds: [sourceA.teamId, sourceB.teamId],
+      memberIds: ["agent:a", "agent:b"],
+      coordinatorId: "agent:a",
+      membershipEpoch: 2,
+      membershipConfigurationDigest: sha("2"),
+    });
+    const request = createTeamTopologyTransformationRequestV1({
+      transformationId: `topology-transformation:${specification.operation}:1`,
+      operation: specification.operation,
+      sourceTeamIds: [sourceA.teamId, sourceB.teamId],
+      targetTeams: [
+        ...(specification.preserveSources ? [sourceA, sourceB] : []),
+        unaffected,
+        successor,
+      ],
+      priorTopologyDigest: teamTopologyDigestV1(topology.topology),
+      policyDigest: policy.policyDigest,
+      quorumDigest: sha("3"),
+      requestedAtLogicalMs: 100,
+      validUntilLogicalMs: 500,
+    });
+    const operation = createMorphogenesisOperationV1({
+      operationId: `operation:${specification.operation}:1`,
+      operator: specification.operator,
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: request.requestDigest,
+      compensation: "restore_predecessor_before_commit",
+    }, policy);
+    const plan = compileMorphogenesisOperatorV2({
+      planId: `compiled-plan:${specification.operation}:1`,
+      operation,
+      policy,
+      binding: {
+        operator: specification.operator,
+        transformationRequestDigest: request.requestDigest,
+        topologyPolicyDigest: policy.policyDigest,
+      },
+      compilerId: "compiler:morphogenesis:v2",
+      compilerVersion: 1,
+      compilerImplementationDigest: sha("4"),
+      compiledAtLogicalMs: 110,
+    });
+    const topologyStore = new InMemoryMorphogenesisTeamTopologyStateStoreV2([topology]);
+    const adapter = new TeamTopologyMorphogenesisBoundaryV2({
+      store: topologyStore,
+      requests: { async resolve(digest) {
+        return digest === request.requestDigest
+          ? { topologyId: topology.topologyId, request }
+          : null;
+      } },
+    });
+    if (specification.operation === "merge") {
+      const substitutedOperation = createMorphogenesisOperationV1({
+        operationId: "operation:substituted-split:1",
+        operator: "split_team",
+        effectClass: "protected_external",
+        dependsOnOperationIds: [],
+        targetReferenceDigest: request.requestDigest,
+        compensation: "restore_predecessor_before_commit",
+      }, policy);
+      const substitutedPlan = compileMorphogenesisOperatorV2({
+        planId: "compiled-plan:substituted-split:1",
+        operation: substitutedOperation,
+        policy,
+        binding: {
+          operator: "split_team",
+          transformationRequestDigest: request.requestDigest,
+          topologyPolicyDigest: policy.policyDigest,
+        },
+        compilerId: "compiler:morphogenesis:v2",
+        compilerVersion: 1,
+        compilerImplementationDigest: sha("4"),
+        compiledAtLogicalMs: 110,
+      });
+      const substitutedRuntime = new MorphogenesisOperatorExecutionRuntimeV2({
+        store: new InMemoryMorphogenesisOperatorExecutionStoreV2(), boundaries: adapter,
+      });
+      const substituted = await substitutedRuntime.initialize({
+        stateKey: "operator-execution:substituted-split:1", scopeDigest: sha("0"),
+        plan: substitutedPlan, proposalDigest: sha("5"), decisionDigest: sha("6"),
+        authorizationDigest: sha("7"), authorityFenceDigest: sha("8"),
+        expectedMorphologyEpoch: 1, logicalTimeMs: 120,
+      });
+      await assert.rejects(
+        substitutedRuntime.advance({ stateKey: substituted.stateKey, logicalTimeMs: 130 }),
+        /unavailable or substituted/,
+      );
+    }
+    const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+      store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+      boundaries: adapter,
+    });
+    let state = await runtime.initialize({
+      stateKey: `operator-execution:${specification.operation}:1`,
+      scopeDigest: sha("0"),
+      plan,
+      proposalDigest: sha("5"),
+      decisionDigest: sha("6"),
+      authorizationDigest: sha("7"),
+      authorityFenceDigest: sha("8"),
+      expectedMorphologyEpoch: 1,
+      logicalTimeMs: 120,
+    });
+    while (state.status !== "completed")
+      state = await runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 130 + state.revision });
+    const activated = await topologyStore.load(topology.topologyId);
+    assert.equal(activated.epoch, 2);
+    assert.equal(activated.topology.some(({ teamId }) => teamId === unaffected.teamId), true);
+    assert.equal(activated.topology.some(({ teamId }) => teamId === successor.teamId), true);
+    assert.equal(activated.topology.some(({ teamId }) => teamId === sourceA.teamId), specification.preserveSources);
+    assert.equal(state.receipts.length, 2);
+  }
+});
+
+test("topology Morphogenesis rejects invalid member conservation", async () => {
+  const sourceA = createTeamTopologyNodeV1({
+    teamId: "team:validation:a", parentTeamIds: [], memberIds: ["agent:a"],
+    coordinatorId: "agent:a", membershipEpoch: 1, membershipConfigurationDigest: sha("1"),
+  });
+  const sourceB = createTeamTopologyNodeV1({
+    teamId: "team:validation:b", parentTeamIds: [], memberIds: ["agent:b"],
+    coordinatorId: "agent:b", membershipEpoch: 1, membershipConfigurationDigest: sha("1"),
+  });
+  const topology = createTeamTopologyStateV1({
+    topologyId: "topology:validation", epoch: 1, topology: [sourceA, sourceB],
+  });
+  const invalidSuccessor = createTeamTopologyNodeV1({
+    teamId: "team:validation:merged", parentTeamIds: [sourceA.teamId, sourceB.teamId],
+    memberIds: ["agent:a"], coordinatorId: "agent:a", membershipEpoch: 2,
+    membershipConfigurationDigest: sha("2"),
+  });
+  const request = createTeamTopologyTransformationRequestV1({
+    transformationId: "topology-transformation:invalid-merge", operation: "merge",
+    sourceTeamIds: [sourceA.teamId, sourceB.teamId], targetTeams: [invalidSuccessor],
+    priorTopologyDigest: teamTopologyDigestV1(topology.topology), policyDigest: sha("3"),
+    quorumDigest: sha("4"), requestedAtLogicalMs: 10, validUntilLogicalMs: 100,
+  });
+  assert.throws(
+    () => certifyTeamTopologyTransformationV1({ state: topology, request }),
+    /complete successor/,
+  );
 });
 
 test("reassign_work observes Mission Lifecycle and an exact successor Work receipt", async () => {
