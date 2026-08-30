@@ -63,6 +63,7 @@ from database rows.
 Advanced Morphogenesis reuses `collective_host_runtime_states` rather than a
 parallel database schema. `PostgresMorphogenesisOperatorExecutionStoreV2`,
 `PostgresMorphogenesisOperatorOutcomeStoreV2` and
+`PostgresMorphogenesisOperatorCompensationStoreV2` and
 `PostgresMorphogenesisTeamTopologyStateStoreV2` persist the operator journal,
 immutable outcome and Dynamic Topology state. Each reopen validates the full
 content digest and external rollback witness; topology certification and

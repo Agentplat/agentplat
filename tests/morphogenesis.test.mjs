@@ -71,6 +71,8 @@ import {
   InMemoryMorphogenesisOperatorOutcomeStoreV2,
   MorphogenesisOperatorCycleRuntimeV2,
   createMorphogenesisOperatorOutcomeReceiptV2,
+  InMemoryMorphogenesisOperatorCompensationStoreV2,
+  MorphogenesisOperatorCompensationRuntimeV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -80,6 +82,7 @@ import {
   validateMorphologySnapshotV1,
   verifyMorphogenesisDecisionAfterGateV1,
 } from "../packages/collective-runtime/dist/morphogenesis.js";
+import { digestPlanningJsonV1 } from "../packages/collective-planning/dist/index.js";
 import {
   compileGovernedRoleDefinitionV2,
   createDynamicRoleBlueprintV2,
@@ -4413,6 +4416,140 @@ test("split_team executes through the existing durable Team topology reducer", a
   });
   assert.equal(validateTeamTopologyStateV1(rolledBack).epoch, 3);
   assert.deepEqual(rolledBack.topology.map(({ teamId }) => teamId), [source.teamId]);
+});
+
+test("advanced compensation journals and reconciles Dynamic Topology rollback", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "split_team"].sort(),
+    enabledAdvancedCapabilities: ["team_topology_transformations"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 1,
+    maximumCreationDepth: 0,
+  });
+  const source = createTeamTopologyNodeV1({
+    teamId: "team:compensation:source", parentTeamIds: [],
+    memberIds: ["agent:a", "agent:b"], coordinatorId: "agent:a",
+    membershipEpoch: 1, membershipConfigurationDigest: sha("1"),
+  });
+  const topology = createTeamTopologyStateV1({
+    topologyId: "topology:compensation", epoch: 1, topology: [source],
+  });
+  const targets = ["a", "b"].map((suffix) => createTeamTopologyNodeV1({
+    teamId: `team:compensation:${suffix}`, parentTeamIds: [source.teamId],
+    memberIds: [`agent:${suffix}`], coordinatorId: `agent:${suffix}`,
+    membershipEpoch: 2, membershipConfigurationDigest: sha("2"),
+  }));
+  const request = createTeamTopologyTransformationRequestV1({
+    transformationId: "transformation:compensation:split", operation: "split",
+    sourceTeamIds: [source.teamId], targetTeams: targets,
+    priorTopologyDigest: teamTopologyDigestV1(topology.topology),
+    policyDigest: policy.policyDigest, quorumDigest: sha("3"),
+    requestedAtLogicalMs: 100, validUntilLogicalMs: 500,
+  });
+  const operation = createMorphogenesisOperationV1({
+    operationId: "operation:compensation:split", operator: "split_team",
+    effectClass: "protected_external", dependsOnOperationIds: [],
+    targetReferenceDigest: request.requestDigest,
+    compensation: "restore_predecessor_before_commit",
+  }, policy);
+  const compiled = compileMorphogenesisOperatorV2({
+    planId: "plan:compensation:split", operation, policy,
+    binding: { operator: "split_team", transformationRequestDigest: request.requestDigest,
+      topologyPolicyDigest: policy.policyDigest },
+    compilerId: "compiler:morphogenesis:v2", compilerVersion: 1,
+    compilerImplementationDigest: sha("4"), compiledAtLogicalMs: 110,
+  });
+  const failingStepBody = {
+    schemaVersion: 2,
+    stepId: `${operation.operationId}:post-activation-check`,
+    boundary: "work_action_fence",
+    operation: "fail_post_activation_check",
+    effectClass: "internal",
+    dependsOnStepIds: [compiled.steps.at(-1).stepId],
+    targetDigest: sha("5"),
+    compensation: "none",
+  };
+  const failingStep = {
+    ...failingStepBody,
+    stepDigest: digestPlanningJsonV1("morphogenesis-compiled-step-v2", failingStepBody),
+  };
+  const { planDigest: _planDigest, ...planBody } = compiled;
+  const extendedBody = { ...planBody, steps: [...compiled.steps, failingStep] };
+  const plan = {
+    ...extendedBody,
+    planDigest: digestPlanningJsonV1("morphogenesis-compiled-operator-plan-v2", extendedBody),
+  };
+  const topologyStore = new InMemoryMorphogenesisTeamTopologyStateStoreV2([topology]);
+  const topologyBoundary = new TeamTopologyMorphogenesisBoundaryV2({
+    store: topologyStore,
+    requests: { async resolve(value) {
+      return value === request.requestDigest ? { topologyId: topology.topologyId, request } : null;
+    } },
+  });
+  const executionStore = new InMemoryMorphogenesisOperatorExecutionStoreV2();
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: executionStore,
+    boundaries: new MorphogenesisOperatorBoundaryRouterV2([
+      { boundaries: ["team_topology_transformation"], port: topologyBoundary },
+      { boundaries: ["work_action_fence"], port: {
+        async execute() { throw new Error("post-activation verification failed"); },
+        async reconcile() { throw new Error("post-activation verification failed"); },
+      } },
+    ]),
+  });
+  let execution = await runtime.initialize({
+    stateKey: "execution:compensation:split", scopeDigest: sha("6"), plan,
+    proposalDigest: sha("7"), decisionDigest: sha("8"),
+    authorizationDigest: sha("9"), authorityFenceDigest: sha("a"),
+    expectedMorphologyEpoch: 1, logicalTimeMs: 120,
+  });
+  execution = await runtime.advance({ stateKey: execution.stateKey, logicalTimeMs: 130 });
+  execution = await runtime.advance({ stateKey: execution.stateKey, logicalTimeMs: 140 });
+  await assert.rejects(
+    runtime.advance({ stateKey: execution.stateKey, logicalTimeMs: 150 }),
+    /post-activation verification failed/,
+  );
+  execution = await runtime.required(execution.stateKey);
+  assert.equal((await topologyStore.load(topology.topologyId)).epoch, 2);
+  let loseAcknowledgement = true;
+  const compensation = new MorphogenesisOperatorCompensationRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorCompensationStoreV2(),
+    boundary: {
+      async compensate(input) {
+        const result = await topologyBoundary.compensate(input);
+        if (loseAcknowledgement) {
+          loseAcknowledgement = false;
+          throw new Error("simulated compensation acknowledgement loss");
+        }
+        return result;
+      },
+      reconcileCompensation: (input) => topologyBoundary.reconcileCompensation(input),
+    },
+  });
+  let state = await compensation.initialize({
+    stateKey: "compensation:split", execution,
+    failureEvidenceDigest: sha("b"), logicalTimeMs: 160,
+  });
+  await assert.rejects(
+    compensation.advance({ stateKey: state.stateKey, logicalTimeMs: 170 }),
+    /acknowledgement loss/,
+  );
+  state = await compensation.advance({ stateKey: state.stateKey, logicalTimeMs: 180 });
+  assert.equal(state.status, "completed");
+  assert.equal(state.receipts.length, 1);
+  const restored = await topologyStore.load(topology.topologyId);
+  assert.equal(restored.epoch, 3);
+  assert.deepEqual(restored.topology.map(({ teamId }) => teamId), [source.teamId]);
+  assert.equal(restored.transformations.filter(({ rollbackOfTransformationId }) =>
+    rollbackOfTransformationId === request.transformationId).length, 1);
 });
 
 test("merge_teams and federate_teams preserve topology lineage and membership", async () => {

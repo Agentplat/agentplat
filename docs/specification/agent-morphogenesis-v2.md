@@ -23,11 +23,14 @@ A conforming V2 composition:
    before crossing an external boundary;
 5. reconciles prepared effects by stable operation ID and stops on an
    indeterminate result;
-6. evaluates a completed plan into one immutable outcome receipt and advances
+6. records pre-commit compensation in a distinct durable journal, executes
+   declared compensations in reverse applied-step order and reconciles a lost
+   acknowledgement without repeating the owning subsystem effect;
+7. evaluates a completed plan into one immutable outcome receipt and advances
    `MorphologyHeadV1` exactly once through CAS;
-7. retains only bounded identifiers, counters, enums and digests in control
+8. retains only bounded identifiers, counters, enums and digests in control
    state; and
-8. uses the existing owning subsystem for every effect rather than creating a
+9. uses the existing owning subsystem for every effect rather than creating a
    parallel authority plane.
 
 ## Profiles and lineage
@@ -90,6 +93,8 @@ replacements, suspensions and topology operations.
 Operator execution and outcome stores have in-memory conformance surfaces and
 PostgreSQL implementations. Dynamic Topology state has the same validated,
 restart-durable PostgreSQL surface for certification and activation.
+Pre-commit compensation has its own execution-bound CAS journal and PostgreSQL
+store; a completed execution cannot be mislabeled as a pre-commit rollback.
 PostgreSQL reuses Collective Host runtime state,
 checks revision/digest CAS and logical-time high-water, and verifies an external
 rollback witness. Exact retries return the retained state or outcome; divergent

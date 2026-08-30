@@ -34,6 +34,9 @@ import {
   InMemoryMorphogenesisOperatorOutcomeStoreV2,
   MorphogenesisOperatorCycleRuntimeV2,
   createMorphogenesisOperatorOutcomeReceiptV2,
+  InMemoryMorphogenesisOperatorCompensationStoreV2,
+  MorphogenesisOperatorCompensationRuntimeV2,
+  createMorphogenesisOperatorCompensationReceiptV2,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -91,6 +94,8 @@ import {
   type MorphogenesisCompiledOperatorPlanV2,
   type MorphogenesisOperatorExecutionStateV2,
   type MorphogenesisOperatorOutcomeReceiptV2,
+  type MorphogenesisOperatorCompensationBoundaryPortV2,
+  type MorphogenesisOperatorCompensationStateV2,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -154,6 +159,9 @@ void MorphogenesisOperatorExecutionRuntimeV2;
 void InMemoryMorphogenesisOperatorOutcomeStoreV2;
 void MorphogenesisOperatorCycleRuntimeV2;
 void createMorphogenesisOperatorOutcomeReceiptV2;
+void InMemoryMorphogenesisOperatorCompensationStoreV2;
+void MorphogenesisOperatorCompensationRuntimeV2;
+void createMorphogenesisOperatorCompensationReceiptV2;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -212,6 +220,8 @@ declare const policyV2: MorphogenesisPolicyV2;
 declare const operatorPlan: MorphogenesisCompiledOperatorPlanV2;
 declare const operatorState: MorphogenesisOperatorExecutionStateV2;
 declare const operatorOutcome: MorphogenesisOperatorOutcomeReceiptV2;
+declare const compensationBoundary: MorphogenesisOperatorCompensationBoundaryPortV2;
+declare const compensationState: MorphogenesisOperatorCompensationStateV2;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -249,6 +259,8 @@ void policyV2;
 void operatorPlan;
 void operatorState;
 void operatorOutcome;
+void compensationBoundary;
+void compensationState;
 void budgetPort;
 void controlWindow;
 void sourceResolution;

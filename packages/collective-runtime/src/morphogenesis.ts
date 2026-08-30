@@ -14,4 +14,5 @@ export * from "./morphogenesis-operator-compiler.js";
 export * from "./morphogenesis-operator-runtime.js";
 export * from "./morphogenesis-agent-status.js";
 export * from "./morphogenesis-operator-cycle.js";
+export * from "./morphogenesis-operator-compensation.js";
 export * from "./mission-morphogenesis.js";

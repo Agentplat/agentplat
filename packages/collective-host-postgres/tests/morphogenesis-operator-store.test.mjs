@@ -4,10 +4,14 @@ import test from "node:test";
 import { digestPlanningJsonV1 } from "@agentplat/collective-planning";
 import {
   MorphogenesisOperatorExecutionRuntimeV2,
+  MorphogenesisOperatorCompensationRuntimeV2,
+  createMorphogenesisOperatorCompensationReceiptV2,
+  createMorphogenesisOperatorStepReceiptV2,
   createMorphogenesisOperatorOutcomeReceiptV2,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   PostgresMorphogenesisOperatorExecutionStoreV2,
+  PostgresMorphogenesisOperatorCompensationStoreV2,
   PostgresMorphogenesisOperatorOutcomeStoreV2,
   PostgresMorphogenesisTeamTopologyStateStoreV2,
 } from "../dist/morphogenesis-operator.js";
@@ -25,7 +29,9 @@ const sha = (character) => `sha256:${character.repeat(64)}`;
 class FakePool {
   rows = new Map();
   async query(sql, params) {
-    const kind = sql.includes("morphogenesis-team-topology")
+    const kind = sql.includes("morphogenesis-operator-compensation")
+      ? "morphogenesis-operator-compensation"
+      : sql.includes("morphogenesis-team-topology")
       ? "morphogenesis-team-topology"
       : sql.includes("morphogenesis-operator-outcome")
       ? "morphogenesis-operator-outcome"
@@ -121,6 +127,34 @@ function emptyPlan() {
     ...body,
     planDigest: digestPlanningJsonV1("morphogenesis-compiled-operator-plan-v2", body),
   });
+}
+
+function compensablePlan() {
+  const step = (suffix, compensation, dependencies = []) => {
+    const body = {
+      schemaVersion: 2,
+      stepId: `operation:compensation:${suffix}`,
+      boundary: "work_action_fence",
+      operation: suffix,
+      effectClass: "protected_external",
+      dependsOnStepIds: dependencies,
+      targetDigest: sha(suffix === "applied" ? "1" : "2"),
+      compensation,
+    };
+    return { ...body, stepDigest: digestPlanningJsonV1("morphogenesis-compiled-step-v2", body) };
+  };
+  const first = step("applied", "restore_predecessor_before_commit");
+  const second = step("indeterminate", "none", [first.stepId]);
+  const body = {
+    schemaVersion: 2, planId: "plan:postgres-compensation", operator: "realign_role",
+    operationDigest: sha("3"), policyDigest: sha("4"),
+    binding: { operator: "realign_role", roleRealignmentRequestDigest: sha("5"),
+      currentRoleBindingDigest: sha("6") },
+    bindingDigest: sha("7"), compilerId: "compiler:test", compilerVersion: 1,
+    compilerImplementationDigest: sha("8"), steps: [first, second],
+    compiledAtLogicalMs: 10, advisoryOnly: true,
+  };
+  return { ...body, planDigest: digestPlanningJsonV1("morphogenesis-compiled-operator-plan-v2", body) };
 }
 
 test("PostgreSQL operator execution store preserves CAS and reopens validated state", async () => {
@@ -228,4 +262,58 @@ test("PostgreSQL Dynamic Topology reopens certification and activation through C
   assert.equal(await reopened.save({ state: certified, expectedStateDigest: initial.stateDigest }), false);
   witness.heads.clear();
   await assert.rejects(reopened.load(initial.topologyId), /witness diverged/);
+});
+
+test("PostgreSQL compensation journal reopens a reconciled terminal state", async () => {
+  const pool = new FakePool();
+  const witness = new Witness();
+  const options = { scopeId: "tenant:compensation", rollbackWitness: witness };
+  const executionRuntime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new PostgresMorphogenesisOperatorExecutionStoreV2(pool, options),
+    boundaries: {
+      async execute(input) {
+        if (input.step.operation === "indeterminate")
+          return { status: "indeterminate", evidenceDigest: sha("9") };
+        return { status: "applied", receipt: createMorphogenesisOperatorStepReceiptV2({
+          operationId: input.operationId, planDigest: input.plan.planDigest,
+          stepId: input.step.stepId, stepDigest: input.step.stepDigest,
+          boundary: input.step.boundary, resultDigest: sha("a"),
+          appliedAtLogicalMs: input.logicalTimeMs,
+        }) };
+      },
+      async reconcile(input) { return this.execute(input); },
+    },
+  });
+  let execution = await executionRuntime.initialize({
+    stateKey: "execution:postgres-compensation", plan: compensablePlan(),
+    scopeDigest: sha("b"), proposalDigest: sha("c"), decisionDigest: sha("d"),
+    authorizationDigest: sha("e"), authorityFenceDigest: sha("f"),
+    expectedMorphologyEpoch: 1, logicalTimeMs: 20,
+  });
+  execution = await executionRuntime.advance({ stateKey: execution.stateKey, logicalTimeMs: 30 });
+  execution = await executionRuntime.advance({ stateKey: execution.stateKey, logicalTimeMs: 40 });
+  assert.equal(execution.status, "indeterminate");
+  const store = new PostgresMorphogenesisOperatorCompensationStoreV2(pool, options);
+  const compensation = new MorphogenesisOperatorCompensationRuntimeV2({
+    store,
+    boundary: {
+      async compensate(input) {
+        return { status: "applied", receipt: createMorphogenesisOperatorCompensationReceiptV2({
+          operationId: input.operationId, executionStateDigest: input.execution.stateDigest,
+          stepId: input.step.stepId, stepReceiptDigest: input.stepReceipt.receiptDigest,
+          compensation: input.step.compensation, resultDigest: sha("0"),
+          appliedAtLogicalMs: input.logicalTimeMs,
+        }) };
+      },
+      async reconcileCompensation(input) { return this.compensate(input); },
+    },
+  });
+  let state = await compensation.initialize({
+    stateKey: "compensation:postgres", execution,
+    failureEvidenceDigest: sha("1"), logicalTimeMs: 50,
+  });
+  state = await compensation.advance({ stateKey: state.stateKey, logicalTimeMs: 60 });
+  assert.equal(state.status, "completed");
+  const reopened = new PostgresMorphogenesisOperatorCompensationStoreV2(pool, options);
+  assert.equal((await reopened.load(state.stateKey)).stateDigest, state.stateDigest);
 });

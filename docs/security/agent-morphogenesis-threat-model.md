@@ -61,6 +61,8 @@ state. They remain behind their owning content-addressed or ephemeral ports.
 | Mission Lifecycle silently treats ordinary Team adaptation as general Morphogenesis | `request_morphogenesis` is an explicit opt-in extension with its own request digest and durable action; `request_team_adaptation` retains its prior meaning. |
 | Interop request manufactures Morphogenesis authority | `morphogenesis.enact` requires an exact stateful admission grant and pre-authorized Mission/Morphogenesis digests; Interop transports the outcome but cannot issue a decision, authorization, fence or morphology commit. |
 | Operator or outcome store is rolled back | Execution and outcome records validate their content digest, revision/logical time and external rollback witness; divergent reopen fails closed. |
+| Compensation repeats an external rollback after acknowledgement loss | A separate execution-bound compensation journal prepares each reverse-order operation before invocation; reconciliation uses the same operation ID and the owning subsystem's retained rollback evidence. Ambiguity becomes `indeterminate`. |
+| A completed successor is falsely treated as a pre-commit rollback | Compensation initialization rejects a completed operator execution; post-commit problems require a successor recovery transition. |
 | Concurrent proposals double-spend resources | Application-owned budget reservation is proposal-, epoch-, operation- and expiry-bound with CAS/idempotency; downstream subsystem budgets recheck independently. |
 | Instantiation profile injects prompts or widens tools/memory | Profile is content-addressed, provenance-bound and independently certified; instruction/tool/memory content remains referenced; attenuation and context-integrity checks reject expansion or hostile content. |
 | Artifact or profile changes after approval | Decision and factory compilation bind exact artifact/profile digests; unresolved, revoked or substituted content fails closed. |
@@ -136,6 +138,7 @@ state. They remain behind their owning content-addressed or ephemeral ports.
 - Workflow gate approval without an exact decision binding;
 - task-handler, artifact or profile substitution after approval;
 - crash at every protected task and compensation boundary;
+- compensation acknowledgement loss, reverse-order replay and indeterminate rollback;
 - stale agent progress/effect after successor activation;
 - termination requested before Work/action fencing;
 - create/retire oscillation and churn-bound exhaustion;

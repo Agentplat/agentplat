@@ -887,6 +887,13 @@ to a provider-neutral Morphogenesis cycle port, verifies the Mission scope and
 authorization, requires an exact successful outcome and successor morphology
 epoch, and forwards every other reconfiguration to its existing owner.
 
+Advanced operator plans use `MorphogenesisOperatorExecutionRuntimeV2` for the
+forward journal and `MorphogenesisOperatorCompensationRuntimeV2` for a distinct
+pre-commit compensation journal. Compensation walks applied steps in reverse,
+uses stable operation IDs and reconciles ambiguous acknowledgements through the
+owning boundary. A completed execution is not eligible for this rollback path;
+post-commit failure remains an explicit successor recovery.
+
 The runtime enforces action, reconfiguration, transition and CAS budgets.
 Replanning, formation and execution changes return to their corresponding
 phase instead of being reported as completed. The optional peer-host facade

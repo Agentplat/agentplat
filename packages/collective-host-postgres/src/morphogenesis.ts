@@ -22,6 +22,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-operator-execution"
       | "morphogenesis-operator-outcome"
       | "morphogenesis-team-topology"
+      | "morphogenesis-operator-compensation"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
@@ -35,6 +36,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-operator-execution"
       | "morphogenesis-operator-outcome"
       | "morphogenesis-team-topology"
+      | "morphogenesis-operator-compensation"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;
@@ -119,7 +121,8 @@ class MorphogenesisStateRepositoryV1<
     readonly stateKind:
       | "morphology-head"
       | "morphogenesis-execution"
-      | "morphogenesis-operator-execution",
+      | "morphogenesis-operator-execution"
+      | "morphogenesis-operator-compensation",
     readonly validate: (input: unknown) => T,
     readonly stateDigest: (state: T) => `sha256:${string}`,
   ) {

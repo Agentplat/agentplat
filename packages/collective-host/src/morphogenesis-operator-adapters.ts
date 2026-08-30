@@ -9,12 +9,17 @@ import type { CollectiveMembershipKeyProofV1 } from "@agentplat/collective-membe
 import {
   activateTeamTopologyTransformationV1,
   certifyTeamTopologyTransformationV1,
+  rollbackTeamTopologyTransformationV1,
   type TeamTopologyStateV1,
   type TeamTopologyTransformationRequestV1,
 } from "@agentplat/collective-runtime/team-topology-transformation";
 import {
   createMorphogenesisOperatorStepReceiptV2,
   createMorphogenesisAgentStatusReceiptV2,
+  createMorphogenesisOperatorCompensationReceiptV2,
+  type MorphogenesisOperatorCompensationBoundaryInputV2,
+  type MorphogenesisOperatorCompensationBoundaryPortV2,
+  type MorphogenesisOperatorCompensationResolutionV2,
   validateMorphogenesisAgentStatusReceiptV2,
   type MorphogenesisAgentStatusPortV2,
   type MorphogenesisAgentLifecyclePortV1,
@@ -747,7 +752,7 @@ export class InMemoryMorphogenesisTeamTopologyStateStoreV2
 
 /** Durable adapter from compiled Morphogenesis topology steps to the existing topology reducer. */
 export class TeamTopologyMorphogenesisBoundaryV2
-  implements MorphogenesisOperatorBoundaryPortV2
+  implements MorphogenesisOperatorBoundaryPortV2, MorphogenesisOperatorCompensationBoundaryPortV2
 {
   constructor(
     readonly options: {
@@ -839,7 +844,80 @@ export class TeamTopologyMorphogenesisBoundaryV2
     return this.#indeterminate(retained.transformationDigest);
   }
 
-  async #resolve(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+  compensate(input: MorphogenesisOperatorCompensationBoundaryInputV2) {
+    return this.#compensate(input);
+  }
+
+  reconcileCompensation(input: MorphogenesisOperatorCompensationBoundaryInputV2) {
+    return this.#compensate(input);
+  }
+
+  async #compensate(
+    input: MorphogenesisOperatorCompensationBoundaryInputV2,
+  ): Promise<MorphogenesisOperatorCompensationResolutionV2> {
+    if (input.step.boundary !== "team_topology_transformation" ||
+        input.step.compensation !== "restore_predecessor_before_commit")
+      throw new TypeError("Morphogenesis topology compensation is invalid");
+    const resolved = await this.#resolve({
+      operationId: input.operationId,
+      plan: input.execution.plan,
+      step: input.step,
+      proposalDigest: input.execution.proposalDigest,
+      authorizationDigest: input.execution.authorizationDigest,
+      authorityFenceDigest: input.execution.authorityFenceDigest,
+      priorReceipts: input.execution.receipts,
+      logicalTimeMs: input.logicalTimeMs,
+      signal: input.signal,
+    }, false);
+    const current = await this.options.store.load(resolved.topologyId);
+    if (!current) throw new TypeError("Morphogenesis topology state is unavailable");
+    const rollback = current.transformations.find(
+      ({ rollbackOfTransformationId }) =>
+        rollbackOfTransformationId === resolved.request.transformationId,
+    );
+    if (rollback) return this.#compensationApplied(input, current.stateDigest);
+    const retained = current.transformations.find(
+      ({ transformationId }) => transformationId === resolved.request.transformationId,
+    );
+    if (!retained) return {
+      status: "indeterminate",
+      evidenceDigest: input.stepReceipt.receiptDigest,
+    };
+    if (retained.status !== "activated") return {
+      status: "indeterminate",
+      evidenceDigest: retained.transformationDigest,
+    };
+    const next = rollbackTeamTopologyTransformationV1({
+      state: current,
+      transformationId: retained.transformationId,
+    });
+    if (!(await this.options.store.save({ state: next, expectedStateDigest: current.stateDigest })))
+      return this.#compensate(input);
+    return this.#compensationApplied(input, next.stateDigest);
+  }
+
+  #compensationApplied(
+    input: MorphogenesisOperatorCompensationBoundaryInputV2,
+    resultDigest: PlanningDigestV1,
+  ): MorphogenesisOperatorCompensationResolutionV2 {
+    return {
+      status: "applied",
+      receipt: createMorphogenesisOperatorCompensationReceiptV2({
+        operationId: input.operationId,
+        executionStateDigest: input.execution.stateDigest,
+        stepId: input.step.stepId,
+        stepReceiptDigest: input.stepReceipt.receiptDigest,
+        compensation: "restore_predecessor_before_commit",
+        resultDigest,
+        appliedAtLogicalMs: input.logicalTimeMs,
+      }),
+    };
+  }
+
+  async #resolve(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+    enforceValidity = true,
+  ) {
     const binding = input.plan.binding;
     if (binding.operator !== "split_team" && binding.operator !== "merge_teams" &&
         binding.operator !== "federate_teams")
@@ -856,8 +934,9 @@ export class TeamTopologyMorphogenesisBoundaryV2
         resolved.request.policyDigest !== binding.topologyPolicyDigest ||
         binding.topologyPolicyDigest !== input.plan.policyDigest)
       throw new TypeError("Morphogenesis topology request is unavailable or substituted");
-    if (input.logicalTimeMs < resolved.request.requestedAtLogicalMs ||
+    if (enforceValidity && (input.logicalTimeMs < resolved.request.requestedAtLogicalMs ||
         input.logicalTimeMs > resolved.request.validUntilLogicalMs)
+    )
       throw new TypeError("Morphogenesis topology request is outside its validity window");
     return resolved;
   }

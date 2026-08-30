@@ -210,6 +210,8 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-agent-status-receipt-v2"
   | "morphogenesis-operator-step-receipt-root-v2"
   | "morphogenesis-operator-outcome-receipt-v2"
+  | "morphogenesis-operator-compensation-receipt-v2"
+  | "morphogenesis-operator-compensation-state-v2"
   | "morphogenesis-budget-reservation-request"
   | "morphogenesis-budget-reservation"
   | "morphogenesis-transformation-head"
