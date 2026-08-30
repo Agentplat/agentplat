@@ -62,6 +62,8 @@ import {
   createTargetMorphologyV1,
   validateMorphogenesisProposalV1,
   validateMorphogenesisPolicyV2,
+  compileMorphogenesisOperatorV2,
+  validateMorphogenesisCompiledOperatorPlanV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -3645,4 +3647,138 @@ test("MorphogenesisPolicyV2 admits advanced operators only through explicit capa
       allowedOperators: [...baseline.allowedOperators, "derive_agent"],
     }),
   );
+});
+
+test("advanced Morphogenesis operators compile to existing authority boundaries", () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [
+      ...new Set([
+        ...baseline.allowedOperators,
+        "derive_agent",
+        "realign_role",
+        "reassign_work",
+        "replace_agent",
+        "suspend_agent",
+        "split_team",
+        "merge_teams",
+        "federate_teams",
+      ]),
+    ].sort(),
+    enabledAdvancedCapabilities: [
+      "derived_profiles",
+      "synthesized_profiles",
+      "role_realignments",
+      "work_reassignments",
+      "agent_replacements",
+      "agent_suspensions",
+      "team_topology_transformations",
+    ],
+    maximumDerivedAgentsPerProposal: 1,
+    maximumSynthesizedAgentsPerProposal: 1,
+    maximumRoleChangesPerProposal: 1,
+    maximumWorkReassignmentsPerProposal: 1,
+    maximumReplacementsPerProposal: 1,
+    maximumSuspensionsPerProposal: 1,
+    maximumTopologyOperationsPerProposal: 1,
+    maximumCreationDepth: 0,
+  });
+  const fixtures = [
+    [
+      "derive_agent",
+      {
+        operator: "derive_agent",
+        profileDigest: sha("1"),
+        evolutionDigest: sha("2"),
+        attenuationDigest: sha("3"),
+      },
+      "agent_instantiation_profile",
+    ],
+    [
+      "realign_role",
+      {
+        operator: "realign_role",
+        roleRealignmentRequestDigest: sha("4"),
+        currentRoleBindingDigest: sha("5"),
+      },
+      "governed_role_realignment",
+    ],
+    [
+      "reassign_work",
+      {
+        operator: "reassign_work",
+        missionLifecycleCommandDigest: sha("6"),
+        predecessorWorkContractDigest: sha("7"),
+        successorWorkContractDigest: sha("8"),
+      },
+      "mission_work_reassignment",
+    ],
+    [
+      "replace_agent",
+      {
+        operator: "replace_agent",
+        predecessorAgentDigest: sha("9"),
+        successorTargetDigest: sha("a"),
+        continuityPolicyDigest: sha("b"),
+      },
+      "governed_agent_lifecycle",
+    ],
+    [
+      "suspend_agent",
+      {
+        operator: "suspend_agent",
+        agentDigest: sha("c"),
+        suspensionPolicyDigest: sha("d"),
+      },
+      "team_execution_continuity",
+    ],
+    [
+      "split_team",
+      {
+        operator: "split_team",
+        transformationRequestDigest: sha("e"),
+        topologyPolicyDigest: sha("f"),
+      },
+      "team_topology_transformation",
+    ],
+  ];
+  for (const [operator, binding, firstBoundary] of fixtures) {
+    const operation = createMorphogenesisOperationV1(
+      {
+        operationId: `operation:compile:${operator}`,
+        operator,
+        effectClass: "protected_external",
+        dependsOnOperationIds: [],
+        targetReferenceDigest: sha("0"),
+        compensation: "restore_predecessor_before_commit",
+      },
+      policy,
+    );
+    const plan = compileMorphogenesisOperatorV2({
+      planId: `compiled-plan:${operator}`,
+      operation,
+      policy,
+      binding,
+      compilerId: "compiler:morphogenesis:v2",
+      compilerVersion: 1,
+      compilerImplementationDigest: sha("1"),
+      compiledAtLogicalMs: 100,
+    });
+    assert.equal(plan.steps[0].boundary, firstBoundary);
+    assert.equal(plan.advisoryOnly, true);
+    assert.equal(
+      validateMorphogenesisCompiledOperatorPlanV2(plan, {
+        operation,
+        policy,
+        binding,
+      }).planDigest,
+      plan.planDigest,
+    );
+    if (operator === "replace_agent") {
+      assert.equal(plan.steps.length, 6);
+      assert.equal(plan.steps.at(-1).operation, "drain_and_retire_predecessor");
+    }
+  }
 });
