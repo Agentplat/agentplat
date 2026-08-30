@@ -58,11 +58,30 @@ services:
     restart: unless-stopped
     networks: [temporal-data]
 
+  restore-postgres:
+    profiles: [restore]
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: agentplat_restore
+      POSTGRES_USER: agentplat_restore
+      POSTGRES_PASSWORD: agentplat-restore-preflight-only
+    ports:
+      - "${AGENTPLAT_PREFLIGHT_RESTORE_POSTGRES_PORT:-55435}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentplat_restore -d agentplat_restore"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [restore-control]
+
 networks:
   agent-data:
     internal: true
   agent-control: {}
   temporal-data: {}
+  restore-control: {}
 
 volumes:
   agent-postgres-data:

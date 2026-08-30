@@ -39,7 +39,7 @@ export async function runMorphogenesisExampleScenario(
   if (!new Set(["authorized_agent", "authorized_person", "collective"]).has(decisionRoute))
     throw new TypeError("decision route must be authorized_agent, authorized_person or collective");
 
-  const scope = createMorphogenesisScopeV1({
+  const scope = createMorphogenesisScopeV1(dependencies.scope ?? {
     tenantId: "tenant:example",
     morphologyId: `morphology:${branch}`,
     policyDomainId: "policy-domain:example",
@@ -333,7 +333,8 @@ export async function runMorphogenesisExampleScenario(
       })
     : baseExecutionOptions;
   let runtime = new MorphogenesisExecutionRuntimeV1(options);
-  const executionStateKey = `execution:${branch}`;
+  const executionStateKey =
+    dependencies.executionStateKey ?? `execution:${branch}`;
   let execution = dependencies.resumeExisting
     ? await store.load(executionStateKey)
     : null;
@@ -344,7 +345,8 @@ export async function runMorphogenesisExampleScenario(
     targetDigest: proposal.targetDigest,
     decision,
     budgetReservation: reservation,
-    morphologyHeadStateKey: `head:${branch}`,
+    morphologyHeadStateKey:
+      dependencies.morphologyHeadStateKey ?? `head:${branch}`,
     expectedMorphologyEpoch: 1,
     resultingSnapshotDigest: sha("f"),
     positionDigest: searchRequest.positionDigest,
@@ -367,7 +369,8 @@ export async function runMorphogenesisExampleScenario(
       await runtime.resolveAgent({ stateKey: execution.stateKey, logicalTimeMs: 171 });
     }
   }
-  const runId = `workflow:${branch}`;
+  const runId = dependencies.runId ?? `workflow:${branch}`;
+  const operationSuffix = dependencies.operationSuffix ?? "";
   const binding = createMorphogenesisProcessBindingV1({
     tenantId: scope.tenantId,
     runId,
@@ -451,8 +454,8 @@ export async function runMorphogenesisExampleScenario(
     runId,
     processId: definition.processId,
     processVersion: definition.version,
-    operationId: `start:${branch}`,
-    idempotencyKey: `start:${branch}`,
+    operationId: `start:${branch}${operationSuffix}`,
+    idempotencyKey: `start:${branch}${operationSuffix}`,
     input: {
       candidateDigest: decisionCandidate.candidateDigest,
       decisionRoute,
@@ -473,10 +476,10 @@ export async function runMorphogenesisExampleScenario(
   await runner.signal({
     tenantId: scope.tenantId,
     runId,
-    operationId: `outcome:${branch}`,
-    idempotencyKey: `outcome:${branch}`,
+    operationId: `outcome:${branch}${operationSuffix}`,
+    idempotencyKey: `outcome:${branch}${operationSuffix}`,
     signal: {
-      signalId: `outcome-signal:${branch}`,
+      signalId: `outcome-signal:${branch}${operationSuffix}`,
       signalType: "agentplat.morphogenesis.outcome.v1",
       correlationKey: "morphogenesis",
       sourceType: "example",

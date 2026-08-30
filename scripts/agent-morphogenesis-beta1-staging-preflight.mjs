@@ -31,10 +31,11 @@ const temporalPort = port(
 );
 
 if (mode === "contract-smoke") {
-  const rendered = compose("config", "--format", "json");
+  const rendered = compose("--profile", "restore", "config", "--format", "json");
   const topology = JSON.parse(rendered);
   assert.deepEqual(Object.keys(topology.services).sort(), [
     "agent-postgres",
+    "restore-postgres",
     "temporal",
     "temporal-postgres",
   ]);
@@ -54,8 +55,6 @@ if (mode === "contract-smoke") {
   const health = await endpoints();
   if (!health.postgresReachable || !health.temporalReachable)
     fail("staging_preflight_services_unreachable");
-  if (git("status", "--porcelain=v1", "--untracked-files=no") !== "")
-    fail("staging_preflight_tracked_worktree_not_clean");
   report("ready", { ...health, executionPermitted: true });
 } else if (mode === "down") {
   requireConfirmation("STOP_SINGLE_HOST_STAGING_PREFLIGHT");
@@ -68,6 +67,8 @@ if (mode === "contract-smoke") {
   const health = await endpoints();
   if (!health.postgresReachable || !health.temporalReachable)
     fail("staging_preflight_services_unreachable");
+  if (git("status", "--porcelain=v1", "--untracked-files=no") !== "")
+    fail("staging_preflight_tracked_worktree_not_clean");
   await mkdir(outputDirectory, { recursive: false });
   const sourceCommit = git("rev-parse", "HEAD");
   const environment = {
@@ -91,9 +92,26 @@ if (mode === "contract-smoke") {
     ...environment,
     AGENTPLAT_MORPHOGENESIS_EVIDENCE_OUTPUT: path.join(outputDirectory, "mesh"),
   });
-  const [nominal, mesh] = await Promise.all([
+  execute(process.execPath, [
+    "scripts/agent-morphogenesis-beta1-staging-isolation.mjs",
+    "--diagnostic-only",
+    "--preserve-schema",
+    "--output-directory",
+    path.join(outputDirectory, "isolation"),
+  ], environment);
+  execute(process.execPath, [
+    "scripts/agent-morphogenesis-beta1-staging-backup-restore.mjs",
+    "--diagnostic-only",
+    "--isolation-receipt",
+    path.join(outputDirectory, "isolation", "isolation-receipt.json"),
+    "--output-directory",
+    path.join(outputDirectory, "backup-restore"),
+  ], environment);
+  const [nominal, mesh, isolation, backupRestore] = await Promise.all([
     JSON.parse(await readFile(path.join(outputDirectory, "nominal", "nominal-summary.json"), "utf8")),
     JSON.parse(await readFile(path.join(outputDirectory, "mesh", "mesh-quorum-receipt.json"), "utf8")),
+    JSON.parse(await readFile(path.join(outputDirectory, "isolation", "isolation-receipt.json"), "utf8")),
+    JSON.parse(await readFile(path.join(outputDirectory, "backup-restore", "backup-restore-receipt.json"), "utf8")),
   ]);
   assert.equal(nominal.status, "passed");
   assert.equal(nominal.scenarioCount, 6);
@@ -102,6 +120,16 @@ if (mode === "contract-smoke") {
   assert.ok(mesh.processesStarted >= 6);
   assert.equal(mesh.morphogenesisAuthorityGrantedByTransport, false);
   assert.equal(mesh.duplicateMaterialEffectCount, 0);
+  assert.equal(isolation.completedExecutions, 6);
+  assert.equal(isolation.crossTenantReadsAccepted, 0);
+  assert.equal(isolation.crossMissionAuthorityUsesAccepted, 0);
+  assert.equal(isolation.crossScopeReceiptsAccepted, 0);
+  assert.equal(backupRestore.sourceCanonicalRoot, backupRestore.restoredCanonicalRoot);
+  compose(
+    "exec", "-T", "agent-postgres", "psql", "-X", "-v", "ON_ERROR_STOP=1",
+    "-U", "agentplat", "-d", "agentplat_morphogenesis", "-c",
+    `DROP SCHEMA "${isolation.schema}" CASCADE`,
+  );
   const images = Object.fromEntries(
     ["postgres:16.6-alpine", "temporalio/auto-setup:1.27.2"].map((image) => [
       image,
@@ -123,6 +151,13 @@ if (mode === "contract-smoke") {
     meshPeerIdentities: mesh.peerIdentities,
     meshProcessesStarted: mesh.processesStarted,
     meshReceiptDigest: digest(mesh),
+    isolationReceiptDigest: isolation.receiptDigest,
+    backupRestoreReceiptDigest: backupRestore.receiptDigest,
+    tenantCount: isolation.tenantCount,
+    missionsPerTenant: isolation.missionsPerTenant,
+    crossTenantEffects: 0,
+    crossMissionEffects: 0,
+    backupRestoreCanonicalRoot: backupRestore.restoredCanonicalRoot,
     stagingQualification: "not-established",
     productionReadiness: "not-established",
     productionClaimPermitted: false,

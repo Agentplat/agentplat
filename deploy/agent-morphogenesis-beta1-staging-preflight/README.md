@@ -7,6 +7,11 @@ isolated container networks. Agent Mesh peers and Morphogenesis workers run as
 real local processes against these services so existing fault probes remain
 the source of runtime behavior.
 
+The `restore-postgres` Compose profile is an ephemeral, separately networked
+restore target. The backup/restore probe recreates it from an empty tmpfs,
+restores a PostgreSQL custom-format backup, compares canonical Morphogenesis
+and Workflow rows byte-for-byte, and removes the ephemeral target afterward.
+
 Run through the repository commands:
 
 ```sh
