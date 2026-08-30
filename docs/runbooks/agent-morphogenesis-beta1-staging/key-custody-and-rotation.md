@@ -14,6 +14,11 @@ retaining its public key for historical verification. Exercise an unexpired old
 authorization during overlap, an expired authorization afterward and a revoked
 key request; the latter two must fail closed.
 
+The repository rotation command issues and dual-signs the transition receipt;
+it does not silently mutate a KMS alias or deployment. The campaign supervisor
+must separately resolve the active signer after activation, prove that it is the
+successor ARN and prove the predecessor is verify-only for new authorizations.
+
 Recovery from a failed rotation keeps execution fenced, restores verification
 of historical signatures from retained public keys and repeats the rotation
 under a new operation ID; private key rollback is never permitted.
