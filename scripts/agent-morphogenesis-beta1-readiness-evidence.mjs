@@ -95,6 +95,29 @@ if (options.mode === "contract-smoke") {
     recoveryMetrics.map(({ wall_time_ms }) => wall_time_ms),
     0.95,
   );
+  const coveredScenarioIds = new Set();
+  for (const { source, value } of receipts) {
+    if (typeof value.scenarioId === "string")
+      coveredScenarioIds.add(value.scenarioId);
+    for (const scenarioId of value.metrics?.scenarioIds ?? [])
+      coveredScenarioIds.add(scenarioId);
+    if (
+      source.includes("mesh-cycle-") &&
+      value.morphogenesisMinorityPartitionFailedClosed === true
+    )
+      coveredScenarioIds.add("mesh-minority-partition");
+    if (
+      source.includes("mesh-cycle-") &&
+      value.morphogenesisDependentCollusionRejected === true
+    )
+      coveredScenarioIds.add("dependent-actor-collusion");
+  }
+  if (soakReceipt.supervisorResumeCount > 0)
+    coveredScenarioIds.add("supervisor-restart-resume");
+  assert.deepEqual(
+    [...coveredScenarioIds].sort(),
+    [...profile.operationalScenarioIds].sort(),
+  );
   const analysisBody = {
     schemaVersion: 1,
     kind: "agentplat-agent-morphogenesis-beta1-readiness-analysis-v1",
@@ -122,6 +145,7 @@ if (options.mode === "contract-smoke") {
     missionContinuityRatio: soakReceipt.missionContinuityRatio,
     externalSpendUsd: soakReceipt.externalSpendUsd,
     operationalScenarioCount: profile.operationalScenarioIds.length,
+    coveredScenarioIds: [...coveredScenarioIds].sort(),
     operationalReadiness: "beta1-local-profile-established",
     experimentalEvidence: "not-collected",
     productionReadiness: "not-established",
@@ -208,6 +232,10 @@ if (options.mode === "contract-smoke") {
     digest("agentplat-agent-morphogenesis-beta1-readiness-artifact-manifest-v1", manifestBody),
   );
   assert.equal(analysis.soakReceiptDigest, soakReceipt.receiptDigest);
+  assert.deepEqual(
+    analysis.coveredScenarioIds,
+    [...profile.operationalScenarioIds].sort(),
+  );
   validateEventChain(events);
   assert.equal(samples.length, analysis.resourceSamples);
   assertSlos(analysis);

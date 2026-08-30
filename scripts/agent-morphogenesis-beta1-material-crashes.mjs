@@ -198,7 +198,10 @@ try {
       );
       results.push({
         boundary,
-        scenarioId: `crash-${boundary}`,
+        scenarioId:
+          boundary === "after-fence-before-detach-or-retire"
+            ? "crash-after-fence-before-terminal-agent"
+            : `crash-${boundary}`,
         status: "passed",
         activityAttempts,
         materialEffectCount: 1,
