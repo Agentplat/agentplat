@@ -118,7 +118,7 @@
     "verify:agent-morphogenesis-beta1-staging-deploy": "node scripts/agent-morphogenesis-beta1-staging-deploy.mjs --mode contract-smoke",
     "preflight:agent-morphogenesis-beta1-staging-deploy": "node scripts/agent-morphogenesis-beta1-staging-deploy.mjs --mode preflight",
     "apply:agent-morphogenesis-beta1-staging-deploy": "node scripts/agent-morphogenesis-beta1-staging-deploy.mjs --mode apply",
-    "verify:agent-morphogenesis-beta1-staging-supervisor": "node --test scripts/morphogenesis-staging-supervisor.test.mjs && node scripts/agent-morphogenesis-beta1-staging-supervisor.mjs --mode contract-smoke",
+    "verify:agent-morphogenesis-beta1-staging-supervisor": "node --test scripts/morphogenesis-staging-supervisor.test.mjs scripts/staging-supervisor-cli.test.mjs && node scripts/agent-morphogenesis-beta1-staging-supervisor.mjs --mode contract-smoke",
     "plan:agent-morphogenesis-beta1-staging-supervisor": "node scripts/agent-morphogenesis-beta1-staging-supervisor.mjs --mode plan",
     "authorize:agent-morphogenesis-beta1-staging-supervisor": "node scripts/agent-morphogenesis-beta1-staging-supervisor.mjs --mode authorize",
     "ingest:agent-morphogenesis-beta1-staging-receipt": "node scripts/agent-morphogenesis-beta1-staging-supervisor.mjs --mode ingest",
