@@ -89,6 +89,15 @@
   "soakExecution": {
     "gatewayEndpoint": "https://REPLACE_WITH_SOAK_GATEWAY/v1/collect"
   },
+  "maintenance": {
+    "gatewayEndpoint": "https://REPLACE_WITH_MAINTENANCE_GATEWAY/v1/execute",
+    "supportedOperationClasses": [
+      "rolling-deployment",
+      "schema-upgrade",
+      "backup-restore",
+      "key-rotation"
+    ]
+  },
   "observability": {
     "gatewayEndpoint": "https://REPLACE_WITH_OBSERVABILITY_GATEWAY/v1/preflight",
     "otlpEndpoint": "https://REPLACE_WITH_OTLP_ENDPOINT",

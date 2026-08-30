@@ -318,6 +318,10 @@ function validateInventory(value) {
   ]);
   https(value.scenarioExecution.gatewayEndpoint, "scenario execution gateway endpoint");
   https(value.soakExecution.gatewayEndpoint, "soak execution gateway endpoint");
+  https(value.maintenance.gatewayEndpoint, "maintenance gateway endpoint");
+  assert.deepEqual([...value.maintenance.supportedOperationClasses].sort(), [
+    "backup-restore", "key-rotation", "rolling-deployment", "schema-upgrade",
+  ]);
   https(value.observability.otlpEndpoint, "OTLP endpoint");
   https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
@@ -438,6 +442,12 @@ function boundFixture(template) {
     },
     soakExecution: {
       gatewayEndpoint: "https://soak.staging.invalid/v1/collect",
+    },
+    maintenance: {
+      gatewayEndpoint: "https://maintenance.staging.invalid/v1/execute",
+      supportedOperationClasses: [
+        "rolling-deployment", "schema-upgrade", "backup-restore", "key-rotation",
+      ],
     },
   };
 }

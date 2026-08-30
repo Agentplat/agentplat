@@ -132,3 +132,10 @@ three tenants with 200 runs each, eight concurrent missions, six cumulative
 Mesh starts, resource/operation roots, bounded latency and resource SLOs, empty
 final queues and zero safety violations. Its `operation-detail.json` is the
 only shape accepted for the supervisor's final `soak-summary` receipt.
+
+Maintenance operations are also intent-bound. Rolling deployment must prove
+distinct image digests, observed version skew and readiness in three domains;
+schema upgrade must advance the migration and test backward restore; backup
+must restore identical canonical roots into a different clean resource; key
+rotation must activate the successor, deny predecessor signing and retain
+historical verification. Empty KMS-signed counters are rejected.
