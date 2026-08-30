@@ -34,6 +34,7 @@ export function createStagingSupervisorConfigV1({
     campaignKeyId,
     campaignPublicKeyFingerprint,
     operationalScenarioIds: [...operationalScenarioIds],
+    partitionAuthorityScenarioIds: [...profile.partitionAuthorityScenarioIds],
     requiredScenarioCount: profile.requiredScenarioCoverage.exactCanonicalScenarioCount,
     requiredInfrastructure: profile.requiredInfrastructure,
     executionGeometry: profile.executionGeometry,
@@ -43,6 +44,12 @@ export function createStagingSupervisorConfigV1({
   };
   assert.equal(body.operationalScenarioIds.length, body.requiredScenarioCount);
   assert.equal(new Set(body.operationalScenarioIds).size, body.requiredScenarioCount);
+  assert.equal(
+    new Set(body.partitionAuthorityScenarioIds).size,
+    body.partitionAuthorityScenarioIds.length,
+  );
+  for (const scenarioId of body.partitionAuthorityScenarioIds)
+    assert.ok(body.operationalScenarioIds.includes(scenarioId));
   return Object.freeze({
     ...body,
     configDigest: digest("agentplat-agent-morphogenesis-beta1-staging-supervisor-config-v1", body),
@@ -62,6 +69,7 @@ export function createInitialStagingSupervisorStateV1(config) {
     acceptedOperationIds: [],
     baselineScenarioIds: [],
     postUpgradeScenarioIds: [],
+    partitionAuthorityScenarioIds: [],
     faultCycles: {
       "network-partition": 0,
       "host-loss": 0,
@@ -116,8 +124,12 @@ export function acceptStagingOperationReceiptV1(config, current, input) {
         ? next.baselineScenarioIds
         : receipt.detail.phase === "post-upgrade"
           ? next.postUpgradeScenarioIds
-          : null;
+          : receipt.detail.phase === "partition"
+            ? next.partitionAuthorityScenarioIds
+            : null;
       assert.ok(target);
+      if (receipt.detail.phase === "partition")
+        assert.ok(config.partitionAuthorityScenarioIds.includes(receipt.detail.scenarioId));
       assert.equal(target.includes(receipt.detail.scenarioId), false);
       target.push(receipt.detail.scenarioId);
       target.sort();
@@ -162,6 +174,10 @@ export function completionSatisfied(config, state) {
     values.every((value, index) => value === [...config.operationalScenarioIds].sort()[index]);
   return exact(state.baselineScenarioIds) &&
     exact(state.postUpgradeScenarioIds) &&
+    state.partitionAuthorityScenarioIds.length === config.partitionAuthorityScenarioIds.length &&
+    state.partitionAuthorityScenarioIds.every(
+      (value, index) => value === [...config.partitionAuthorityScenarioIds].sort()[index],
+    ) &&
     Object.entries(faultRequirements).every(([faultClass, geometryKey]) =>
       state.faultCycles[faultClass] >= config.executionGeometry[geometryKey]) &&
     state.rollingDeploymentCycles >= config.executionGeometry.minimumRollingDeploymentCycles &&

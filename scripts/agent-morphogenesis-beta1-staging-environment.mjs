@@ -316,6 +316,7 @@ function validateInventory(value) {
   assert.deepEqual([...value.faultInjection.supportedFaultClasses].sort(), [
     "host-loss", "network-partition", "postgres-failover", "temporal-worker-loss",
   ]);
+  https(value.scenarioExecution.gatewayEndpoint, "scenario execution gateway endpoint");
   https(value.observability.otlpEndpoint, "OTLP endpoint");
   https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
@@ -430,6 +431,9 @@ function boundFixture(template) {
       supportedFaultClasses: [
         "network-partition", "host-loss", "postgres-failover", "temporal-worker-loss",
       ],
+    },
+    scenarioExecution: {
+      gatewayEndpoint: "https://scenarios.staging.invalid/v1/execute",
     },
   };
 }

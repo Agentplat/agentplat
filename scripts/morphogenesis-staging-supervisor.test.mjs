@@ -61,6 +61,8 @@ test("staging supervisor completes only after every frozen gate", () => {
   for (const phase of ["baseline", "post-upgrade"])
     for (const scenarioId of config.operationalScenarioIds)
       accept("canonical-scenario", { phase, scenarioId });
+  for (const scenarioId of config.partitionAuthorityScenarioIds)
+    accept("canonical-scenario", { phase: "partition", scenarioId });
   for (const [faultClass, count] of [
     ["network-partition", config.executionGeometry.minimumNetworkPartitionCycles],
     ["host-loss", config.executionGeometry.minimumHostLossCycles],

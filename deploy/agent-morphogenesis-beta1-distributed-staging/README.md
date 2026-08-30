@@ -118,3 +118,10 @@ fail authorization, host loss must replace a node UID, PostgreSQL failover must
 change primary and verify the rollback witness, and Temporal worker loss must
 prove replay on a replacement worker. Pod deletion alone satisfies none of
 those distributed fault gates.
+
+Canonical scenarios run through a separate gateway bound to the external
+PostgreSQL, Temporal and Mesh resource IDs. Each response must identify the
+runner pod/node/zone, preserve external signing and rollback-witness checks,
+carry domain/Mesh/workflow evidence digests and report zero safety violations.
+The supervisor requires 22 exact baseline receipts, 22 exact post-upgrade
+receipts and six frozen authority scenarios while a partition is active.

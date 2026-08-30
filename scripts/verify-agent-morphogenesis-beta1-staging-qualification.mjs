@@ -30,6 +30,10 @@ assert.equal(profile.requiredScenarioCoverage.exactCanonicalScenarioCount, 22);
 assert.equal(readinessProfile.operationalScenarioIds.length, 22);
 assert.equal(new Set(readinessProfile.operationalScenarioIds).size, 22);
 assert.equal(profile.requiredScenarioCoverage.rejectMissingDuplicateOrUnexpectedScenarioIds, true);
+assert.equal(profile.partitionAuthorityScenarioIds.length, 6);
+assert.equal(new Set(profile.partitionAuthorityScenarioIds).size, 6);
+for (const scenarioId of profile.partitionAuthorityScenarioIds)
+  assert.ok(readinessProfile.operationalScenarioIds.includes(scenarioId));
 assert.equal(new Set(profile.requiredFaultClasses).size, profile.requiredFaultClasses.length);
 assert.ok(profile.requiredFaultClasses.length >= 10);
 for (const value of Object.values(profile.isolationRequirements).slice(2)) assert.equal(value, 0);
