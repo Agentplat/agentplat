@@ -30,6 +30,9 @@ organize that material for research communication.
 - [Agent Morphogenesis Beta 1 operational readiness V1](./agent-morphogenesis-beta1-operational-readiness-v1.md):
   frozen 30-minute local/staging soak profile, resource SLOs, recovery gates,
   runbook requirements and exact-digest public-audit repair policy.
+- [Agent Morphogenesis Beta 1 operational readiness evidence V1](./agent-morphogenesis-beta1-readiness-v1/README.md):
+  signed 30-minute soak evidence establishing the bounded Beta 1 local profile
+  while keeping experiments and production readiness explicitly separate.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):

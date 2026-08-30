@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-agent-morphogenesis-beta1-readiness-bundle-v1",
+  "sourceCommit": "b36bc5885855519e1ea7b7cbdf1c6588e03d6f4b",
+  "sourceTree": "f66c0aa71435adb40ee14bc8eca73ae00352aa18",
+  "sourceBindingStatus": "exact-clean-commit",
+  "profileDigest": "sha256:7653e16af94164184be7e2a0aa8073d3f9552bcba6481e900f187db1772bb71d",
+  "registrationDigest": "sha256:8c6b3e31ff3384b8f4da7bea8a2c0bf17c9a4134159c18241ed67f1c290d128d",
+  "authorizationDigest": "sha256:d0b71867f53f2727d9d6bee220fe52a9c619cb1b50fd3062091914274d12d771",
+  "soakReceiptDigest": "sha256:9c0a617b5151b9f29c320ffd99e96f4d7f8366f009d4b74c9fc9f2b76f5d0cdd",
+  "analysisDigest": "sha256:164d0a029f7866b0d0f86730f2da6d1dc9d7a0fd158e74c8815aa614959ec17f",
+  "artifactManifestDigest": "sha256:23245fcb308a7249b846af973cc5fdd60878558335e30fdaa9a4e69bcaeb2745",
+  "evidenceArtifacts": [
+    {
+      "name": "readiness-analysis.json",
+      "bytes": 1288,
+      "sha256": "c3dd2ef70f7109925c53f77465fd6cca5c8b5d797e9b85bbce85640925a0ed0a"
+    },
+    {
+      "name": "readiness-artifact-manifest.json",
+      "bytes": 15399,
+      "sha256": "cb743e5bbf3b992e6d8718982b0ab42dd4a9baa8c134f13ea30b42d48ae2411f"
+    },
+    {
+      "name": "readiness-operation-metrics.jsonl",
+      "bytes": 37185,
+      "sha256": "41f7c11473ffc22ba361f6591be16451b86a6d1232f44105e39884db895777e5"
+    },
+    {
+      "name": "readiness-operation-receipts.jsonl",
+      "bytes": 134564,
+      "sha256": "9d8282be56b0d477385269fa2f2a350a512dcbfa17f1cc6c5817a99276e177df"
+    },
+    {
+      "name": "readiness-soak-receipt.json",
+      "bytes": 1263,
+      "sha256": "023e38b271864dc49b137c3d9d2ba22cbfca027f83a0c46bed54893f4038f32c"
+    },
+    {
+      "name": "resource-samples.jsonl",
+      "bytes": 115111,
+      "sha256": "11c6bfb26516b6a2972f538cddec85c0ca79ef3c3a4c10565b87a08afab9ed1f"
+    },
+    {
+      "name": "supervisor-events.jsonl",
+      "bytes": 25975,
+      "sha256": "4fff81e0858a8176046dcb69631be90dce7876e91dc8a0d228127bfde3f39831"
+    }
+  ],
+  "evidenceRoot": "sha256:2a23acd2af9f5b2f0b08a895126aa281ad12121fa186dcebc4fd0c3f5345ee36",
+  "completedIterations": 120,
+  "operationalScenarioCount": 22,
+  "resourceSamples": 456,
+  "nominalP95WallTimeMs": 608,
+  "recoveryP95WallTimeMs": 10569,
+  "maximumProcessRssBytes": 537575424,
+  "maximumAggregateCpuPercent": 139,
+  "postgresStorageGrowthBytes": 25698304,
+  "temporalStorageGrowthBytes": 3596288,
+  "evidenceState": {
+    "sourceCapability": "implemented",
+    "conformance": "beta1-campaign-passed",
+    "operationalEvidence": "readiness-profile-collected",
+    "operationalReadiness": "beta1-local-profile-established",
+    "experimentalEvidence": "not-collected",
+    "productionReadiness": "not-established",
+    "productionClaimPermitted": false,
+    "securityCertificationClaimPermitted": false
+  },
+  "externalSpendUsd": 0,
+  "excludedCapabilities": [
+    "profile-synthesis",
+    "recursive-agent-creation",
+    "team-split-merge-federation"
+  ],
+  "bundleDigest": "sha256:8c5436aa64f398bd274c3f727ce2ed0bdf95282bef03b065ce09ba25254ff291"
+}
