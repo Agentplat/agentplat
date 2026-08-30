@@ -19,3 +19,9 @@ the morphology head and domain receipts; existing lifecycle, membership, Team,
 Work and Action boundaries retain authority. PostgreSQL state lives in the
 Collective Host adapter, Room/Mesh projections remain authority-neutral, and
 the frozen collective capability V1 denominator is unchanged.
+
+The additive V2 profile compiles advanced organizational operators into those
+same owners. Governed operator admission binds an approved agent/person/quorum
+decision to a Policy V2 plan and execution fence; a separate durable
+compensation journal handles pre-commit reversal. Mission Lifecycle and Interop
+are explicit opt-in entry points, never alternate authority planes.

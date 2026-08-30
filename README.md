@@ -511,6 +511,13 @@ campaign. Its manifests, receipts, metrics, firmable bundle and report keep
 diagnostic conformance separate from experimental evidence, operational
 readiness and production claims.
 
+The additive [Agent Morphogenesis V2 specification](./docs/specification/agent-morphogenesis-v2.md)
+adds explicitly gated derived/synthesized profiles, role and Work evolution,
+replacement, suspension/resumption, Dynamic Topology split/merge/federation,
+durable compensation, Mission Lifecycle and Interop composition. These
+capabilities preserve the V1 defaults and existing subsystem authority owners.
+See the [V2 source acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

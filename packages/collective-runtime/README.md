@@ -29,7 +29,8 @@ void createCollective; // Configure runtime, agents and a plan before creating o
 `@agentplat/collective-runtime/morphogenesis` is the opt-in, provider-neutral
 future-baseline surface for governed mission-scoped organizational change. It
 exports bounded morphology observations, needs, targets and proposals;
-catalog-backed instantiation profiles; human/agent/policy/collective decisions;
+catalog, derived and independently certified synthesized instantiation
+profiles; human/agent/policy/collective decisions;
 budget and churn controls; the fixed Governed Durable Workflow definition;
 CAS-safe execution and morphology heads; continuity, fencing, retirement and
 final receipts; and in-memory reference stores.
@@ -43,8 +44,9 @@ lifecycle and Team Formation APIs. Durable morphology state is available from
 `@agentplat/workflows-postgres` and Temporal remains a wakeup transport.
 
 See the [reference example](../../examples/agent-morphogenesis/README.md),
-[ADR 0046](../../docs/adr/0046-agent-morphogenesis.md) and [acceptance
-checklist](../../docs/collective-runtime/agent-morphogenesis-v1-acceptance-checklist.md).
+[ADR 0046](../../docs/adr/0046-agent-morphogenesis.md), the [V2
+specification](../../docs/specification/agent-morphogenesis-v2.md) and [source
+acceptance checklist](../../docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
 
 ```ts
 import { createCollective } from "@agentplat/collective-runtime";
