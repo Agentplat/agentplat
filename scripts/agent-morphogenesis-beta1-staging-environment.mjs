@@ -129,7 +129,7 @@ function validateInventory(value) {
   assert.equal(value.postgresql.persistent, true);
   assert.equal(value.postgresql.backupEnabled, true);
   assert.equal(value.postgresql.pointInTimeRecoveryEnabled, true);
-  assert.match(value.postgresql.endpoint, /^postgresqls:\/\//u);
+  assert.match(value.postgresql.endpoint, /^postgresql:\/\//u);
   assert.ok(value.postgresql.failureDomainIds.length >= 2);
   subset(value.postgresql.failureDomainIds, domainIds, "PostgreSQL failure domains");
   https(value.temporal.endpoint, "Temporal endpoint");
@@ -214,7 +214,7 @@ function boundFixture(template) {
     },
     postgresql: {
       resourceId: "database-immutable-123",
-      endpoint: "postgresqls://database.staging.invalid:5432/agentplat",
+      endpoint: "postgresql://database.staging.invalid:5432/agentplat",
       tlsMode: "verify-full",
       persistent: true,
       backupEnabled: true,

@@ -59,3 +59,26 @@ cross-scope requests and over-capacity reservations fail closed. Release and
 logical expiry advance the reservation once and bind an external rollback
 witness. The capacity configuration is construction-bound and is not restored
 from database rows.
+
+For staging and other deployments that require a witness outside the database
+protection domain, `HttpMorphogenesisRollbackWitnessV1` implements the same
+Morphogenesis witness port over credential-free HTTPS endpoints. Supply an
+authorization callback backed by workload identity; the adapter does not store
+tokens. Requests bind the full state coordinate and predecessor/successor head
+to a digest, and successful responses must echo that digest and the exact head.
+Malformed, replayed, oversized, non-JSON, rejected or divergent responses fail
+closed. The remote service remains responsible for monotonic durable storage,
+identity policy, audit retention and availability.
+
+```ts
+import { HttpMorphogenesisRollbackWitnessV1 } from "@agentplat/collective-host-postgres";
+
+const rollbackWitness = new HttpMorphogenesisRollbackWitnessV1({
+  endpoint: "https://witness.staging.internal/agentplat/",
+  authorizationHeader: async () => `Bearer ${await workloadIdentityToken()}`,
+});
+```
+
+Do not place witness credentials in the endpoint URL. An HTTP witness on the
+same host, account or failure domain as PostgreSQL is not independent staging
+evidence and does not establish production readiness.
