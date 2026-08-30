@@ -68,6 +68,8 @@ import {
   createMorphogenesisAgentStatusReceiptV2,
   InMemoryMorphogenesisOperatorExecutionStoreV2,
   MorphogenesisOperatorExecutionRuntimeV2,
+  InMemoryMorphogenesisOperatorOutcomeStoreV2,
+  MorphogenesisOperatorCycleRuntimeV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -3884,6 +3886,7 @@ test("advanced operator runtime reconciles a crash without repeating the boundar
   });
   let state = await runtime.initialize({
     stateKey: "operator-execution:derive:1",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("a"),
     decisionDigest: sha("b"),
@@ -3934,6 +3937,7 @@ test("advanced operator runtime reconciles a crash without repeating the boundar
   });
   let indeterminate = await indeterminateRuntime.initialize({
     stateKey: "operator-execution:derive:indeterminate",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("a"),
     decisionDigest: sha("b"),
@@ -4060,6 +4064,7 @@ test("split_team executes through the existing durable Team topology reducer", a
   });
   let state = await runtime.initialize({
     stateKey: "operator-execution:split-team:1",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("5"),
     decisionDigest: sha("6"),
@@ -4198,6 +4203,7 @@ test("reassign_work observes Mission Lifecycle and an exact successor Work recei
   });
   let state = await runtime.initialize({
     stateKey: "operator-execution:reassign-work:1",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("c"),
     decisionDigest: sha("d"),
@@ -4305,6 +4311,7 @@ test("realign_role delegates waiting and activation to the existing role runtime
   });
   let state = await runtime.initialize({
     stateKey: "operator-execution:realign-role:1",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("a"),
     decisionDigest: sha("b"),
@@ -4463,6 +4470,7 @@ test("suspend_agent and resume_agent require continuity, fences and membership r
     });
     let state = await runtime.initialize({
       stateKey: `operator-execution:${operator}:${ordinal}`,
+      scopeDigest: sha("0"),
       plan,
       proposalDigest: sha("d"),
       decisionDigest: sha("e"),
@@ -4622,6 +4630,7 @@ test("replace_agent composes successor activation, predecessor continuity and re
   });
   let state = await runtime.initialize({
     stateKey: "operator-execution:replace-agent:1",
+    scopeDigest: sha("0"),
     plan,
     proposalDigest: sha("d"),
     decisionDigest: sha("e"),
@@ -4645,4 +4654,128 @@ test("replace_agent composes successor activation, predecessor continuity and re
   ]);
   assert.equal(state.receipts.length, 6);
   assert.equal(state.receipts.at(-1).resultDigest, sha("c"));
+});
+
+test("advanced operator evaluation advances one morphology epoch exactly once", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "realign_role"].sort(),
+    enabledAdvancedCapabilities: ["role_realignments"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 1,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:cycle:role",
+      operator: "realign_role",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "realign_role",
+    roleRealignmentRequestDigest: sha("2"),
+    currentRoleBindingDigest: sha("3"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:cycle:role",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("4"),
+    compiledAtLogicalMs: 100,
+  });
+  const executionRuntime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: {
+      async execute(input) {
+        return {
+          status: "applied",
+          receipt: createMorphogenesisOperatorStepReceiptV2({
+            operationId: input.operationId,
+            planDigest: input.plan.planDigest,
+            stepId: input.step.stepId,
+            stepDigest: input.step.stepDigest,
+            boundary: input.step.boundary,
+            resultDigest: sha("5"),
+            appliedAtLogicalMs: input.logicalTimeMs,
+          }),
+        };
+      },
+      async reconcile() { return { status: "not_applied" }; },
+    },
+  });
+  let execution = await executionRuntime.initialize({
+    stateKey: "operator-execution:cycle:role",
+    scopeDigest: sha("0"),
+    plan,
+    proposalDigest: sha("6"),
+    decisionDigest: sha("7"),
+    authorizationDigest: sha("8"),
+    authorityFenceDigest: sha("9"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  execution = await executionRuntime.advance({
+    stateKey: execution.stateKey,
+    logicalTimeMs: 120,
+  });
+  assert.equal(execution.status, "completed");
+  const morphology = new MorphologyHeadRuntimeV1({
+    store: new InMemoryMorphologyHeadStoreV1(),
+    maximumCommitAttempts: 4,
+  });
+  await morphology.initialize(
+    createInitialMorphologyHeadV1({
+      stateKey: "morphology-head:cycle:role",
+      scopeDigest: execution.scopeDigest,
+      policyDigest: policy.policyDigest,
+      morphologyEpoch: 1,
+      snapshotDigest: sha("a"),
+      logicalTimeMs: 100,
+    }),
+  );
+  let evaluations = 0;
+  const cycle = new MorphogenesisOperatorCycleRuntimeV2({
+    morphology,
+    outcomes: new InMemoryMorphogenesisOperatorOutcomeStoreV2(),
+    evaluation: {
+      async evaluate() {
+        evaluations += 1;
+        return {
+          disposition: "success",
+          outcomeEvidenceDigests: [sha("b")],
+        };
+      },
+    },
+  });
+  const first = await cycle.finalize({
+    execution,
+    morphologyHeadStateKey: "morphology-head:cycle:role",
+    resultingSnapshotDigest: sha("c"),
+    logicalTimeMs: 130,
+  });
+  const replay = await cycle.finalize({
+    execution,
+    morphologyHeadStateKey: "morphology-head:cycle:role",
+    resultingSnapshotDigest: sha("c"),
+    logicalTimeMs: 140,
+  });
+  assert.equal(first.morphologyHead.morphologyEpoch, 2);
+  assert.equal(replay.morphologyHead.headDigest, first.morphologyHead.headDigest);
+  assert.equal(replay.receipt.receiptDigest, first.receipt.receiptDigest);
+  assert.equal(evaluations, 1);
 });

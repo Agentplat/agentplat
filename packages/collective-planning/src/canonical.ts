@@ -207,6 +207,8 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "team-topology-request",
   "team-topology-transformation",
   "morphogenesis-agent-status-receipt-v2",
+  "morphogenesis-operator-step-receipt-root-v2",
+  "morphogenesis-operator-outcome-receipt-v2",
   "morphogenesis-budget-reservation-request",
   "morphogenesis-budget-reservation",
   "morphogenesis-transformation-head",

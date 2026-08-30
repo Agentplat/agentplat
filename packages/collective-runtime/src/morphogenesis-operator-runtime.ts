@@ -81,6 +81,7 @@ export interface MorphogenesisOperatorExecutionStateV2 {
   readonly schemaVersion: 2;
   readonly stateKey: AgentPlatID;
   readonly plan: MorphogenesisCompiledOperatorPlanV2;
+  readonly scopeDigest: PlanningDigestV1;
   readonly proposalDigest: PlanningDigestV1;
   readonly decisionDigest: PlanningDigestV1;
   readonly authorizationDigest: PlanningDigestV1;
@@ -157,6 +158,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
   async initialize(input: {
     readonly stateKey: AgentPlatID;
     readonly plan: MorphogenesisCompiledOperatorPlanV2;
+    readonly scopeDigest: PlanningDigestV1;
     readonly proposalDigest: PlanningDigestV1;
     readonly decisionDigest: PlanningDigestV1;
     readonly authorizationDigest: PlanningDigestV1;
@@ -176,6 +178,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
     const state = createState({
       stateKey: input.stateKey,
       plan: input.plan,
+      scopeDigest: sha(input.scopeDigest, "operator execution scope digest"),
       proposalDigest: input.proposalDigest,
       decisionDigest: input.decisionDigest,
       authorizationDigest: input.authorizationDigest,
