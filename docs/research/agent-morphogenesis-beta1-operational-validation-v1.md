@@ -89,6 +89,14 @@ source binding, writes every file with create-only semantics and retains no
 credentials. Planning always records `authorizationStatus: not-issued`,
 `executionPermitted: false` and `resultsStatus: not-collected`.
 
+Execution authority is issued separately with
+`authorize:agent-morphogenesis-beta1-campaign`. It requires an Ed25519 private
+key outside the checkout, an `agent` or `person` actor, a future expiry and the
+exact confirmation `AUTHORIZE_ZERO_SPEND_BETA1`. The authorization binds the
+registration, clean source commit, complete scenario set and USD 0 ceiling.
+Only the public key and signed authorization are published; the private key is
+never copied into campaign artifacts.
+
 The frozen collective capability V1 baseline remains unchanged. Profile
 synthesis, recursive agent creation and Team split/merge/federation are outside
 Beta 1.
@@ -156,3 +164,11 @@ duplicate material effects and mixed source commits. Closure writes exactly 18
 ordered receipts, 18 metric records, an unsigned-but-firmable content-addressed
 bundle and a Markdown report. `--mode verify` recomputes every receipt digest,
 both roots, the scenario order and the bundle digest.
+
+`assemble-release` additionally requires the signed authorization and original
+registration, rechecks their Ed25519 proof and expiry, and refuses a changed or
+dirty tracked tree. The resulting bundle records `exact-clean-commit` and
+`beta1-local-profile-passed` while still prohibiting production and security
+certification claims. `sign:agent-morphogenesis-beta1-bundle` creates a detached
+Ed25519 attestation over the bundle, receipt root, metrics root, evidence state
+and source commit; bundle verification checks that signature when present.

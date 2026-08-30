@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+  sign as signBytes,
+  verify as verifyBytes,
+} from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,9 +18,11 @@ const options = parse(process.argv.slice(2));
 if (options.mode === "contract-smoke") {
   exact(options, ["mode"]);
   console.log(JSON.stringify({ status: "passed", productionClaimPermitted: false }));
-} else if (options.mode === "assemble-diagnostic") {
+} else if (["assemble-diagnostic", "assemble-release"].includes(options.mode)) {
+  const releaseMode = options.mode === "assemble-release";
   exact(options, [
     "adversarial-directory",
+    ...(releaseMode ? ["authorization-directory", "registration-directory"] : []),
     "early-crash-directory",
     "mesh-directory",
     "mode",
@@ -24,6 +33,19 @@ if (options.mode === "contract-smoke") {
   const sourceSha = required(options, "source-sha");
   if (!/^[0-9a-f]{40}$/u.test(sourceSha)) fail("morphogenesis_beta1_bundle_source_invalid");
   const outputDirectory = external(required(options, "output-directory"));
+  let releaseBinding = null;
+  if (releaseMode) {
+    if (
+      git("rev-parse", "HEAD") !== sourceSha ||
+      gitStatus("diff", "--quiet") !== 0 ||
+      gitStatus("diff", "--cached", "--quiet") !== 0
+    ) fail("morphogenesis_beta1_release_source_not_clean");
+    releaseBinding = await validateReleaseBinding(
+      path.resolve(required(options, "registration-directory")),
+      path.resolve(required(options, "authorization-directory")),
+      sourceSha,
+    );
+  }
   const manifest = await json(path.join(root, "config/agent-morphogenesis-beta1-scenarios-v1.json"));
   const [nominal, early, adversarial, mesh] = await Promise.all([
     jsonl(path.join(required(options, "nominal-directory"), "nominal-receipts.jsonl")),
@@ -65,7 +87,13 @@ if (options.mode === "contract-smoke") {
     kind: "agentplat-agent-morphogenesis-beta1-evidence-bundle-v1",
     campaignId: manifest.campaignId,
     sourceCommit: sourceSha,
-    sourceBindingStatus: "diagnostic-uncommitted",
+    sourceBindingStatus: releaseMode ? "exact-clean-commit" : "diagnostic-uncommitted",
+    ...(releaseBinding
+      ? {
+          registrationDigest: releaseBinding.registrationDigest,
+          authorizationDigest: releaseBinding.authorizationDigest,
+        }
+      : {}),
     scenarioManifestDigest: digest(
       "agentplat-agent-morphogenesis-beta1-scenarios-v1",
       manifest,
@@ -75,10 +103,12 @@ if (options.mode === "contract-smoke") {
     metricsRoot,
     evidenceState: {
       sourceCapability: "implemented",
-      conformance: "diagnostic-passed",
+      conformance: releaseMode ? "beta1-campaign-passed" : "diagnostic-passed",
       operationalDiagnosticEvidence: "collected",
       experimentalEvidence: "not-collected",
-      operationalReadiness: "not-established",
+      operationalReadiness: releaseMode
+        ? "beta1-local-profile-passed"
+        : "not-established",
       productionClaimPermitted: false,
       securityCertificationClaimPermitted: false,
     },
@@ -106,16 +136,65 @@ if (options.mode === "contract-smoke") {
     writeExclusive(path.join(outputDirectory, "operational-validation-report.md"), report(bundle, receipts)),
   ]);
   console.log(JSON.stringify({
-    status: "assembled-diagnostic",
+    status: releaseMode ? "assembled-release" : "assembled-diagnostic",
     scenarioCount: bundle.scenarioCount,
     receiptRoot,
     metricsRoot,
     bundleDigest: bundle.bundleDigest,
     signingStatus: "unsigned",
-    operationalReadiness: "not-established",
+    operationalReadiness: bundle.evidenceState.operationalReadiness,
     productionClaimPermitted: false,
     outputDirectory,
   }, null, 2));
+} else if (options.mode === "sign") {
+  exact(options, ["actor-id", "actor-type", "bundle-directory", "mode", "private-key"]);
+  if (!new Set(["agent", "person"]).has(options["actor-type"]))
+    fail("morphogenesis_beta1_bundle_signer_type_invalid");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(options["actor-id"] ?? ""))
+    fail("morphogenesis_beta1_bundle_signer_id_invalid");
+  const directory = path.resolve(required(options, "bundle-directory"));
+  const bundle = await json(path.join(directory, "evidence-bundle.json"));
+  const privateKey = createPrivateKey(
+    await readFile(path.resolve(required(options, "private-key")), "utf8"),
+  );
+  if (privateKey.asymmetricKeyType !== "ed25519")
+    fail("morphogenesis_beta1_bundle_signing_key_invalid");
+  const body = {
+    schemaVersion: 1,
+    kind: "agentplat-agent-morphogenesis-beta1-bundle-attestation-v1",
+    bundleDigest: bundle.bundleDigest,
+    sourceCommit: bundle.sourceCommit,
+    receiptRoot: bundle.receiptRoot,
+    metricsRoot: bundle.metricsRoot,
+    evidenceState: bundle.evidenceState,
+    actorType: options["actor-type"],
+    actorId: options["actor-id"],
+    signedAt: new Date().toISOString(),
+    productionClaimPermitted: false,
+  };
+  const attestationDigest = digest(
+    "agentplat-agent-morphogenesis-beta1-bundle-attestation-v1",
+    body,
+  );
+  const signature = signBytes(
+    null,
+    signingBytes("agentplat-agent-morphogenesis-beta1-bundle-attestation-v1", body),
+    privateKey,
+  ).toString("base64url");
+  const attestation = {
+    ...body,
+    attestationDigest,
+    proof: { algorithm: "Ed25519", signature },
+  };
+  const publicKey = createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+  await Promise.all([
+    writeExclusive(path.join(directory, "evidence-bundle-attestation.json"), pretty(attestation)),
+    writeFile(path.join(directory, "evidence-bundle-public-key.pem"), publicKey, {
+      encoding: "utf8",
+      flag: "wx",
+    }),
+  ]);
+  console.log(JSON.stringify({ status: "signed", bundleDigest: bundle.bundleDigest, attestationDigest }));
 } else if (options.mode === "verify") {
   exact(options, ["bundle-directory", "mode"]);
   const directory = path.resolve(required(options, "bundle-directory"));
@@ -154,7 +233,33 @@ if (options.mode === "contract-smoke") {
     if (JSON.stringify(receipt.metrics) !== JSON.stringify(metrics[index]))
       fail(`morphogenesis_beta1_bundle_metric_binding_invalid:${receipt.scenarioId}`);
   }
-  console.log(JSON.stringify({ status: "verified", bundleDigest: retained, scenarioCount: receipts.length }));
+  let signatureStatus = "not-present";
+  try {
+    const [attestation, publicKey] = await Promise.all([
+      json(path.join(directory, "evidence-bundle-attestation.json")),
+      readFile(path.join(directory, "evidence-bundle-public-key.pem"), "utf8"),
+    ]);
+    const { attestationDigest, proof, ...attestationBody } = attestation;
+    if (
+      attestationBody.bundleDigest !== retained ||
+      attestationBody.sourceCommit !== bundle.sourceCommit ||
+      attestationBody.receiptRoot !== bundle.receiptRoot ||
+      attestationBody.metricsRoot !== bundle.metricsRoot ||
+      attestationDigest !==
+        digest("agentplat-agent-morphogenesis-beta1-bundle-attestation-v1", attestationBody) ||
+      proof?.algorithm !== "Ed25519" ||
+      !verifyBytes(
+        null,
+        signingBytes("agentplat-agent-morphogenesis-beta1-bundle-attestation-v1", attestationBody),
+        createPublicKey(publicKey),
+        Buffer.from(proof.signature, "base64url"),
+      )
+    ) fail("morphogenesis_beta1_bundle_attestation_invalid");
+    signatureStatus = "verified";
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  console.log(JSON.stringify({ status: "verified", bundleDigest: retained, scenarioCount: receipts.length, signatureStatus }));
 } else {
   fail("morphogenesis_beta1_bundle_mode_invalid");
 }
@@ -222,6 +327,38 @@ function validateReceipt(receipt, sourceSha) {
     fail(`morphogenesis_beta1_duplicate_effect:${receipt.scenarioId}`);
 }
 
+async function validateReleaseBinding(registrationDirectory, authorizationDirectory, sourceSha) {
+  const [registration, sourceLock, authorization, publicKey] = await Promise.all([
+    json(path.join(registrationDirectory, "campaign-registration.json")),
+    json(path.join(registrationDirectory, "source-lock.json")),
+    json(path.join(authorizationDirectory, "authorization.json")),
+    readFile(path.join(authorizationDirectory, "authorization-public-key.pem"), "utf8"),
+  ]);
+  const { authorizationDigest, proof, ...authorizationBody } = authorization;
+  if (
+    sourceLock.sourceCommit !== sourceSha ||
+    registration.registrationDigest !== authorization.registrationDigest ||
+    authorization.sourceCommit !== sourceSha ||
+    authorization.executionPermitted !== true ||
+    authorization.maximumExternalSpendUsd !== 0 ||
+    authorization.authorizedScenarioIds.length !== 18 ||
+    Date.parse(authorization.expiresAt) <= Date.now() ||
+    authorizationDigest !==
+      digest("agentplat-agent-morphogenesis-beta1-authorization-v1", authorizationBody) ||
+    proof?.algorithm !== "Ed25519" ||
+    !verifyBytes(
+      null,
+      signingBytes("agentplat-agent-morphogenesis-beta1-authorization-v1", authorizationBody),
+      createPublicKey(publicKey),
+      Buffer.from(proof.signature, "base64url"),
+    )
+  ) fail("morphogenesis_beta1_release_binding_invalid");
+  return {
+    registrationDigest: registration.registrationDigest,
+    authorizationDigest,
+  };
+}
+
 function report(bundle, receipts) {
   const rows = receipts.map((receipt) =>
     `| ${receipt.scenarioId} | ${receipt.status} | ${receipt.evidenceClass} | ${receipt.metrics.wall_time_ms} | ${receipt.metrics.morphology_churn_count} | ${receipt.metrics.mission_continuity_ratio} |`,
@@ -242,6 +379,19 @@ function parse(args) {
     result[value.slice(2)] = args[++index];
   }
   return result;
+}
+
+function git(...args) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+}
+
+function gitStatus(...args) {
+  try {
+    git(...args);
+    return 0;
+  } catch (error) {
+    return error.status ?? 1;
+  }
 }
 
 function exact(value, keys) {
@@ -283,6 +433,10 @@ function canonical(value) {
   if (value && typeof value === "object")
     return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
   return value;
+}
+
+function signingBytes(domain, value) {
+  return Buffer.from(`${domain}\0${JSON.stringify(canonical(value))}`, "utf8");
 }
 
 function lines(values) {
