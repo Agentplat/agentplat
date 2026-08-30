@@ -70,6 +70,7 @@ import {
   MorphogenesisOperatorExecutionRuntimeV2,
   InMemoryMorphogenesisOperatorOutcomeStoreV2,
   MorphogenesisOperatorCycleRuntimeV2,
+  createMorphogenesisOperatorOutcomeReceiptV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -154,6 +155,11 @@ import {
   projectMorphogenesisReceiptToRoomArtifactV1,
   MorphogenesisRoomParticipationPortV1,
   MorphogenesisMeshPublisherV1,
+  MorphogenesisAdvancedMeshPublisherV2,
+  projectMorphogenesisOperatorPlanToRoomArtifactV2,
+  projectMorphogenesisOperatorStatusToRoomMessageV2,
+  projectMorphogenesisOperatorOutcomeToRoomArtifactV2,
+  projectMorphogenesisOperatorPlanToMeshV2,
 } from "../packages/rooms-mesh/dist/morphogenesis.js";
 
 const sha = (character) => `sha256:${character.repeat(64)}`;
@@ -1766,6 +1772,126 @@ test("Room and Mesh projections remain deterministic, bounded and authority-neut
       }),
     /matching Room/,
   );
+});
+
+test("advanced operator plans, progress and outcomes remain authority-neutral in Room and Mesh", async () => {
+  const context = fixture();
+  const baseline = context.policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "realign_role"].sort(),
+    enabledAdvancedCapabilities: ["role_realignments"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 1,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:projection:role",
+      operator: "realign_role",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:projection:role",
+    operation,
+    policy,
+    binding: {
+      operator: "realign_role",
+      roleRealignmentRequestDigest: sha("2"),
+      currentRoleBindingDigest: sha("3"),
+    },
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("4"),
+    compiledAtLogicalMs: 100,
+  });
+  const room = {
+    id: context.scope.roomId,
+    tenantId: context.scope.tenantId,
+    status: "active",
+  };
+  const roomPlan = projectMorphogenesisOperatorPlanToRoomArtifactV2({
+    room,
+    scope: context.scope,
+    plan,
+    proposalDigest: context.proposal.proposalDigest,
+    expectedMorphologyEpoch: 1,
+  });
+  assert.equal(roomPlan.input.content.advisoryOnly, true);
+  assert.equal("authorization" in roomPlan.input.content, false);
+  const meshPlan = await projectMorphogenesisOperatorPlanToMeshV2({
+    scope: context.scope,
+    plan,
+    proposalDigest: context.proposal.proposalDigest,
+    expectedMorphologyEpoch: 1,
+    validUntilLogicalMs: 500,
+  });
+  assert.equal(meshPlan.unsigned, true);
+  assert.deepEqual(meshPlan.boundaries, ["governed_role_realignment"]);
+  const delivered = await new MorphogenesisAdvancedMeshPublisherV2({
+    async send(projection) {
+      return {
+        schemaVersion: 1,
+        projectionDigest: projection.projectionDigest,
+        senderPeerId: "peer:projection",
+        senderInstanceId: "instance:projection:1",
+        membershipConfigurationDigest: sha("5"),
+        membershipEpoch: 1,
+        envelopeDigest: sha("6"),
+        sentAtLogicalMs: 120,
+      };
+    },
+    async verify() { return true; },
+  }).publish(meshPlan);
+  assert.equal(delivered.projectionDigest, meshPlan.projectionDigest);
+  const status = projectMorphogenesisOperatorStatusToRoomMessageV2({
+    room,
+    scope: context.scope,
+    execution: {
+      stateKey: "operator-execution:projection:role",
+      revision: 1,
+      plan,
+      stateDigest: sha("7"),
+      status: "prepared",
+      nextStepIndex: 0,
+      pendingStepId: null,
+    },
+    createdAt: "2026-08-30T12:00:00.000Z",
+  });
+  assert.equal(status.input.metadata.status, "prepared");
+  const receipt = createMorphogenesisOperatorOutcomeReceiptV2({
+    receiptId: "operator-outcome:projection:role",
+    operatorExecutionStateDigest: sha("7"),
+    planDigest: plan.planDigest,
+    proposalDigest: context.proposal.proposalDigest,
+    decisionDigest: sha("8"),
+    authorizationDigest: sha("9"),
+    authorityFenceDigest: sha("a"),
+    stepReceiptRoot: sha("b"),
+    disposition: "success",
+    outcomeEvidenceDigests: [sha("c")],
+    resultingSnapshotDigest: sha("d"),
+    resultingMorphologyEpoch: 2,
+    evaluatedAtLogicalMs: 200,
+  });
+  const roomOutcome = projectMorphogenesisOperatorOutcomeToRoomArtifactV2({
+    room,
+    scope: context.scope,
+    receipt,
+  });
+  assert.equal(roomOutcome.input.metadata.receiptDigest, receipt.receiptDigest);
+  assert.equal("privateKey" in roomOutcome.input.content, false);
 });
 
 test("Room participation is explicit and grants no Mesh or Work authority", async () => {

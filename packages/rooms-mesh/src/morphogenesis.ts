@@ -4,7 +4,11 @@ import {
   type MorphogenesisProposalV1,
   type MorphogenesisReceiptV1,
   type MorphogenesisLifecycleAgentV1,
-  type AgentInstantiationProfileV1,
+  type AgentInstantiationProfileAnyV1,
+  type MorphogenesisCompiledOperatorPlanV2,
+  type MorphogenesisOperatorExecutionStateV2,
+  type MorphogenesisOperatorOutcomeReceiptV2,
+  type MorphogenesisScopeV1,
   type MorphologySnapshotV1,
   type TargetMorphologyV1,
 } from "@agentplat/collective-runtime/morphogenesis";
@@ -61,6 +65,51 @@ export interface MorphogenesisMeshNeedProjectionV1 {
   readonly validUntilLogicalMs: number;
   readonly projectionDigest: `sha256:${string}`;
   readonly unsigned: true;
+}
+
+export interface MorphogenesisMeshOperatorPlanProjectionV2 {
+  readonly schemaVersion: 2;
+  readonly kind: "morphogenesis.operator-plan";
+  readonly tenantId: string;
+  readonly meshId: string;
+  readonly missionId: string;
+  readonly objectiveId: string;
+  readonly morphologyId: string;
+  readonly expectedMorphologyEpoch: number;
+  readonly operator: string;
+  readonly planDigest: `sha256:${string}`;
+  readonly proposalDigest: `sha256:${string}`;
+  readonly policyDigest: `sha256:${string}`;
+  readonly bindingDigest: `sha256:${string}`;
+  readonly stepDigests: readonly `sha256:${string}`[];
+  readonly boundaries: readonly string[];
+  readonly validUntilLogicalMs: number;
+  readonly projectionDigest: `sha256:${string}`;
+  readonly unsigned: true;
+}
+
+export interface MorphogenesisAdvancedMeshTransportV2 {
+  send(
+    projection: MorphogenesisMeshOperatorPlanProjectionV2,
+  ): Promise<MorphogenesisAuthenticatedMeshReceiptV1>;
+  verify(input: {
+    readonly projection: MorphogenesisMeshOperatorPlanProjectionV2;
+    readonly receipt: MorphogenesisAuthenticatedMeshReceiptV1;
+  }): Promise<boolean>;
+}
+
+export class MorphogenesisAdvancedMeshPublisherV2 {
+  constructor(readonly transport: MorphogenesisAdvancedMeshTransportV2) {}
+  async publish(projection: MorphogenesisMeshOperatorPlanProjectionV2) {
+    if (projection.unsigned !== true)
+      fail("advanced Morphogenesis Mesh projection must remain unsigned");
+    const receipt = await this.transport.send(projection);
+    if (
+      receipt.projectionDigest !== projection.projectionDigest ||
+      !(await this.transport.verify({ projection, receipt }))
+    ) fail("advanced Morphogenesis Mesh delivery was not verified");
+    return freeze(receipt);
+  }
 }
 
 export interface MorphogenesisRoomParticipationReceiptV1 {
@@ -126,7 +175,7 @@ export class MorphogenesisRoomParticipationPortV1 {
     readonly operationId: string;
     readonly room: Room;
     readonly agent: MorphogenesisLifecycleAgentV1;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
     readonly actorId?: string;
     readonly appliedAt: string;
   }): Promise<MorphogenesisRoomParticipationReceiptV1> {
@@ -388,6 +437,185 @@ export async function projectMorphogenesisNeedToMeshV1(input: {
       body as never,
     )) as `sha256:${string}`,
   });
+}
+
+export function projectMorphogenesisOperatorPlanToRoomArtifactV2(input: {
+  readonly room: Room;
+  readonly scope: MorphogenesisScopeV1;
+  readonly plan: MorphogenesisCompiledOperatorPlanV2;
+  readonly proposalDigest: `sha256:${string}`;
+  readonly expectedMorphologyEpoch: number;
+  readonly createdBy?: string;
+}): MorphogenesisRoomArtifactProjectionV1 {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const id = `morphogenesis-operator-plan:${input.plan.planId}`;
+  return freeze({
+    schemaVersion: 1,
+    kind: "room.artifact",
+    tenantId: input.room.tenantId,
+    roomId: input.room.id,
+    idempotencyKey: id,
+    input: {
+      id,
+      type: "agent-morphogenesis-operator-plan",
+      title: `Morphogenesis ${input.plan.operator} plan`,
+      content: {
+        schemaVersion: 2,
+        morphologyId: input.scope.morphologyId,
+        expectedMorphologyEpoch: input.expectedMorphologyEpoch,
+        operator: input.plan.operator,
+        planDigest: input.plan.planDigest,
+        proposalDigest: input.proposalDigest,
+        policyDigest: input.plan.policyDigest,
+        bindingDigest: input.plan.bindingDigest,
+        steps: input.plan.steps.map((step) => ({
+          stepId: step.stepId,
+          boundary: step.boundary,
+          operation: step.operation,
+          effectClass: step.effectClass,
+          stepDigest: step.stepDigest,
+        })),
+        advisoryOnly: true,
+      },
+      contentType: "application/json",
+      authors: input.createdBy ? [input.createdBy] : [],
+      provenance: {
+        sourceMessageIds: [],
+        sourceArtifactIds: [],
+        sourceMemoryIds: [],
+      },
+      assumptions: [],
+      risks: ["authority-remains-external"],
+      ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+      metadata: {
+        morphogenesisSchemaVersion: 2,
+        planDigest: input.plan.planDigest,
+        proposalDigest: input.proposalDigest,
+        operator: input.plan.operator,
+      },
+    },
+  });
+}
+
+export function projectMorphogenesisOperatorStatusToRoomMessageV2(input: {
+  readonly room: Room;
+  readonly scope: MorphogenesisScopeV1;
+  readonly execution: MorphogenesisOperatorExecutionStateV2;
+  readonly createdAt: string;
+}): MorphogenesisRoomMessageProjectionV1 {
+  assertAdvancedRoomScope(input.room, input.scope);
+  if (!Number.isFinite(Date.parse(input.createdAt)))
+    fail("advanced Morphogenesis status time is invalid");
+  const id = `morphogenesis-operator-status:${input.execution.stateKey}:${input.execution.revision}`;
+  return freeze({
+    schemaVersion: 1,
+    kind: "room.message",
+    tenantId: input.room.tenantId,
+    roomId: input.room.id,
+    idempotencyKey: id,
+    input: {
+      id,
+      role: "system",
+      content: `Morphogenesis ${input.execution.plan.operator} ${input.execution.status}`,
+      metadata: {
+        morphogenesisSchemaVersion: 2,
+        operator: input.execution.plan.operator,
+        planDigest: input.execution.plan.planDigest,
+        executionStateDigest: input.execution.stateDigest,
+        revision: input.execution.revision,
+        status: input.execution.status,
+        nextStepIndex: input.execution.nextStepIndex,
+        pendingStepId: input.execution.pendingStepId,
+        createdAt: input.createdAt,
+      },
+    },
+  });
+}
+
+export function projectMorphogenesisOperatorOutcomeToRoomArtifactV2(input: {
+  readonly room: Room;
+  readonly scope: MorphogenesisScopeV1;
+  readonly receipt: MorphogenesisOperatorOutcomeReceiptV2;
+  readonly createdBy?: string;
+}): MorphogenesisRoomArtifactProjectionV1 {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const id = `morphogenesis-operator-outcome:${input.receipt.receiptId}`;
+  return freeze({
+    schemaVersion: 1,
+    kind: "room.artifact",
+    tenantId: input.room.tenantId,
+    roomId: input.room.id,
+    idempotencyKey: id,
+    input: {
+      id,
+      type: "agent-morphogenesis-operator-outcome",
+      title: `Morphogenesis outcome ${input.receipt.receiptId}`,
+      content: input.receipt as unknown as CreateArtifactInput["content"],
+      contentType: "application/json",
+      authors: input.createdBy ? [input.createdBy] : [],
+      provenance: {
+        sourceMessageIds: [],
+        sourceArtifactIds: [],
+        sourceMemoryIds: [],
+      },
+      assumptions: [],
+      risks: [],
+      ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+      metadata: {
+        morphogenesisSchemaVersion: 2,
+        receiptDigest: input.receipt.receiptDigest,
+        planDigest: input.receipt.planDigest,
+        resultingMorphologyEpoch: input.receipt.resultingMorphologyEpoch,
+        disposition: input.receipt.disposition,
+      },
+    },
+  });
+}
+
+export async function projectMorphogenesisOperatorPlanToMeshV2(input: {
+  readonly scope: MorphogenesisScopeV1;
+  readonly plan: MorphogenesisCompiledOperatorPlanV2;
+  readonly proposalDigest: `sha256:${string}`;
+  readonly expectedMorphologyEpoch: number;
+  readonly validUntilLogicalMs: number;
+}): Promise<MorphogenesisMeshOperatorPlanProjectionV2> {
+  if (!input.scope.meshId || input.validUntilLogicalMs <= input.plan.compiledAtLogicalMs)
+    fail("advanced Morphogenesis Mesh plan is unavailable or expired");
+  const body = {
+    schemaVersion: 2 as const,
+    kind: "morphogenesis.operator-plan" as const,
+    tenantId: input.scope.tenantId,
+    meshId: input.scope.meshId,
+    missionId: input.scope.missionId,
+    objectiveId: input.scope.objectiveId,
+    morphologyId: input.scope.morphologyId,
+    expectedMorphologyEpoch: input.expectedMorphologyEpoch,
+    operator: input.plan.operator,
+    planDigest: input.plan.planDigest,
+    proposalDigest: input.proposalDigest,
+    policyDigest: input.plan.policyDigest,
+    bindingDigest: input.plan.bindingDigest,
+    stepDigests: input.plan.steps.map(({ stepDigest }) => stepDigest),
+    boundaries: Object.freeze([
+      ...new Set(input.plan.steps.map(({ boundary }) => boundary)),
+    ].sort()),
+    validUntilLogicalMs: input.validUntilLogicalMs,
+    unsigned: true as const,
+  };
+  return freeze({
+    ...body,
+    projectionDigest: (await computeMeshDurableValueDigest(
+      body as never,
+    )) as `sha256:${string}`,
+  });
+}
+
+function assertAdvancedRoomScope(room: Room, scope: MorphogenesisScopeV1) {
+  if (
+    room.status !== "active" ||
+    room.tenantId !== scope.tenantId ||
+    room.id !== scope.roomId
+  ) fail("advanced Morphogenesis projection requires an active matching Room");
 }
 
 function assertRoomScope(room: Room, snapshot: MorphologySnapshotV1): void {
