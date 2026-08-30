@@ -73,6 +73,8 @@ import {
   createMorphogenesisOperatorOutcomeReceiptV2,
   InMemoryMorphogenesisOperatorCompensationStoreV2,
   MorphogenesisOperatorCompensationRuntimeV2,
+  GovernedMorphogenesisOperatorExecutionRuntimeV2,
+  createMorphogenesisGovernedOperatorAuthorizationV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -3962,6 +3964,126 @@ test("advanced Morphogenesis operators compile to existing authority boundaries"
       assert.equal(plan.steps.at(-1).operation, "drain_and_retire_predecessor");
     }
   }
+});
+
+test("governed advanced execution requires an exact approved decision and action authorization", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "realign_role"].sort(),
+    allowedDecisionRoutes: [...baseline.allowedDecisionRoutes, "collective"].sort(),
+    enabledAdvancedCapabilities: ["role_realignments"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 1,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1({
+    operationId: "operation:governed-role", operator: "realign_role",
+    effectClass: "protected_external", dependsOnOperationIds: [],
+    targetReferenceDigest: sha("1"), compensation: "restore_predecessor_before_commit",
+  }, policy);
+  const binding = {
+    operator: "realign_role",
+    roleRealignmentRequestDigest: sha("2"),
+    currentRoleBindingDigest: sha("3"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "plan:governed-role", operation, policy, binding,
+    compilerId: "compiler:morphogenesis:v2", compilerVersion: 1,
+    compilerImplementationDigest: sha("4"), compiledAtLogicalMs: 100,
+  });
+  const proposal = {
+    schemaVersion: 1,
+    proposalId: "proposal:governed-role",
+    scopeDigest: sha("5"),
+    currentSnapshotDigest: sha("6"),
+    expectedCurrentEpoch: 3,
+    needDigest: sha("7"),
+    targetDigest: sha("8"),
+    operations: [operation],
+    processDefinitionDigest: sha("9"),
+    budget: createMorphogenesisBudgetEnvelopeV1({
+      maximumActiveAgents: 8, maximumNewAgents: 0,
+      maximumConcurrentProvisioning: 0, maximumResourceUnits: 10,
+      maximumInteractionUnits: 10, maximumActionUnits: 10,
+      maximumInputTokens: 10, maximumOutputTokens: 10,
+      maximumTotalTokens: 20, maximumDurationMs: 1_000, maximumCosts: [],
+    }),
+    decisionRoute: "collective",
+    proposerId: "agent:governed-proposer",
+    proposerVersion: 1,
+    proposerImplementationDigest: sha("a"),
+    proposedAtLogicalMs: 100,
+    expiresAtLogicalMs: 500,
+    proposalDigest: sha("b"),
+    advisoryOnly: true,
+  };
+  const candidate = createMorphogenesisDecisionCandidateV1({
+    candidateId: "candidate:governed-role", proposal, policy,
+    membershipConfigurationDigest: sha("c"), membershipEpoch: 2,
+    authorityId: "authority:governed-role", authorityEpoch: 4,
+    workContractDigest: sha("d"), preparedAtLogicalMs: 110,
+    expiresAtLogicalMs: 480,
+  });
+  const decisionAuthorization = createMorphogenesisDecisionAuthorizationV1({
+    authorizationId: "decision-authorization:governed-role",
+    candidateDigest: candidate.candidateDigest,
+    route: candidate.decisionRoute,
+    actorType: "collective",
+    actorId: "collective:governed-reviewers",
+    actorMandateDigest: sha("e"),
+    independenceGroupId: "independence:governed-reviewers",
+    disposition: "approved", proofDigest: sha("f"),
+    issuedAtLogicalMs: 120, expiresAtLogicalMs: 470,
+  });
+  const decision = createMorphogenesisDecisionBindingV1({
+    decisionId: "decision:governed-role", candidate,
+    authorization: decisionAuthorization,
+    decisionPortId: "decision-port:governed-role", decisionPortVersion: 1,
+    decisionPortImplementationDigest: sha("0"), decidedAtLogicalMs: 130,
+  });
+  const execution = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: {
+      async execute() { throw new Error("not advanced in this test"); },
+      async reconcile() { throw new Error("not advanced in this test"); },
+    },
+  });
+  const governed = new GovernedMorphogenesisOperatorExecutionRuntimeV2({
+    execution,
+    authorization: { async authorize(input) {
+      return createMorphogenesisGovernedOperatorAuthorizationV2({
+        authorizationId: "operator-authorization:governed-role",
+        decisionDigest: input.decision.decisionDigest,
+        proposalDigest: input.proposal.proposalDigest,
+        planDigest: input.plan.planDigest,
+        scopeDigest: input.decision.candidate.scopeDigest,
+        morphologyEpoch: input.decision.candidate.morphologyEpoch,
+        executionAuthorizationDigest: sha("1"), authorityFenceDigest: sha("2"),
+        issuedAtLogicalMs: input.logicalTimeMs, validUntilLogicalMs: 460,
+      });
+    } },
+  });
+  const state = await governed.initialize({
+    stateKey: "execution:governed-role", plan, proposal, policy, decision,
+    scopeDigest: proposal.scopeDigest,
+    expectedMorphologyEpoch: proposal.expectedCurrentEpoch,
+    logicalTimeMs: 140,
+  });
+  assert.equal(state.proposalDigest, proposal.proposalDigest);
+  assert.equal(state.decisionDigest, decision.decisionDigest);
+  assert.equal(state.authorizationDigest, sha("1"));
+  await assert.rejects(governed.initialize({
+    stateKey: "execution:governed-role:substituted", plan, proposal, policy, decision,
+    scopeDigest: sha("3"), expectedMorphologyEpoch: proposal.expectedCurrentEpoch,
+    logicalTimeMs: 140,
+  }), /does not authorize/);
 });
 
 test("advanced operator runtime reconciles a crash without repeating the boundary effect", async () => {

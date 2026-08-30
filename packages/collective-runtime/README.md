@@ -888,7 +888,10 @@ authorization, requires an exact successful outcome and successor morphology
 epoch, and forwards every other reconfiguration to its existing owner.
 
 Advanced operator plans use `MorphogenesisOperatorExecutionRuntimeV2` for the
-forward journal and `MorphogenesisOperatorCompensationRuntimeV2` for a distinct
+forward journal primitive. Applications enter it through
+`GovernedMorphogenesisOperatorExecutionRuntimeV2`, which binds the exact
+proposal operation and Policy V2 to an approved decision plus a separately
+issued execution authorization and fence. `MorphogenesisOperatorCompensationRuntimeV2` provides a distinct
 pre-commit compensation journal. Compensation walks applied steps in reverse,
 uses stable operation IDs and reconciles ambiguous acknowledgements through the
 owning boundary. A completed execution is not eligible for this rollback path;

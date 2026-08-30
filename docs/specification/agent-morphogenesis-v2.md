@@ -21,16 +21,20 @@ A conforming V2 composition:
    the same exact scope, independence, mandate, expiry and conflict checks;
 4. journals an immutable compiled operator plan and durable execution state
    before crossing an external boundary;
-5. reconciles prepared effects by stable operation ID and stops on an
+5. initializes that journal through
+   `GovernedMorphogenesisOperatorExecutionRuntimeV2`, which verifies the exact
+   proposal operation, policy V2, compiled plan, approved decision, scope,
+   morphology epoch and separately issued execution authorization/fence;
+6. reconciles prepared effects by stable operation ID and stops on an
    indeterminate result;
-6. records pre-commit compensation in a distinct durable journal, executes
+7. records pre-commit compensation in a distinct durable journal, executes
    declared compensations in reverse applied-step order and reconciles a lost
    acknowledgement without repeating the owning subsystem effect;
-7. evaluates a completed plan into one immutable outcome receipt and advances
+8. evaluates a completed plan into one immutable outcome receipt and advances
    `MorphologyHeadV1` exactly once through CAS;
-8. retains only bounded identifiers, counters, enums and digests in control
+9. retains only bounded identifiers, counters, enums and digests in control
    state; and
-9. uses the existing owning subsystem for every effect rather than creating a
+10. uses the existing owning subsystem for every effect rather than creating a
    parallel authority plane.
 
 ## Profiles and lineage

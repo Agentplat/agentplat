@@ -212,6 +212,7 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-operator-outcome-receipt-v2"
   | "morphogenesis-operator-compensation-receipt-v2"
   | "morphogenesis-operator-compensation-state-v2"
+  | "morphogenesis-governed-operator-authorization-v2"
   | "morphogenesis-budget-reservation-request"
   | "morphogenesis-budget-reservation"
   | "morphogenesis-transformation-head"

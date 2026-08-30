@@ -37,6 +37,8 @@ import {
   InMemoryMorphogenesisOperatorCompensationStoreV2,
   MorphogenesisOperatorCompensationRuntimeV2,
   createMorphogenesisOperatorCompensationReceiptV2,
+  GovernedMorphogenesisOperatorExecutionRuntimeV2,
+  createMorphogenesisGovernedOperatorAuthorizationV2,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -96,6 +98,8 @@ import {
   type MorphogenesisOperatorOutcomeReceiptV2,
   type MorphogenesisOperatorCompensationBoundaryPortV2,
   type MorphogenesisOperatorCompensationStateV2,
+  type MorphogenesisGovernedOperatorAuthorizationPortV2,
+  type MorphogenesisGovernedOperatorAuthorizationV2,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -162,6 +166,8 @@ void createMorphogenesisOperatorOutcomeReceiptV2;
 void InMemoryMorphogenesisOperatorCompensationStoreV2;
 void MorphogenesisOperatorCompensationRuntimeV2;
 void createMorphogenesisOperatorCompensationReceiptV2;
+void GovernedMorphogenesisOperatorExecutionRuntimeV2;
+void createMorphogenesisGovernedOperatorAuthorizationV2;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -222,6 +228,8 @@ declare const operatorState: MorphogenesisOperatorExecutionStateV2;
 declare const operatorOutcome: MorphogenesisOperatorOutcomeReceiptV2;
 declare const compensationBoundary: MorphogenesisOperatorCompensationBoundaryPortV2;
 declare const compensationState: MorphogenesisOperatorCompensationStateV2;
+declare const governedAuthorizationPort: MorphogenesisGovernedOperatorAuthorizationPortV2;
+declare const governedAuthorization: MorphogenesisGovernedOperatorAuthorizationV2;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -261,6 +269,8 @@ void operatorState;
 void operatorOutcome;
 void compensationBoundary;
 void compensationState;
+void governedAuthorizationPort;
+void governedAuthorization;
 void budgetPort;
 void controlWindow;
 void sourceResolution;
