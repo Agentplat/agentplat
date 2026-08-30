@@ -46,3 +46,24 @@ authenticated `/agentplat/staging/v1/commands` and `/events` expose bounded
 commands and a 4,096-entry content-free event journal. When no control token is
 configured, both control routes return 404. Mesh envelope authentication remains
 separate and the control plane never grants Morphogenesis authority.
+
+After publishing the peer image and resolving the provider, render an external
+deployment directory. The public-key bindings file maps each peer ID to its
+opaque Mesh key ID and public Ed25519 JWK; private `d` members are rejected.
+Its canonical SHA-256 digest must match the bound inventory.
+
+```sh
+pnpm render:agent-morphogenesis-beta1-staging-deployment -- \
+  --source-sha COMMIT \
+  --inventory /external/inventory.json \
+  --inspection /external/inspection/environment-inspection.json \
+  --provider-resolution /external/provider/provider-resolution.json \
+  --public-key-bindings /external/public-key-bindings.json \
+  --output-directory /external/rendered-deployment
+```
+
+The renderer replaces the image placeholder only with the inventory's immutable
+digest and emits an immutable ConfigMap plus an artifact manifest. It never
+renders credentials. Operators must create `morphogenesis-mesh-credentials`
+through their secret manager and verify its database, channel and control
+bindings before applying the rendered files.

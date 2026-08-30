@@ -74,16 +74,16 @@ spec:
                 configMapKeyRef:
                   name: morphogenesis-mesh-runtime
                   key: peer-endpoints.json
-            - name: TARGET_WIRE_VERSIONS
+            - name: TARGET_WIRE_VERSIONS_BY_PEER
               valueFrom:
                 configMapKeyRef:
                   name: morphogenesis-mesh-runtime
-                  key: target-wire-versions.json
-            - name: PUBLIC_KEY_JWKS
+                  key: target-wire-versions-by-peer.json
+            - name: PUBLIC_KEY_BINDINGS
               valueFrom:
                 configMapKeyRef:
                   name: morphogenesis-mesh-runtime
-                  key: public-key-jwks.json
+                  key: public-key-bindings.json
             - name: MESH_TENANT_ID
               valueFrom:
                 configMapKeyRef:

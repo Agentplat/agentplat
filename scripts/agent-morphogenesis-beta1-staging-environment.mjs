@@ -270,6 +270,9 @@ function validateInventory(value) {
     value.agentMesh.peerIdentities.length >=
       profile.requiredInfrastructure.minimumAgentMeshPeerIdentities,
   );
+  text(value.agentMesh.postgresSchema, "Mesh PostgreSQL schema");
+  https(value.agentMesh.externalSignerEndpoint, "Mesh external signer endpoint");
+  assert.match(value.agentMesh.publicKeyBindingsDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.ok(
     value.agentMesh.processes.length >=
       profile.requiredInfrastructure.minimumActiveAgentMeshPeerProcesses,
@@ -370,6 +373,9 @@ function boundFixture(template) {
     agentMesh: {
       tenantId: "tenant:staging-fixture",
       meshId: "mesh:staging-fixture",
+      postgresSchema: "mesh_morphogenesis_staging",
+      externalSignerEndpoint: "https://signer.staging.invalid/v1/sign",
+      publicKeyBindingsDigest: `sha256:${"c".repeat(64)}`,
       peerIdentities: ["peer-a", "peer-b", "peer-c", "peer-d"],
       minimumCumulativeProcessStarts: 6,
       processes: [

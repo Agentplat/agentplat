@@ -42,6 +42,9 @@
   "agentMesh": {
     "tenantId": "tenant:agentplat-staging",
     "meshId": "mesh:morphogenesis-staging",
+    "postgresSchema": "mesh_morphogenesis_staging",
+    "externalSignerEndpoint": "https://REPLACE_WITH_EXTERNAL_SIGNER_ENDPOINT/v1/sign",
+    "publicKeyBindingsDigest": "sha256:REPLACE_64_HEX_PUBLIC_BINDING_DIGEST",
     "peerIdentities": ["peer-a", "peer-b", "peer-c", "peer-d"],
     "minimumCumulativeProcessStarts": 6,
     "processes": [

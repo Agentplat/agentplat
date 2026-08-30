@@ -88,17 +88,24 @@ const externalSignaturePort = externalSignerEndpoint
         : {}),
     })
   : null;
-const publicJwks = JSON.parse(required("PUBLIC_KEY_JWKS"));
+const publicBindings = process.env.PUBLIC_KEY_BINDINGS
+  ? JSON.parse(process.env.PUBLIC_KEY_BINDINGS)
+  : Object.fromEntries(
+      Object.entries(JSON.parse(required("PUBLIC_KEY_JWKS"))).map(([id, jwk]) => [
+        id,
+        { keyId: `${id}-key-1`, jwk },
+      ]),
+    );
 const keyRecords = await Promise.all(
-  Object.entries(publicJwks).map(async ([subjectPeerId, jwk]) => ({
+  Object.entries(publicBindings).map(async ([subjectPeerId, binding]) => ({
     tenantId,
     meshId,
     peerId: subjectPeerId,
-    keyId: `${subjectPeerId}-key-1`,
+    keyId: binding.keyId,
     algorithm: MESH_SIGNATURE_ALGORITHM,
     publicKey: await crypto.subtle.importKey(
       "jwk",
-      jwk,
+      binding.jwk,
       MESH_SIGNATURE_ALGORITHM,
       false,
       ["verify"],
