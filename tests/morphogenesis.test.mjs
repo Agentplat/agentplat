@@ -64,6 +64,9 @@ import {
   validateMorphogenesisPolicyV2,
   compileMorphogenesisOperatorV2,
   validateMorphogenesisCompiledOperatorPlanV2,
+  createMorphogenesisOperatorStepReceiptV2,
+  InMemoryMorphogenesisOperatorExecutionStoreV2,
+  MorphogenesisOperatorExecutionRuntimeV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -3781,4 +3784,159 @@ test("advanced Morphogenesis operators compile to existing authority boundaries"
       assert.equal(plan.steps.at(-1).operation, "drain_and_retire_predecessor");
     }
   }
+});
+
+test("advanced operator runtime reconciles a crash without repeating the boundary effect", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "derive_agent"].sort(),
+    enabledAdvancedCapabilities: ["derived_profiles"],
+    maximumDerivedAgentsPerProposal: 1,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:runtime:derive",
+      operator: "derive_agent",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "terminate_unenrolled",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "derive_agent",
+    profileDigest: sha("2"),
+    evolutionDigest: sha("3"),
+    attenuationDigest: sha("4"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:runtime:derive",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("5"),
+    compiledAtLogicalMs: 100,
+  });
+  const store = new InMemoryMorphogenesisOperatorExecutionStoreV2();
+  const applied = new Map();
+  const executeCounts = new Map();
+  let crash = true;
+  const boundaries = {
+    async execute(input) {
+      executeCounts.set(
+        input.step.stepId,
+        (executeCounts.get(input.step.stepId) ?? 0) + 1,
+      );
+      const receipt = createMorphogenesisOperatorStepReceiptV2({
+        operationId: input.operationId,
+        planDigest: input.plan.planDigest,
+        stepId: input.step.stepId,
+        stepDigest: input.step.stepDigest,
+        boundary: input.step.boundary,
+        resultDigest: sha(String(applied.size + 6)),
+        appliedAtLogicalMs: input.logicalTimeMs,
+      });
+      applied.set(input.operationId, receipt);
+      if (input.step.stepId === plan.steps[1].stepId && crash) {
+        crash = false;
+        throw new Error("simulated stop after external commit");
+      }
+      return { status: "applied", receipt };
+    },
+    async reconcile(input) {
+      const receipt = applied.get(input.operationId);
+      return receipt
+        ? { status: "applied", receipt }
+        : { status: "not_applied" };
+    },
+  };
+  let runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store,
+    boundaries,
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:derive:1",
+    plan,
+    proposalDigest: sha("a"),
+    decisionDigest: sha("b"),
+    authorizationDigest: sha("c"),
+    authorityFenceDigest: sha("d"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  let logicalTimeMs = 120;
+  while (state.status !== "completed") {
+    try {
+      state = await runtime.advance({
+        stateKey: state.stateKey,
+        logicalTimeMs,
+      });
+    } catch (error) {
+      assert.match(error.message, /simulated stop/);
+      runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+        store,
+        boundaries,
+      });
+      state = await runtime.required(state.stateKey);
+      assert.equal(state.status, "executing");
+    }
+    logicalTimeMs += 10;
+  }
+  assert.equal(state.receipts.length, plan.steps.length);
+  assert.equal(applied.size, plan.steps.length);
+  for (const step of plan.steps)
+    assert.equal(executeCounts.get(step.stepId), 1);
+  assert.equal(
+    (await runtime.required(state.stateKey)).stateDigest,
+    state.stateDigest,
+  );
+  let indeterminateCalls = 0;
+  const indeterminateRuntime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: {
+      async execute() {
+        indeterminateCalls += 1;
+        return { status: "indeterminate", evidenceDigest: sha("e") };
+      },
+      async reconcile() {
+        indeterminateCalls += 1;
+        return { status: "indeterminate", evidenceDigest: sha("e") };
+      },
+    },
+  });
+  let indeterminate = await indeterminateRuntime.initialize({
+    stateKey: "operator-execution:derive:indeterminate",
+    plan,
+    proposalDigest: sha("a"),
+    decisionDigest: sha("b"),
+    authorizationDigest: sha("c"),
+    authorityFenceDigest: sha("d"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  indeterminate = await indeterminateRuntime.advance({
+    stateKey: indeterminate.stateKey,
+    logicalTimeMs: 120,
+  });
+  assert.equal(indeterminate.status, "indeterminate");
+  assert.equal(
+    (await indeterminateRuntime.advance({
+      stateKey: indeterminate.stateKey,
+      logicalTimeMs: 130,
+    })).stateDigest,
+    indeterminate.stateDigest,
+  );
+  assert.equal(indeterminateCalls, 1);
 });
