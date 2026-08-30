@@ -158,7 +158,16 @@ export function acceptStagingOperationReceiptV1(config, current, input) {
     case "tenant-mission-isolation":
       assert.equal(receipt.detail.tenantCount >= config.executionGeometry.minimumTenants, true);
       assert.equal(receipt.detail.missionsPerTenant >= 2, true);
+      assert.ok(receipt.detail.completedExecutions >= 6);
+      assert.ok(receipt.detail.attemptedCrossTenantReads >= 24);
+      assert.ok(receipt.detail.attemptedCrossMissionReads >= 6);
+      assert.ok(receipt.detail.failureDomainCount >= 3);
+      assert.equal(receipt.detail.crossTenantReadsAccepted, 0);
+      assert.equal(receipt.detail.crossTenantWritesAccepted, 0);
+      assert.equal(receipt.detail.crossMissionAuthorityUsesAccepted, 0);
       assert.equal(receipt.detail.crossScopeReceiptsAccepted, 0);
+      sha(receipt.detail.durableStateRoot);
+      sha(receipt.detail.externalIsolationReceiptDigest);
       next.isolationPassed = true;
       break;
     case "alert-delivery":

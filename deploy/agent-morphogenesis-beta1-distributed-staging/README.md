@@ -139,3 +139,9 @@ schema upgrade must advance the migration and test backward restore; backup
 must restore identical canonical roots into a different clean resource; key
 rotation must activate the successor, deny predecessor signing and retain
 historical verification. Empty KMS-signed counters are rejected.
+
+Distributed isolation is rerun independently of the single-host rehearsal. It
+must complete six executions across three failure domains and actively attempt
+at least 24 cross-tenant and six cross-mission reads. Accepted reads, writes,
+authority use or receipts must remain zero, with durable Morphogenesis and
+Workflow roots bound to the external witness.

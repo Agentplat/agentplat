@@ -79,7 +79,16 @@ test("staging supervisor completes only after every frozen gate", () => {
   accept("tenant-mission-isolation", {
     tenantCount: 3,
     missionsPerTenant: 2,
+    completedExecutions: 6,
+    attemptedCrossTenantReads: 24,
+    attemptedCrossMissionReads: 6,
+    failureDomainCount: 3,
+    crossTenantReadsAccepted: 0,
+    crossTenantWritesAccepted: 0,
+    crossMissionAuthorityUsesAccepted: 0,
     crossScopeReceiptsAccepted: 0,
+    durableStateRoot: sha("a"),
+    externalIsolationReceiptDigest: sha("b"),
   });
   accept("alert-delivery", { externalReceiptDigest: sha("e") });
   assert.equal(completionSatisfied(config, state), false);

@@ -322,6 +322,7 @@ function validateInventory(value) {
   assert.deepEqual([...value.maintenance.supportedOperationClasses].sort(), [
     "backup-restore", "key-rotation", "rolling-deployment", "schema-upgrade",
   ]);
+  https(value.isolationExecution.gatewayEndpoint, "isolation execution gateway endpoint");
   https(value.observability.otlpEndpoint, "OTLP endpoint");
   https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
@@ -448,6 +449,9 @@ function boundFixture(template) {
       supportedOperationClasses: [
         "rolling-deployment", "schema-upgrade", "backup-restore", "key-rotation",
       ],
+    },
+    isolationExecution: {
+      gatewayEndpoint: "https://isolation.staging.invalid/v1/execute",
     },
   };
 }
