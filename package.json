@@ -110,6 +110,7 @@
     "verify:agent-morphogenesis-beta1-staging-probes": "node scripts/agent-morphogenesis-beta1-staging-isolation.mjs --contract-smoke && node scripts/agent-morphogenesis-beta1-staging-backup-restore.mjs --contract-smoke",
     "verify:agent-morphogenesis-beta1-staging-environment": "node scripts/agent-morphogenesis-beta1-staging-environment.mjs --mode contract-smoke",
     "inspect:agent-morphogenesis-beta1-staging-environment": "node scripts/agent-morphogenesis-beta1-staging-environment.mjs --mode inspect",
+    "resolve:agent-morphogenesis-beta1-staging-provider": "node scripts/agent-morphogenesis-beta1-staging-environment.mjs --mode resolve-provider",
     "preflight:agent-morphogenesis-beta1-staging:isolation": "node scripts/agent-morphogenesis-beta1-staging-isolation.mjs --diagnostic-only",
     "preflight:agent-morphogenesis-beta1-staging:backup-restore": "node scripts/agent-morphogenesis-beta1-staging-backup-restore.mjs --diagnostic-only",
     "preflight:agent-morphogenesis-beta1-staging:up": "node scripts/agent-morphogenesis-beta1-staging-preflight.mjs --mode up --confirm START_SINGLE_HOST_STAGING_PREFLIGHT",

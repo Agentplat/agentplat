@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -93,6 +94,129 @@ if (mode === "contract-smoke") {
     { encoding: "utf8", flag: "wx" },
   );
   console.log(JSON.stringify(receipt, null, 2));
+} else if (mode === "resolve-provider") {
+  const inventoryPath = external(required("--inventory"));
+  const inspectionPath = external(required("--inspection"));
+  const outputDirectory = external(required("--output-directory"));
+  const inventory = await json(inventoryPath);
+  const inspection = await json(inspectionPath);
+  rejectTemplateValues(inventory);
+  validateInventory(inventory);
+  assert.equal(inspection.status, "passed");
+  assert.equal(inspection.sourceCommit, inventory.sourceCommit);
+  assert.equal(
+    inspection.inventoryDigest,
+    digest("agentplat-agent-morphogenesis-beta1-distributed-staging-inventory-v1", inventory),
+  );
+  const kubectl = option("--kubectl") ?? "kubectl";
+  const context = inventory.cluster.kubeContext;
+  const kubeConfig = commandJson(kubectl, [
+    "--context", context, "config", "view", "--minify", "--raw", "-o", "json",
+  ]);
+  const resolvedServer = kubeConfig.clusters?.[0]?.cluster?.server;
+  assert.equal(normalizeUrl(resolvedServer), normalizeUrl(inventory.cluster.apiServer));
+  const namespace = commandJson(kubectl, [
+    "--context", context, "get", "namespace", inventory.cluster.namespace,
+    "-o", "json",
+  ]);
+  assert.equal(namespace.metadata?.uid, inventory.cluster.namespaceUid);
+  const nodes = commandJson(kubectl, [
+    "--context", context, "get", "nodes", "-o", "json",
+  ]).items;
+  assert.ok(Array.isArray(nodes));
+  const nodesByUid = new Map(nodes.map((node) => [node.metadata?.uid, node]));
+  const resolvedNodes = inventory.cluster.failureDomains.map((domain) => {
+    const node = nodesByUid.get(domain.nodeUid);
+    assert.ok(node, `declared node UID is absent: ${domain.nodeUid}`);
+    assert.equal(node.metadata?.labels?.["topology.kubernetes.io/zone"], domain.zone);
+    assert.notEqual(node.spec?.unschedulable, true);
+    assert.equal(
+      node.status?.conditions?.some(
+        (condition) => condition.type === "Ready" && condition.status === "True",
+      ),
+      true,
+    );
+    return {
+      domainId: domain.domainId,
+      zone: domain.zone,
+      nodeUid: domain.nodeUid,
+      nodeName: node.metadata?.name,
+      providerId: node.spec?.providerID,
+      ready: true,
+    };
+  });
+  const aws = option("--aws-cli") ?? "aws";
+  const awsPrefix = [
+    ...(option("--aws-profile") ? ["--profile", option("--aws-profile")] : []),
+    ...(option("--aws-region") ? ["--region", option("--aws-region")] : []),
+  ];
+  const key = commandJson(aws, [
+    ...awsPrefix, "kms", "get-public-key", "--key-id",
+    inventory.keyCustody.canonicalKeyId, "--output", "json",
+  ]);
+  assert.equal(key.KeyId, inventory.keyCustody.canonicalKeyId);
+  assert.equal(key.KeySpec, "ECC_NIST_EDWARDS25519");
+  assert.equal(key.KeyUsage, "SIGN_VERIFY");
+  assert.ok(key.SigningAlgorithms?.includes("ED25519_SHA_512"));
+  assert.equal(typeof key.PublicKey, "string");
+  const publicKey = Buffer.from(key.PublicKey, "base64");
+  const imported = await crypto.subtle.importKey(
+    "spki", publicKey, { name: "Ed25519" }, false, ["verify"],
+  );
+  assert.equal(imported.type, "public");
+  const metadata = commandJson(aws, [
+    ...awsPrefix, "kms", "describe-key", "--key-id",
+    inventory.keyCustody.canonicalKeyId, "--output", "json",
+  ]).KeyMetadata;
+  assert.equal(metadata?.Arn, inventory.keyCustody.canonicalKeyId);
+  assert.equal(metadata?.Enabled, true);
+  assert.equal(metadata?.KeyState, "Enabled");
+  assert.equal(metadata?.KeySpec, "ECC_NIST_EDWARDS25519");
+  assert.equal(metadata?.KeyUsage, "SIGN_VERIFY");
+  const body = {
+    schemaVersion: 1,
+    kind: "agentplat-agent-morphogenesis-beta1-staging-provider-resolution-v1",
+    status: "passed",
+    sourceCommit: inventory.sourceCommit,
+    inventoryDigest: inspection.inventoryDigest,
+    inspectionReceiptDigest: inspection.receiptDigest,
+    cluster: {
+      context,
+      apiServer: inventory.cluster.apiServer,
+      namespace: inventory.cluster.namespace,
+      namespaceUid: inventory.cluster.namespaceUid,
+      resolvedNodes,
+    },
+    keyCustody: {
+      provider: "aws-kms",
+      canonicalKeyId: key.KeyId,
+      publicKeyFingerprint: `sha256:${createHash("sha256").update(publicKey).digest("hex")}`,
+      keySpec: key.KeySpec,
+      keyUsage: key.KeyUsage,
+      signingAlgorithm: "ED25519_SHA_512",
+      keyState: metadata.KeyState,
+      nonExportable: true,
+    },
+    resolutionScope: "read-only-kubernetes-and-kms-identity",
+    runtimeEvidenceCollected: false,
+    stagingQualification: "not-established",
+    productionReadiness: "not-established",
+    productionClaimPermitted: false,
+  };
+  const receipt = {
+    ...body,
+    receiptDigest: digest(
+      "agentplat-agent-morphogenesis-beta1-staging-provider-resolution-v1",
+      body,
+    ),
+  };
+  await mkdir(outputDirectory, { recursive: true });
+  await writeFile(
+    path.join(outputDirectory, "provider-resolution.json"),
+    `${JSON.stringify(receipt, null, 2)}\n`,
+    { encoding: "utf8", flag: "wx" },
+  );
+  console.log(JSON.stringify(receipt, null, 2));
 } else {
   throw new TypeError("staging_environment_mode_invalid");
 }
@@ -109,6 +233,9 @@ function validateInventory(value) {
   https(value.cluster.apiServer, "cluster API");
   text(value.cluster.provider, "cluster provider");
   text(value.cluster.clusterId, "cluster ID");
+  text(value.cluster.kubeContext, "Kubernetes context");
+  text(value.cluster.namespace, "Kubernetes namespace");
+  text(value.cluster.namespaceUid, "Kubernetes namespace UID");
   text(value.cluster.region, "cluster region");
   assert.ok(
     value.cluster.failureDomains.length >=
@@ -201,6 +328,9 @@ function boundFixture(template) {
       provider: "synthetic-provider",
       clusterId: "cluster-staging-immutable-123",
       apiServer: "https://cluster.staging.invalid",
+      kubeContext: "agentplat-staging-fixture",
+      namespace: "agentplat-morphogenesis-staging",
+      namespaceUid: "namespace-uid-staging-123",
       region: "region-1",
       failureDomains: [
         { domainId: "zone-a", zone: "region-1a", nodeUid: "node-uid-a-123" },
@@ -321,4 +451,24 @@ function digest(domain, value) {
 
 async function json(file) {
   return JSON.parse(await readFile(file, "utf8"));
+}
+
+function commandJson(executable, args) {
+  const output = execFileSync(executable, args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  try {
+    return JSON.parse(output);
+  } catch {
+    throw new Error("staging provider command returned invalid JSON");
+  }
+}
+
+function normalizeUrl(value) {
+  assert.equal(typeof value, "string");
+  const url = new URL(value);
+  return `${url.protocol}//${url.host}${url.pathname.replace(/\/$/u, "")}`;
 }
