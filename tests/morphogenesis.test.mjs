@@ -98,6 +98,7 @@ import {
 import {
   InMemoryMorphogenesisTeamTopologyStateStoreV2,
   AgentStatusMorphogenesisBoundaryV2,
+  DerivedAgentMorphogenesisBoundaryV2,
   MissionWorkReassignmentMorphogenesisBoundaryV2,
   MorphogenesisOperatorBoundaryRouterV2,
   RoleRealignmentMorphogenesisBoundaryV2,
@@ -4113,6 +4114,164 @@ test("advanced operator runtime reconciles a crash without repeating the boundar
     indeterminate.stateDigest,
   );
   assert.equal(indeterminateCalls, 1);
+});
+
+test("derive_agent executes profile, factory, Trust and Team Formation boundaries", async () => {
+  const context = fixture();
+  const baseline = context.policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "derive_agent"].sort(),
+    enabledAdvancedCapabilities: [
+      "derived_profiles",
+      "recursive_creation",
+      "synthesized_profiles",
+    ],
+    maximumDerivedAgentsPerProposal: 1,
+    maximumSynthesizedAgentsPerProposal: 1,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 1,
+  });
+  const profile = {
+    schemaVersion: 2,
+    creationMode: "synthesized",
+    profileDigest: sha("1"),
+  };
+  const agent = createMorphogenesisLifecycleAgentV1({
+    agentId: "agent:derived-operator",
+    peerId: "peer:derived-operator",
+    instanceId: "instance:derived-operator:1",
+    lineageDigest: sha("2"),
+    capabilityKeys: ["database_forensics"],
+    roleDefinitionDigest: sha("3"),
+    membershipConfigurationDigest: sha("4"),
+    membershipEpoch: 2,
+    source: "synthesized_created",
+  });
+  const attestation = createMorphogenesisAgentAttestationV1({
+    operationId: "attestation:derived-operator",
+    agentDigest: agent.agentDigest,
+    profileDigest: profile.profileDigest,
+    runtimeAttestationDigest: sha("5"),
+    capabilityAssessmentDigests: [sha("6")],
+    eligibilityEvidenceDigests: [sha("7")],
+    attestedAtLogicalMs: 140,
+    validUntilLogicalMs: 500,
+  });
+  const teamReceipt = createMorphogenesisSuccessorTeamReceiptV1({
+    operationId: "team:derived-operator",
+    agentDigest: agent.agentDigest,
+    teamId: "team:derived-operator",
+    teamEpoch: 2,
+    teamProposalDigest: sha("8"),
+    jointWorkContractDigest: sha("9"),
+    individualWorkContractDigests: [sha("a")],
+    executionStateDigest: sha("b"),
+    retainedArtifactDigests: [sha("c")],
+    invalidatedCausalClosureDigests: [],
+    activatedAtLogicalMs: 150,
+  });
+  const operation = createMorphogenesisOperationV1({
+    operationId: "operation:derive-agent:execution",
+    operator: "derive_agent",
+    effectClass: "protected_external",
+    dependsOnOperationIds: [],
+    targetReferenceDigest: sha("d"),
+    compensation: "terminate_unenrolled",
+  }, policy);
+  const binding = {
+    operator: "derive_agent",
+    profileDigest: profile.profileDigest,
+    evolutionDigest: sha("e"),
+    attenuationDigest: sha("f"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "plan:derive-agent:execution",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("0"),
+    compiledAtLogicalMs: 100,
+  });
+  const proposalDigest = sha("a");
+  const authorizationDigest = sha("b");
+  const lifecycleInput = {
+    operationId: "lifecycle:derive-agent",
+    scope: context.scope,
+    proposalDigest,
+    profile,
+    logicalTimeMs: 120,
+  };
+  const attestationInput = {
+    operationId: "attestation:derive-agent",
+    scope: context.scope,
+    proposalDigest,
+    agent,
+    profile,
+    logicalTimeMs: 140,
+  };
+  const teamInput = {
+    operationId: "team:derive-agent",
+    scope: context.scope,
+    proposalDigest,
+    positionDigest: operation.targetReferenceDigest,
+    agent,
+    attestation,
+    logicalTimeMs: 150,
+  };
+  const calls = [];
+  const boundary = new DerivedAgentMorphogenesisBoundaryV2({
+    profiles: { async verify(input) {
+      calls.push("profile");
+      assert.equal(input.profileDigest, binding.profileDigest);
+      return { verified: true, verificationDigest: sha("1") };
+    } },
+    lifecycle: {
+      async createAndEnroll() { calls.push("lifecycle"); return agent; },
+      async reconcileCreateAndEnroll() { calls.push("lifecycle-reconcile"); return agent; },
+      async eligibility() { return agent; },
+    },
+    attestation: {
+      async attest() { calls.push("attestation"); return attestation; },
+      async reconcile() { calls.push("attestation-reconcile"); return attestation; },
+    },
+    teams: {
+      async activateSuccessor() { calls.push("team"); return teamReceipt; },
+      async reconcileActivation() { calls.push("team-reconcile"); return teamReceipt; },
+    },
+    resolution: {
+      async resolveLifecycle() { return { input: lifecycleInput, authorizationDigest }; },
+      async resolveAttestation() { return { input: attestationInput, authorizationDigest }; },
+      async resolveTeam() { return { input: teamInput, authorizationDigest }; },
+    },
+  });
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: boundary,
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:derive-agent",
+    scopeDigest: context.scope.scopeDigest,
+    plan,
+    proposalDigest,
+    decisionDigest: sha("c"),
+    authorizationDigest,
+    authorityFenceDigest: sha("d"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  while (state.status !== "completed")
+    state = await runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 120 + state.revision });
+  assert.deepEqual(calls, ["profile", "lifecycle", "attestation", "team"]);
+  assert.equal(state.receipts.length, 4);
+  assert.equal(state.receipts[3].resultDigest, teamReceipt.receiptDigest);
 });
 
 test("split_team executes through the existing durable Team topology reducer", async () => {

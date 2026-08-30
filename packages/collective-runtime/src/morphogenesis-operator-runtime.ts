@@ -42,6 +42,7 @@ export interface MorphogenesisOperatorBoundaryPortV2 {
     readonly operationId: AgentPlatID;
     readonly plan: MorphogenesisCompiledOperatorPlanV2;
     readonly step: MorphogenesisCompiledStepV2;
+    readonly proposalDigest: PlanningDigestV1;
     readonly authorizationDigest: PlanningDigestV1;
     readonly authorityFenceDigest: PlanningDigestV1;
     readonly priorReceipts: readonly MorphogenesisOperatorStepReceiptV2[];
@@ -52,6 +53,7 @@ export interface MorphogenesisOperatorBoundaryPortV2 {
     readonly operationId: AgentPlatID;
     readonly plan: MorphogenesisCompiledOperatorPlanV2;
     readonly step: MorphogenesisCompiledStepV2;
+    readonly proposalDigest: PlanningDigestV1;
     readonly authorizationDigest: PlanningDigestV1;
     readonly authorityFenceDigest: PlanningDigestV1;
     readonly priorReceipts: readonly MorphogenesisOperatorStepReceiptV2[];
@@ -220,6 +222,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         operationId,
         plan: current.plan,
         step,
+        proposalDigest: current.proposalDigest,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
         priorReceipts: current.receipts,
@@ -241,6 +244,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         operationId,
         plan: current.plan,
         step,
+        proposalDigest: current.proposalDigest,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
         priorReceipts: current.receipts,
@@ -253,6 +257,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         operationId,
         plan: current.plan,
         step,
+        proposalDigest: current.proposalDigest,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
         priorReceipts: current.receipts,

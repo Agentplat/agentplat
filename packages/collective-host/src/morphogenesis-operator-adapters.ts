@@ -94,6 +94,150 @@ function requiredKeyProof(value: CollectiveMembershipKeyProofV1 | undefined) {
   return value;
 }
 
+export interface MorphogenesisEvolvedProfileVerificationPortV2 {
+  verify(input: {
+    readonly profileDigest: PlanningDigestV1;
+    readonly evolutionDigest: PlanningDigestV1;
+    readonly attenuationDigest: PlanningDigestV1;
+    readonly policyDigest: PlanningDigestV1;
+    readonly logicalTimeMs: number;
+  }): Promise<{ readonly verified: boolean; readonly verificationDigest: PlanningDigestV1 }>;
+}
+
+export interface MorphogenesisDerivedAgentResolutionPortV2 {
+  resolveLifecycle(evolutionDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisAgentLifecyclePortV1["createAndEnroll"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveAttestation(attenuationDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisAgentAttestationPortV1["attest"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveTeam(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisSuccessorTeamPortV1["activateSuccessor"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+}
+
+/** Executes derived or synthesized creation through the existing governed owners. */
+export class DerivedAgentMorphogenesisBoundaryV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  constructor(readonly options: {
+    readonly profiles: MorphogenesisEvolvedProfileVerificationPortV2;
+    readonly lifecycle: MorphogenesisAgentLifecyclePortV1;
+    readonly attestation: MorphogenesisAgentAttestationPortV1;
+    readonly teams: MorphogenesisSuccessorTeamPortV1;
+    readonly resolution: MorphogenesisDerivedAgentResolutionPortV2;
+  }) {}
+
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#run(input, false);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#run(input, true);
+  }
+
+  async #run(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+    reconcile: boolean,
+  ): Promise<MorphogenesisOperatorStepResolutionV2> {
+    const binding = input.plan.binding;
+    if (binding.operator !== "derive_agent")
+      throw new TypeError("Morphogenesis derived-agent binding is invalid");
+    let resultDigest: PlanningDigestV1;
+    let appliedAtLogicalMs = input.logicalTimeMs;
+    switch (input.step.operation) {
+      case "verify_evolved_profile": {
+        if (input.step.targetDigest !== binding.profileDigest)
+          throw new TypeError("Morphogenesis evolved profile target is invalid");
+        const result = await this.options.profiles.verify({
+          profileDigest: binding.profileDigest,
+          evolutionDigest: binding.evolutionDigest,
+          attenuationDigest: binding.attenuationDigest,
+          policyDigest: input.plan.policyDigest,
+          logicalTimeMs: input.logicalTimeMs,
+        });
+        if (!result.verified) return { status: "not_applied" };
+        resultDigest = asDigest(result.verificationDigest);
+        break;
+      }
+      case "create_and_enroll": {
+        if (input.step.targetDigest !== binding.evolutionDigest)
+          throw new TypeError("Morphogenesis derived lifecycle target is invalid");
+        const resolved = await this.options.resolution.resolveLifecycle(binding.evolutionDigest);
+        if (!resolved) return { status: "not_applied" };
+        authorizeDerived(resolved.authorizationDigest, input.authorizationDigest);
+        if (resolved.input.profile.profileDigest !== binding.profileDigest ||
+            resolved.input.proposalDigest !== input.proposalDigest)
+          throw new TypeError("Morphogenesis derived lifecycle material is substituted");
+        const agent = reconcile
+          ? await this.options.lifecycle.reconcileCreateAndEnroll(resolved.input)
+          : await this.options.lifecycle.createAndEnroll(resolved.input);
+        const expectedSource = resolved.input.profile.creationMode === "synthesized"
+          ? "synthesized_created"
+          : resolved.input.profile.creationMode === "derived"
+            ? "derived_created"
+            : "catalog_created";
+        if (agent.source !== expectedSource)
+          throw new TypeError("Morphogenesis derived lifecycle source is invalid");
+        resultDigest = asDigest(agent.agentDigest);
+        break;
+      }
+      case "attest_created_agent": {
+        if (input.step.targetDigest !== binding.attenuationDigest)
+          throw new TypeError("Morphogenesis derived attestation target is invalid");
+        const resolved = await this.options.resolution.resolveAttestation(binding.attenuationDigest);
+        if (!resolved) return { status: "not_applied" };
+        authorizeDerived(resolved.authorizationDigest, input.authorizationDigest);
+        if (resolved.input.profile?.profileDigest !== binding.profileDigest ||
+            resolved.input.agent.agentDigest !== priorResult(input, 1))
+          throw new TypeError("Morphogenesis derived attestation material is substituted");
+        const receipt = reconcile
+          ? await this.options.attestation.reconcile(resolved.input)
+          : await this.options.attestation.attest(resolved.input);
+        resultDigest = asDigest(receipt.attestationDigest);
+        appliedAtLogicalMs = receipt.attestedAtLogicalMs;
+        break;
+      }
+      case "activate_successor_team": {
+        const resolved = await this.options.resolution.resolveTeam(input.step.targetDigest);
+        if (!resolved) return { status: "not_applied" };
+        authorizeDerived(resolved.authorizationDigest, input.authorizationDigest);
+        if (resolved.input.agent.agentDigest !== priorResult(input, 1) ||
+            resolved.input.attestation.attestationDigest !== priorResult(input, 2))
+          throw new TypeError("Morphogenesis derived Team material is substituted");
+        const receipt = reconcile
+          ? await this.options.teams.reconcileActivation(resolved.input)
+          : await this.options.teams.activateSuccessor(resolved.input);
+        resultDigest = asDigest(receipt.receiptDigest);
+        appliedAtLogicalMs = receipt.activatedAtLogicalMs;
+        break;
+      }
+      default:
+        throw new TypeError("Morphogenesis derived-agent operation is unsupported");
+    }
+    return appliedReceipt(input, resultDigest, appliedAtLogicalMs);
+  }
+}
+
+function priorResult(
+  input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+  index: number,
+): PlanningDigestV1 {
+  const receipt = input.priorReceipts[index];
+  if (!receipt) throw new TypeError("Morphogenesis derived prerequisite receipt is unavailable");
+  return receipt.resultDigest;
+}
+
+function authorizeDerived(
+  resolved: PlanningDigestV1,
+  expected: PlanningDigestV1,
+) {
+  if (resolved !== expected)
+    throw new TypeError("Morphogenesis derived-agent authorization is invalid");
+}
+
 export interface MorphogenesisReplacementResolutionPortV2 {
   resolveSuccessor(targetDigest: PlanningDigestV1): Promise<{
     readonly input: Parameters<MorphogenesisAgentLifecyclePortV1["createAndEnroll"]>[0];
