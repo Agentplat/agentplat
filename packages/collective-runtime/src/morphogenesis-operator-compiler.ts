@@ -236,7 +236,7 @@ function compileSteps(
     case "federate_teams":
       return freeze([
         step("certify-topology", "team_topology_transformation", `certify_${binding.operator}`, target("transformationRequestDigest"), [], "internal"),
-        step("activate-topology", "team_topology_transformation", `activate_${binding.operator}`, target("topologyPolicyDigest"), ["certify-topology"], "protected_external", "restore_predecessor_before_commit"),
+        step("activate-topology", "team_topology_transformation", `activate_${binding.operator}`, target("transformationRequestDigest"), ["certify-topology"], "protected_external", "restore_predecessor_before_commit"),
       ]);
   }
 }

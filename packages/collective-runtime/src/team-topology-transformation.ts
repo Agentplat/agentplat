@@ -82,6 +82,12 @@ function topologyDigest(nodes: readonly TeamTopologyNodeV1[]): PlanningDigestV1 
   );
 }
 
+export function teamTopologyDigestV1(
+  nodes: readonly TeamTopologyNodeV1[],
+): PlanningDigestV1 {
+  return topologyDigest(nodes.map(validateNode));
+}
+
 function assertDigest(value: unknown, label: string): asserts value is PlanningDigestV1 {
   if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value))
     throw new TypeError(`${label} must be a sha256 digest`);
@@ -111,6 +117,24 @@ function validateNode(node: TeamTopologyNodeV1): TeamTopologyNodeV1 {
   });
   if (node.nodeDigest !== expected) throw new TypeError("topology node digest is invalid");
   return node;
+}
+
+export function createTeamTopologyNodeV1(
+  input: Omit<TeamTopologyNodeV1, "nodeDigest">,
+): TeamTopologyNodeV1 {
+  const body = {
+    teamId: input.teamId,
+    parentTeamIds: Object.freeze([...input.parentTeamIds].sort()),
+    memberIds: Object.freeze([...input.memberIds].sort()),
+    coordinatorId: input.coordinatorId,
+    membershipEpoch: input.membershipEpoch,
+    membershipConfigurationDigest: input.membershipConfigurationDigest,
+  };
+  if (
+    new Set(body.parentTeamIds).size !== body.parentTeamIds.length ||
+    new Set(body.memberIds).size !== body.memberIds.length
+  ) throw new TypeError("topology node contains duplicate identities");
+  return Object.freeze({ ...body, nodeDigest: nodeDigest(body) });
 }
 
 export function createTeamTopologyStateV1(input: {

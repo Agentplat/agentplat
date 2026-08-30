@@ -91,6 +91,10 @@ import {
   compileAgentInstantiationProfileToCreationRequestV1,
 } from "../packages/collective-host/dist/morphogenesis.js";
 import {
+  InMemoryMorphogenesisTeamTopologyStateStoreV2,
+  TeamTopologyMorphogenesisBoundaryV2,
+} from "../packages/collective-host/dist/morphogenesis-operator-adapters.js";
+import {
   GovernedAgentLineageRuntimeV1,
   InMemoryAgentLineageStoreV1,
   createAgentCreationCertificateV1,
@@ -110,6 +114,12 @@ import {
   createTeamPositionBidV1,
   createTeamPositionV1,
 } from "../packages/collective-runtime/dist/team-formation.js";
+import {
+  createTeamTopologyNodeV1,
+  createTeamTopologyStateV1,
+  createTeamTopologyTransformationRequestV1,
+  teamTopologyDigestV1,
+} from "../packages/collective-runtime/dist/team-topology-transformation.js";
 import {
   InMemoryProcessRunnerV1,
   InMemoryWorkflowStoreV1,
@@ -3939,4 +3949,136 @@ test("advanced operator runtime reconciles a crash without repeating the boundar
     indeterminate.stateDigest,
   );
   assert.equal(indeterminateCalls, 1);
+});
+
+test("split_team executes through the existing durable Team topology reducer", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "split_team"].sort(),
+    enabledAdvancedCapabilities: ["team_topology_transformations"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 1,
+    maximumCreationDepth: 0,
+  });
+  const source = createTeamTopologyNodeV1({
+    teamId: "team:source",
+    parentTeamIds: [],
+    memberIds: ["agent:a", "agent:b"],
+    coordinatorId: "agent:a",
+    membershipEpoch: 1,
+    membershipConfigurationDigest: sha("1"),
+  });
+  const targets = [
+    createTeamTopologyNodeV1({
+      teamId: "team:target:a",
+      parentTeamIds: [source.teamId],
+      memberIds: ["agent:a"],
+      coordinatorId: "agent:a",
+      membershipEpoch: 2,
+      membershipConfigurationDigest: sha("2"),
+    }),
+    createTeamTopologyNodeV1({
+      teamId: "team:target:b",
+      parentTeamIds: [source.teamId],
+      memberIds: ["agent:b"],
+      coordinatorId: "agent:b",
+      membershipEpoch: 2,
+      membershipConfigurationDigest: sha("2"),
+    }),
+  ];
+  const topology = createTeamTopologyStateV1({
+    topologyId: "topology:morphogenesis:test",
+    epoch: 1,
+    topology: [source],
+  });
+  const request = createTeamTopologyTransformationRequestV1({
+    transformationId: "topology-transformation:split:1",
+    operation: "split",
+    sourceTeamIds: [source.teamId],
+    targetTeams: targets,
+    priorTopologyDigest: teamTopologyDigestV1(topology.topology),
+    policyDigest: policy.policyDigest,
+    quorumDigest: sha("3"),
+    requestedAtLogicalMs: 100,
+    validUntilLogicalMs: 500,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:split-team:1",
+      operator: "split_team",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: request.requestDigest,
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "split_team",
+    transformationRequestDigest: request.requestDigest,
+    topologyPolicyDigest: policy.policyDigest,
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:split-team:1",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("4"),
+    compiledAtLogicalMs: 110,
+  });
+  const topologyStore = new InMemoryMorphogenesisTeamTopologyStateStoreV2([
+    topology,
+  ]);
+  const adapter = new TeamTopologyMorphogenesisBoundaryV2({
+    store: topologyStore,
+    requests: {
+      async resolve(digest) {
+        return digest === request.requestDigest
+          ? { topologyId: topology.topologyId, request }
+          : null;
+      },
+    },
+  });
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: adapter,
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:split-team:1",
+    plan,
+    proposalDigest: sha("5"),
+    decisionDigest: sha("6"),
+    authorizationDigest: sha("7"),
+    authorityFenceDigest: sha("8"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 120,
+  });
+  while (state.status !== "completed")
+    state = await runtime.advance({
+      stateKey: state.stateKey,
+      logicalTimeMs: 130 + state.revision,
+    });
+  const activated = await topologyStore.load(topology.topologyId);
+  assert.equal(activated.epoch, 2);
+  assert.deepEqual(
+    activated.topology.map(({ teamId }) => teamId),
+    ["team:target:a", "team:target:b"],
+  );
+  assert.equal(
+    activated.transformations.find(
+      ({ transformationId }) =>
+        transformationId === request.transformationId,
+    ).status,
+    "activated",
+  );
+  assert.equal(state.receipts.length, 2);
 });
