@@ -11,6 +11,8 @@ import {
   createMorphogenesisBudgetEnvelopeV1,
   createMorphogenesisCatalogLifecycleProcessDefinitionV1,
   createMorphogenesisDecisionCandidateV1,
+  createMorphogenesisDecisionAuthorizationV1,
+  createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisPolicyV1,
 } from "@agentplat/collective-runtime/morphogenesis";
 import { CollectiveAgreementMorphogenesisDecisionIssuerV1 } from "@agentplat/collective-quorum/morphogenesis";
@@ -296,6 +298,7 @@ try {
   );
   assert.equal(collectiveDecision.authorization.route, "collective");
   assert.equal(collectiveDecision.minorityPartitionAuthorization, null);
+  assert.equal(collectiveDecision.dependentCollusionRejected, true);
   const reorderedReceived = states["peer-c"].state.received;
   assert.ok(
     reorderedReceived.findIndex(
@@ -350,6 +353,8 @@ try {
         collectiveDecision.authorization.authorizationDigest,
       morphogenesisMinorityPartitionFailedClosed:
         collectiveDecision.minorityPartitionAuthorization === null,
+      morphogenesisDependentCollusionRejected:
+        collectiveDecision.dependentCollusionRejected,
       wallTimeMs: Math.max(0, Math.round(performance.now() - exampleStartedAt)),
       inputTokens: 0,
       outputTokens: 0,
@@ -612,7 +617,62 @@ async function verifyMorphogenesisCollectiveDecision(votes) {
     candidate,
     logicalTimeMs: 125,
   });
-  return { authorization, minorityPartitionAuthorization, quorumThreshold };
+  const compositePolicy = createMorphogenesisPolicyV1({
+    ...policy.policy,
+    allowedDecisionRoutes: ["composite"],
+  });
+  const compositeProposal = {
+    ...proposal,
+    proposalId: "proposal:mesh-beta1-dependent-collusion",
+    decisionRoute: "composite",
+    proposalDigest: sha("e"),
+  };
+  const compositeCandidate = createMorphogenesisDecisionCandidateV1({
+    candidateId: "decision-candidate:mesh-beta1-dependent-collusion",
+    proposal: compositeProposal,
+    policy: compositePolicy,
+    membershipConfigurationDigest,
+    membershipEpoch: 1,
+    authorityId: "authority:mesh-beta1",
+    authorityEpoch: 1,
+    workContractDigest: sha("f"),
+    preparedAtLogicalMs: 110,
+    expiresAtLogicalMs: 900,
+  });
+  const component = (route, actorType, actorId, character) =>
+    createMorphogenesisDecisionAuthorizationV1({
+      authorizationId: `authorization:${actorId}`,
+      candidateDigest: compositeCandidate.candidateDigest,
+      route,
+      actorType,
+      actorId,
+      actorMandateDigest: sha(character),
+      independenceGroupId: "independence:colluding-operator",
+      disposition: "approved",
+      proofDigest: sha(character),
+      issuedAtLogicalMs: 120,
+      expiresAtLogicalMs: 800,
+    });
+  assert.throws(
+    () =>
+      createCompositeMorphogenesisDecisionAuthorizationV1({
+        candidate: compositeCandidate,
+        components: [
+          component("authorized_agent", "agent", "peer-b", "1"),
+          component("authorized_person", "person", "peer-c", "2"),
+        ],
+        minimumIndependentApprovals: 2,
+        issuedAtLogicalMs: 125,
+        expiresAtLogicalMs: 700,
+      }),
+    /duplicated or dependent/,
+  );
+  return {
+    authorization,
+    minorityPartitionAuthorization,
+    quorumThreshold,
+    dependentCollusionRejected: true,
+  };
 }
 
 function recordExpected(sender, receiver) {
