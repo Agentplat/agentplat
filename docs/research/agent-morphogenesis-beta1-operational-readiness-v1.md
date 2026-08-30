@@ -49,7 +49,8 @@ never infer completion from mutable counters.
 
 Historical research and pilot artifacts may be isolated only through an exact
 per-file SHA-256 exception ledger. Directory or glob exceptions are forbidden.
-Every entry requires a reason and remains subject to a 20 MiB ceiling. This
+Every entry requires a reason and remains subject to the existing 20,000,000
+byte ceiling. This
 preserves the evidence without deleting it or weakening secret and terminology
 scanning for ordinary source files.
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
@@ -18,7 +19,7 @@ const excludedDirectoryNames = new Set([
   'coverage',
   'node_modules',
 ]);
-const excludedFileNames = new Set(['.git']);
+const excludedFileNames = new Set(['.DS_Store', '.git']);
 const allowedBinaryExtensions = new Set([
   '.avif',
   '.gif',
@@ -65,6 +66,7 @@ export async function runPublicAudit({
   inlineTerminologyDenylist = process.env.AGENTPLAT_PUBLIC_AUDIT_BLOCKED_TERMS,
   excludedDirectories = excludedDirectoryNames,
   excludedFiles = excludedFileNames,
+  evidenceExceptionFile = 'config/public-audit-evidence-exceptions-v1.json',
 } = {}) {
   const requestedRoot = path.resolve(root);
   const rootStatus = await lstat(requestedRoot);
@@ -92,6 +94,11 @@ export async function runPublicAudit({
   const blockedTerms = parseTerminologyDenylist(
     [...externalBlockedTerms, ...inlineBlockedTerms].join('\n')
   );
+  const evidenceExceptions = await loadEvidenceExceptions(
+    resolvedRoot,
+    evidenceExceptionFile,
+  );
+  const observedEvidenceExceptions = new Set();
   assert.ok(
     !requireTerminologyDenylist || blockedTerms.length > 0,
     'A non-empty external terminology denylist is required'
@@ -112,6 +119,7 @@ export async function runPublicAudit({
       path.relative(resolvedRoot, file.path)
     );
     const normalizedRelativeFile = relativeFile.toLocaleLowerCase('en-US');
+    const evidenceException = evidenceExceptions.get(relativeFile);
     for (const [index, term] of blockedTerms.entries()) {
       if (normalizedRelativeFile.includes(term.toLocaleLowerCase('en-US'))) {
         findings.push(
@@ -122,14 +130,23 @@ export async function runPublicAudit({
     if (file.status.size > maximumTextBytes) {
       const extension = path.extname(file.path).toLocaleLowerCase('en-US');
       if (
-        !allowedBinaryExtensions.has(extension) ||
-        file.status.size > maximumAllowedBinaryBytes
+        (!allowedBinaryExtensions.has(extension) ||
+          file.status.size > maximumAllowedBinaryBytes) &&
+        !evidenceException
       ) {
         findings.push(
           `${relativeFile}: file exceeds the audited size limit (${file.status.size} bytes)`
         );
         continue;
       }
+    }
+    if (
+      evidenceException &&
+      (file.status.size !== evidenceException.bytes ||
+        file.status.size > maximumAllowedBinaryBytes)
+    ) {
+      findings.push(`${relativeFile}: evidence exception size changed`);
+      continue;
     }
 
     let contents;
@@ -142,9 +159,18 @@ export async function runPublicAudit({
     }
     scannedFiles += 1;
 
+    if (evidenceException) {
+      const actualDigest = createHash('sha256').update(contents).digest('hex');
+      if (actualDigest !== evidenceException.sha256) {
+        findings.push(`${relativeFile}: evidence exception digest changed`);
+        continue;
+      }
+      observedEvidenceExceptions.add(relativeFile);
+    }
+
     if (isBinary(contents)) {
       const extension = path.extname(file.path).toLocaleLowerCase('en-US');
-      if (!allowedBinaryExtensions.has(extension)) {
+      if (!allowedBinaryExtensions.has(extension) && !evidenceException) {
         findings.push(`${relativeFile}: binary file type is not allowlisted`);
       } else if (contents.byteLength > maximumAllowedBinaryBytes) {
         findings.push(
@@ -177,6 +203,10 @@ export async function runPublicAudit({
     }
   }
 
+  for (const relativeFile of evidenceExceptions.keys())
+    if (!observedEvidenceExceptions.has(relativeFile))
+      findings.push(`${relativeFile}: evidence exception was not observed exactly`);
+
   assert.deepEqual(
     findings,
     [],
@@ -187,7 +217,53 @@ export async function runPublicAudit({
     blockedTermCount: blockedTerms.length,
     scannedFiles,
     allowedBinaryFiles,
+    evidenceExceptionFiles: observedEvidenceExceptions.size,
   });
+}
+
+async function loadEvidenceExceptions(root, relativeFile) {
+  const file = path.join(root, relativeFile);
+  let contents;
+  try {
+    contents = await readFile(file, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return new Map();
+    throw error;
+  }
+  const ledger = JSON.parse(contents);
+  assert.equal(ledger?.schemaVersion, 1);
+  assert.equal(ledger.kind, 'agentplat-public-audit-evidence-exceptions-v1');
+  assert.equal(ledger.status, 'frozen-exact-files');
+  assert.deepEqual(ledger.policy, {
+    allowPathGlobExceptions: false,
+    allowDirectoryExceptions: false,
+    maximumExceptionBytesPerFile: maximumAllowedBinaryBytes,
+    requireSha256Match: true,
+    continueSecretAndTerminologyScanningForText: true,
+  });
+  assert.ok(Array.isArray(ledger.entries));
+  const result = new Map();
+  for (const entry of ledger.entries) {
+    assert.deepEqual(Object.keys(entry).sort(), [
+      'bytes',
+      'path',
+      'reason',
+      'sha256',
+    ]);
+    assert.match(entry.path, /^[A-Za-z0-9._/-]+$/u);
+    assert.equal(path.isAbsolute(entry.path), false);
+    assert.equal(entry.path.split('/').includes('..'), false);
+    assert.match(entry.sha256, /^[0-9a-f]{64}$/u);
+    assert.ok(
+      Number.isSafeInteger(entry.bytes) &&
+        entry.bytes >= 0 &&
+        entry.bytes <= maximumAllowedBinaryBytes,
+    );
+    assert.ok(typeof entry.reason === 'string' && entry.reason.length > 20);
+    assert.equal(result.has(entry.path), false);
+    result.set(entry.path, Object.freeze({ ...entry }));
+  }
+  return result;
 }
 
 async function* walkAuditTree(root, excludedDirectories, excludedFiles) {
@@ -268,7 +344,7 @@ if (isMain) {
       parsePublicAuditArguments(process.argv.slice(2))
     );
     console.log(
-      `Public-surface audit passed for ${report.scannedFiles} files with no secret findings or restricted terminology matches (${report.blockedTermCount} external entries, ${report.allowedBinaryFiles} allowlisted binary files).`
+      `Public-surface audit passed for ${report.scannedFiles} files with no secret findings or restricted terminology matches (${report.blockedTermCount} external entries, ${report.allowedBinaryFiles} allowlisted binary files, ${report.evidenceExceptionFiles} exact evidence exceptions).`
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

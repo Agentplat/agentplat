@@ -56,7 +56,7 @@ assert.deepEqual(profile.publicAuditPolicy, {
   allowDirectoryExceptions: false,
   requireReasonPerFile: true,
   requireSha256PerFile: true,
-  maximumExceptionBytesPerFile: 20 * 1024 * 1024,
+  maximumExceptionBytesPerFile: 20_000_000,
 });
 assert.equal(auditLedger.kind, "agentplat-public-audit-evidence-exceptions-v1");
 assert.equal(auditLedger.status, "frozen-exact-files");
