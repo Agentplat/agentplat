@@ -105,10 +105,11 @@ if (options.mode === "contract-smoke") {
       sourceCapability: "implemented",
       conformance: releaseMode ? "beta1-campaign-passed" : "diagnostic-passed",
       operationalDiagnosticEvidence: "collected",
-      experimentalEvidence: "not-collected",
-      operationalReadiness: releaseMode
+      releaseEvidence: releaseMode
         ? "beta1-local-profile-passed"
-        : "not-established",
+        : "not-issued",
+      experimentalEvidence: "not-collected",
+      operationalReadiness: "not-established",
       productionClaimPermitted: false,
       securityCertificationClaimPermitted: false,
     },
@@ -360,12 +361,15 @@ async function validateReleaseBinding(registrationDirectory, authorizationDirect
 }
 
 function report(bundle, receipts) {
+  const release = bundle.sourceBindingStatus === "exact-clean-commit";
   const rows = receipts.map((receipt) =>
     `| ${receipt.scenarioId} | ${receipt.status} | ${receipt.evidenceClass} | ${receipt.metrics.wall_time_ms} | ${receipt.metrics.morphology_churn_count} | ${receipt.metrics.mission_continuity_ratio} |`,
   );
-  return `# Agent Morphogenesis Beta 1 diagnostic validation report\n\n` +
+  return `# Agent Morphogenesis Beta 1 ${release ? "local-profile release" : "diagnostic validation"} report\n\n` +
     `Source commit: \`${bundle.sourceCommit}\`  \nBundle digest: \`${bundle.bundleDigest}\`  \nScenarios: ${bundle.scenarioCount}\n\n` +
-    `This is diagnostic operational conformance. Experimental evidence is not collected, operational readiness is not established, and no production or security-certification claim is permitted.\n\n` +
+    (release
+      ? `The registered Beta 1 local-profile release evidence passed. Experimental evidence remains not collected, operational readiness is not established, and no production or security-certification claim is permitted.\n\n`
+      : `This is diagnostic operational conformance. Experimental evidence is not collected, operational readiness is not established, and no production or security-certification claim is permitted.\n\n`) +
     `| Scenario | Status | Evidence class | Wall ms | Churn | Continuity |\n|---|---|---|---:|---:|---:|\n${rows.join("\n")}\n\n` +
     `External spend: USD 0. Profile synthesis, recursive creation and Team split/merge/federation were excluded.\n`;
 }

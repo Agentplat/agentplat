@@ -168,7 +168,8 @@ both roots, the scenario order and the bundle digest.
 `assemble-release` additionally requires the signed authorization and original
 registration, rechecks their Ed25519 proof and expiry, and refuses a changed or
 dirty tracked tree. The resulting bundle records `exact-clean-commit` and
-`beta1-local-profile-passed` while still prohibiting production and security
-certification claims. `sign:agent-morphogenesis-beta1-bundle` creates a detached
+`releaseEvidence: beta1-local-profile-passed`, while operational readiness
+remains separately `not-established` and production/security-certification
+claims stay prohibited. `sign:agent-morphogenesis-beta1-bundle` creates a detached
 Ed25519 attestation over the bundle, receipt root, metrics root, evidence state
 and source commit; bundle verification checks that signature when present.
