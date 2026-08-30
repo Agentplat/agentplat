@@ -67,3 +67,26 @@ digest and emits an immutable ConfigMap plus an artifact manifest. It never
 renders credentials. Operators must create `morphogenesis-mesh-credentials`
 through their secret manager and verify its database, channel and control
 bindings before applying the rendered files.
+
+Run the server-side preflight before mutation. It requests only Secret key
+names through a Go template, never Secret values. Application requires the
+exact confirmation token and emits pod, node, zone, image and health bindings:
+
+```sh
+pnpm preflight:agent-morphogenesis-beta1-staging-deploy -- \
+  --inventory /external/inventory.json \
+  --render-directory /external/rendered-deployment \
+  --output-directory /external/deployment-preflight
+
+pnpm apply:agent-morphogenesis-beta1-staging-deploy -- \
+  --confirm APPLY_MORPHOGENESIS_DISTRIBUTED_STAGING \
+  --inventory /external/inventory.json \
+  --render-directory /external/rendered-deployment \
+  --preflight /external/deployment-preflight/deployment-preflight.json \
+  --output-directory /external/deployment-receipt
+```
+
+The apply command still does not establish staging qualification. It proves the
+initial four identities are Ready across at least three real zones/nodes and
+using external signing custody. Fault cycles must raise cumulative process
+starts to six or more before that campaign gate can pass.
