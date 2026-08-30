@@ -1400,6 +1400,60 @@ test("authorized agent decision is exact, independent and drives the fixed Workf
   );
 });
 
+test("stale decision authority is rejected without persisting a decision", async () => {
+  const { policy, proposal } = fixture();
+  const store = new InMemoryMorphogenesisDecisionStoreV1();
+  const runtime = new MorphogenesisDecisionRuntimeV1({
+    decisionPortId: "decision-port:stale-authority",
+    decisionPortVersion: 1,
+    decisionPortImplementationDigest: sha("1"),
+    policy,
+    proposals: {
+      async resolve(proposalDigest) {
+        return proposalDigest === proposal.proposalDigest ? proposal : null;
+      },
+    },
+    authorizations: {
+      async issue({ candidate }) {
+        return createMorphogenesisDecisionAuthorizationV1({
+          authorizationId: "decision-authorization:stale",
+          candidateDigest: candidate.candidateDigest,
+          route: "authorized_agent",
+          actorType: "agent",
+          actorId: "agent:stale-supervisor",
+          actorMandateDigest: sha("2"),
+          independenceGroupId: "independence:stale-supervision",
+          disposition: "approved",
+          proofDigest: sha("3"),
+          issuedAtLogicalMs: 231,
+          expiresAtLogicalMs: 235,
+        });
+      },
+      async verify() {
+        return true;
+      },
+    },
+    store,
+  });
+  const candidate = await runtime.prepare({
+    candidateId: "decision-candidate:stale-authority",
+    proposal,
+    policy,
+    membershipConfigurationDigest: sha("4"),
+    membershipEpoch: 1,
+    authorityId: "authority:stale",
+    authorityEpoch: 1,
+    workContractDigest: sha("5"),
+    preparedAtLogicalMs: 230,
+    expiresAtLogicalMs: 480,
+  });
+  await assert.rejects(
+    runtime.decide({ candidate, logicalTimeMs: 240 }),
+    /stale or prohibited/,
+  );
+  assert.equal(await store.load(candidate.candidateDigest), null);
+});
+
 test("authorized person route reuses an exact Agent Room approval", () => {
   const context = fixture();
   const {

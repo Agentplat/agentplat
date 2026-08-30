@@ -25,21 +25,19 @@ import {
   createMorphogenesisTerminalAgentReceiptV1,
 } from "../../packages/collective-runtime/dist/morphogenesis.js";
 import { InMemoryProcessRunnerV1 } from "../../packages/workflows/dist/index.js";
+import { pathToFileURL } from "node:url";
 
 const sha = (character) => `sha256:${character.repeat(64)}`;
 
-const requestedBranch = process.argv[2] ?? "both";
-const requestedRoute = process.argv[3] ?? "authorized_agent";
-const branches = requestedBranch === "both" ? ["recruit", "create"] : [requestedBranch];
-
-for (const branch of branches)
-  console.log(JSON.stringify(await runScenario(branch, requestedRoute), null, 2));
-
-async function runScenario(branch, decisionRoute) {
+export async function runMorphogenesisExampleScenario(
+  branch,
+  decisionRoute,
+  dependencies = {},
+) {
   if (!new Set(["recruit", "create"]).has(branch))
     throw new TypeError("branch must be recruit, create or both");
-  if (!new Set(["authorized_agent", "authorized_person"]).has(decisionRoute))
-    throw new TypeError("decision route must be authorized_agent or authorized_person");
+  if (!new Set(["authorized_agent", "authorized_person", "collective"]).has(decisionRoute))
+    throw new TypeError("decision route must be authorized_agent, authorized_person or collective");
 
   const scope = createMorphogenesisScopeV1({
     tenantId: "tenant:example",
@@ -65,7 +63,7 @@ async function runScenario(branch, decisionRoute) {
       "detach_agent",
       "retire_agent",
     ],
-    allowedDecisionRoutes: ["authorized_agent", "authorized_person"],
+    allowedDecisionRoutes: ["authorized_agent", "authorized_person", "collective"],
     requireIndependentDecider: true,
     allowAgentCreation: true,
     maximumPopulation: 8,
@@ -153,11 +151,18 @@ async function runScenario(branch, decisionRoute) {
     authorizationId: `authorization:${branch}:${decisionRoute}`,
     candidateDigest: decisionCandidate.candidateDigest,
     route: decisionRoute,
-    actorType: decisionRoute === "authorized_agent" ? "agent" : "person",
+    actorType:
+      decisionRoute === "authorized_agent"
+        ? "agent"
+        : decisionRoute === "authorized_person"
+          ? "person"
+          : "collective",
     actorId:
       decisionRoute === "authorized_agent"
         ? "agent:supervisor"
-        : "person:reviewer",
+        : decisionRoute === "authorized_person"
+          ? "person:reviewer"
+          : "collective:quorum",
     actorMandateDigest: sha("b"),
     independenceGroupId: "independence:review",
     disposition: "approved",
@@ -250,7 +255,8 @@ async function runScenario(branch, decisionRoute) {
     membershipEpoch: branch === "recruit" ? 1 : 2,
     source: branch === "recruit" ? "existing" : "catalog_created",
   });
-  const store = new InMemoryMorphogenesisExecutionStoreV1();
+  const store =
+    dependencies.executionStore ?? new InMemoryMorphogenesisExecutionStoreV1();
   let materialized = false;
   let firstCreate = true;
   const ports = postCommitPorts();
@@ -370,7 +376,7 @@ async function runScenario(branch, decisionRoute) {
       },
     },
   });
-  const runner = new InMemoryProcessRunnerV1(undefined, {
+  const runnerOptions = {
     taskExecutor: {
       async execute(task) {
         return ["attest", "evaluate"].includes(task.stage.stageId)
@@ -379,19 +385,38 @@ async function runScenario(branch, decisionRoute) {
       },
     },
     protectedTaskExecutor: effectExecutor,
-    gateProvider: {
-      async resolve() { return { status: "approved", gateRequestId: `gate:${branch}` }; },
-    },
+    gateProvider:
+      dependencies.gateProvider ?? {
+        async resolve() {
+          return { status: "approved", gateRequestId: `gate:${branch}` };
+        },
+      },
     taskBindingResolver: new MorphogenesisTaskExecutionBindingResolverV1({
       policyDigest: policy.policyDigest,
       toolsetDigest: sha("1"),
       runtimeImplementationDigest: sha("2"),
     }),
-  });
+  };
+  const processRunners = dependencies.processRunnerFactory
+    ? await dependencies.processRunnerFactory({
+        workflowStore: dependencies.workflowStore,
+        runnerOptions,
+        tenantId: scope.tenantId,
+        runId,
+      })
+    : (() => {
+        const local = new InMemoryProcessRunnerV1(
+          dependencies.workflowStore,
+          runnerOptions,
+        );
+        return { runner: local, registrar: local };
+      })();
+  let runner = processRunners.runner;
+  const registrar = processRunners.registrar ?? runner;
   for (const task of createMorphogenesisCatalogLifecycleTaskDefinitionsV1())
-    await runner.registerTaskDefinition(scope.tenantId, task);
-  await runner.registerProcessDefinition(scope.tenantId, definition);
-  await runner.start({
+    await registrar.registerTaskDefinition(scope.tenantId, task);
+  await registrar.registerProcessDefinition(scope.tenantId, definition);
+  const startedWorkflow = await runner.start({
     tenantId: scope.tenantId,
     runId,
     processId: definition.processId,
@@ -404,6 +429,17 @@ async function runScenario(branch, decisionRoute) {
     },
     logicalTime: "2026-08-29T12:00:00.000Z",
   });
+  const resumedWorkflow = await dependencies.afterWorkflowStart?.({
+    branch,
+    decisionRoute,
+    tenantId: scope.tenantId,
+    runId,
+    started: startedWorkflow,
+    processRunners,
+    runnerOptions,
+    workflowStore: dependencies.workflowStore,
+  });
+  if (resumedWorkflow?.runner) runner = resumedWorkflow.runner;
   await runner.signal({
     tenantId: scope.tenantId,
     runId,
@@ -420,6 +456,13 @@ async function runScenario(branch, decisionRoute) {
     logicalTime: "2026-08-29T12:01:00.000Z",
   });
   const result = await runtime.required(execution.stateKey);
+  await dependencies.afterScenario?.({
+    branch,
+    decisionRoute,
+    tenantId: scope.tenantId,
+    runId,
+    processRunners,
+  });
   return {
     branch,
     decisionRoute,
@@ -430,6 +473,22 @@ async function runScenario(branch, decisionRoute) {
     receiptDigest: result.receipt.receiptDigest,
     eventCount: result.events.length,
   };
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const cliArguments = process.argv.slice(2).filter((argument) => argument !== "--");
+  const requestedBranch = cliArguments[0] ?? "both";
+  const requestedRoute = cliArguments[1] ?? "authorized_agent";
+  const branches =
+    requestedBranch === "both" ? ["recruit", "create"] : [requestedBranch];
+  for (const branch of branches)
+    console.log(
+      JSON.stringify(
+        await runMorphogenesisExampleScenario(branch, requestedRoute),
+        null,
+        2,
+      ),
+    );
 }
 
 function postCommitPorts() {

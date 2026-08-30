@@ -505,6 +505,12 @@ plan](./docs/collective-runtime/agent-morphogenesis-v1-implementation-plan.md),
 [threat model](./docs/security/agent-morphogenesis-threat-model.md) and
 [acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v1-acceptance-checklist.md).
 
+The [Beta 1 operational validation protocol](./docs/research/agent-morphogenesis-beta1-operational-validation-v1.md)
+defines a closed 18-scenario PostgreSQL, Temporal and multiprocess Agent Mesh
+campaign. Its manifests, receipts, metrics, firmable bundle and report keep
+diagnostic conformance separate from experimental evidence, operational
+readiness and production claims.
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

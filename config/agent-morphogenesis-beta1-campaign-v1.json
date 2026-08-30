@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-agent-morphogenesis-beta1-campaign-v1",
+  "campaignId": "agentplat-agent-morphogenesis-beta1-operational-validation",
+  "status": "planned-not-executed",
+  "baselineRelationship": "future-baseline-proposal",
+  "verticalSlices": [
+    "recruit_existing",
+    "catalog_created"
+  ],
+  "decisionRoutes": [
+    "authorized_agent",
+    "authorized_person",
+    "collective"
+  ],
+  "deploymentSurfaces": [
+    "postgresql-real",
+    "temporal-real",
+    "agent-mesh-multiprocess"
+  ],
+  "scenarioClasses": [
+    "nominal",
+    "boundary-crash",
+    "partition",
+    "concurrency",
+    "stale-authority",
+    "self-approval",
+    "collusion"
+  ],
+  "requiredCrashBoundaries": [
+    "after-proposal-before-decision",
+    "after-decision-before-prepare",
+    "after-provision-before-attestation",
+    "after-enrollment-before-activation",
+    "after-activation-before-outcome",
+    "after-fence-before-detach-or-retire"
+  ],
+  "primaryMetrics": [
+    "wall_time_ms",
+    "input_tokens",
+    "output_tokens",
+    "estimated_cost_usd",
+    "morphology_churn_count",
+    "mission_continuity_ratio",
+    "duplicate_material_effect_count"
+  ],
+  "acceptanceRules": {
+    "maximumExternalSpendUsd": 0,
+    "maximumDuplicateMaterialEffects": 0,
+    "maximumUnauthorizedActivations": 0,
+    "requireExactReplayForCompletedScenario": true,
+    "requireFailClosedForStaleAuthority": true,
+    "requireIndependentDecisionWhenPolicyRequiresIt": true,
+    "requireAllScenarioClassesRepresented": true
+  },
+  "authorityPolicy": {
+    "personApprovalRequired": false,
+    "authorizedAgentMayDecide": true,
+    "authorizedPersonMayDecide": true,
+    "collectiveCertificateMayDecide": true,
+    "selfApprovalPermitted": false,
+    "decisionMandateRequired": true
+  },
+  "evidenceBoundary": {
+    "sourceCapability": "implemented",
+    "conformance": "pending-campaign",
+    "experimentalEvidence": "not-collected",
+    "operationalReadiness": "not-established",
+    "productionClaimPermitted": false,
+    "securityCertificationClaimPermitted": false
+  },
+  "requiredArtifacts": [
+    "source-lock.json",
+    "campaign-registration.json",
+    "scenario-manifest.json",
+    "environment-manifest.json",
+    "scenario-receipts.jsonl",
+    "metrics.jsonl",
+    "evidence-bundle.json",
+    "operational-validation-report.md"
+  ],
+  "requiredSourceBinding": "exact-clean-commit",
+  "scenarioManifest": "config/agent-morphogenesis-beta1-scenarios-v1.json",
+  "excludedCapabilities": [
+    "profile-synthesis",
+    "recursive-agent-creation",
+    "team-split-merge-federation"
+  ],
+  "protocolDocument": "docs/research/agent-morphogenesis-beta1-operational-validation-v1.md"
+}

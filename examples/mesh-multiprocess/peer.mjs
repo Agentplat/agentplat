@@ -17,11 +17,17 @@ import {
   PostgresMeshDurableRepository,
 } from "@agentplat/mesh-postgres";
 import {
+  canonicalizeMeshPayload,
   MESH_PREVIOUS_WIRE_VERSION,
   MESH_PROTOCOL,
   MESH_SIGNATURE_ALGORITHM,
   MESH_WIRE_VERSION,
+  validateSignedMeshEnvelope,
 } from "@agentplat/mesh-protocol";
+import {
+  normalizeMeshEvidenceAttestationV1,
+  normalizeMeshEvidenceClaimV1,
+} from "@agentplat/trust/mesh-records";
 
 const tenantId = "tenant-demo";
 const meshId = "mesh-demo";
@@ -110,7 +116,12 @@ const worker = createMeshDurableWorker({
       return { outcome: "rejected", reasonCode: verified.code };
     }
     const payload = verified.envelope.payload;
-    if (payload.type !== "peer.ping" && payload.type !== "peer.ping_ack") {
+    if (
+      payload.type !== "peer.ping" &&
+      payload.type !== "peer.ping_ack" &&
+      payload.type !== "evidence.claim" &&
+      payload.type !== "evidence.attest"
+    ) {
       return { outcome: "rejected", reasonCode: "unsupported_message_type" };
     }
     const current = snapshot?.state ?? { received: [], outboundSequence: 0 };
@@ -126,6 +137,21 @@ const worker = createMeshDurableWorker({
           ...(verified.envelope.causationId === undefined
             ? {}
             : { causationId: verified.envelope.causationId }),
+          ...(payload.type === "evidence.claim"
+            ? {
+                recordId: payload.claimId,
+                assertionDigest: payload.assertionDigest,
+                contentDigest: payload.content?.contentDigest ?? null,
+              }
+            : {}),
+          ...(payload.type === "evidence.attest"
+            ? {
+                recordId: payload.attestationId,
+                claimId: payload.claimId,
+                claimDigest: payload.claimDigest,
+                disposition: payload.disposition,
+              }
+            : {}),
         },
       ],
       outboundSequence: nextSequence,
@@ -281,6 +307,11 @@ const notifiedAcknowledgements = new Set(
     .filter((entry) => entry.type === "peer.ping_ack")
     .map((entry) => entry.messageId) ?? [],
 );
+const notifiedEvidence = new Set(
+  existingSnapshot?.state.received
+    .filter((entry) => entry.type.startsWith("evidence."))
+    .map((entry) => entry.messageId) ?? [],
+);
 const loop = (async () => {
   while (!stopped) {
     if (paused) {
@@ -301,6 +332,16 @@ const loop = (async () => {
     for (const acknowledgement of acknowledgements) {
       notifiedAcknowledgements.add(acknowledgement.messageId);
       process.send?.({ kind: "acknowledged", ...acknowledgement });
+    }
+    const evidenceRecords =
+      snapshot?.state.received.filter(
+        (entry) =>
+          entry.type.startsWith("evidence.") &&
+          !notifiedEvidence.has(entry.messageId),
+      ) ?? [];
+    for (const evidence of evidenceRecords) {
+      notifiedEvidence.add(evidence.messageId);
+      process.send?.({ kind: "evidence_applied", ...evidence });
     }
   }
 })();
@@ -332,6 +373,95 @@ process.on("message", async (command) => {
       await httpClient.deliver({ envelope });
     }
     process.send?.({ kind: "ping_sent", messageId: envelope.messageId });
+  } else if (command?.kind === "evidence") {
+    const now = new Date();
+    const wireVersion = wireVersionFor(command.peerId);
+    const evidenceEnvelope = {
+      schemaVersion: 1,
+      tenantId,
+      meshId,
+      objectiveId: null,
+      senderPeerId: peerId,
+      causationId: command.causationId ?? null,
+    };
+    const normalized =
+      command.payload.type === "evidence.claim"
+        ? normalizeMeshEvidenceClaimV1(evidenceEnvelope, {
+            subject: command.payload.subject,
+            scope: command.payload.scope,
+            criterionId: command.payload.criterionId,
+            outcome: command.payload.outcome,
+            content: command.payload.content,
+            basisReferences: command.payload.basisReferences,
+            observedAt: command.payload.observedAt,
+          })
+        : normalizeMeshEvidenceAttestationV1(evidenceEnvelope, {
+            scope: command.payload.scope,
+            claimId: command.payload.claimId,
+            claimDigest: command.payload.claimDigest,
+            disposition: command.payload.disposition,
+            confidenceBasisPoints: command.payload.confidenceBasisPoints,
+            basisReferences: command.payload.basisReferences,
+            observedAt: command.payload.observedAt,
+          });
+    const payload =
+      command.payload.type === "evidence.claim"
+        ? {
+            ...command.payload,
+            claimId: normalized.claimId,
+            assertionDigest: normalized.assertionDigest,
+          }
+        : { ...command.payload, attestationId: normalized.attestationId };
+    const payloadValidation = canonicalizeMeshPayload(payload);
+    if (!payloadValidation.ok)
+      throw new TypeError(
+        `invalid evidence payload: ${JSON.stringify(payloadValidation.issues)}`,
+      );
+    const unsignedEnvelope = {
+        protocol: MESH_PROTOCOL,
+        wireVersion,
+        messageId: messageId(),
+        tenantId,
+        meshId,
+        type: payload.type,
+        sender: { peerId, instanceId },
+        audience: { kind: "peer", peerId: command.peerId },
+        sequence: nextLocalSequence(),
+        sentAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + 30_000).toISOString(),
+        ...(command.causationId ? { causationId: command.causationId } : {}),
+        payload,
+        proof: { algorithm: MESH_SIGNATURE_ALGORITHM, keyId },
+      };
+    const envelopeValidation = validateSignedMeshEnvelope({
+      ...unsignedEnvelope,
+      payloadHash: `sha256:${"A".repeat(43)}`,
+      proof: { ...unsignedEnvelope.proof, value: "A".repeat(86) },
+    });
+    if (!envelopeValidation.ok)
+      throw new TypeError(
+        `invalid evidence envelope: ${JSON.stringify(envelopeValidation.issues)}`,
+      );
+    const envelope = await signerFor(wireVersion).sign({
+      envelope: unsignedEnvelope,
+      privateKey,
+    });
+    const attempts = command.attempts ?? 2;
+    for (let attempt = 0; attempt < attempts; attempt += 1)
+      await httpClient.deliver({ envelope });
+    process.send?.({
+      kind: "evidence_sent",
+      messageId: envelope.messageId,
+      payloadHash: envelope.payloadHash,
+      recordDigest:
+        payload.type === "evidence.claim"
+          ? normalized.claimId.slice("claim:".length)
+          : normalized.attestationId.slice("attestation:".length),
+      recordId:
+        payload.type === "evidence.claim"
+          ? payload.claimId
+          : payload.attestationId,
+    });
   } else if (command?.kind === "delay_next_receipt") {
     delayedReceiptMs = command.delayMs;
     process.send?.({ kind: "fault_armed", fault: command.kind });

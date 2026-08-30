@@ -21,6 +21,9 @@ organize that material for research communication.
 - [Durable local campaign supervisor V1](./durable-local-campaign-supervisor-v1.md):
   detached sequential execution, heartbeat, pause/resume/stop controls,
   hash-chained operational events and an incremental paper report.
+- [Agent Morphogenesis Beta 1 operational validation V1](./agent-morphogenesis-beta1-operational-validation-v1.md):
+  planned PostgreSQL, Temporal and multi-process Agent Mesh campaign with
+  actor-neutral governed decisions and an explicit production-claim boundary.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):
