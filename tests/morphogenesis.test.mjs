@@ -18,6 +18,9 @@ import {
   InMemoryMorphogenesisReplayTombstoneStoreV1,
   assertMorphogenesisControlWindowAllowsV1,
   createAgentInstantiationProfileCertificationV1,
+  createAgentInstantiationProfileEvolutionV1,
+  createAgentInstantiationAuthorityAttenuationV1,
+  createAgentInstantiationSynthesisCertificationV1,
   createAgentInstantiationProfileV1,
   createMorphogenesisLineageLinkV1,
   createInitialMorphologyHeadV1,
@@ -57,6 +60,9 @@ import {
   createTargetMorphologyV1,
   validateMorphogenesisProposalV1,
   validateAgentInstantiationProfileV1,
+  validateAgentInstantiationProfileEvolutionV1,
+  validateAgentInstantiationAuthorityAttenuationV1,
+  validateAgentInstantiationSynthesisCertificationV1,
   validateMorphogenesisLineageLinkV1,
   validateMorphologySnapshotV1,
   verifyMorphogenesisDecisionAfterGateV1,
@@ -3202,4 +3208,94 @@ test("protected Workflow executor crosses the Action Gateway and retains its res
     status: "indeterminate",
     reasonCode: "morphogenesis_action_gateway_indeterminate",
   });
+});
+
+test("derived and synthesized instantiation evidence is immutable and authority-neutral", () => {
+  const derived = createAgentInstantiationProfileEvolutionV1({
+    evolutionId: "profile-evolution:derived:1",
+    mode: "derived",
+    materialProfileDigest: sha("1"),
+    parentProfileDigests: [sha("2")],
+    parentAgentLineageDigests: [sha("3")],
+    inheritedCapabilityKeys: ["database_forensics"],
+    removedCapabilityKeys: ["general_triage"],
+    addedCapabilityKeys: ["log_correlation"],
+    addedCapabilityAttestationDigests: [sha("4")],
+    evolutionPolicyDigest: sha("5"),
+    evolutionImplementationDigest: sha("6"),
+    evidenceDigests: [sha("7")],
+    proposedAtLogicalMs: 100,
+  });
+  assert.equal(
+    validateAgentInstantiationProfileEvolutionV1(derived).evolutionDigest,
+    derived.evolutionDigest,
+  );
+  const attenuation = createAgentInstantiationAuthorityAttenuationV1({
+    attenuationId: "authority-attenuation:derived:1",
+    evolutionDigest: derived.evolutionDigest,
+    parentAuthorityCeilingDigests: [sha("8")],
+    childAuthorityCeilingDigest: sha("9"),
+    retainedToolNames: ["logs.read"],
+    removedToolNames: ["shell.execute"],
+    retainedActionClasses: ["read"],
+    removedActionClasses: ["write"],
+    policyDigest: sha("a"),
+    issuerId: "authority:attenuation",
+    issuerImplementationDigest: sha("b"),
+    evidenceDigests: [sha("c")],
+    issuedAtLogicalMs: 110,
+    validUntilLogicalMs: 500,
+  });
+  assert.equal(
+    validateAgentInstantiationAuthorityAttenuationV1(attenuation)
+      .attenuationDigest,
+    attenuation.attenuationDigest,
+  );
+  const synthesized = createAgentInstantiationProfileEvolutionV1({
+    evolutionId: "profile-evolution:synthesized:1",
+    mode: "synthesized",
+    materialProfileDigest: sha("d"),
+    parentProfileDigests: [],
+    parentAgentLineageDigests: [],
+    inheritedCapabilityKeys: [],
+    removedCapabilityKeys: [],
+    addedCapabilityKeys: ["incident_coordination"],
+    addedCapabilityAttestationDigests: [sha("e")],
+    evolutionPolicyDigest: sha("f"),
+    evolutionImplementationDigest: sha("0"),
+    evidenceDigests: [sha("1")],
+    proposedAtLogicalMs: 120,
+  });
+  const certification = createAgentInstantiationSynthesisCertificationV1({
+    certificationId: "synthesis-certification:1",
+    evolutionDigest: synthesized.evolutionDigest,
+    materialProfileDigest: synthesized.materialProfileDigest,
+    synthesizerId: "agent:synthesizer",
+    synthesizerVersion: 1,
+    synthesizerImplementationDigest: sha("2"),
+    independentCertifierId: "agent:certifier",
+    independentCertifierImplementationDigest: sha("3"),
+    policyDigest: synthesized.evolutionPolicyDigest,
+    evidenceDigests: [sha("4")],
+    certifiedAtLogicalMs: 130,
+    validUntilLogicalMs: 500,
+  });
+  assert.equal(
+    validateAgentInstantiationSynthesisCertificationV1(certification)
+      .certificationDigest,
+    certification.certificationDigest,
+  );
+  assert.throws(() =>
+    createAgentInstantiationProfileEvolutionV1({
+      ...derived,
+      inheritedCapabilityKeys: ["database_forensics"],
+      addedCapabilityKeys: ["database_forensics"],
+    }),
+  );
+  assert.throws(() =>
+    createAgentInstantiationSynthesisCertificationV1({
+      ...certification,
+      independentCertifierId: certification.synthesizerId,
+    }),
+  );
 });

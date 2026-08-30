@@ -81,6 +81,84 @@ export interface AgentInstantiationProfileCertificationPortV1 {
   }): Promise<boolean>;
 }
 
+export type AgentInstantiationEvolutionModeV1 = "derived" | "synthesized";
+
+/**
+ * Content-free provenance for a derived or independently synthesized profile.
+ * It is advisory composition evidence and grants no identity or authority.
+ */
+export interface AgentInstantiationProfileEvolutionV1 {
+  readonly schemaVersion: 1;
+  readonly evolutionId: AgentPlatID;
+  readonly mode: AgentInstantiationEvolutionModeV1;
+  readonly materialProfileDigest: PlanningDigestV1;
+  readonly parentProfileDigests: readonly PlanningDigestV1[];
+  readonly parentAgentLineageDigests: readonly PlanningDigestV1[];
+  readonly inheritedCapabilityKeys: readonly string[];
+  readonly removedCapabilityKeys: readonly string[];
+  readonly addedCapabilityKeys: readonly string[];
+  readonly addedCapabilityAttestationDigests: readonly PlanningDigestV1[];
+  readonly evolutionPolicyDigest: PlanningDigestV1;
+  readonly evolutionImplementationDigest: PlanningDigestV1;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly proposedAtLogicalMs: number;
+  readonly evolutionDigest: PlanningDigestV1;
+}
+
+/** Explicit proof boundary that a child authority ceiling did not widen. */
+export interface AgentInstantiationAuthorityAttenuationV1 {
+  readonly schemaVersion: 1;
+  readonly attenuationId: AgentPlatID;
+  readonly evolutionDigest: PlanningDigestV1;
+  readonly parentAuthorityCeilingDigests: readonly PlanningDigestV1[];
+  readonly childAuthorityCeilingDigest: PlanningDigestV1;
+  readonly retainedToolNames: readonly string[];
+  readonly removedToolNames: readonly string[];
+  readonly retainedActionClasses: readonly string[];
+  readonly removedActionClasses: readonly string[];
+  readonly policyDigest: PlanningDigestV1;
+  readonly issuerId: AgentPlatID;
+  readonly issuerImplementationDigest: PlanningDigestV1;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly issuedAtLogicalMs: number;
+  readonly validUntilLogicalMs: number;
+  readonly attenuationDigest: PlanningDigestV1;
+}
+
+/** Independent certification required before model-assisted synthesis is usable. */
+export interface AgentInstantiationSynthesisCertificationV1 {
+  readonly schemaVersion: 1;
+  readonly certificationId: AgentPlatID;
+  readonly evolutionDigest: PlanningDigestV1;
+  readonly materialProfileDigest: PlanningDigestV1;
+  readonly synthesizerId: AgentPlatID;
+  readonly synthesizerVersion: number;
+  readonly synthesizerImplementationDigest: PlanningDigestV1;
+  readonly independentCertifierId: AgentPlatID;
+  readonly independentCertifierImplementationDigest: PlanningDigestV1;
+  readonly policyDigest: PlanningDigestV1;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly certifiedAtLogicalMs: number;
+  readonly validUntilLogicalMs: number;
+  readonly certificationDigest: PlanningDigestV1;
+}
+
+export interface AgentInstantiationAuthorityAttenuationPortV1 {
+  verify(input: {
+    readonly evolution: AgentInstantiationProfileEvolutionV1;
+    readonly attenuation: AgentInstantiationAuthorityAttenuationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<boolean>;
+}
+
+export interface AgentInstantiationSynthesisCertificationPortV1 {
+  verify(input: {
+    readonly evolution: AgentInstantiationProfileEvolutionV1;
+    readonly certification: AgentInstantiationSynthesisCertificationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<boolean>;
+}
+
 export interface MorphogenesisLineageLinkV1 {
   readonly schemaVersion: 1;
   readonly linkId: AgentPlatID;
@@ -514,6 +592,353 @@ export function validateAgentInstantiationProfileCertificationV1(
   );
   if (value.certificationDigest !== result.certificationDigest)
     fail("profile certification digest is invalid");
+  return result;
+}
+
+export function createAgentInstantiationProfileEvolutionV1(
+  input: Omit<
+    AgentInstantiationProfileEvolutionV1,
+    "schemaVersion" | "evolutionDigest"
+  >,
+): AgentInstantiationProfileEvolutionV1 {
+  const parentProfileDigests = digests(
+    input.parentProfileDigests,
+    "parent profile digests",
+    input.mode === "derived" ? 1 : 0,
+    8,
+  );
+  if (input.mode === "derived" && parentProfileDigests.length !== 1)
+    fail("derived profile evolution requires exactly one parent profile");
+  if (!new Set(["derived", "synthesized"]).has(input.mode))
+    fail("profile evolution mode is invalid");
+  const inheritedCapabilityKeys = identifiers(
+    input.inheritedCapabilityKeys,
+    "inherited capability keys",
+    0,
+    256,
+  );
+  const removedCapabilityKeys = identifiers(
+    input.removedCapabilityKeys,
+    "removed capability keys",
+    0,
+    256,
+  );
+  const addedCapabilityKeys = identifiers(
+    input.addedCapabilityKeys,
+    "added capability keys",
+    0,
+    256,
+  );
+  const capabilityKeys = [
+    ...inheritedCapabilityKeys,
+    ...removedCapabilityKeys,
+    ...addedCapabilityKeys,
+  ];
+  if (new Set(capabilityKeys).size !== capabilityKeys.length)
+    fail("profile evolution capability partitions overlap");
+  const addedCapabilityAttestationDigests = digests(
+    input.addedCapabilityAttestationDigests,
+    "added capability attestation digests",
+    addedCapabilityKeys.length === 0 ? 0 : 1,
+    256,
+  );
+  const body = freeze({
+    schemaVersion: 1 as const,
+    evolutionId: id(input.evolutionId, "profile evolution ID"),
+    mode: input.mode,
+    materialProfileDigest: sha(
+      input.materialProfileDigest,
+      "material profile digest",
+    ),
+    parentProfileDigests,
+    parentAgentLineageDigests: digests(
+      input.parentAgentLineageDigests,
+      "parent agent lineage digests",
+      0,
+      8,
+    ),
+    inheritedCapabilityKeys,
+    removedCapabilityKeys,
+    addedCapabilityKeys,
+    addedCapabilityAttestationDigests,
+    evolutionPolicyDigest: sha(
+      input.evolutionPolicyDigest,
+      "profile evolution policy digest",
+    ),
+    evolutionImplementationDigest: sha(
+      input.evolutionImplementationDigest,
+      "profile evolution implementation digest",
+    ),
+    evidenceDigests: digests(
+      input.evidenceDigests,
+      "profile evolution evidence digests",
+      1,
+      256,
+    ),
+    proposedAtLogicalMs: nonNegative(
+      input.proposedAtLogicalMs,
+      "profile evolution proposal time",
+    ),
+  });
+  return freeze({
+    ...body,
+    evolutionDigest: digest("agent-instantiation-profile-evolution", body),
+  });
+}
+
+export function validateAgentInstantiationProfileEvolutionV1(
+  input: unknown,
+): AgentInstantiationProfileEvolutionV1 {
+  const value = exact(
+    input,
+    [
+      "addedCapabilityAttestationDigests",
+      "addedCapabilityKeys",
+      "evidenceDigests",
+      "evolutionDigest",
+      "evolutionId",
+      "evolutionImplementationDigest",
+      "evolutionPolicyDigest",
+      "inheritedCapabilityKeys",
+      "materialProfileDigest",
+      "mode",
+      "parentAgentLineageDigests",
+      "parentProfileDigests",
+      "proposedAtLogicalMs",
+      "removedCapabilityKeys",
+      "schemaVersion",
+    ],
+    "agent instantiation profile evolution",
+  );
+  if (value.schemaVersion !== 1)
+    fail("profile evolution schema is invalid");
+  const { schemaVersion: _schema, evolutionDigest, ...body } = value;
+  const result = createAgentInstantiationProfileEvolutionV1(
+    body as Omit<
+      AgentInstantiationProfileEvolutionV1,
+      "schemaVersion" | "evolutionDigest"
+    >,
+  );
+  if (evolutionDigest !== result.evolutionDigest)
+    fail("profile evolution digest is invalid");
+  return result;
+}
+
+export function createAgentInstantiationAuthorityAttenuationV1(
+  input: Omit<
+    AgentInstantiationAuthorityAttenuationV1,
+    "schemaVersion" | "attenuationDigest"
+  >,
+): AgentInstantiationAuthorityAttenuationV1 {
+  const retainedToolNames = identifiers(
+    input.retainedToolNames,
+    "retained tool names",
+    0,
+    256,
+  );
+  const removedToolNames = identifiers(
+    input.removedToolNames,
+    "removed tool names",
+    0,
+    256,
+  );
+  const retainedActionClasses = identifiers(
+    input.retainedActionClasses,
+    "retained action classes",
+    0,
+    256,
+  );
+  const removedActionClasses = identifiers(
+    input.removedActionClasses,
+    "removed action classes",
+    0,
+    256,
+  );
+  if (
+    new Set([...retainedToolNames, ...removedToolNames]).size !==
+      retainedToolNames.length + removedToolNames.length ||
+    new Set([...retainedActionClasses, ...removedActionClasses]).size !==
+      retainedActionClasses.length + removedActionClasses.length
+  )
+    fail("authority attenuation retained and removed sets overlap");
+  const body = freeze({
+    schemaVersion: 1 as const,
+    attenuationId: id(input.attenuationId, "authority attenuation ID"),
+    evolutionDigest: sha(input.evolutionDigest, "profile evolution digest"),
+    parentAuthorityCeilingDigests: digests(
+      input.parentAuthorityCeilingDigests,
+      "parent authority ceiling digests",
+      0,
+      8,
+    ),
+    childAuthorityCeilingDigest: sha(
+      input.childAuthorityCeilingDigest,
+      "child authority ceiling digest",
+    ),
+    retainedToolNames,
+    removedToolNames,
+    retainedActionClasses,
+    removedActionClasses,
+    policyDigest: sha(input.policyDigest, "attenuation policy digest"),
+    issuerId: id(input.issuerId, "attenuation issuer ID"),
+    issuerImplementationDigest: sha(
+      input.issuerImplementationDigest,
+      "attenuation issuer implementation digest",
+    ),
+    evidenceDigests: digests(
+      input.evidenceDigests,
+      "attenuation evidence digests",
+      1,
+      128,
+    ),
+    issuedAtLogicalMs: nonNegative(
+      input.issuedAtLogicalMs,
+      "attenuation issue time",
+    ),
+    validUntilLogicalMs: positive(
+      input.validUntilLogicalMs,
+      "attenuation validity",
+    ),
+  });
+  if (body.validUntilLogicalMs <= body.issuedAtLogicalMs)
+    fail("authority attenuation validity window is invalid");
+  return freeze({
+    ...body,
+    attenuationDigest: digest("agent-instantiation-authority-attenuation", body),
+  });
+}
+
+export function validateAgentInstantiationAuthorityAttenuationV1(
+  input: unknown,
+): AgentInstantiationAuthorityAttenuationV1 {
+  const value = exact(
+    input,
+    [
+      "attenuationDigest",
+      "attenuationId",
+      "childAuthorityCeilingDigest",
+      "evidenceDigests",
+      "evolutionDigest",
+      "issuedAtLogicalMs",
+      "issuerId",
+      "issuerImplementationDigest",
+      "parentAuthorityCeilingDigests",
+      "policyDigest",
+      "removedActionClasses",
+      "removedToolNames",
+      "retainedActionClasses",
+      "retainedToolNames",
+      "schemaVersion",
+      "validUntilLogicalMs",
+    ],
+    "agent instantiation authority attenuation",
+  );
+  if (value.schemaVersion !== 1)
+    fail("authority attenuation schema is invalid");
+  const { schemaVersion: _schema, attenuationDigest, ...body } = value;
+  const result = createAgentInstantiationAuthorityAttenuationV1(
+    body as Omit<
+      AgentInstantiationAuthorityAttenuationV1,
+      "schemaVersion" | "attenuationDigest"
+    >,
+  );
+  if (attenuationDigest !== result.attenuationDigest)
+    fail("authority attenuation digest is invalid");
+  return result;
+}
+
+export function createAgentInstantiationSynthesisCertificationV1(
+  input: Omit<
+    AgentInstantiationSynthesisCertificationV1,
+    "schemaVersion" | "certificationDigest"
+  >,
+): AgentInstantiationSynthesisCertificationV1 {
+  const body = freeze({
+    schemaVersion: 1 as const,
+    certificationId: id(input.certificationId, "synthesis certification ID"),
+    evolutionDigest: sha(input.evolutionDigest, "profile evolution digest"),
+    materialProfileDigest: sha(
+      input.materialProfileDigest,
+      "material profile digest",
+    ),
+    synthesizerId: id(input.synthesizerId, "profile synthesizer ID"),
+    synthesizerVersion: positive(
+      input.synthesizerVersion,
+      "profile synthesizer version",
+    ),
+    synthesizerImplementationDigest: sha(
+      input.synthesizerImplementationDigest,
+      "profile synthesizer implementation digest",
+    ),
+    independentCertifierId: id(
+      input.independentCertifierId,
+      "independent synthesis certifier ID",
+    ),
+    independentCertifierImplementationDigest: sha(
+      input.independentCertifierImplementationDigest,
+      "independent synthesis certifier implementation digest",
+    ),
+    policyDigest: sha(input.policyDigest, "synthesis policy digest"),
+    evidenceDigests: digests(
+      input.evidenceDigests,
+      "synthesis evidence digests",
+      1,
+      256,
+    ),
+    certifiedAtLogicalMs: nonNegative(
+      input.certifiedAtLogicalMs,
+      "synthesis certification time",
+    ),
+    validUntilLogicalMs: positive(
+      input.validUntilLogicalMs,
+      "synthesis certification validity",
+    ),
+  });
+  if (
+    body.synthesizerId === body.independentCertifierId ||
+    body.validUntilLogicalMs <= body.certifiedAtLogicalMs
+  )
+    fail("synthesis certification independence or validity is invalid");
+  return freeze({
+    ...body,
+    certificationDigest: digest("agent-instantiation-synthesis-certification", body),
+  });
+}
+
+export function validateAgentInstantiationSynthesisCertificationV1(
+  input: unknown,
+): AgentInstantiationSynthesisCertificationV1 {
+  const value = exact(
+    input,
+    [
+      "certificationDigest",
+      "certificationId",
+      "certifiedAtLogicalMs",
+      "evidenceDigests",
+      "evolutionDigest",
+      "independentCertifierId",
+      "independentCertifierImplementationDigest",
+      "materialProfileDigest",
+      "policyDigest",
+      "schemaVersion",
+      "synthesizerId",
+      "synthesizerImplementationDigest",
+      "synthesizerVersion",
+      "validUntilLogicalMs",
+    ],
+    "agent instantiation synthesis certification",
+  );
+  if (value.schemaVersion !== 1)
+    fail("synthesis certification schema is invalid");
+  const { schemaVersion: _schema, certificationDigest, ...body } = value;
+  const result = createAgentInstantiationSynthesisCertificationV1(
+    body as Omit<
+      AgentInstantiationSynthesisCertificationV1,
+      "schemaVersion" | "certificationDigest"
+    >,
+  );
+  if (certificationDigest !== result.certificationDigest)
+    fail("synthesis certification digest is invalid");
   return result;
 }
 
