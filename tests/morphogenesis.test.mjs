@@ -92,6 +92,8 @@ import {
 } from "../packages/collective-host/dist/morphogenesis.js";
 import {
   InMemoryMorphogenesisTeamTopologyStateStoreV2,
+  MissionWorkReassignmentMorphogenesisBoundaryV2,
+  MorphogenesisOperatorBoundaryRouterV2,
   TeamTopologyMorphogenesisBoundaryV2,
 } from "../packages/collective-host/dist/morphogenesis-operator-adapters.js";
 import {
@@ -4081,4 +4083,131 @@ test("split_team executes through the existing durable Team topology reducer", a
     "activated",
   );
   assert.equal(state.receipts.length, 2);
+});
+
+test("reassign_work observes Mission Lifecycle and an exact successor Work receipt", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "reassign_work"].sort(),
+    enabledAdvancedCapabilities: ["work_reassignments"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 1,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:reassign-work:1",
+      operator: "reassign_work",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "reassign_work",
+    missionLifecycleCommandDigest: sha("2"),
+    predecessorWorkContractDigest: sha("3"),
+    successorWorkContractDigest: sha("4"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:reassign-work:1",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("5"),
+    compiledAtLogicalMs: 100,
+  });
+  let missionAdvances = 0;
+  const missionState = {
+    outbox: [
+      {
+        action: "enact_work_reassignment",
+        status: "applied",
+        controlProposalDigest: binding.missionLifecycleCommandDigest,
+        intentDigest: sha("6"),
+        resultDigest: sha("7"),
+      },
+    ],
+  };
+  const mission = new MissionWorkReassignmentMorphogenesisBoundaryV2({
+    async resolveMission(digest) {
+      if (digest !== binding.missionLifecycleCommandDigest) return null;
+      return {
+        runtime: {
+          async advance() { missionAdvances += 1; return missionState; },
+          async recover() { return missionState; },
+        },
+        request: { logicalTimeMs: 120 },
+        morphogenesisAuthorizationDigest: sha("8"),
+        authorityFenceDigest: sha("9"),
+      };
+    },
+    async resolveWorkReceipt(digest) {
+      return digest === binding.successorWorkContractDigest
+        ? {
+            commandDigest: binding.missionLifecycleCommandDigest,
+            missionResultDigest: sha("7"),
+            workContractDigest: binding.successorWorkContractDigest,
+            workReceiptDigest: sha("a"),
+            issuedAtLogicalMs: 125,
+          }
+        : null;
+    },
+  });
+  const fence = {
+    async execute(input) {
+      return {
+        status: "applied",
+        receipt: createMorphogenesisOperatorStepReceiptV2({
+          operationId: input.operationId,
+          planDigest: input.plan.planDigest,
+          stepId: input.step.stepId,
+          stepDigest: input.step.stepDigest,
+          boundary: input.step.boundary,
+          resultDigest: sha("b"),
+          appliedAtLogicalMs: input.logicalTimeMs,
+        }),
+      };
+    },
+    async reconcile() { return { status: "not_applied" }; },
+  };
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: new MorphogenesisOperatorBoundaryRouterV2([
+      {
+        boundaries: ["mission_work_reassignment"],
+        port: mission,
+      },
+      { boundaries: ["work_action_fence"], port: fence },
+    ]),
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:reassign-work:1",
+    plan,
+    proposalDigest: sha("c"),
+    decisionDigest: sha("d"),
+    authorizationDigest: sha("8"),
+    authorityFenceDigest: sha("9"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  while (state.status !== "completed")
+    state = await runtime.advance({
+      stateKey: state.stateKey,
+      logicalTimeMs: 120 + state.revision,
+    });
+  assert.equal(state.receipts.length, 3);
+  assert.equal(state.receipts[1].resultDigest, sha("a"));
+  assert.equal(missionAdvances, 1);
 });

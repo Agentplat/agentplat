@@ -11,6 +11,155 @@ import {
   type MorphogenesisOperatorBoundaryPortV2,
   type MorphogenesisOperatorStepResolutionV2,
 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  type GovernedMissionLifecycleRuntimeV1,
+} from "@agentplat/collective-runtime/mission-lifecycle";
+import type {
+  GovernedMissionRequestV1,
+  GovernedMissionStateV1,
+} from "@agentplat/collective-runtime/mission-lifecycle";
+
+export class MorphogenesisOperatorBoundaryRouterV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  readonly #ports = new Map<
+    string,
+    MorphogenesisOperatorBoundaryPortV2
+  >();
+  constructor(
+    registrations: readonly {
+      readonly boundaries: readonly string[];
+      readonly port: MorphogenesisOperatorBoundaryPortV2;
+    }[],
+  ) {
+    for (const registration of registrations) {
+      if (!registration.port) throw new TypeError("Morphogenesis boundary port is required");
+      for (const boundary of registration.boundaries) {
+        if (this.#ports.has(boundary))
+          throw new TypeError("Morphogenesis boundary is registered more than once");
+        this.#ports.set(boundary, registration.port);
+      }
+    }
+  }
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#resolve(input.step.boundary).execute(input);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#resolve(input.step.boundary).reconcile(input);
+  }
+  #resolve(boundary: string) {
+    const port = this.#ports.get(boundary);
+    if (!port) throw new TypeError("Morphogenesis execution boundary is unavailable");
+    return port;
+  }
+}
+
+export interface MorphogenesisMissionWorkResolutionPortV2 {
+  resolveMission(commandDigest: PlanningDigestV1): Promise<{
+    readonly runtime: GovernedMissionLifecycleRuntimeV1;
+    readonly request: GovernedMissionRequestV1;
+    readonly morphogenesisAuthorizationDigest: PlanningDigestV1;
+    readonly authorityFenceDigest: PlanningDigestV1;
+  } | null>;
+  resolveWorkReceipt(workContractDigest: PlanningDigestV1): Promise<{
+    readonly commandDigest: PlanningDigestV1;
+    readonly missionResultDigest: PlanningDigestV1;
+    readonly workContractDigest: PlanningDigestV1;
+    readonly workReceiptDigest: PlanningDigestV1;
+    readonly issuedAtLogicalMs: number;
+  } | null>;
+}
+
+/** Adapter that observes the nominal Mission Lifecycle outbox; it issues no Work authority itself. */
+export class MissionWorkReassignmentMorphogenesisBoundaryV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  constructor(
+    readonly resolution: MorphogenesisMissionWorkResolutionPortV2,
+  ) {}
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#run(input, false);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#run(input, true);
+  }
+  async #run(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+    recover: boolean,
+  ): Promise<MorphogenesisOperatorStepResolutionV2> {
+    if (input.step.boundary !== "mission_work_reassignment")
+      throw new TypeError("Morphogenesis Mission Work boundary is invalid");
+    if (input.step.operation === "enact_work_reassignment") {
+      const resolved = await this.resolution.resolveMission(
+        input.step.targetDigest,
+      );
+      if (!resolved) return { status: "not_applied" };
+      if (
+        resolved.morphogenesisAuthorizationDigest !== input.authorizationDigest ||
+        resolved.authorityFenceDigest !== input.authorityFenceDigest
+      ) throw new TypeError("Morphogenesis Mission Work authority binding is invalid");
+      const state = recover
+        ? await resolved.runtime.recover(resolved.request)
+        : await resolved.runtime.advance(resolved.request);
+      const outbox = appliedWorkReassignment(
+        state,
+        input.step.targetDigest,
+      );
+      if (!outbox) return { status: "not_applied" };
+      return appliedReceipt(
+        input,
+        outbox.resultDigest!,
+        resolved.request.logicalTimeMs,
+      );
+    }
+    if (input.step.operation !== "issue_successor_work_contract")
+      throw new TypeError("Morphogenesis Mission Work operation is invalid");
+    const receipt = await this.resolution.resolveWorkReceipt(
+      input.step.targetDigest,
+    );
+    if (!receipt) return { status: "not_applied" };
+    if (receipt.workContractDigest !== input.step.targetDigest)
+      throw new TypeError("Morphogenesis successor Work receipt is substituted");
+    return appliedReceipt(
+      input,
+      receipt.workReceiptDigest,
+      receipt.issuedAtLogicalMs,
+    );
+  }
+}
+
+function appliedWorkReassignment(
+  state: GovernedMissionStateV1,
+  commandDigest: PlanningDigestV1,
+) {
+  return state.outbox.find(
+    (entry) =>
+      entry.action === "enact_work_reassignment" &&
+      entry.status === "applied" &&
+      entry.resultDigest !== null &&
+      (entry.controlProposalDigest === commandDigest ||
+        entry.intentDigest === commandDigest),
+  );
+}
+
+function appliedReceipt(
+  input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+  resultDigest: PlanningDigestV1,
+  appliedAtLogicalMs: number,
+): MorphogenesisOperatorStepResolutionV2 {
+  return {
+    status: "applied",
+    receipt: createMorphogenesisOperatorStepReceiptV2({
+      operationId: input.operationId,
+      planDigest: input.plan.planDigest,
+      stepId: input.step.stepId,
+      stepDigest: input.step.stepDigest,
+      boundary: input.step.boundary,
+      resultDigest,
+      appliedAtLogicalMs,
+    }),
+  };
+}
 
 export interface MorphogenesisTeamTopologyStateStoreV2 {
   load(topologyId: AgentPlatID): Promise<TeamTopologyStateV1 | null>;
