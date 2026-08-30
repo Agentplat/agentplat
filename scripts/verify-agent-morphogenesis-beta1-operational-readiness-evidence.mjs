@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const directory = path.join(
   root,
-  "docs/research/agent-morphogenesis-beta1-readiness-v1",
+  "docs/research/agent-morphogenesis-beta1-readiness-v2",
 );
 const expectedFiles = [
   "README.md",
@@ -64,6 +64,11 @@ assert.equal(state.status, "completed");
 assert.equal(state.failure, null);
 assert.equal(state.receiptDigest, soakReceipt.receiptDigest);
 assert.equal(analysis.operationalReadiness, "beta1-local-profile-established");
+assert.equal(analysis.coveredScenarioIds.length, 22);
+assert.deepEqual(
+  analysis.coveredScenarioIds,
+  [...analysis.coveredScenarioIds].sort(),
+);
 assert.equal(analysis.productionReadiness, "not-established");
 assert.equal(analysis.productionClaimPermitted, false);
 assert.equal(bundle.sourceCommit, sourceLock.sourceCommit);

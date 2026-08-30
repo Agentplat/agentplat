@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-agent-morphogenesis-beta1-scenarios-v1",
+  "campaignId": "agentplat-agent-morphogenesis-beta1-operational-validation",
+  "status": "frozen-before-registered-execution",
+  "scenarios": [
+    {
+      "id": "nominal-recruit-agent",
+      "class": "nominal",
+      "verticalSlice": "recruit_existing",
+      "decisionRoute": "authorized_agent",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "nominal-recruit-person",
+      "class": "nominal",
+      "verticalSlice": "recruit_existing",
+      "decisionRoute": "authorized_person",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "nominal-recruit-quorum",
+      "class": "nominal",
+      "verticalSlice": "recruit_existing",
+      "decisionRoute": "collective",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real",
+        "agent-mesh-multiprocess"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "nominal-create-agent",
+      "class": "nominal",
+      "verticalSlice": "catalog_created",
+      "decisionRoute": "authorized_agent",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "nominal-create-person",
+      "class": "nominal",
+      "verticalSlice": "catalog_created",
+      "decisionRoute": "authorized_person",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "nominal-create-quorum",
+      "class": "nominal",
+      "verticalSlice": "catalog_created",
+      "decisionRoute": "collective",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real",
+        "agent-mesh-multiprocess"
+      ],
+      "expectedDisposition": "completed"
+    },
+    {
+      "id": "crash-after-proposal-before-decision",
+      "class": "boundary-crash",
+      "crashBoundary": "after-proposal-before-decision",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "recovered-without-activation"
+    },
+    {
+      "id": "crash-after-decision-before-prepare",
+      "class": "boundary-crash",
+      "crashBoundary": "after-decision-before-prepare",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "recovered-same-decision"
+    },
+    {
+      "id": "crash-after-provision-before-attestation",
+      "class": "boundary-crash",
+      "crashBoundary": "after-provision-before-attestation",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "reconciled-without-duplicate-birth"
+    },
+    {
+      "id": "crash-after-enrollment-before-activation",
+      "class": "boundary-crash",
+      "crashBoundary": "after-enrollment-before-activation",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "recovered-before-commit"
+    },
+    {
+      "id": "crash-after-activation-before-outcome",
+      "class": "boundary-crash",
+      "crashBoundary": "after-activation-before-outcome",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "successor-recovery-not-rollback"
+    },
+    {
+      "id": "crash-after-fence-before-terminal-agent",
+      "class": "boundary-crash",
+      "crashBoundary": "after-fence-before-detach-or-retire",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "reconciled-without-duplicate-terminal-effect"
+    },
+    {
+      "id": "mesh-minority-partition",
+      "class": "partition",
+      "decisionRoute": "collective",
+      "surfaces": [
+        "postgresql-real",
+        "agent-mesh-multiprocess"
+      ],
+      "expectedDisposition": "no-authorization"
+    },
+    {
+      "id": "concurrent-morphology-head",
+      "class": "concurrency",
+      "surfaces": [
+        "postgresql-real"
+      ],
+      "expectedDisposition": "one-successor-only"
+    },
+    {
+      "id": "concurrent-budget-reservation",
+      "class": "concurrency",
+      "surfaces": [
+        "postgresql-real"
+      ],
+      "expectedDisposition": "no-double-spend"
+    },
+    {
+      "id": "stale-decision-authority",
+      "class": "stale-authority",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "rejected-without-activation"
+    },
+    {
+      "id": "agent-self-approval",
+      "class": "self-approval",
+      "decisionRoute": "authorized_agent",
+      "surfaces": [
+        "postgresql-real",
+        "temporal-real"
+      ],
+      "expectedDisposition": "rejected-without-activation"
+    },
+    {
+      "id": "dependent-actor-collusion",
+      "class": "collusion",
+      "decisionRoute": "composite",
+      "surfaces": [
+        "postgresql-real",
+        "agent-mesh-multiprocess"
+      ],
+      "expectedDisposition": "rejected-without-activation"
+    }
+  ],
+  "requiredMetricsPerScenario": [
+    "wall_time_ms",
+    "input_tokens",
+    "output_tokens",
+    "estimated_cost_usd",
+    "morphology_churn_count",
+    "mission_continuity_ratio",
+    "duplicate_material_effect_count"
+  ],
+  "closure": {
+    "requiredScenarioCount": 18,
+    "allowMissingScenarios": false,
+    "allowUnexpectedScenarios": false,
+    "maximumUnauthorizedActivations": 0,
+    "maximumDuplicateMaterialEffects": 0
+  },
+  "scenarioManifestDigest": "sha256:8f96928c6733cd1283d85306715f1e4296f62412cde1a828b8c567fde6dc7963"
+}

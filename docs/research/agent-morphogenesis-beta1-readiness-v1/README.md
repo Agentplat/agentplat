@@ -1,6 +1,14 @@
 # Agent Morphogenesis Beta 1 operational readiness evidence V1
 
-Status: `beta1-local-profile-established` for source commit
+Status: **superseded; does not establish operational readiness**.
+
+This retained V1 attempt used the correct material boundary but emitted
+`crash-after-fence-before-detach-or-retire` instead of the registered scenario
+ID `crash-after-fence-before-terminal-agent`. The terminal coverage audit found
+one missing and one unexpected ID. V2 repeats the complete 30-minute soak on a
+corrected source commit and is the authoritative readiness evidence.
+
+Historical source commit:
 `b36bc5885855519e1ea7b7cbdf1c6588e03d6f4b`.
 
 The supervised local/staging profile ran for 1,804,745 ms and completed 120
@@ -28,8 +36,8 @@ public keys are published; ephemeral private keys were destroyed.
 
 ## Claim boundary
 
-Operational readiness is established only for this bounded Beta 1 local/staging
-profile. Experimental evidence remains uncollected. Production readiness and
+The signed V1 bundle is retained for incident traceability but its readiness
+claim is superseded and invalid. Experimental evidence remains uncollected. Production readiness and
 security certification are not established, and production claims are
 prohibited. The frozen V1 baseline and excluded future capabilities remain
 unchanged.
