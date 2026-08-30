@@ -1,4 +1,5 @@
 export * from './contracts.js';
+export * from './http-signature-port.js';
 export {
   StaticMeshKeyResolver,
   createStaticMeshKeyResolver,
@@ -14,5 +15,6 @@ export {
   exportMeshEd25519PublicKey,
   importMeshEd25519PublicKey,
   signMeshEnvelope,
+  signMeshEnvelopeExternally,
   verifyMeshEnvelope,
 } from './web-crypto.js';

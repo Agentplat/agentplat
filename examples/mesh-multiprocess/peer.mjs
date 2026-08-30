@@ -1,10 +1,13 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 import {
   createStaticMeshKeyResolver,
+  createHttpMeshExternalSignaturePortV1,
   createWebCryptoMeshEnvelopeSigner,
+  signMeshEnvelopeExternally,
   verifyMeshEnvelope,
 } from "@agentplat/mesh-crypto";
 import { createMeshDurableWorker } from "@agentplat/mesh/durability";
@@ -37,10 +40,11 @@ const keyId = process.env.KEY_ID ?? `${peerId}-key-1`;
 const port = Number(required("PEER_PORT"));
 const listenHost = process.env.MESH_LISTEN_HOST ?? "127.0.0.1";
 const controlToken = process.env.MESH_CONTROL_TOKEN;
+const externalSignerEndpoint = process.env.MESH_EXTERNAL_SIGNER_ENDPOINT;
 const endpoints = JSON.parse(required("PEER_ENDPOINTS"));
 const targetWireVersions = JSON.parse(required("TARGET_WIRE_VERSIONS"));
-const currentSigner = createWebCryptoMeshEnvelopeSigner();
-const compatibilitySigner = createWebCryptoMeshEnvelopeSigner({
+const localCurrentSigner = createWebCryptoMeshEnvelopeSigner();
+const localCompatibilitySigner = createWebCryptoMeshEnvelopeSigner({
   signingPolicy: { allowedWireVersions: [MESH_PREVIOUS_WIRE_VERSION] },
 });
 const channelToken = required("CHANNEL_TOKEN");
@@ -60,13 +64,30 @@ const pool = createPostgresPool({
 });
 const repository = new PostgresMeshDurableRepository(pool, { schema });
 const scope = { tenantId, meshId, peerId, instanceId };
-const privateKey = await crypto.subtle.importKey(
-  "jwk",
-  JSON.parse(required("PRIVATE_KEY_JWK")),
-  MESH_SIGNATURE_ALGORITHM,
-  false,
-  ["sign"],
-);
+const privateKey = externalSignerEndpoint
+  ? null
+  : await crypto.subtle.importKey(
+      "jwk",
+      JSON.parse(required("PRIVATE_KEY_JWK")),
+      MESH_SIGNATURE_ALGORITHM,
+      false,
+      ["sign"],
+    );
+const externalSignaturePort = externalSignerEndpoint
+  ? createHttpMeshExternalSignaturePortV1({
+      endpoint: externalSignerEndpoint,
+      expectedKeyId: keyId,
+      ...(process.env.MESH_SIGNER_TOKEN_FILE
+        ? {
+            authorizationHeader: async () => {
+              const token = (await readFile(process.env.MESH_SIGNER_TOKEN_FILE, "utf8")).trim();
+              if (!token) throw new TypeError("projected Mesh signer token is empty");
+              return `Bearer ${token}`;
+            },
+          }
+        : {}),
+    })
+  : null;
 const publicJwks = JSON.parse(required("PUBLIC_KEY_JWKS"));
 const keyRecords = await Promise.all(
   Object.entries(publicJwks).map(async ([subjectPeerId, jwk]) => ({
@@ -302,6 +323,7 @@ const server = createServer(async (incoming, outgoing) => {
         instanceId,
         processEpoch,
         controlEnabled: controlToken !== undefined,
+        signingCustody: externalSignaturePort ? "external-https" : "process-local",
       });
     } else if (pathname === "/agentplat/staging/v1/events" && method === "GET") {
       if (!authorizedControl(request)) response = new Response(null, { status: 404 });
@@ -576,9 +598,22 @@ function wireVersionFor(targetPeerId) {
 }
 
 function signerFor(wireVersion) {
+  if (externalSignaturePort) {
+    const signingPolicy = {
+      allowedWireVersions: [wireVersion],
+    };
+    return {
+      sign(request) {
+        return signMeshEnvelopeExternally(
+          { envelope: request.envelope, signaturePort: externalSignaturePort },
+          signingPolicy,
+        );
+      },
+    };
+  }
   return wireVersion === MESH_PREVIOUS_WIRE_VERSION
-    ? compatibilitySigner
-    : currentSigner;
+    ? localCompatibilitySigner
+    : localCurrentSigner;
 }
 
 function requestUrlPath(request) {

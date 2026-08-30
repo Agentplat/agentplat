@@ -18,6 +18,20 @@ Use `signMeshEnvelope` for the reference outbound path and
 implementations are available through `createWebCryptoMeshEnvelopeSigner` and
 `createWebCryptoMeshEnvelopeVerifier`.
 
+`signMeshEnvelopeExternally` supports KMS/HSM custody. AgentPlat canonicalizes
+and hashes the envelope locally, then passes only the immutable signing bytes,
+algorithm and declared key ID to a `MeshExternalSignaturePort`. The returned
+value must be an exact 64-byte Ed25519 signature and is revalidated as a normal
+Mesh envelope. The port never receives or returns a private key. Provider
+adapters must still bind workload identity, canonical key ID, audit retention,
+timeouts and rotation policy; an arbitrary remote signing service is not by
+itself evidence of independent custody.
+
+The protocol `proof.keyId` remains a bounded opaque Mesh identifier, not a
+provider ARN. The external signature port must bind that identifier to the
+canonical KMS/HSM resource recorded in deployment evidence; it must never trust
+an ARN supplied inside an envelope.
+
 The Beta 1 signer writes v1 by default. Producing a compatibility v0 envelope
 requires an immutable construction-bound `signingPolicy` that lists v0; the
 signer never relabels an envelope. The verifier reads v0 and v1 by default and

@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: morphogenesis-mesh
+spec:
+  serviceName: morphogenesis-mesh
+  replicas: 6
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: morphogenesis-mesh-peer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: morphogenesis-mesh-peer
+        agentplat.com/evidence-boundary: staging-only
+    spec:
+      serviceAccountName: morphogenesis-mesh-peer
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: morphogenesis-mesh-peer
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: morphogenesis-mesh-peer
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: morphogenesis-mesh-peer
+      containers:
+        - name: peer
+          image: agentplat-staging-mesh-peer:RENDER_REQUIRED
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mesh-http
+              containerPort: 43101
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: MESH_PROCESS_SPECS
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: process-specs.json
+            - name: PEER_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: peer-endpoints.json
+            - name: TARGET_WIRE_VERSIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: target-wire-versions.json
+            - name: PUBLIC_KEY_JWKS
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: public-key-jwks.json
+            - name: MESH_TENANT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: tenant-id
+            - name: MESH_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: mesh-id
+            - name: MESH_SCHEMA
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: postgres-schema
+            - name: MESH_EXTERNAL_SIGNER_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: morphogenesis-mesh-runtime
+                  key: signer-endpoint
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: morphogenesis-mesh-credentials
+                  key: database-url
+            - name: CHANNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: morphogenesis-mesh-credentials
+                  key: channel-token
+            - name: MESH_CONTROL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: morphogenesis-mesh-credentials
+                  key: control-token
+            - name: MESH_SIGNER_TOKEN_FILE
+              value: /var/run/secrets/agentplat/signer/token
+          volumeMounts:
+            - name: signer-identity
+              mountPath: /var/run/secrets/agentplat/signer
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: mesh-http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: mesh-http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: signer-identity
+          projected:
+            defaultMode: 0400
+            sources:
+              - serviceAccountToken:
+                  audience: agentplat-mesh-signer
+                  expirationSeconds: 3600
+                  path: token

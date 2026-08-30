@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: morphogenesis-mesh
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: false
+  selector:
+    app.kubernetes.io/name: morphogenesis-mesh-peer
+  ports:
+    - name: mesh-http
+      port: 43101
+      targetPort: mesh-http
