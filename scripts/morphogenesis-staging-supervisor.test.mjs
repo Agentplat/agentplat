@@ -74,7 +74,8 @@ test("staging supervisor completes only after every frozen gate", () => {
     ["schema-upgrade", config.executionGeometry.minimumSchemaUpgradeCycles],
     ["backup-restore", config.executionGeometry.minimumBackupRestoreCycles],
     ["key-rotation", config.executionGeometry.minimumKeyRotationCycles],
-  ]) for (let index = 0; index < count; index += 1) accept(type, { cycle: index + 1 });
+  ]) for (let index = 0; index < count; index += 1)
+    accept(type, maintenanceDetail(type, index + 1));
   accept("tenant-mission-isolation", {
     tenantCount: 3,
     missionsPerTenant: 2,
@@ -108,6 +109,43 @@ test("staging supervisor completes only after every frozen gate", () => {
   assert.equal(state.productionReadiness, "not-established");
   assert.equal(state.productionClaimPermitted, false);
 });
+
+function maintenanceDetail(type, cycle) {
+  const common = { cycle, externalMaintenanceReceiptDigest: sha("3") };
+  if (type === "rolling-deployment") return {
+    ...common,
+    predecessorImage: `registry.invalid/agentplat@sha256:${"4".repeat(64)}`,
+    successorImage: `registry.invalid/agentplat@sha256:${"5".repeat(64)}`,
+    failureDomainCount: 3,
+    allPeersReady: true,
+    versionSkewObserved: true,
+  };
+  if (type === "schema-upgrade") return {
+    ...common,
+    previousMigration: cycle - 1,
+    successorMigration: cycle,
+    backwardRestoreTested: true,
+    migrationReceiptDigest: sha("6"),
+  };
+  if (type === "backup-restore") return {
+    ...common,
+    backupDigest: sha("7"),
+    sourceCanonicalRoot: sha("8"),
+    restoredCanonicalRoot: sha("8"),
+    cleanRestoreResourceId: `restore:${cycle}`,
+    restorePointLossMs: 0,
+    restoreTimeMs: 1,
+  };
+  return {
+    ...common,
+    predecessorKeyId: `key:old:${cycle}`,
+    successorKeyId: `key:new:${cycle}`,
+    activeSignerKeyId: `key:new:${cycle}`,
+    predecessorSigningDenied: true,
+    predecessorHistoricalVerificationPassed: true,
+    rotationReceiptDigest: sha("9"),
+  };
+}
 
 test("staging supervisor rejects sequence gaps and nonzero safety invariants", () => {
   const state = createInitialStagingSupervisorStateV1(config);

@@ -139,10 +139,22 @@ export function acceptStagingOperationReceiptV1(config, current, input) {
       assert.ok(receipt.detail.faultClass in faultRequirements);
       next.faultCycles[receipt.detail.faultClass] += 1;
       break;
-    case "rolling-deployment": next.rollingDeploymentCycles += 1; break;
-    case "schema-upgrade": next.schemaUpgradeCycles += 1; break;
-    case "backup-restore": next.backupRestoreCycles += 1; break;
-    case "key-rotation": next.keyRotationCycles += 1; break;
+    case "rolling-deployment":
+      validateMaintenanceDetail(config, receipt.operationType, receipt.detail);
+      next.rollingDeploymentCycles += 1;
+      break;
+    case "schema-upgrade":
+      validateMaintenanceDetail(config, receipt.operationType, receipt.detail);
+      next.schemaUpgradeCycles += 1;
+      break;
+    case "backup-restore":
+      validateMaintenanceDetail(config, receipt.operationType, receipt.detail);
+      next.backupRestoreCycles += 1;
+      break;
+    case "key-rotation":
+      validateMaintenanceDetail(config, receipt.operationType, receipt.detail);
+      next.keyRotationCycles += 1;
+      break;
     case "tenant-mission-isolation":
       assert.equal(receipt.detail.tenantCount >= config.executionGeometry.minimumTenants, true);
       assert.equal(receipt.detail.missionsPerTenant >= 2, true);
@@ -237,6 +249,39 @@ function validateSoak(config, input) {
   sha(input.resourceSampleRoot);
   sha(input.operationReceiptRoot);
   return Object.freeze({ ...input });
+}
+
+function validateMaintenanceDetail(config, operationType, input) {
+  assert.ok(Number.isSafeInteger(input.cycle) && input.cycle >= 1);
+  sha(input.externalMaintenanceReceiptDigest);
+  if (operationType === "rolling-deployment") {
+    assert.match(input.predecessorImage, /@sha256:[0-9a-f]{64}$/u);
+    assert.match(input.successorImage, /@sha256:[0-9a-f]{64}$/u);
+    assert.notEqual(input.predecessorImage, input.successorImage);
+    assert.ok(input.failureDomainCount >= 3);
+    assert.equal(input.allPeersReady, true);
+    assert.equal(input.versionSkewObserved, true);
+  } else if (operationType === "schema-upgrade") {
+    assert.ok(Number.isSafeInteger(input.previousMigration) && input.previousMigration >= 0);
+    assert.ok(Number.isSafeInteger(input.successorMigration) && input.successorMigration > input.previousMigration);
+    assert.equal(input.backwardRestoreTested, true);
+    sha(input.migrationReceiptDigest);
+  } else if (operationType === "backup-restore") {
+    sha(input.backupDigest);
+    sha(input.sourceCanonicalRoot);
+    assert.equal(input.restoredCanonicalRoot, input.sourceCanonicalRoot);
+    text(input.cleanRestoreResourceId);
+    assert.ok(input.restorePointLossMs <= config.serviceLevelObjectives.maximumRestorePointLossMs);
+    assert.ok(input.restoreTimeMs <= config.serviceLevelObjectives.maximumRestoreTimeMs);
+  } else {
+    text(input.predecessorKeyId);
+    text(input.successorKeyId);
+    assert.notEqual(input.predecessorKeyId, input.successorKeyId);
+    assert.equal(input.activeSignerKeyId, input.successorKeyId);
+    assert.equal(input.predecessorSigningDenied, true);
+    assert.equal(input.predecessorHistoricalVerificationPassed, true);
+    sha(input.rotationReceiptDigest);
+  }
 }
 
 function sha(value) {
