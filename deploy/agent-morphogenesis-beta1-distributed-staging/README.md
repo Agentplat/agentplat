@@ -102,3 +102,10 @@ unsigned, expired, replayed, out-of-order or unsafe receipts. It completes only
 after both exact 22-scenario sets, every frozen fault/upgrade/restore/rotation
 count, isolation and alert delivery, and a ≥24-hour/1,000-run soak. Completion
 still leaves production readiness and production claims disabled.
+
+Run the observability gateway preflight after deployment. It sends only a
+random challenge and immutable digests, then requires bound evidence for OTLP
+ingestion, metrics/log queries, and external alert firing, delivery and
+resolution. Credentials may be supplied only through an external token file.
+The command emits `operation-detail.json`, which can be KMS-signed as the
+supervisor's `alert-delivery` receipt.

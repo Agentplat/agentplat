@@ -313,6 +313,7 @@ function validateInventory(value) {
   assert.equal(value.rollbackWitness.durable, true);
   assert.notEqual(value.rollbackWitness.writeIdentity, value.rollbackWitness.readIdentity);
   https(value.observability.otlpEndpoint, "OTLP endpoint");
+  https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
   https(value.observability.logsEndpoint, "logs endpoint");
   text(value.observability.alertReceiverId, "alert receiver ID");
@@ -413,6 +414,7 @@ function boundFixture(template) {
       readIdentity: "identity:witness-read",
     },
     observability: {
+      gatewayEndpoint: "https://observability.staging.invalid/v1/preflight",
       otlpEndpoint: "https://otlp.staging.invalid",
       metricsEndpoint: "https://metrics.staging.invalid",
       logsEndpoint: "https://logs.staging.invalid",
