@@ -260,7 +260,7 @@ export async function runMorphogenesisExampleScenario(
   let materialized = false;
   let firstCreate = true;
   const ports = postCommitPorts();
-  const options = {
+  const baseExecutionOptions = {
     ...ports,
     discovery: { async search() { return searchResult; } },
     profiles: {
@@ -325,9 +325,20 @@ export async function runMorphogenesisExampleScenario(
     store,
     maximumCommitAttempts: 4,
   };
+  const options = dependencies.transformExecutionOptions
+    ? await dependencies.transformExecutionOptions({
+        options: baseExecutionOptions,
+        branch,
+        decisionRoute,
+      })
+    : baseExecutionOptions;
   let runtime = new MorphogenesisExecutionRuntimeV1(options);
-  const execution = await runtime.initialize({
-    stateKey: `execution:${branch}`,
+  const executionStateKey = `execution:${branch}`;
+  let execution = dependencies.resumeExisting
+    ? await store.load(executionStateKey)
+    : null;
+  execution ??= await runtime.initialize({
+    stateKey: executionStateKey,
     scope,
     proposalDigest: proposal.proposalDigest,
     targetDigest: proposal.targetDigest,
@@ -343,10 +354,14 @@ export async function runMorphogenesisExampleScenario(
     profileCertificationDigest: branch === "create" ? sha("6") : null,
     logicalTimeMs: 160,
   });
-  if (branch === "create") {
+  if (
+    branch === "create" &&
+    ["prepared", "creating"].includes(execution.phase)
+  ) {
     try {
       await runtime.resolveAgent({ stateKey: execution.stateKey, logicalTimeMs: 170 });
     } catch (error) {
+      if (dependencies.propagateCreationCrash) throw error;
       console.error(`[expected crash] ${error.message}`);
       runtime = new MorphogenesisExecutionRuntimeV1(options);
       await runtime.resolveAgent({ stateKey: execution.stateKey, logicalTimeMs: 171 });
@@ -376,6 +391,21 @@ export async function runMorphogenesisExampleScenario(
       },
     },
   });
+  if (dependencies.directExecutionDriver) {
+    await dependencies.directExecutionDriver({
+      runtime,
+      options,
+      execution,
+      branch,
+      decisionRoute,
+      binding,
+    });
+    return summarize(
+      await runtime.required(execution.stateKey),
+      branch,
+      decisionRoute,
+    );
+  }
   const runnerOptions = {
     taskExecutor: {
       async execute(task) {
@@ -463,6 +493,10 @@ export async function runMorphogenesisExampleScenario(
     runId,
     processRunners,
   });
+  return summarize(result, branch, decisionRoute);
+}
+
+function summarize(result, branch, decisionRoute) {
   return {
     branch,
     decisionRoute,
