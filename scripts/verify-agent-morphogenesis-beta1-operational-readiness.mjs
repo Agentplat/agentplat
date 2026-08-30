@@ -50,6 +50,18 @@ assert.equal(profile.requiredMeasurements.length, 14);
 assert.equal(new Set(profile.requiredMeasurements).size, 14);
 assert.equal(profile.requiredRunbooks.length, 8);
 assert.equal(new Set(profile.requiredRunbooks).size, 8);
+for (const runbook of profile.requiredRunbooks) {
+  const contents = await readFile(
+    path.join(
+      root,
+      "docs/runbooks/agent-morphogenesis-beta1",
+      `${runbook}.md`,
+    ),
+    "utf8",
+  );
+  assert.ok(contents.length > 400, `runbook is incomplete: ${runbook}`);
+  assert.match(contents, /authority|authorization|receipt|rollback|recovery/iu);
+}
 assert.deepEqual(profile.publicAuditPolicy, {
   resolution: "exact-digest-exception-ledger",
   allowPathGlobExceptions: false,
