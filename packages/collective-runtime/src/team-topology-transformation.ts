@@ -163,6 +163,70 @@ export function createTeamTopologyStateV1(input: {
   });
 }
 
+export function validateTeamTopologyStateV1(input: unknown): TeamTopologyStateV1 {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new TypeError("topology state is invalid");
+  const value = input as TeamTopologyStateV1;
+  if (value.format !== TEAM_TOPOLOGY_TRANSFORMATION_STATE_FORMAT_V1 ||
+      value.schemaVersion !== 1)
+    throw new TypeError("topology state format is invalid");
+  assertId(value.topologyId, "topology ID");
+  if (!Number.isSafeInteger(value.epoch) || value.epoch < 1)
+    throw new TypeError("topology epoch is invalid");
+  if (!Array.isArray(value.topology) || !Array.isArray(value.transformations))
+    throw new TypeError("topology state collections are invalid");
+  const topology = value.topology.map(validateNode);
+  if (new Set(topology.map(({ teamId }) => teamId)).size !== topology.length)
+    throw new TypeError("topology team ID is duplicated");
+  const transformations = value.transformations.map(validateTransformation);
+  if (new Set(transformations.map(({ transformationId }) => transformationId)).size !== transformations.length ||
+      transformations.some((item) => item.epoch > value.epoch + (item.status === "certified" ? 1 : 0)))
+    throw new TypeError("topology transformation history is invalid");
+  if (value.predecessorStateDigest !== null)
+    assertDigest(value.predecessorStateDigest, "predecessor state digest");
+  const body = {
+    topologyId: value.topologyId,
+    epoch: value.epoch,
+    topology,
+    transformations,
+    predecessorStateDigest: value.predecessorStateDigest,
+  };
+  assertDigest(value.stateDigest, "topology state digest");
+  if (value.stateDigest !== digest("team-topology-state", body))
+    throw new TypeError("topology state digest is invalid");
+  return Object.freeze(structuredClone(value));
+}
+
+function validateTransformation(
+  value: TeamTopologyTransformationV1,
+): TeamTopologyTransformationV1 {
+  if (!value || typeof value !== "object" || value.schemaVersion !== 1)
+    throw new TypeError("topology transformation is invalid");
+  assertId(value.transformationId, "transformation ID");
+  if (!["split", "merge", "federate"].includes(value.operation) ||
+      !Array.isArray(value.sourceTeamIds) || value.sourceTeamIds.length < 1 ||
+      new Set(value.sourceTeamIds).size !== value.sourceTeamIds.length)
+    throw new TypeError("topology transformation operation is invalid");
+  value.sourceTeamIds.forEach((item) => assertId(item, "source team ID"));
+  const targetTeams = value.targetTeams.map(validateNode);
+  const priorTopology = value.priorTopology.map(validateNode);
+  if (value.priorTopologyDigest !== topologyDigest(priorTopology) ||
+      value.nextTopologyDigest !== topologyDigest(targetTeams))
+    throw new TypeError("topology transformation topology digest is invalid");
+  assertDigest(value.policyDigest, "topology policy digest");
+  assertDigest(value.quorumDigest, "topology quorum digest");
+  if (!Number.isSafeInteger(value.epoch) || value.epoch < 2 ||
+      !["proposed", "certified", "activated", "rolled_back", "rejected"].includes(value.status))
+    throw new TypeError("topology transformation state is invalid");
+  if (value.rollbackOfTransformationId !== null)
+    assertId(value.rollbackOfTransformationId, "rollback transformation ID");
+  const { transformationDigest, ...body } = value;
+  assertDigest(transformationDigest, "topology transformation digest");
+  if (transformationDigest !== digest("team-topology-transformation", body))
+    throw new TypeError("topology transformation digest is invalid");
+  return value;
+}
+
 export function validateTeamTopologyTransformationRequestV1(input: TeamTopologyTransformationRequestV1): TeamTopologyTransformationRequestV1 {
   if (input.schemaVersion !== 1) throw new TypeError("topology transformation schema is invalid");
   assertId(input.transformationId, "transformation ID");
@@ -297,6 +361,14 @@ export function rollbackTeamTopologyTransformationV1(input: { readonly state: Te
     rollbackOfTransformationId: transformation.transformationId,
   };
   const rollback = Object.freeze({ ...rollbackBody, transformationDigest: digest("team-topology-transformation", rollbackBody) });
-  const marked = input.state.transformations.map((item) => item.transformationId === transformation.transformationId ? { ...item, status: "rolled_back" as const } : item);
+  const marked = input.state.transformations.map((item) => {
+    if (item.transformationId !== transformation.transformationId) return item;
+    const { transformationDigest: _digest, ...retained } = item;
+    const body = { ...retained, status: "rolled_back" as const };
+    return Object.freeze({
+      ...body,
+      transformationDigest: digest("team-topology-transformation", body),
+    });
+  });
   return createTeamTopologyStateV1({ topologyId: input.state.topologyId, epoch: rollback.epoch, topology: transformation.priorTopology, transformations: [...marked, rollback], predecessorStateDigest: input.state.stateDigest });
 }

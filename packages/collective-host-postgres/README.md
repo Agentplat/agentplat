@@ -60,6 +60,15 @@ logical expiry advance the reservation once and bind an external rollback
 witness. The capacity configuration is construction-bound and is not restored
 from database rows.
 
+Advanced Morphogenesis reuses `collective_host_runtime_states` rather than a
+parallel database schema. `PostgresMorphogenesisOperatorExecutionStoreV2`,
+`PostgresMorphogenesisOperatorOutcomeStoreV2` and
+`PostgresMorphogenesisTeamTopologyStateStoreV2` persist the operator journal,
+immutable outcome and Dynamic Topology state. Each reopen validates the full
+content digest and external rollback witness; topology certification and
+activation use independent CAS revisions even when both belong to one topology
+epoch.
+
 For staging and other deployments that require a witness outside the database
 protection domain, `HttpMorphogenesisRollbackWitnessV1` implements the same
 Morphogenesis witness port over credential-free HTTPS endpoints. Supply an

@@ -9,14 +9,25 @@ import {
 import {
   PostgresMorphogenesisOperatorExecutionStoreV2,
   PostgresMorphogenesisOperatorOutcomeStoreV2,
+  PostgresMorphogenesisTeamTopologyStateStoreV2,
 } from "../dist/morphogenesis-operator.js";
+import {
+  activateTeamTopologyTransformationV1,
+  certifyTeamTopologyTransformationV1,
+  createTeamTopologyNodeV1,
+  createTeamTopologyStateV1,
+  createTeamTopologyTransformationRequestV1,
+  teamTopologyDigestV1,
+} from "@agentplat/collective-runtime/team-topology-transformation";
 
 const sha = (character) => `sha256:${character.repeat(64)}`;
 
 class FakePool {
   rows = new Map();
   async query(sql, params) {
-    const kind = sql.includes("morphogenesis-operator-outcome")
+    const kind = sql.includes("morphogenesis-team-topology")
+      ? "morphogenesis-team-topology"
+      : sql.includes("morphogenesis-operator-outcome")
       ? "morphogenesis-operator-outcome"
       : "morphogenesis-operator-execution";
     const key = `${params[0]}:${kind}:${params[1]}`;
@@ -31,16 +42,28 @@ class FakePool {
     if (sql.includes("INSERT INTO")) {
       if (this.rows.has(key)) return { rowCount: 0, rows: [] };
       const outcome = kind === "morphogenesis-operator-outcome";
+      const topology = kind === "morphogenesis-team-topology";
       this.rows.set(key, {
-        revision: outcome ? 0 : params[2],
-        logical_time_high_water_ms: outcome ? params[2] : params[3],
-        state_digest: outcome ? params[3] : params[4],
-        state: JSON.parse(outcome ? params[4] : params[5]),
+        revision: outcome || topology ? 0 : params[2],
+        logical_time_high_water_ms: topology ? 0 : outcome ? params[2] : params[3],
+        state_digest: topology ? params[2] : outcome ? params[3] : params[4],
+        state: JSON.parse(topology ? params[3] : outcome ? params[4] : params[5]),
       });
       return { rowCount: 1, rows: [] };
     }
     if (sql.includes("UPDATE")) {
       const row = this.rows.get(key);
+      if (kind === "morphogenesis-team-topology") {
+        if (!row || Number(row.revision) !== params[2] || row.state_digest !== params[3])
+          return { rowCount: 0, rows: [] };
+        this.rows.set(key, {
+          revision: params[4],
+          logical_time_high_water_ms: params[4],
+          state_digest: params[5],
+          state: JSON.parse(params[6]),
+        });
+        return { rowCount: 1, rows: [] };
+      }
       if (!row || Number(row.revision) !== params[2] ||
           row.state_digest !== params[3] ||
           Number(row.logical_time_high_water_ms) > params[5])
@@ -166,4 +189,43 @@ test("PostgreSQL operator outcomes are immutable, idempotent, and witness guarde
   assert.equal(await store.save(conflicting), false);
   witness.heads.clear();
   await assert.rejects(store.load(receipt.planDigest), /witness diverged/);
+});
+
+test("PostgreSQL Dynamic Topology reopens certification and activation through CAS", async () => {
+  const pool = new FakePool();
+  const witness = new Witness();
+  const options = { scopeId: "tenant:topology", rollbackWitness: witness };
+  const source = createTeamTopologyNodeV1({
+    teamId: "team:source", parentTeamIds: [], memberIds: ["agent:a", "agent:b"],
+    coordinatorId: "agent:a", membershipEpoch: 1,
+    membershipConfigurationDigest: sha("1"),
+  });
+  const initial = createTeamTopologyStateV1({
+    topologyId: "topology:postgres", epoch: 1, topology: [source],
+  });
+  const targets = ["a", "b"].map((suffix) => createTeamTopologyNodeV1({
+    teamId: `team:target:${suffix}`, parentTeamIds: [source.teamId],
+    memberIds: [`agent:${suffix}`], coordinatorId: `agent:${suffix}`,
+    membershipEpoch: 2, membershipConfigurationDigest: sha("2"),
+  }));
+  const request = createTeamTopologyTransformationRequestV1({
+    transformationId: "transformation:postgres:split", operation: "split",
+    sourceTeamIds: [source.teamId], targetTeams: targets,
+    priorTopologyDigest: teamTopologyDigestV1(initial.topology),
+    policyDigest: sha("3"), quorumDigest: sha("4"),
+    requestedAtLogicalMs: 10, validUntilLogicalMs: 100,
+  });
+  const store = new PostgresMorphogenesisTeamTopologyStateStoreV2(pool, options);
+  assert.equal(await store.initialize(initial), true);
+  const certified = certifyTeamTopologyTransformationV1({ state: initial, request });
+  assert.equal(await store.save({ state: certified, expectedStateDigest: initial.stateDigest }), true);
+  const activated = activateTeamTopologyTransformationV1({
+    state: certified, transformationId: request.transformationId,
+  });
+  assert.equal(await store.save({ state: activated, expectedStateDigest: certified.stateDigest }), true);
+  const reopened = new PostgresMorphogenesisTeamTopologyStateStoreV2(pool, options);
+  assert.equal((await reopened.load(initial.topologyId)).stateDigest, activated.stateDigest);
+  assert.equal(await reopened.save({ state: certified, expectedStateDigest: initial.stateDigest }), false);
+  witness.heads.clear();
+  await assert.rejects(reopened.load(initial.topologyId), /witness diverged/);
 });

@@ -88,7 +88,9 @@ replacements, suspensions and topology operations.
 ## Durability and replay
 
 Operator execution and outcome stores have in-memory conformance surfaces and
-PostgreSQL implementations. PostgreSQL reuses Collective Host runtime state,
+PostgreSQL implementations. Dynamic Topology state has the same validated,
+restart-durable PostgreSQL surface for certification and activation.
+PostgreSQL reuses Collective Host runtime state,
 checks revision/digest CAS and logical-time high-water, and verifies an external
 rollback witness. Exact retries return the retained state or outcome; divergent
 replays fail closed.

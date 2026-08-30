@@ -21,6 +21,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-execution"
       | "morphogenesis-operator-execution"
       | "morphogenesis-operator-outcome"
+      | "morphogenesis-team-topology"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
@@ -33,6 +34,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-execution"
       | "morphogenesis-operator-execution"
       | "morphogenesis-operator-outcome"
+      | "morphogenesis-team-topology"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;

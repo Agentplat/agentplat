@@ -130,7 +130,9 @@ import {
   createTeamTopologyStateV1,
   createTeamTopologyTransformationRequestV1,
   certifyTeamTopologyTransformationV1,
+  rollbackTeamTopologyTransformationV1,
   teamTopologyDigestV1,
+  validateTeamTopologyStateV1,
 } from "../packages/collective-runtime/dist/team-topology-transformation.js";
 import {
   InMemoryProcessRunnerV1,
@@ -4405,6 +4407,12 @@ test("split_team executes through the existing durable Team topology reducer", a
     "activated",
   );
   assert.equal(state.receipts.length, 2);
+  const rolledBack = rollbackTeamTopologyTransformationV1({
+    state: activated,
+    transformationId: request.transformationId,
+  });
+  assert.equal(validateTeamTopologyStateV1(rolledBack).epoch, 3);
+  assert.deepEqual(rolledBack.topology.map(({ teamId }) => teamId), [source.teamId]);
 });
 
 test("merge_teams and federate_teams preserve topology lineage and membership", async () => {
