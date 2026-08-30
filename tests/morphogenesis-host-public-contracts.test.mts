@@ -7,6 +7,8 @@ import {
   MorphogenesisTelemetryPublisherV1,
   TrustInferenceMorphogenesisAttestationPortV1,
   compileAgentInstantiationProfileToCreationRequestV1,
+  createMorphogenesisAgentCreationMaterialBindingV2,
+  type MorphogenesisAgentCreationMaterialBindingV2,
   type MorphogenesisAgentCreationMaterialPortV1,
   type MorphogenesisTeamActivationCommandPortV1,
   type MorphogenesisContinuityProjectionPortV1,
@@ -17,6 +19,17 @@ import {
   type MorphogenesisEligibilityEvidencePortV1,
 } from "@agentplat/collective-host/morphogenesis";
 import {
+  AgentStatusMorphogenesisBoundaryV2,
+  DerivedAgentMorphogenesisBoundaryV2,
+  GovernedMembershipMorphogenesisAgentStatusPortV2,
+  InMemoryMorphogenesisTeamTopologyStateStoreV2,
+  MissionWorkReassignmentMorphogenesisBoundaryV2,
+  MorphogenesisOperatorBoundaryRouterV2,
+  ReplacementMorphogenesisBoundaryV2,
+  RoleRealignmentMorphogenesisBoundaryV2,
+  TeamTopologyMorphogenesisBoundaryV2,
+} from "@agentplat/collective-host/morphogenesis-operator-adapters";
+import {
   createAgentRoomMorphogenesisDecisionAuthorizationV1,
   createAgentRoomMorphogenesisGateConfigurationV1,
 } from "@agentplat/workflows-rooms/morphogenesis";
@@ -26,6 +39,7 @@ import {
 } from "@agentplat/collective-quorum/morphogenesis";
 
 void compileAgentInstantiationProfileToCreationRequestV1;
+void createMorphogenesisAgentCreationMaterialBindingV2;
 void GovernedAgentLifecycleMorphogenesisPortV1;
 void TeamFormationMorphogenesisSuccessorPortV1;
 void TeamExecutionContinuityMorphogenesisPortV1;
@@ -33,12 +47,22 @@ void WorkActionMorphogenesisAuthorityFencePortV1;
 void MorphogenesisActionGatewayTaskExecutorV1;
 void MorphogenesisTelemetryPublisherV1;
 void TrustInferenceMorphogenesisAttestationPortV1;
+void AgentStatusMorphogenesisBoundaryV2;
+void DerivedAgentMorphogenesisBoundaryV2;
+void GovernedMembershipMorphogenesisAgentStatusPortV2;
+void InMemoryMorphogenesisTeamTopologyStateStoreV2;
+void MissionWorkReassignmentMorphogenesisBoundaryV2;
+void MorphogenesisOperatorBoundaryRouterV2;
+void ReplacementMorphogenesisBoundaryV2;
+void RoleRealignmentMorphogenesisBoundaryV2;
+void TeamTopologyMorphogenesisBoundaryV2;
 void createAgentRoomMorphogenesisDecisionAuthorizationV1;
 void createAgentRoomMorphogenesisGateConfigurationV1;
 void CollectiveAgreementMorphogenesisDecisionIssuerV1;
 
 declare const collectiveCertificates: MorphogenesisCollectiveAgreementCertificatePortV1;
 declare const creationMaterial: MorphogenesisAgentCreationMaterialPortV1;
+declare const creationMaterialBinding: MorphogenesisAgentCreationMaterialBindingV2;
 declare const teamCommands: MorphogenesisTeamActivationCommandPortV1;
 declare const continuityProjection: MorphogenesisContinuityProjectionPortV1;
 declare const workActionFence: MorphogenesisWorkActionFenceCommandPortV1;
@@ -48,6 +72,7 @@ declare const capabilityAssessment: MorphogenesisCapabilityAssessmentPortV1;
 declare const eligibilityEvidence: MorphogenesisEligibilityEvidencePortV1;
 void collectiveCertificates;
 void creationMaterial;
+void creationMaterialBinding;
 void teamCommands;
 void continuityProjection;
 void workActionFence;

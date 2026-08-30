@@ -1,7 +1,7 @@
-# Agent Morphogenesis V1 threat model
+# Agent Morphogenesis V1/V2 threat model
 
-Status: accepted design baseline; implementation controls remain unchecked in
-the acceptance checklist.
+Status: source implementation threat model. Tests exercise the listed local
+controls; operational effectiveness remains outside source evidence.
 
 ## Assets
 
@@ -51,7 +51,16 @@ state. They remain behind their owning content-addressed or ephemeral ports.
 | Snapshot pretends to be globally complete | Snapshot declares bounded source heads, local view and required freshness; absence is never encoded as global non-existence. |
 | Stale, missing or equivocal source evidence is used | Source registry authentication, revision high-water marks, record digests, expiry and policy-required source classes fail closed. |
 | Partition creates conflicting births or retirements | Membership and morphology currentness, quorum/certification requirements and CAS heads reject conflicting successors; unavailable required state pauses rather than forks. |
-| Recursive spawn exhausts population or budget | Closed V1 operators exclude derivation/synthesis; population, descendants, concurrency, churn and resource reservations are enforced before provisioning. |
+| Recursive spawn exhausts population or budget | V1 excludes derivation/synthesis. V2 requires explicit derived/synthesized/recursive capability flags and independently limits creation depth, population, descendants, concurrency, churn and reserved resources before provisioning. |
+| Synthesizer certifies its own profile or widens parent authority | Synthesis requires a distinct independent certifier; parent lineage, capability additions, tool/action removals, budgets and child authority ceiling are bound by evolution and attenuation receipts. |
+| Factory material substitutes a verified evolved profile | V2 material binding covers operation, scope, proposal, profile, creation request and certificate; the host compares role, capabilities, rules, authority and budgets before factory invocation. |
+| Advanced plan swaps an effect between steps | Every step binds plan, proposal, boundary, target and stable operation ID; attestation and Team activation consume exact predecessor result digests. |
+| Team split loses or duplicates a member | Split partitions the source member set exactly once; merge preserves the complete source union; federation preserves source Teams and adds one complete federation node. Unaffected Teams must remain byte-identical by digest. |
+| Suspension leaves stale Work authority usable | Checkpoint and Work/action fence precede certified Membership exclusion; lineage changes only after the membership successor exists. |
+| Resume admits a substituted identity | Resume requires a fresh active-key proof and the same peer, instance and public-key material; Membership epoch/digest must be a certified successor before lineage becomes active. |
+| Mission Lifecycle silently treats ordinary Team adaptation as general Morphogenesis | `request_morphogenesis` is an explicit opt-in extension with its own request digest and durable action; `request_team_adaptation` retains its prior meaning. |
+| Interop request manufactures Morphogenesis authority | `morphogenesis.enact` requires an exact stateful admission grant and pre-authorized Mission/Morphogenesis digests; Interop transports the outcome but cannot issue a decision, authorization, fence or morphology commit. |
+| Operator or outcome store is rolled back | Execution and outcome records validate their content digest, revision/logical time and external rollback witness; divergent reopen fails closed. |
 | Concurrent proposals double-spend resources | Application-owned budget reservation is proposal-, epoch-, operation- and expiry-bound with CAS/idempotency; downstream subsystem budgets recheck independently. |
 | Instantiation profile injects prompts or widens tools/memory | Profile is content-addressed, provenance-bound and independently certified; instruction/tool/memory content remains referenced; attenuation and context-integrity checks reject expansion or hostile content. |
 | Artifact or profile changes after approval | Decision and factory compilation bind exact artifact/profile digests; unresolved, revoked or substituted content fails closed. |
@@ -118,6 +127,7 @@ state. They remain behind their owning content-addressed or ephemeral ports.
 - stale approval after morphology, membership, policy or budget advancement;
 - colluding proposer/assessor/decider identities;
 - recursive creation and cross-proposal budget exhaustion;
+- self-certified synthesis, parent-authority widening and evolved-profile material substitution;
 - profile prompt injection, tool escalation and memory-scope expansion;
 - false capability self-attestation and forged runtime attestation;
 - factory success followed by timeout and conflicting retry;
@@ -129,5 +139,8 @@ state. They remain behind their owning content-addressed or ephemeral ports.
 - stale agent progress/effect after successor activation;
 - termination requested before Work/action fencing;
 - create/retire oscillation and churn-bound exhaustion;
+- split member loss/duplication, invalid merge union and federation source replacement;
+- crash after suspension/removal or resumption/readmission but before lineage commit;
+- Mission action, Interop admission or advanced-step substitution;
 - delayed or manipulated outcome evidence; and
 - credential, raw prompt, raw output or hidden-reasoning persistence attempts.

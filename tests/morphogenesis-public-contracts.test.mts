@@ -2,6 +2,7 @@ import {
   MORPHOGENESIS_CATALOG_LIFECYCLE_PROCESS_ID_V1,
   MORPHOGENESIS_DECISION_ROUTES_V1,
   MORPHOGENESIS_OPERATORS_V1,
+  MORPHOGENESIS_ADVANCED_CAPABILITIES_V2,
   MORPHOLOGY_SOURCE_CLASSES_V1,
   InMemoryMorphologyHeadStoreV1,
   InMemoryMorphogenesisBudgetReservationPortV1,
@@ -22,6 +23,17 @@ import {
   assertMorphogenesisControlWindowAllowsV1,
   createAgentInstantiationProfileCertificationV1,
   createAgentInstantiationProfileV1,
+  createAgentInstantiationProfileEvolutionV1,
+  createAgentInstantiationAuthorityAttenuationV1,
+  createAgentInstantiationSynthesisCertificationV1,
+  createAgentInstantiationProfileV2,
+  createMorphogenesisPolicyV2,
+  compileMorphogenesisOperatorV2,
+  InMemoryMorphogenesisOperatorExecutionStoreV2,
+  MorphogenesisOperatorExecutionRuntimeV2,
+  InMemoryMorphogenesisOperatorOutcomeStoreV2,
+  MorphogenesisOperatorCycleRuntimeV2,
+  createMorphogenesisOperatorOutcomeReceiptV2,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -73,6 +85,12 @@ import {
   type MorphogenesisProposalV1,
   type MorphogenesisScopeV1,
   type AgentInstantiationProfileV1,
+  type AgentInstantiationProfileV2,
+  type AgentInstantiationProfileV2Context,
+  type MorphogenesisPolicyV2,
+  type MorphogenesisCompiledOperatorPlanV2,
+  type MorphogenesisOperatorExecutionStateV2,
+  type MorphogenesisOperatorOutcomeReceiptV2,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -104,6 +122,7 @@ import {
 void MORPHOGENESIS_CATALOG_LIFECYCLE_PROCESS_ID_V1;
 void MORPHOGENESIS_DECISION_ROUTES_V1;
 void MORPHOGENESIS_OPERATORS_V1;
+void MORPHOGENESIS_ADVANCED_CAPABILITIES_V2;
 void MORPHOLOGY_SOURCE_CLASSES_V1;
 void InMemoryMorphologyHeadStoreV1;
 void InMemoryMorphogenesisBudgetReservationPortV1;
@@ -124,6 +143,17 @@ void MorphogenesisProposalEngineV1;
 void assertMorphogenesisControlWindowAllowsV1;
 void createAgentInstantiationProfileCertificationV1;
 void createAgentInstantiationProfileV1;
+void createAgentInstantiationProfileEvolutionV1;
+void createAgentInstantiationAuthorityAttenuationV1;
+void createAgentInstantiationSynthesisCertificationV1;
+void createAgentInstantiationProfileV2;
+void createMorphogenesisPolicyV2;
+void compileMorphogenesisOperatorV2;
+void InMemoryMorphogenesisOperatorExecutionStoreV2;
+void MorphogenesisOperatorExecutionRuntimeV2;
+void InMemoryMorphogenesisOperatorOutcomeStoreV2;
+void MorphogenesisOperatorCycleRuntimeV2;
+void createMorphogenesisOperatorOutcomeReceiptV2;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -176,6 +206,12 @@ declare const policy: MorphogenesisPolicyV1;
 declare const proposal: MorphogenesisProposalV1;
 declare const scope: MorphogenesisScopeV1;
 declare const profile: AgentInstantiationProfileV1;
+declare const profileV2: AgentInstantiationProfileV2;
+declare const profileV2Context: AgentInstantiationProfileV2Context;
+declare const policyV2: MorphogenesisPolicyV2;
+declare const operatorPlan: MorphogenesisCompiledOperatorPlanV2;
+declare const operatorState: MorphogenesisOperatorExecutionStateV2;
+declare const operatorOutcome: MorphogenesisOperatorOutcomeReceiptV2;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -207,6 +243,12 @@ void policy;
 void proposal;
 void scope;
 void profile;
+void profileV2;
+void profileV2Context;
+void policyV2;
+void operatorPlan;
+void operatorState;
+void operatorOutcome;
 void budgetPort;
 void controlWindow;
 void sourceResolution;

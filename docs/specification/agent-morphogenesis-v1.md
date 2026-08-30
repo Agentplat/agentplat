@@ -40,6 +40,10 @@ certified catalog profile, `detach_agent` and `retire_agent`. Derived or
 synthesized profiles, recursive creation and Team split/merge/federation remain
 outside this profile.
 
+The additive advanced profile is specified separately in
+[`agent-morphogenesis-v2.md`](./agent-morphogenesis-v2.md). V2 does not change
+the meaning or default operator set of this V1 profile.
+
 ## Compatibility
 
 The public entry point is
