@@ -21,6 +21,7 @@ import {
   createAgentInstantiationProfileEvolutionV1,
   createAgentInstantiationAuthorityAttenuationV1,
   createAgentInstantiationSynthesisCertificationV1,
+  createAgentInstantiationProfileV2,
   createAgentInstantiationProfileV1,
   createMorphogenesisLineageLinkV1,
   createInitialMorphologyHeadV1,
@@ -63,6 +64,7 @@ import {
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
   validateAgentInstantiationSynthesisCertificationV1,
+  validateAgentInstantiationProfileV2,
   validateMorphogenesisLineageLinkV1,
   validateMorphologySnapshotV1,
   verifyMorphogenesisDecisionAfterGateV1,
@@ -3296,6 +3298,304 @@ test("derived and synthesized instantiation evidence is immutable and authority-
     createAgentInstantiationSynthesisCertificationV1({
       ...certification,
       independentCertifierId: certification.synthesizerId,
+    }),
+  );
+});
+
+test("AgentInstantiationProfileV2 derives a narrower certified material profile", async () => {
+  const createMaterial = ({
+    suffix,
+    digestCharacter,
+    capabilityKeys,
+    toolNames,
+    actionClasses,
+    resourceUnits,
+    predecessorProfileDigest,
+  }) => {
+    const blueprint = createDynamicRoleBlueprintV2({
+      blueprintId: `role-blueprint:${suffix}`,
+      missionId: "mission:profile-v2",
+      roleKey: `role_${suffix}`,
+      predecessorDefinitionDigest: null,
+      guidance: [`Perform ${suffix} within the certified scope.`],
+      requiredCapabilityKeys: capabilityKeys,
+      requestedToolNames: toolNames,
+      requestedActionClasses: actionClasses,
+      resourceCeilingUnits: resourceUnits,
+      constraints: { evidenceOnly: true },
+      proposerPeerId: "peer:profile-architect",
+      proposerCredibilityDigest: sha(digestCharacter),
+      basisEvidenceDigests: [sha("1")],
+      proposedAtLogicalMs: 100,
+    });
+    const role = compileGovernedRoleDefinitionV2({
+      blueprint,
+      authority: {
+        missionId: "mission:profile-v2",
+        authorityDigest: sha(digestCharacter),
+        permittedCapabilityKeys: capabilityKeys,
+        permittedToolNames: toolNames,
+        permittedActionClasses: actionClasses,
+        maximumResourceUnits: resourceUnits,
+        requiredConstraintKeys: ["evidenceOnly"],
+        localRuleProgramDigest: sha("2"),
+      },
+      semanticGuaranteeDigest: sha("3"),
+      definitionRevision: 1,
+    });
+    const roleCertification = createGovernedRoleCertificationV2({
+      definitionDigest: role.definitionDigest,
+      semanticGuaranteeDigest: role.semanticGuaranteeDigest,
+      collectiveCertificateDigest: sha("4"),
+      membershipConfigurationDigest: sha("5"),
+      membershipEpoch: 1,
+      validUntilLogicalMs: 1_000,
+    });
+    const profile = createAgentInstantiationProfileV1({
+      profileId: `profile:${suffix}`,
+      profileVersion: 1,
+      predecessorProfileDigest,
+      tenantId: "tenant:profile-v2",
+      roomId: "room:profile-v2",
+      objectiveId: "objective:profile-v2",
+      workItemId: "work:profile-v2",
+      workItemRevision: 1,
+      role,
+      roleCertification,
+      adapterId: "adapter:portable-agent",
+      adapterVersion: "1",
+      instructionArtifactId: `artifact:instructions:${suffix}`,
+      instructionArtifactDigest: sha("6"),
+      toolSetArtifactId: `artifact:tools:${suffix}`,
+      toolSetArtifactDigest: sha("7"),
+      memoryScopeId: `memory-scope:${suffix}`,
+      memoryScopeDigest: sha("8"),
+      inputContractDigest: sha("9"),
+      outputContractDigest: sha("a"),
+      modelConstraintsDigest: sha("b"),
+      resourceBudgetUnits: resourceUnits,
+      interactionBudgetUnits: resourceUnits * 10,
+      maximumActionBudgetUnits: Math.max(1, resourceUnits - 1),
+      requiredAssessorIds: ["assessor:profile-v2"],
+      requiredAttestationDigests: [sha("c")],
+      authorId: "agent:profile-architect",
+      provenanceDigest: sha("d"),
+      validFromLogicalMs: 100,
+      expiresAtLogicalMs: 900,
+    });
+    return { profile, role, roleCertification };
+  };
+  const parent = createMaterial({
+    suffix: "parent",
+    digestCharacter: "e",
+    capabilityKeys: ["database_forensics", "general_triage"],
+    toolNames: ["database_reader", "shell_execute"],
+    actionClasses: ["read_evidence", "write_evidence"],
+    resourceUnits: 10,
+    predecessorProfileDigest: null,
+  });
+  const child = createMaterial({
+    suffix: "child",
+    digestCharacter: "f",
+    capabilityKeys: ["database_forensics", "log_correlation"],
+    toolNames: ["database_reader"],
+    actionClasses: ["read_evidence"],
+    resourceUnits: 5,
+    predecessorProfileDigest: parent.profile.profileDigest,
+  });
+  const evolution = createAgentInstantiationProfileEvolutionV1({
+    evolutionId: "profile-evolution:v2:derived",
+    mode: "derived",
+    materialProfileDigest: child.profile.profileDigest,
+    parentProfileDigests: [parent.profile.profileDigest],
+    parentAgentLineageDigests: [sha("0")],
+    inheritedCapabilityKeys: ["database_forensics"],
+    removedCapabilityKeys: ["general_triage"],
+    addedCapabilityKeys: ["log_correlation"],
+    addedCapabilityAttestationDigests: [sha("1")],
+    evolutionPolicyDigest: sha("2"),
+    evolutionImplementationDigest: sha("3"),
+    evidenceDigests: [sha("4")],
+    proposedAtLogicalMs: 150,
+  });
+  const attenuation = createAgentInstantiationAuthorityAttenuationV1({
+    attenuationId: "attenuation:v2:derived",
+    evolutionDigest: evolution.evolutionDigest,
+    parentAuthorityCeilingDigests: [parent.profile.authorityCeilingDigest],
+    childAuthorityCeilingDigest: child.profile.authorityCeilingDigest,
+    retainedToolNames: child.profile.toolNames,
+    removedToolNames: ["shell_execute"],
+    retainedActionClasses: child.profile.actionClasses,
+    removedActionClasses: ["write_evidence"],
+    policyDigest: sha("5"),
+    issuerId: "authority:profile-v2",
+    issuerImplementationDigest: sha("6"),
+    evidenceDigests: [sha("7")],
+    issuedAtLogicalMs: 160,
+    validUntilLogicalMs: 800,
+  });
+  const context = {
+    materialProfile: child.profile,
+    parentProfiles: [parent.profile],
+    evolution,
+    attenuation,
+    synthesisCertification: null,
+    logicalTimeMs: 200,
+  };
+  const profile = createAgentInstantiationProfileV2({
+    creationMode: "derived",
+    context,
+  });
+  assert.equal(profile.schemaVersion, 2);
+  assert.equal(profile.creationMode, "derived");
+  assert.equal(profile.materialProfileDigest, child.profile.profileDigest);
+  assert.equal(profile.authorityAttenuationDigest, attenuation.attenuationDigest);
+  assert.equal(
+    validateAgentInstantiationProfileV2(profile, context).profileDigest,
+    profile.profileDigest,
+  );
+  const synthesisEvolution = createAgentInstantiationProfileEvolutionV1({
+    evolutionId: "profile-evolution:v2:synthesized",
+    mode: "synthesized",
+    materialProfileDigest: child.profile.profileDigest,
+    parentProfileDigests: [parent.profile.profileDigest],
+    parentAgentLineageDigests: [sha("8")],
+    inheritedCapabilityKeys: [],
+    removedCapabilityKeys: [],
+    addedCapabilityKeys: child.profile.capabilityKeys,
+    addedCapabilityAttestationDigests: [sha("9")],
+    evolutionPolicyDigest: sha("a"),
+    evolutionImplementationDigest: sha("b"),
+    evidenceDigests: [sha("c")],
+    proposedAtLogicalMs: 170,
+  });
+  const synthesisAttenuation = createAgentInstantiationAuthorityAttenuationV1({
+    ...attenuation,
+    attenuationId: "attenuation:v2:synthesized",
+    evolutionDigest: synthesisEvolution.evolutionDigest,
+  });
+  const synthesisCertification =
+    createAgentInstantiationSynthesisCertificationV1({
+      certificationId: "synthesis-certification:v2",
+      evolutionDigest: synthesisEvolution.evolutionDigest,
+      materialProfileDigest: child.profile.profileDigest,
+      synthesizerId: "agent:profile-synthesizer",
+      synthesizerVersion: 1,
+      synthesizerImplementationDigest: sha("d"),
+      independentCertifierId: "agent:profile-certifier",
+      independentCertifierImplementationDigest: sha("e"),
+      policyDigest: synthesisEvolution.evolutionPolicyDigest,
+      evidenceDigests: [sha("f")],
+      certifiedAtLogicalMs: 180,
+      validUntilLogicalMs: 800,
+    });
+  const synthesizedContext = {
+    materialProfile: child.profile,
+    parentProfiles: [parent.profile],
+    evolution: synthesisEvolution,
+    attenuation: synthesisAttenuation,
+    synthesisCertification,
+    logicalTimeMs: 200,
+  };
+  const synthesizedProfile = createAgentInstantiationProfileV2({
+    creationMode: "synthesized",
+    context: synthesizedContext,
+  });
+  assert.equal(synthesizedProfile.creationMode, "synthesized");
+  assert.equal(
+    validateAgentInstantiationProfileV2(
+      synthesizedProfile,
+      synthesizedContext,
+    ).profileDigest,
+    synthesizedProfile.profileDigest,
+  );
+  const profileCertification = createAgentInstantiationProfileCertificationV1({
+    certificationId: "profile-certification:v2:derived",
+    profileDigest: profile.profileDigest,
+    policyDigest: sha("8"),
+    roleCertificationDigest: profile.roleCertificationDigest,
+    certifierId: "agent:profile-v2-certifier",
+    certifierVersion: 1,
+    certifierImplementationDigest: sha("9"),
+    evidenceDigests: [sha("a")],
+    certifiedAtLogicalMs: 180,
+    validUntilLogicalMs: 800,
+  });
+  const scope = createMorphogenesisScopeV1({
+    tenantId: "tenant:profile-v2",
+    morphologyId: "morphology:profile-v2",
+    policyDomainId: "policy-domain:profile-v2",
+    missionId: "mission:profile-v2",
+    missionIntentId: "mission-intent:profile-v2",
+    objectiveId: "objective:profile-v2",
+    meshId: "mesh:profile-v2",
+    roomId: "room:profile-v2",
+    workItemId: "work:profile-v2",
+    workItemRevision: 1,
+  });
+  const creationRequest =
+    await compileAgentInstantiationProfileToCreationRequestV1({
+      requestId: "creation-request:profile-v2",
+      parentAgentId: "agent:parent:profile-v2",
+      requestedAgentId: "agent:child:profile-v2",
+      requestedPeerId: "peer:child:profile-v2",
+      requestedInstanceId: "instance:child:profile-v2:1",
+      factoryId: "factory:profile-v2",
+      scope,
+      expectedProfilePolicyDigest: profileCertification.policyDigest,
+      proposedAuthorityDigest: profile.authorityCeilingDigest,
+      parentAuthorityDigest: parent.profile.authorityCeilingDigest,
+      requestedAtLogicalMs: 200,
+      expiresAtLogicalMs: 700,
+      profile,
+      profileV2Context: context,
+      profileCertification,
+      role: child.role,
+      roleCertification: child.roleCertification,
+      certificationV2: { async verify() { return true; } },
+      authorityAttenuationVerification: {
+        async verify() { return true; },
+      },
+    });
+  assert.equal(creationRequest.capabilityKeys.includes("log_correlation"), true);
+  assert.equal(
+    creationRequest.proposedAuthorityDigest,
+    profile.authorityCeilingDigest,
+  );
+  await assert.rejects(
+    compileAgentInstantiationProfileToCreationRequestV1({
+      requestId: "creation-request:profile-v2:denied",
+      parentAgentId: "agent:parent:profile-v2",
+      requestedAgentId: "agent:child:profile-v2:denied",
+      requestedPeerId: "peer:child:profile-v2:denied",
+      requestedInstanceId: "instance:child:profile-v2:denied:1",
+      factoryId: "factory:profile-v2",
+      scope,
+      expectedProfilePolicyDigest: profileCertification.policyDigest,
+      proposedAuthorityDigest: profile.authorityCeilingDigest,
+      parentAuthorityDigest: parent.profile.authorityCeilingDigest,
+      requestedAtLogicalMs: 200,
+      expiresAtLogicalMs: 700,
+      profile,
+      profileV2Context: context,
+      profileCertification,
+      role: child.role,
+      roleCertification: child.roleCertification,
+      certificationV2: { async verify() { return true; } },
+    }),
+    /authority attenuation was denied/,
+  );
+  assert.throws(() =>
+    createAgentInstantiationProfileV2({
+      creationMode: "derived",
+      context: {
+        ...context,
+        materialProfile: {
+          ...child.profile,
+          interactionBudgetUnits: parent.profile.interactionBudgetUnits + 1,
+          profileDigest: child.profile.profileDigest,
+        },
+      },
     }),
   );
 });

@@ -193,6 +193,7 @@ export type PlanningDigestDomainV1 =
   | "agent-instantiation-profile-evolution"
   | "agent-instantiation-authority-attenuation"
   | "agent-instantiation-synthesis-certification"
+  | "agent-instantiation-profile-v2"
   | "morphogenesis-budget-reservation-request"
   | "morphogenesis-budget-reservation"
   | "morphogenesis-transformation-head"

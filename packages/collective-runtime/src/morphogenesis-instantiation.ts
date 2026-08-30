@@ -159,6 +159,54 @@ export interface AgentInstantiationSynthesisCertificationPortV1 {
   }): Promise<boolean>;
 }
 
+export interface AgentInstantiationProfileCertificationPortV2 {
+  verify(input: {
+    readonly profile: AgentInstantiationProfileV2;
+    readonly profileCertification: AgentInstantiationProfileCertificationV1;
+    readonly evolution: AgentInstantiationProfileEvolutionV1 | null;
+    readonly attenuation: AgentInstantiationAuthorityAttenuationV1 | null;
+    readonly synthesisCertification:
+      | AgentInstantiationSynthesisCertificationV1
+      | null;
+    readonly role: GovernedRoleDefinitionV2;
+    readonly roleCertification: GovernedRoleCertificationV2;
+    readonly logicalTimeMs: number;
+  }): Promise<boolean>;
+}
+
+export type AgentInstantiationModeV2 = "catalog" | "derived" | "synthesized";
+
+export interface AgentInstantiationProfileV2
+  extends Omit<
+    AgentInstantiationProfileV1,
+    "schemaVersion" | "creationMode" | "profileDigest"
+  > {
+  readonly schemaVersion: 2;
+  readonly creationMode: AgentInstantiationModeV2;
+  readonly materialProfileDigest: PlanningDigestV1;
+  readonly parentProfileDigests: readonly PlanningDigestV1[];
+  readonly parentAgentLineageDigests: readonly PlanningDigestV1[];
+  readonly evolutionDigest: PlanningDigestV1 | null;
+  readonly authorityAttenuationDigest: PlanningDigestV1 | null;
+  readonly synthesisCertificationDigest: PlanningDigestV1 | null;
+  readonly profileDigest: PlanningDigestV1;
+}
+
+export type AgentInstantiationProfileAnyV1 =
+  | AgentInstantiationProfileV1
+  | AgentInstantiationProfileV2;
+
+export interface AgentInstantiationProfileV2Context {
+  readonly materialProfile: AgentInstantiationProfileV1;
+  readonly parentProfiles: readonly AgentInstantiationProfileAnyV1[];
+  readonly evolution: AgentInstantiationProfileEvolutionV1 | null;
+  readonly attenuation: AgentInstantiationAuthorityAttenuationV1 | null;
+  readonly synthesisCertification:
+    | AgentInstantiationSynthesisCertificationV1
+    | null;
+  readonly logicalTimeMs: number;
+}
+
 export interface MorphogenesisLineageLinkV1 {
   readonly schemaVersion: 1;
   readonly linkId: AgentPlatID;
@@ -940,6 +988,301 @@ export function validateAgentInstantiationSynthesisCertificationV1(
   if (certificationDigest !== result.certificationDigest)
     fail("synthesis certification digest is invalid");
   return result;
+}
+
+export function createAgentInstantiationProfileV2(input: {
+  readonly creationMode: AgentInstantiationModeV2;
+  readonly context: AgentInstantiationProfileV2Context;
+}): AgentInstantiationProfileV2 {
+  const context = normalizeProfileV2Context(input.context);
+  if (!new Set(["catalog", "derived", "synthesized"]).has(input.creationMode))
+    fail("agent instantiation profile V2 mode is invalid");
+  validateProfileV2Mode(input.creationMode, context);
+  const {
+    schemaVersion: _materialSchema,
+    creationMode: _materialMode,
+    profileDigest: materialProfileDigest,
+    ...material
+  } = context.materialProfile;
+  const body = freeze({
+    schemaVersion: 2 as const,
+    ...material,
+    creationMode: input.creationMode,
+    materialProfileDigest,
+    parentProfileDigests: freeze(
+      context.parentProfiles.map(({ profileDigest }) => profileDigest).sort(),
+    ),
+    parentAgentLineageDigests: freeze(
+      [...(context.evolution?.parentAgentLineageDigests ?? [])],
+    ),
+    evolutionDigest: context.evolution?.evolutionDigest ?? null,
+    authorityAttenuationDigest:
+      context.attenuation?.attenuationDigest ?? null,
+    synthesisCertificationDigest:
+      context.synthesisCertification?.certificationDigest ?? null,
+  });
+  return freeze({
+    ...body,
+    profileDigest: digest("agent-instantiation-profile-v2", body),
+  });
+}
+
+export function validateAgentInstantiationProfileV2(
+  input: unknown,
+  context: AgentInstantiationProfileV2Context,
+): AgentInstantiationProfileV2 {
+  const value = exact(
+    input,
+    [
+      "actionClasses",
+      "adapterId",
+      "adapterVersion",
+      "authorId",
+      "authorityAttenuationDigest",
+      "authorityCeilingDigest",
+      "capabilityKeys",
+      "creationMode",
+      "evolutionDigest",
+      "expiresAtLogicalMs",
+      "inputContractDigest",
+      "instructionArtifactDigest",
+      "instructionArtifactId",
+      "interactionBudgetUnits",
+      "localRuleProgramDigest",
+      "materialProfileDigest",
+      "maximumActionBudgetUnits",
+      "memoryScopeDigest",
+      "memoryScopeId",
+      "missionId",
+      "modelConstraintsDigest",
+      "objectiveId",
+      "outputContractDigest",
+      "parentAgentLineageDigests",
+      "parentProfileDigests",
+      "predecessorProfileDigest",
+      "profileDigest",
+      "profileId",
+      "profileVersion",
+      "provenanceDigest",
+      "requiredAssessorIds",
+      "requiredAttestationDigests",
+      "resourceBudgetUnits",
+      "roleCertificationDigest",
+      "roleDefinitionDigest",
+      "roomId",
+      "schemaVersion",
+      "synthesisCertificationDigest",
+      "tenantId",
+      "toolNames",
+      "toolSetArtifactDigest",
+      "toolSetArtifactId",
+      "validFromLogicalMs",
+      "workItemId",
+      "workItemRevision",
+    ],
+    "agent instantiation profile V2",
+  );
+  if (value.schemaVersion !== 2)
+    fail("agent instantiation profile V2 schema is invalid");
+  const result = createAgentInstantiationProfileV2({
+    creationMode: value.creationMode as AgentInstantiationModeV2,
+    context,
+  });
+  if (JSON.stringify(value) !== JSON.stringify(result))
+    fail("agent instantiation profile V2 binding or digest is invalid");
+  return result;
+}
+
+function normalizeProfileV2Context(
+  input: AgentInstantiationProfileV2Context,
+): AgentInstantiationProfileV2Context {
+  if (!input || typeof input !== "object")
+    fail("agent instantiation profile V2 context is invalid");
+  validateProfileDigest(input.materialProfile);
+  const parentProfiles = freeze(
+    input.parentProfiles.map((profile) => {
+      validateProfileDigest(profile);
+      return profile;
+    }),
+  );
+  if (parentProfiles.length > 8)
+    fail("agent instantiation profile V2 parent count is invalid");
+  const evolution =
+    input.evolution === null
+      ? null
+      : validateAgentInstantiationProfileEvolutionV1(input.evolution);
+  const attenuation =
+    input.attenuation === null
+      ? null
+      : validateAgentInstantiationAuthorityAttenuationV1(input.attenuation);
+  const synthesisCertification =
+    input.synthesisCertification === null
+      ? null
+      : validateAgentInstantiationSynthesisCertificationV1(
+          input.synthesisCertification,
+        );
+  const logicalTimeMs = nonNegative(
+    input.logicalTimeMs,
+    "agent instantiation profile V2 logical time",
+  );
+  if (
+    logicalTimeMs < input.materialProfile.validFromLogicalMs ||
+    logicalTimeMs >= input.materialProfile.expiresAtLogicalMs ||
+    parentProfiles.some(
+      (profile) =>
+        logicalTimeMs < profile.validFromLogicalMs ||
+        logicalTimeMs >= profile.expiresAtLogicalMs,
+    )
+  )
+    fail("agent instantiation profile V2 material is not current");
+  return freeze({
+    materialProfile: input.materialProfile,
+    parentProfiles,
+    evolution,
+    attenuation,
+    synthesisCertification,
+    logicalTimeMs,
+  });
+}
+
+function validateProfileV2Mode(
+  mode: AgentInstantiationModeV2,
+  context: AgentInstantiationProfileV2Context,
+) {
+  const parentDigests = context.parentProfiles
+    .map(({ profileDigest }) => profileDigest)
+    .sort();
+  if (mode === "catalog") {
+    if (
+      context.parentProfiles.length !== 0 ||
+      context.evolution !== null ||
+      context.attenuation !== null ||
+      context.synthesisCertification !== null
+    )
+      fail("catalog profile V2 cannot carry evolution authority");
+    return;
+  }
+  const evolution = context.evolution;
+  const attenuation = context.attenuation;
+  if (
+    !evolution ||
+    !attenuation ||
+    evolution.mode !== mode ||
+    evolution.materialProfileDigest !== context.materialProfile.profileDigest ||
+    JSON.stringify(evolution.parentProfileDigests) !==
+      JSON.stringify(parentDigests) ||
+    attenuation.evolutionDigest !== evolution.evolutionDigest ||
+    attenuation.childAuthorityCeilingDigest !==
+      context.materialProfile.authorityCeilingDigest ||
+    JSON.stringify(attenuation.parentAuthorityCeilingDigests) !==
+      JSON.stringify(
+        context.parentProfiles
+          .map(({ authorityCeilingDigest }) => authorityCeilingDigest)
+          .sort(),
+      )
+  )
+    fail("profile V2 evolution or attenuation binding is invalid");
+  if (
+    context.logicalTimeMs < attenuation.issuedAtLogicalMs ||
+    context.logicalTimeMs >= attenuation.validUntilLogicalMs
+  )
+    fail("profile V2 authority attenuation is not current");
+  if (mode === "derived") {
+    if (
+      context.parentProfiles.length !== 1 ||
+      context.synthesisCertification !== null
+    )
+      fail("derived profile V2 parent or synthesis binding is invalid");
+    validateDerivedProfileV2(context.parentProfiles[0]!, context);
+    return;
+  }
+  const certification = context.synthesisCertification;
+  if (
+    !certification ||
+    certification.evolutionDigest !== evolution.evolutionDigest ||
+    certification.materialProfileDigest !==
+      context.materialProfile.profileDigest ||
+    context.logicalTimeMs < certification.certifiedAtLogicalMs ||
+    context.logicalTimeMs >= certification.validUntilLogicalMs
+  )
+    fail("synthesized profile V2 certification is invalid");
+}
+
+function validateDerivedProfileV2(
+  parent: AgentInstantiationProfileAnyV1,
+  context: AgentInstantiationProfileV2Context,
+) {
+  const material = context.materialProfile;
+  const evolution = context.evolution!;
+  const attenuation = context.attenuation!;
+  if (material.predecessorProfileDigest !== parent.profileDigest)
+    fail("derived profile V2 predecessor is invalid");
+  if (
+    !sameSet(
+      parent.capabilityKeys,
+      [
+        ...evolution.inheritedCapabilityKeys,
+        ...evolution.removedCapabilityKeys,
+      ],
+    ) ||
+    !sameSet(
+      material.capabilityKeys,
+      [
+        ...evolution.inheritedCapabilityKeys,
+        ...evolution.addedCapabilityKeys,
+      ],
+    )
+  )
+    fail("derived profile V2 capability partition is invalid");
+  if (
+    !isSubset(material.toolNames, parent.toolNames) ||
+    !isSubset(material.actionClasses, parent.actionClasses) ||
+    !sameSet(attenuation.retainedToolNames, material.toolNames) ||
+    !sameSet(
+      attenuation.removedToolNames,
+      difference(parent.toolNames, material.toolNames),
+    ) ||
+    !sameSet(attenuation.retainedActionClasses, material.actionClasses) ||
+    !sameSet(
+      attenuation.removedActionClasses,
+      difference(parent.actionClasses, material.actionClasses),
+    )
+  )
+    fail("derived profile V2 tool or action attenuation is invalid");
+  if (
+    material.resourceBudgetUnits > parent.resourceBudgetUnits ||
+    material.interactionBudgetUnits > parent.interactionBudgetUnits ||
+    material.maximumActionBudgetUnits > parent.maximumActionBudgetUnits
+  )
+    fail("derived profile V2 budget widened");
+}
+
+function validateProfileDigest(profile: AgentInstantiationProfileAnyV1) {
+  if (!profile || typeof profile !== "object")
+    fail("agent instantiation profile reference is invalid");
+  const { profileDigest, ...body } = profile;
+  const domain =
+    profile.schemaVersion === 1
+      ? "agent-instantiation-profile"
+      : profile.schemaVersion === 2
+        ? "agent-instantiation-profile-v2"
+        : null;
+  if (!domain || profileDigest !== digest(domain, body))
+    fail("agent instantiation profile reference digest is invalid");
+}
+
+function sameSet(left: readonly string[], right: readonly string[]) {
+  return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+}
+
+function isSubset(values: readonly string[], available: readonly string[]) {
+  const set = new Set(available);
+  return values.every((value) => set.has(value));
+}
+
+function difference(left: readonly string[], right: readonly string[]) {
+  const removed = new Set(right);
+  return left.filter((value) => !removed.has(value));
 }
 
 function exact(input: unknown, keys: readonly string[], label: string): Record<string, unknown> {

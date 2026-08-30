@@ -22,8 +22,13 @@ import type { CollectiveHostTelemetryPortV1 } from "./collective-telemetry.js";
 import type { PlanningDigestV1 } from "@agentplat/collective-planning";
 import {
   type AgentInstantiationProfileCertificationPortV1,
+  type AgentInstantiationProfileCertificationPortV2,
   type AgentInstantiationProfileCertificationV1,
+  type AgentInstantiationProfileAnyV1,
   type AgentInstantiationProfileV1,
+  type AgentInstantiationProfileV2Context,
+  type AgentInstantiationAuthorityAttenuationPortV1,
+  type AgentInstantiationSynthesisCertificationPortV1,
   type MorphogenesisScopeV1,
   type MorphogenesisAgentLifecyclePortV1,
   type MorphogenesisAgentAttestationPortV1,
@@ -40,6 +45,7 @@ import {
   createMorphogenesisTerminalAgentReceiptV1,
   validateAgentInstantiationProfileCertificationV1,
   validateAgentInstantiationProfileV1,
+  validateAgentInstantiationProfileV2,
   validateMorphogenesisScopeV1,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
@@ -75,11 +81,17 @@ export async function compileAgentInstantiationProfileToCreationRequestV1(
     readonly parentAuthorityDigest: PlanningDigestV1;
     readonly requestedAtLogicalMs: number;
     readonly expiresAtLogicalMs: number;
-    readonly profile: AgentInstantiationProfileV1;
+    readonly profile: AgentInstantiationProfileAnyV1;
+    readonly profileV2Context?: AgentInstantiationProfileV2Context;
     readonly profileCertification: AgentInstantiationProfileCertificationV1;
     readonly role: GovernedRoleDefinitionV2;
     readonly roleCertification: GovernedRoleCertificationV2;
-    readonly certification: AgentInstantiationProfileCertificationPortV1;
+    readonly certification?: AgentInstantiationProfileCertificationPortV1;
+    readonly certificationV2?: AgentInstantiationProfileCertificationPortV2;
+    readonly authorityAttenuationVerification?:
+      AgentInstantiationAuthorityAttenuationPortV1;
+    readonly synthesisCertificationVerification?:
+      AgentInstantiationSynthesisCertificationPortV1;
     readonly crypto?: Crypto;
   },
 ): Promise<AgentCreationRequestV1> {
@@ -88,10 +100,28 @@ export async function compileAgentInstantiationProfileToCreationRequestV1(
   const roleCertification = validateGovernedRoleCertificationV2(
     input.roleCertification,
   );
-  const profile = validateAgentInstantiationProfileV1(input.profile, {
-    role,
-    roleCertification,
-  });
+  let profile: AgentInstantiationProfileAnyV1;
+  let profileV2Context: AgentInstantiationProfileV2Context | undefined;
+  if (input.profile.schemaVersion === 2) {
+    if (!input.profileV2Context)
+      fail("instantiation profile V2 context is unavailable");
+    profileV2Context = {
+      ...input.profileV2Context,
+      materialProfile: validateAgentInstantiationProfileV1(
+        input.profileV2Context.materialProfile,
+        { role, roleCertification },
+      ),
+    };
+    profile = validateAgentInstantiationProfileV2(
+      input.profile,
+      profileV2Context,
+    );
+  } else {
+    profile = validateAgentInstantiationProfileV1(input.profile, {
+      role,
+      roleCertification,
+    });
+  }
   const profileCertification =
     validateAgentInstantiationProfileCertificationV1(
       input.profileCertification,
@@ -122,16 +152,59 @@ export async function compileAgentInstantiationProfileToCreationRequestV1(
     input.expiresAtLogicalMs > profileCertification.validUntilLogicalMs
   )
     fail("instantiation profile is stale, cross-scoped or authority-invalid");
-  if (
-    !(await input.certification.verify({
-      profile,
-      certification: profileCertification,
-      role,
-      roleCertification,
-      logicalTimeMs,
-    }))
-  )
-    fail("instantiation profile certification was denied");
+  if (profile.schemaVersion === 1) {
+    if (
+      !input.certification ||
+      !(await input.certification.verify({
+        profile,
+        certification: profileCertification,
+        role,
+        roleCertification,
+        logicalTimeMs,
+      }))
+    )
+      fail("instantiation profile certification was denied");
+  } else {
+    const context = profileV2Context!;
+    if (
+      !input.certificationV2 ||
+      !(await input.certificationV2.verify({
+        profile,
+        profileCertification,
+        evolution: context.evolution,
+        attenuation: context.attenuation,
+        synthesisCertification: context.synthesisCertification,
+        role,
+        roleCertification,
+        logicalTimeMs,
+      }))
+    )
+      fail("instantiation profile V2 certification was denied");
+    if (
+      profile.creationMode !== "catalog" &&
+      (!context.evolution ||
+        !context.attenuation ||
+        !input.authorityAttenuationVerification ||
+        !(await input.authorityAttenuationVerification.verify({
+          evolution: context.evolution,
+          attenuation: context.attenuation,
+          logicalTimeMs,
+        })))
+    )
+      fail("instantiation profile authority attenuation was denied");
+    if (
+      profile.creationMode === "synthesized" &&
+      (!context.evolution ||
+        !context.synthesisCertification ||
+        !input.synthesisCertificationVerification ||
+        !(await input.synthesisCertificationVerification.verify({
+          evolution: context.evolution,
+          certification: context.synthesisCertification,
+          logicalTimeMs,
+        })))
+    )
+      fail("instantiation profile synthesis certification was denied");
+  }
   return createAgentCreationRequestV1(
     {
       requestId: input.requestId,
