@@ -1,0 +1,224 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+
+const faultRequirements = Object.freeze({
+  "network-partition": "minimumNetworkPartitionCycles",
+  "host-loss": "minimumHostLossCycles",
+  "postgres-failover": "minimumPostgresFailoverCycles",
+  "temporal-worker-loss": "minimumTemporalWorkerLossCycles",
+});
+
+export function createStagingSupervisorConfigV1({
+  profile,
+  sourceCommit,
+  inventoryDigest,
+  deploymentReceiptDigest,
+  campaignKeyId,
+  campaignPublicKeyFingerprint,
+  operationalScenarioIds,
+}) {
+  assert.equal(profile.status, "frozen-before-staging-execution");
+  assert.match(sourceCommit, /^[0-9a-f]{40}$/u);
+  sha(inventoryDigest);
+  sha(deploymentReceiptDigest);
+  text(campaignKeyId);
+  sha(campaignPublicKeyFingerprint);
+  const body = {
+    schemaVersion: 1,
+    kind: "agentplat-agent-morphogenesis-beta1-staging-supervisor-config-v1",
+    profileId: profile.profileId,
+    profileDigest: digest("agentplat-agent-morphogenesis-beta1-staging-profile-v1", profile),
+    sourceCommit,
+    inventoryDigest,
+    deploymentReceiptDigest,
+    campaignKeyId,
+    campaignPublicKeyFingerprint,
+    operationalScenarioIds: [...operationalScenarioIds],
+    requiredScenarioCount: profile.requiredScenarioCoverage.exactCanonicalScenarioCount,
+    requiredInfrastructure: profile.requiredInfrastructure,
+    executionGeometry: profile.executionGeometry,
+    isolationRequirements: profile.isolationRequirements,
+    serviceLevelObjectives: profile.serviceLevelObjectives,
+    claimBoundary: profile.claimBoundary,
+  };
+  assert.equal(body.operationalScenarioIds.length, body.requiredScenarioCount);
+  assert.equal(new Set(body.operationalScenarioIds).size, body.requiredScenarioCount);
+  return Object.freeze({
+    ...body,
+    configDigest: digest("agentplat-agent-morphogenesis-beta1-staging-supervisor-config-v1", body),
+  });
+}
+
+export function createInitialStagingSupervisorStateV1(config) {
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: "agentplat-agent-morphogenesis-beta1-staging-supervisor-state-v1",
+    configDigest: config.configDigest,
+    sourceCommit: config.sourceCommit,
+    status: "planned",
+    revision: 0,
+    nextReceiptSequence: 1,
+    nextEventSequence: 1,
+    acceptedOperationIds: [],
+    baselineScenarioIds: [],
+    postUpgradeScenarioIds: [],
+    faultCycles: {
+      "network-partition": 0,
+      "host-loss": 0,
+      "postgres-failover": 0,
+      "temporal-worker-loss": 0,
+    },
+    rollingDeploymentCycles: 0,
+    schemaUpgradeCycles: 0,
+    backupRestoreCycles: 0,
+    keyRotationCycles: 0,
+    isolationPassed: false,
+    alertDeliveryPassed: false,
+    soak: null,
+    duplicateMaterialEffects: 0,
+    unauthorizedActivations: 0,
+    lostCommittedReceipts: 0,
+    morphologyHeadForks: 0,
+    crossTenantEffects: 0,
+    crossMissionEffects: 0,
+    missionContinuityRatio: 1,
+    stagingQualification: "not-established",
+    productionReadiness: "not-established",
+    productionClaimPermitted: false,
+    lastEventDigest: null,
+  });
+}
+
+export function acceptStagingOperationReceiptV1(config, current, input) {
+  assert.equal(current.configDigest, config.configDigest);
+  const receipt = validateReceipt(config, input);
+  assert.equal(receipt.sequence, current.nextReceiptSequence);
+  assert.equal(current.acceptedOperationIds.includes(receipt.operationId), false);
+  const next = structuredClone(current);
+  next.status = "running";
+  next.revision += 1;
+  next.nextReceiptSequence += 1;
+  next.acceptedOperationIds.push(receipt.operationId);
+  next.duplicateMaterialEffects += receipt.invariants.duplicateMaterialEffects;
+  next.unauthorizedActivations += receipt.invariants.unauthorizedActivations;
+  next.lostCommittedReceipts += receipt.invariants.lostCommittedReceipts;
+  next.morphologyHeadForks += receipt.invariants.morphologyHeadForks;
+  next.crossTenantEffects += receipt.invariants.crossTenantEffects;
+  next.crossMissionEffects += receipt.invariants.crossMissionEffects;
+  next.missionContinuityRatio = Math.min(
+    next.missionContinuityRatio,
+    receipt.invariants.missionContinuityRatio,
+  );
+  switch (receipt.operationType) {
+    case "canonical-scenario": {
+      assert.ok(config.operationalScenarioIds.includes(receipt.detail.scenarioId));
+      const target = receipt.detail.phase === "baseline"
+        ? next.baselineScenarioIds
+        : receipt.detail.phase === "post-upgrade"
+          ? next.postUpgradeScenarioIds
+          : null;
+      assert.ok(target);
+      assert.equal(target.includes(receipt.detail.scenarioId), false);
+      target.push(receipt.detail.scenarioId);
+      target.sort();
+      break;
+    }
+    case "fault-cycle":
+      assert.ok(receipt.detail.faultClass in faultRequirements);
+      next.faultCycles[receipt.detail.faultClass] += 1;
+      break;
+    case "rolling-deployment": next.rollingDeploymentCycles += 1; break;
+    case "schema-upgrade": next.schemaUpgradeCycles += 1; break;
+    case "backup-restore": next.backupRestoreCycles += 1; break;
+    case "key-rotation": next.keyRotationCycles += 1; break;
+    case "tenant-mission-isolation":
+      assert.equal(receipt.detail.tenantCount >= config.executionGeometry.minimumTenants, true);
+      assert.equal(receipt.detail.missionsPerTenant >= 2, true);
+      assert.equal(receipt.detail.crossScopeReceiptsAccepted, 0);
+      next.isolationPassed = true;
+      break;
+    case "alert-delivery":
+      assert.match(receipt.detail.externalReceiptDigest, /^sha256:[0-9a-f]{64}$/u);
+      next.alertDeliveryPassed = true;
+      break;
+    case "soak-summary":
+      assert.equal(next.soak, null);
+      next.soak = validateSoak(config, receipt.detail);
+      break;
+    default: throw new TypeError("staging operation receipt type is invalid");
+  }
+  if (completionSatisfied(config, next)) {
+    next.status = "completed";
+    next.stagingQualification = "beta1-distributed-staging-profile-established";
+  }
+  assert.equal(next.productionReadiness, "not-established");
+  assert.equal(next.productionClaimPermitted, false);
+  return Object.freeze(next);
+}
+
+export function completionSatisfied(config, state) {
+  const exact = (values) =>
+    values.length === config.requiredScenarioCount &&
+    values.every((value, index) => value === [...config.operationalScenarioIds].sort()[index]);
+  return exact(state.baselineScenarioIds) &&
+    exact(state.postUpgradeScenarioIds) &&
+    Object.entries(faultRequirements).every(([faultClass, geometryKey]) =>
+      state.faultCycles[faultClass] >= config.executionGeometry[geometryKey]) &&
+    state.rollingDeploymentCycles >= config.executionGeometry.minimumRollingDeploymentCycles &&
+    state.schemaUpgradeCycles >= config.executionGeometry.minimumSchemaUpgradeCycles &&
+    state.backupRestoreCycles >= config.executionGeometry.minimumBackupRestoreCycles &&
+    state.keyRotationCycles >= config.executionGeometry.minimumKeyRotationCycles &&
+    state.isolationPassed &&
+    state.alertDeliveryPassed &&
+    state.soak !== null &&
+    state.duplicateMaterialEffects === 0 &&
+    state.unauthorizedActivations === 0 &&
+    state.lostCommittedReceipts === 0 &&
+    state.morphologyHeadForks === 0 &&
+    state.crossTenantEffects === 0 &&
+    state.crossMissionEffects === 0 &&
+    state.missionContinuityRatio >= config.serviceLevelObjectives.minimumMissionContinuityRatio;
+}
+
+function validateReceipt(config, input) {
+  assert.equal(input.schemaVersion, 1);
+  assert.equal(input.kind, "agentplat-agent-morphogenesis-beta1-staging-operation-receipt-v1");
+  assert.equal(input.configDigest, config.configDigest);
+  assert.equal(input.sourceCommit, config.sourceCommit);
+  assert.equal(input.status, "passed");
+  assert.equal(input.productionReadiness, "not-established");
+  assert.equal(input.productionClaimPermitted, false);
+  assert.ok(Number.isSafeInteger(input.sequence) && input.sequence >= 1);
+  text(input.operationId);
+  assert.equal(typeof input.detail, "object");
+  const invariants = input.invariants;
+  for (const key of [
+    "duplicateMaterialEffects", "unauthorizedActivations", "lostCommittedReceipts",
+    "morphologyHeadForks", "crossTenantEffects", "crossMissionEffects",
+  ]) assert.equal(invariants[key], 0);
+  assert.equal(invariants.missionContinuityRatio, 1);
+  return input;
+}
+
+function validateSoak(config, input) {
+  assert.ok(input.durationMs >= config.executionGeometry.minimumSoakDurationMs);
+  assert.ok(input.completedMorphogenesisRuns >= config.executionGeometry.minimumCompletedMorphogenesisRuns);
+  assert.ok(input.minimumRunsPerTenant >= config.executionGeometry.minimumRunsPerTenant);
+  assert.ok(input.tenantCount >= config.executionGeometry.minimumTenants);
+  assert.ok(input.maximumConcurrentMissions >= config.executionGeometry.minimumConcurrentMissions);
+  assert.ok(input.cumulativeMeshProcessStarts >= config.requiredInfrastructure.minimumCumulativeAgentMeshProcessStarts);
+  assert.equal(input.resourceSampleCount > 0, true);
+  return Object.freeze({ ...input });
+}
+
+function sha(value) {
+  assert.match(value, /^sha256:[0-9a-f]{64}$/u);
+}
+
+function text(value) {
+  assert.match(value, /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u);
+}
+
+export function digest(domain, value) {
+  return `sha256:${createHash("sha256").update(`${domain}\n${JSON.stringify(value)}`).digest("hex")}`;
+}

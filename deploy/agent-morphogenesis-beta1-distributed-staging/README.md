@@ -90,3 +90,15 @@ The apply command still does not establish staging qualification. It proves the
 initial four identities are Ready across at least three real zones/nodes and
 using external signing custody. Fault cycles must raise cumulative process
 starts to six or more before that campaign gate can pass.
+
+The durable supervisor is planned only after deployment. Planning binds the
+clean commit, inventory digest, deployment receipt and campaign KMS public key.
+It does not permit execution. A policy-eligible agent, person or quorum must
+then authorize the exact config digest with KMS for a validity window covering
+the target 72-hour soak plus recovery margin.
+
+Drivers submit sequential KMS-signed operation receipts. The supervisor rejects
+unsigned, expired, replayed, out-of-order or unsafe receipts. It completes only
+after both exact 22-scenario sets, every frozen fault/upgrade/restore/rotation
+count, isolation and alert delivery, and a ≥24-hour/1,000-run soak. Completion
+still leaves production readiness and production claims disabled.
