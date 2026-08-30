@@ -67,6 +67,7 @@ export function createInitialStagingSupervisorStateV1(config) {
     nextReceiptSequence: 1,
     nextEventSequence: 1,
     acceptedOperationIds: [],
+    acceptedReceiptDigests: [],
     baselineScenarioIds: [],
     postUpgradeScenarioIds: [],
     partitionAuthorityScenarioIds: [],

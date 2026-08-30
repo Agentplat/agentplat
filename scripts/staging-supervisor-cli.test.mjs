@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -113,6 +113,11 @@ test("staging supervisor plans, authorizes, ingests and rejects replay end-to-en
     assert.equal(state.status, "running");
     assert.equal(state.alertDeliveryPassed, true);
     assert.equal(state.nextReceiptSequence, 2);
+    assert.equal(state.acceptedReceiptDigests.length, 1);
+    assert.equal(
+      (await readdir(path.join(supervisorDirectory, "receipts"))).length,
+      1,
+    );
     const replay = spawnSync(
       process.execPath,
       [

@@ -98,6 +98,7 @@ if (mode === "contract-smoke") {
   });
   let state = createInitialStagingSupervisorStateV1(config);
   await mkdir(supervisorDirectory, { recursive: false });
+  await mkdir(path.join(supervisorDirectory, "receipts"));
   const event = createEvent(state, "planned", {
     sourceCommit,
     configDigest: config.configDigest,
@@ -273,9 +274,18 @@ if (mode === "contract-smoke") {
     });
     next = {
       ...next,
+      acceptedReceiptDigests: [...current.acceptedReceiptDigests, receiptDigest],
       nextEventSequence: current.nextEventSequence + 1,
       lastEventDigest: event.eventDigest,
     };
+    const receiptName = `${String(body.sequence).padStart(4, "0")}-${createHash("sha256")
+      .update(body.operationId)
+      .digest("hex")
+      .slice(0, 16)}.json`;
+    await retainExact(
+      path.join(directory, "receipts", receiptName),
+      `${JSON.stringify(signed, null, 2)}\n`,
+    );
     await saveState(directory, next);
     await appendFile(
       path.join(directory, "supervisor-events.jsonl"),
@@ -369,6 +379,15 @@ async function exclusive(directory, name, value) {
   await writeFile(path.join(directory, name), `${JSON.stringify(value, null, 2)}\n`, {
     encoding: "utf8", flag: "wx",
   });
+}
+
+async function retainExact(file, value) {
+  try {
+    await writeFile(file, value, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if (error?.code !== "EEXIST" || await readFile(file, "utf8") !== value)
+      throw error;
+  }
 }
 
 function git(...args) {
