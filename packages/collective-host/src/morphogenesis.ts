@@ -19,7 +19,11 @@ import type {
 } from "@agentplat/workflows";
 import type { ActionGateway } from "@agentplat/inference-control/tools";
 import type { CollectiveHostTelemetryPortV1 } from "./collective-telemetry.js";
-import type { PlanningDigestV1 } from "@agentplat/collective-planning";
+import {
+  digestPlanningJsonV1,
+  type PlanningDigestV1,
+  type PlanningJson,
+} from "@agentplat/collective-planning";
 import {
   type AgentInstantiationProfileCertificationPortV1,
   type AgentInstantiationProfileCertificationPortV2,
@@ -243,7 +247,42 @@ export interface MorphogenesisAgentCreationMaterialPortV1 {
     readonly request: AgentCreationRequestV1;
     readonly certificate: AgentCreationCertificateV1;
     readonly activeKeyProof: GovernedCreateInput["activeKeyProof"];
+    readonly binding?: MorphogenesisAgentCreationMaterialBindingV2;
   }>;
+}
+
+export interface MorphogenesisAgentCreationMaterialBindingV2 {
+  readonly schemaVersion: 2;
+  readonly operationId: string;
+  readonly scopeDigest: PlanningDigestV1;
+  readonly proposalDigest: PlanningDigestV1;
+  readonly profileDigest: PlanningDigestV1;
+  readonly requestDigest: PlanningDigestV1;
+  readonly certificateDigest: PlanningDigestV1;
+  readonly bindingDigest: PlanningDigestV1;
+}
+
+export function createMorphogenesisAgentCreationMaterialBindingV2(
+  input: Omit<MorphogenesisAgentCreationMaterialBindingV2, "schemaVersion" | "bindingDigest">,
+): MorphogenesisAgentCreationMaterialBindingV2 {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.operationId))
+    fail("agent creation material operation ID is invalid");
+  const body = Object.freeze({
+    schemaVersion: 2 as const,
+    operationId: input.operationId,
+    scopeDigest: asDigest(input.scopeDigest, "creation material scope digest"),
+    proposalDigest: asDigest(input.proposalDigest, "creation material proposal digest"),
+    profileDigest: asDigest(input.profileDigest, "creation material profile digest"),
+    requestDigest: asDigest(input.requestDigest, "creation material request digest"),
+    certificateDigest: asDigest(input.certificateDigest, "creation material certificate digest"),
+  });
+  return Object.freeze({
+    ...body,
+    bindingDigest: digestPlanningJsonV1(
+      "morphogenesis-agent-creation-material-binding-v2",
+      body as unknown as PlanningJson,
+    ),
+  });
 }
 
 export class GovernedAgentLifecycleMorphogenesisPortV1
@@ -366,8 +405,36 @@ export class GovernedAgentLifecycleMorphogenesisPortV1
     readonly logicalTimeMs: number;
   }) {
     const prepared = await this.options.material.prepare(input);
-    if (prepared.request.requestId !== input.operationId)
-      fail("agent creation request does not use the Morphogenesis operation ID");
+    const request = prepared.request;
+    const profile = input.profile;
+    if (
+      request.requestId !== input.operationId ||
+      request.adapterId !== profile.adapterId ||
+      request.adapterVersion !== profile.adapterVersion ||
+      JSON.stringify(request.capabilityKeys) !== JSON.stringify(profile.capabilityKeys) ||
+      request.roleDefinitionDigest !== profile.roleDefinitionDigest ||
+      request.proposedAuthorityDigest !== profile.authorityCeilingDigest ||
+      request.localRuleProgramDigest !== profile.localRuleProgramDigest ||
+      request.resourceBudgetUnits !== profile.resourceBudgetUnits ||
+      request.interactionBudgetUnits !== profile.interactionBudgetUnits ||
+      request.requestedAtLogicalMs !== input.logicalTimeMs ||
+      prepared.certificate.requestDigest !== request.requestDigest ||
+      prepared.certificate.roleDefinitionDigest !== request.roleDefinitionDigest
+    ) fail("agent creation material substituted the Morphogenesis profile");
+    if (prepared.binding) {
+      const expected = createMorphogenesisAgentCreationMaterialBindingV2({
+        operationId: input.operationId,
+        scopeDigest: input.scope.scopeDigest,
+        proposalDigest: input.proposalDigest,
+        profileDigest: profile.profileDigest,
+        requestDigest: request.requestDigest as PlanningDigestV1,
+        certificateDigest: prepared.certificate.certificateDigest as PlanningDigestV1,
+      });
+      if (JSON.stringify(prepared.binding) !== JSON.stringify(expected))
+        fail("agent creation material binding is invalid");
+    } else if (profile.schemaVersion === 2) {
+      fail("agent creation material V2 binding is required");
+    }
     return prepared;
   }
 }

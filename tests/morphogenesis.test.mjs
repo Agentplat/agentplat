@@ -93,6 +93,7 @@ import {
   MorphogenesisTelemetryPublisherV1,
   TrustInferenceMorphogenesisAttestationPortV1,
   compileAgentInstantiationProfileToCreationRequestV1,
+  createMorphogenesisAgentCreationMaterialBindingV2,
 } from "../packages/collective-host/dist/morphogenesis.js";
 import {
   InMemoryMorphogenesisTeamTopologyStateStoreV2,
@@ -2763,7 +2764,7 @@ test("catalog creation reconciles a crash after create-and-enroll without duplic
   assert.equal(record.phase, "completed");
 });
 
-test("lifecycle adapter creates and enrolls through the nominal governed lifecycle", async () => {
+test("derived lifecycle material crosses the nominal factory and membership boundaries", async () => {
   const context = fixture();
   const creationPolicy = await createAgentCreationPolicyV1({
     schemaVersion: 1,
@@ -2875,7 +2876,8 @@ test("lifecycle adapter creates and enrolls through the nominal governed lifecyc
     },
   });
   const profile = {
-    schemaVersion: 1,
+    schemaVersion: 2,
+    creationMode: "derived",
     profileDigest: sha("a"),
     roleDefinitionDigest: sha("6"),
     adapterId: "adapter:portable-agent",
@@ -2887,9 +2889,7 @@ test("lifecycle adapter creates and enrolls through the nominal governed lifecyc
     interactionBudgetUnits: 10,
   };
   const prepared = new Map();
-  const adapter = new GovernedAgentLifecycleMorphogenesisPortV1({
-    lifecycle,
-    material: {
+  const materialPort = {
       async prepare(input) {
         if (prepared.has(input.operationId)) return prepared.get(input.operationId);
         const root = (await lineage.load()).agents.find(
@@ -2949,12 +2949,39 @@ test("lifecycle adapter creates and enrolls through the nominal governed lifecyc
             keyId: "key:created-adapter",
             value: "proof-created-adapter",
           },
+          binding: createMorphogenesisAgentCreationMaterialBindingV2({
+            operationId: input.operationId,
+            scopeDigest: input.scope.scopeDigest,
+            proposalDigest: input.proposalDigest,
+            profileDigest: input.profile.profileDigest,
+            requestDigest: request.requestDigest,
+            certificateDigest: certificate.certificateDigest,
+          }),
         };
         prepared.set(input.operationId, material);
         return material;
       },
+  };
+  const adapter = new GovernedAgentLifecycleMorphogenesisPortV1({
+    lifecycle,
+    material: materialPort,
+  });
+  const unboundAdapter = new GovernedAgentLifecycleMorphogenesisPortV1({
+    lifecycle,
+    material: {
+      async prepare(input) {
+        const { binding: _binding, ...unbound } = await materialPort.prepare(input);
+        return unbound;
+      },
     },
   });
+  await assert.rejects(unboundAdapter.createAndEnroll({
+    operationId: "operation:create-adapter:unbound",
+    scope: context.scope,
+    proposalDigest: context.proposal.proposalDigest,
+    profile,
+    logicalTimeMs: 190,
+  }), /material V2 binding is required/);
   const agent = await adapter.createAndEnroll({
     operationId: "operation:create-adapter",
     scope: context.scope,
@@ -2962,7 +2989,7 @@ test("lifecycle adapter creates and enrolls through the nominal governed lifecyc
     profile,
     logicalTimeMs: 200,
   });
-  assert.equal(agent.source, "catalog_created");
+  assert.equal(agent.source, "derived_created");
   assert.equal(agent.membershipEpoch, 2);
   assert.equal(
     (
@@ -2972,7 +2999,7 @@ test("lifecycle adapter creates and enrolls through the nominal governed lifecyc
         requiredCapabilityKeys: ["database_forensics"],
         membershipConfigurationDigest: agent.membershipConfigurationDigest,
         membershipEpoch: agent.membershipEpoch,
-        expectedSource: "catalog_created",
+        expectedSource: "derived_created",
         logicalTimeMs: 210,
       })
     ).agentDigest,

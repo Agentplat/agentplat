@@ -24,6 +24,12 @@ continue the ordinary planning path.
   suspension and resumption to the nominal governed lifecycle, returns the
   resulting configuration epoch/digest and lineage digest as an exact status
   receipt, and requires active-key proof before re-admission.
+- `./morphogenesis` compiles catalog, derived and independently certified
+  synthesized instantiation profiles into the existing governed factory
+  request. Derived and synthesized material must carry a V2 binding over the
+  Morphogenesis operation, scope, proposal, profile, creation request and
+  creation certificate; the lifecycle adapter rejects material substitution
+  before invoking the provider-neutral factory or Membership boundary.
 
 - `./distributed-protocol` provides authenticated, causal message streams over
   a bounded sparse peer plane, with content-addressed artifacts and a durable

@@ -196,6 +196,7 @@ export type PlanningDigestDomainV1 =
   | "agent-instantiation-profile-v2"
   | "morphogenesis-policy-v2"
   | "morphogenesis-operator-binding-v2"
+  | "morphogenesis-agent-creation-material-binding-v2"
   | "morphogenesis-compiled-step-v2"
   | "morphogenesis-compiled-operator-plan-v2"
   | "morphogenesis-operator-step-receipt-v2"
