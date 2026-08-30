@@ -109,3 +109,12 @@ ingestion, metrics/log queries, and external alert firing, delivery and
 resolution. Credentials may be supplied only through an external token file.
 The command emits `operation-detail.json`, which can be KMS-signed as the
 supervisor's `alert-delivery` receipt.
+
+Fault injection uses the separately authenticated gateway declared in the
+inventory. A passing response must include provider event/resource/domain IDs,
+observed outage and recovery timestamps, content-free state digests and
+class-specific evidence. In particular, a network minority must attempt and
+fail authorization, host loss must replace a node UID, PostgreSQL failover must
+change primary and verify the rollback witness, and Temporal worker loss must
+prove replay on a replacement worker. Pod deletion alone satisfies none of
+those distributed fault gates.

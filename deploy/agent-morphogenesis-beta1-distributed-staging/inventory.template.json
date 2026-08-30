@@ -74,6 +74,15 @@
     "writeIdentity": "REPLACE_WITH_DEDICATED_WRITE_IDENTITY",
     "readIdentity": "REPLACE_WITH_SEPARATE_READ_IDENTITY"
   },
+  "faultInjection": {
+    "gatewayEndpoint": "https://REPLACE_WITH_FAULT_GATEWAY/v1/execute",
+    "supportedFaultClasses": [
+      "network-partition",
+      "host-loss",
+      "postgres-failover",
+      "temporal-worker-loss"
+    ]
+  },
   "observability": {
     "gatewayEndpoint": "https://REPLACE_WITH_OBSERVABILITY_GATEWAY/v1/preflight",
     "otlpEndpoint": "https://REPLACE_WITH_OTLP_ENDPOINT",

@@ -312,6 +312,10 @@ function validateInventory(value) {
   assert.equal(value.rollbackWitness.monotonic, true);
   assert.equal(value.rollbackWitness.durable, true);
   assert.notEqual(value.rollbackWitness.writeIdentity, value.rollbackWitness.readIdentity);
+  https(value.faultInjection.gatewayEndpoint, "fault injection gateway endpoint");
+  assert.deepEqual([...value.faultInjection.supportedFaultClasses].sort(), [
+    "host-loss", "network-partition", "postgres-failover", "temporal-worker-loss",
+  ]);
   https(value.observability.otlpEndpoint, "OTLP endpoint");
   https(value.observability.gatewayEndpoint, "observability gateway endpoint");
   https(value.observability.metricsEndpoint, "metrics endpoint");
@@ -420,6 +424,12 @@ function boundFixture(template) {
       logsEndpoint: "https://logs.staging.invalid",
       alertReceiverId: "receiver:staging-ops",
       alertDeliveryEvidenceReference: "evidence:alert-delivery-fixture",
+    },
+    faultInjection: {
+      gatewayEndpoint: "https://faults.staging.invalid/v1/execute",
+      supportedFaultClasses: [
+        "network-partition", "host-loss", "postgres-failover", "temporal-worker-loss",
+      ],
     },
   };
 }
