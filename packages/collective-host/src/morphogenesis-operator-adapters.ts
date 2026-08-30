@@ -1,6 +1,12 @@
 import type { PlanningDigestV1 } from "@agentplat/collective-planning";
 import type { AgentPlatID } from "@agentplat/core";
 import {
+  invokeGovernedAgentLifecycleResumePeerV1,
+  invokeGovernedAgentLifecycleSuspendPeerV1,
+  type GovernedAgentLifecycleRuntimeV1,
+} from "@agentplat/collective-membership/governed-agent-lifecycle";
+import type { CollectiveMembershipKeyProofV1 } from "@agentplat/collective-membership";
+import {
   activateTeamTopologyTransformationV1,
   certifyTeamTopologyTransformationV1,
   type TeamTopologyStateV1,
@@ -8,6 +14,7 @@ import {
 } from "@agentplat/collective-runtime/team-topology-transformation";
 import {
   createMorphogenesisOperatorStepReceiptV2,
+  createMorphogenesisAgentStatusReceiptV2,
   validateMorphogenesisAgentStatusReceiptV2,
   type MorphogenesisAgentStatusPortV2,
   type MorphogenesisAgentLifecyclePortV1,
@@ -20,6 +27,72 @@ import {
   type MorphogenesisOperatorBoundaryPortV2,
   type MorphogenesisOperatorStepResolutionV2,
 } from "@agentplat/collective-runtime/morphogenesis";
+
+export interface GovernedMembershipMorphogenesisStatusResolutionPortV2 {
+  resolve(agentDigest: PlanningDigestV1): Promise<{
+    readonly peerId: AgentPlatID;
+    readonly activeKeyProof?: CollectiveMembershipKeyProofV1;
+  } | null>;
+}
+
+/** Canonical Morphogenesis status port backed by governed lineage and quorum membership. */
+export class GovernedMembershipMorphogenesisAgentStatusPortV2
+  implements MorphogenesisAgentStatusPortV2
+{
+  constructor(readonly options: {
+    readonly lifecycle: GovernedAgentLifecycleRuntimeV1;
+    readonly resolution: GovernedMembershipMorphogenesisStatusResolutionPortV2;
+  }) {}
+
+  suspend(input: Parameters<MorphogenesisAgentStatusPortV2["suspend"]>[0]) {
+    return this.#change(input, "suspend");
+  }
+  reconcileSuspend(input: Parameters<MorphogenesisAgentStatusPortV2["reconcileSuspend"]>[0]) {
+    return this.#change(input, "suspend");
+  }
+  resume(input: Parameters<MorphogenesisAgentStatusPortV2["resume"]>[0]) {
+    return this.#change(input, "resume");
+  }
+  reconcileResume(input: Parameters<MorphogenesisAgentStatusPortV2["reconcileResume"]>[0]) {
+    return this.#change(input, "resume");
+  }
+
+  async #change(
+    input: Parameters<MorphogenesisAgentStatusPortV2["suspend"]>[0],
+    mode: "suspend" | "resume",
+  ) {
+    const resolved = await this.options.resolution.resolve(input.agentDigest);
+    if (!resolved) throw new TypeError("Morphogenesis governed membership target is unavailable");
+    const agent = mode === "suspend"
+      ? await invokeGovernedAgentLifecycleSuspendPeerV1(this.options.lifecycle, {
+          peerId: resolved.peerId,
+          logicalTimeMs: input.logicalTimeMs,
+        })
+      : await invokeGovernedAgentLifecycleResumePeerV1(this.options.lifecycle, {
+          peerId: resolved.peerId,
+          activeKeyProof: requiredKeyProof(resolved.activeKeyProof),
+          logicalTimeMs: input.logicalTimeMs,
+        });
+    return createMorphogenesisAgentStatusReceiptV2({
+      operationId: input.operationId,
+      agentDigest: input.agentDigest,
+      previousStatus: mode === "suspend" ? "active" : "suspended",
+      nextStatus: mode === "suspend" ? "suspended" : "active",
+      checkpointDigest: input.checkpointDigest,
+      authorityFenceDigest: input.authorityFenceDigest,
+      policyDigest: input.policyDigest,
+      membershipConfigurationDigest: asDigest(agent.membershipConfigurationDigest!),
+      membershipEpoch: agent.membershipEpoch!,
+      effectReceiptDigest: asDigest(agent.lineageDigest),
+      appliedAtLogicalMs: input.logicalTimeMs,
+    });
+  }
+}
+
+function requiredKeyProof(value: CollectiveMembershipKeyProofV1 | undefined) {
+  if (!value) throw new TypeError("Morphogenesis resumption active-key proof is required");
+  return value;
+}
 
 export interface MorphogenesisReplacementResolutionPortV2 {
   resolveSuccessor(targetDigest: PlanningDigestV1): Promise<{

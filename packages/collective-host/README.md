@@ -19,6 +19,12 @@ continue the ordinary planning path.
 
 ## Distributed runtime surfaces
 
+- `./morphogenesis-operator-adapters` maps advanced Agent Morphogenesis plans
+  onto existing governed boundaries. Its Membership adapter delegates
+  suspension and resumption to the nominal governed lifecycle, returns the
+  resulting configuration epoch/digest and lineage digest as an exact status
+  receipt, and requires active-key proof before re-admission.
+
 - `./distributed-protocol` provides authenticated, causal message streams over
   a bounded sparse peer plane, with content-addressed artifacts and a durable
   at-least-once outbox. Its constructor captures scalar bindings and bound
