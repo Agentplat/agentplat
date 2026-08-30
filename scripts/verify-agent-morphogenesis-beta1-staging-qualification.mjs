@@ -45,6 +45,18 @@ assert.equal(new Set(profile.requiredEvidence).size, profile.requiredEvidence.le
 assert.ok(profile.requiredEvidence.length >= 14);
 assert.equal(new Set(profile.requiredRunbooks).size, profile.requiredRunbooks.length);
 assert.equal(profile.requiredRunbooks.length, 10);
+for (const runbook of profile.requiredRunbooks) {
+  const contents = await readFile(path.join(
+    root,
+    "docs/runbooks/agent-morphogenesis-beta1-staging",
+    `${runbook}.md`,
+  ), "utf8");
+  assert.ok(contents.length > 900, `staging runbook is incomplete: ${runbook}`);
+  assert.match(contents, /authority|authorization|fence/iu);
+  assert.match(contents, /evidence|receipt/iu);
+  assert.match(contents, /recover|recovery|restore|rollback/iu);
+  assert.match(contents, /production/iu);
+}
 assert.equal(profile.claimBoundary.productionReadiness, "not-established");
 assert.equal(profile.claimBoundary.productionClaimPermitted, false);
 assert.equal(profile.claimBoundary.securityCertificationClaimPermitted, false);

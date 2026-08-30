@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-agent-morphogenesis-beta1-distributed-staging-inventory-v1",
+  "status": "unbound-template",
+  "profileId": "agentplat-morphogenesis-beta1-distributed-staging-v1",
+  "sourceCommit": "REPLACE_WITH_40_HEX_COMMIT",
+  "cluster": {
+    "provider": "REPLACE_WITH_PROVIDER",
+    "clusterId": "REPLACE_WITH_IMMUTABLE_CLUSTER_ID",
+    "apiServer": "https://REPLACE_WITH_CLUSTER_API",
+    "region": "REPLACE_WITH_REGION",
+    "failureDomains": [
+      { "domainId": "zone-a", "zone": "REPLACE_ZONE_A", "nodeUid": "REPLACE_NODE_UID_A" },
+      { "domainId": "zone-b", "zone": "REPLACE_ZONE_B", "nodeUid": "REPLACE_NODE_UID_B" },
+      { "domainId": "zone-c", "zone": "REPLACE_ZONE_C", "nodeUid": "REPLACE_NODE_UID_C" }
+    ]
+  },
+  "images": {
+    "agentplatRuntime": "REPLACE_REGISTRY/agentplat-staging@sha256:REPLACE_64_HEX_DIGEST",
+    "sourceCommitLabel": "REPLACE_WITH_40_HEX_COMMIT"
+  },
+  "postgresql": {
+    "resourceId": "REPLACE_WITH_IMMUTABLE_DATABASE_ID",
+    "endpoint": "postgresqls://REPLACE_WITH_DATABASE_ENDPOINT:5432/agentplat",
+    "tlsMode": "verify-full",
+    "persistent": true,
+    "backupEnabled": true,
+    "pointInTimeRecoveryEnabled": true,
+    "failureDomainIds": ["zone-a", "zone-b"]
+  },
+  "temporal": {
+    "resourceId": "REPLACE_WITH_IMMUTABLE_TEMPORAL_ID",
+    "endpoint": "https://REPLACE_WITH_TEMPORAL_ENDPOINT:7233",
+    "namespace": "agentplat-morphogenesis-staging",
+    "tlsEnabled": true,
+    "persistent": true,
+    "workerFailureDomainIds": ["zone-a", "zone-b", "zone-c"]
+  },
+  "agentMesh": {
+    "tenantId": "tenant:agentplat-staging",
+    "meshId": "mesh:morphogenesis-staging",
+    "peerIdentities": ["peer-a", "peer-b", "peer-c", "peer-d"],
+    "processes": [
+      { "processId": "mesh-a-1", "peerId": "peer-a", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_A" },
+      { "processId": "mesh-b-1", "peerId": "peer-b", "failureDomainId": "zone-b", "endpoint": "https://REPLACE_MESH_B" },
+      { "processId": "mesh-c-1", "peerId": "peer-c", "failureDomainId": "zone-c", "endpoint": "https://REPLACE_MESH_C" },
+      { "processId": "mesh-d-1", "peerId": "peer-d", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_D" },
+      { "processId": "mesh-a-2", "peerId": "peer-a", "failureDomainId": "zone-b", "endpoint": "https://REPLACE_MESH_A_2" },
+      { "processId": "mesh-c-2", "peerId": "peer-c", "failureDomainId": "zone-c", "endpoint": "https://REPLACE_MESH_C_2" }
+    ]
+  },
+  "keyCustody": {
+    "provider": "aws-kms",
+    "canonicalKeyId": "arn:aws:kms:REPLACE_REGION:REPLACE_ACCOUNT:key/REPLACE_KEY_UUID",
+    "accountId": "REPLACE_ACCOUNT",
+    "keySpec": "ECC_NIST_EDWARDS25519",
+    "signingAlgorithm": "ED25519_SHA_512",
+    "nonExportable": true,
+    "rotationEnabled": true,
+    "rotationEvidenceReference": "REPLACE_WITH_EXTERNAL_ROTATION_EVIDENCE"
+  },
+  "rollbackWitness": {
+    "provider": "REPLACE_WITH_INDEPENDENT_PROVIDER_OR_ACCOUNT",
+    "resourceId": "REPLACE_WITH_IMMUTABLE_WITNESS_ID",
+    "endpoint": "https://REPLACE_WITH_WITNESS_ENDPOINT",
+    "protectionDomainId": "REPLACE_WITH_DOMAIN_DISTINCT_FROM_CLUSTER_AND_KMS",
+    "monotonic": true,
+    "durable": true,
+    "writeIdentity": "REPLACE_WITH_DEDICATED_WRITE_IDENTITY",
+    "readIdentity": "REPLACE_WITH_SEPARATE_READ_IDENTITY"
+  },
+  "observability": {
+    "otlpEndpoint": "https://REPLACE_WITH_OTLP_ENDPOINT",
+    "metricsEndpoint": "https://REPLACE_WITH_METRICS_ENDPOINT",
+    "logsEndpoint": "https://REPLACE_WITH_LOGS_ENDPOINT",
+    "alertReceiverId": "REPLACE_WITH_ALERT_RECEIVER_ID",
+    "alertDeliveryEvidenceReference": "REPLACE_WITH_EXTERNAL_ALERT_RECEIPT"
+  },
+  "claimBoundary": {
+    "stagingQualification": "not-established",
+    "productionReadiness": "not-established",
+    "productionClaimPermitted": false
+  }
+}
