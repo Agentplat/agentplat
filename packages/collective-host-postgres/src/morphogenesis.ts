@@ -16,14 +16,20 @@ import type { Pool } from "pg";
 export interface MorphogenesisPostgresRollbackWitnessV1 {
   verify(input: {
     readonly scopeId: string;
-    readonly stateKind: "morphology-head" | "morphogenesis-execution";
+    readonly stateKind:
+      | "morphology-head"
+      | "morphogenesis-execution"
+      | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
     readonly digest: `sha256:${string}`;
   }): Promise<boolean>;
   record(input: {
     readonly scopeId: string;
-    readonly stateKind: "morphology-head" | "morphogenesis-execution";
+    readonly stateKind:
+      | "morphology-head"
+      | "morphogenesis-execution"
+      | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;
     readonly previousDigest: `sha256:${string}` | null;

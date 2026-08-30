@@ -16,6 +16,9 @@ checkpoint used to reconcile commit-start crashes before semantic replay.
 Migration 008 adds fenced autonomous-node advance reservations and durable
 command bindings/results so a replacement process can resume the same logical
 advance without repeating non-repeatable finality or protected-effect calls.
+Migration 009 adds scope-serialized Morphogenesis budget reservations so
+independent workers cannot double-spend one capacity envelope; exact retries,
+logical expiry and release remain content-bound and durable.
 Node revisions use `saveWithTelemetry()` and assurance receipts use
 `completeWithTelemetry()`;
 each method writes the domain commit and ordered content-free envelopes in one
@@ -43,6 +46,16 @@ runtime.
 
 Run the exported migrations before constructing a repository. Rollback is
 destructive and requires both an explicit confirmation token and an externally
-verified backup. `rollbackConfirmation(schema)` targets migration 008 by
+verified backup. `rollbackConfirmation(schema)` targets migration 009 by
 default; pass the current version explicitly to `rollbackMigrations()` and do
 not reuse a token generated for an older migration head.
+
+`PostgresMorphogenesisBudgetReservationPortV1` implements the public
+Morphogenesis budget authority with a PostgreSQL advisory transaction lock per
+scope. Independent pools serialize capacity inspection and insertion, so two
+different reservation IDs cannot both consume the same remaining envelope.
+Exact retries return the retained digest; changed-input identity reuse,
+cross-scope requests and over-capacity reservations fail closed. Release and
+logical expiry advance the reservation once and bind an external rollback
+witness. The capacity configuration is construction-bound and is not restored
+from database rows.
