@@ -206,6 +206,7 @@ export type PlanningDigestDomainV1 =
   | "team-topology-state"
   | "team-topology-request"
   | "team-topology-transformation"
+  | "morphogenesis-agent-status-receipt-v2"
   | "morphogenesis-budget-reservation-request"
   | "morphogenesis-budget-reservation"
   | "morphogenesis-transformation-head"

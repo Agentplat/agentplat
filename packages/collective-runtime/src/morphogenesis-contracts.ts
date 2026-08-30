@@ -86,6 +86,7 @@ export const MORPHOGENESIS_OPERATORS_V1 = Object.freeze([
   "federate_teams",
   "detach_agent",
   "suspend_agent",
+  "resume_agent",
   "retire_agent",
 ] as const);
 
@@ -107,6 +108,7 @@ export type MorphologyAgentDispositionKindV1 =
   | "drain"
   | "detach"
   | "suspend"
+  | "resume"
   | "retire";
 
 export type MorphologyPositionFillModeV1 =

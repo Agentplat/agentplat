@@ -90,6 +90,13 @@ export type MorphogenesisOperatorBindingV2 =
       readonly suspensionPolicyDigest: PlanningDigestV1;
     }
   | {
+      readonly operator: "resume_agent";
+      readonly agentDigest: PlanningDigestV1;
+      readonly resumptionPolicyDigest: PlanningDigestV1;
+      readonly resumeCheckpointDigest: PlanningDigestV1;
+      readonly successorWorkContractDigest: PlanningDigestV1;
+    }
+  | {
       readonly operator: "split_team" | "merge_teams" | "federate_teams";
       readonly transformationRequestDigest: PlanningDigestV1;
       readonly topologyPolicyDigest: PlanningDigestV1;
@@ -233,6 +240,12 @@ function compileSteps(
         step("fence", "work_action_fence", "fence_suspended_agent", target("agentDigest"), ["checkpoint"]),
         step("suspend", "governed_agent_lifecycle", "suspend_agent_membership", target("agentDigest"), ["fence"]),
       ]);
+    case "resume_agent":
+      return freeze([
+        step("verify-checkpoint", "team_execution_continuity", "verify_resume_checkpoint", target("resumeCheckpointDigest"), [], "internal"),
+        step("resume", "governed_agent_lifecycle", "resume_agent_membership", target("agentDigest"), ["verify-checkpoint"]),
+        step("rebind-work", "mission_work_reassignment", "rebind_resumed_work", target("successorWorkContractDigest"), ["resume"]),
+      ]);
     case "split_team":
     case "merge_teams":
     case "federate_teams":
@@ -286,6 +299,8 @@ function validateBinding(
             ? ["continuityPolicyDigest", "operator", "predecessorAgentDigest", "successorTargetDigest"]
             : operator === "suspend_agent"
               ? ["agentDigest", "operator", "suspensionPolicyDigest"]
+              : operator === "resume_agent"
+                ? ["agentDigest", "operator", "resumeCheckpointDigest", "resumptionPolicyDigest", "successorWorkContractDigest"]
               : ["operator", "topologyPolicyDigest", "transformationRequestDigest"];
   const value = exact(input, expected, "Morphogenesis operator binding");
   for (const [key, item] of Object.entries(value))

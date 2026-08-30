@@ -65,6 +65,7 @@ import {
   compileMorphogenesisOperatorV2,
   validateMorphogenesisCompiledOperatorPlanV2,
   createMorphogenesisOperatorStepReceiptV2,
+  createMorphogenesisAgentStatusReceiptV2,
   InMemoryMorphogenesisOperatorExecutionStoreV2,
   MorphogenesisOperatorExecutionRuntimeV2,
   validateAgentInstantiationProfileV1,
@@ -92,9 +93,11 @@ import {
 } from "../packages/collective-host/dist/morphogenesis.js";
 import {
   InMemoryMorphogenesisTeamTopologyStateStoreV2,
+  AgentStatusMorphogenesisBoundaryV2,
   MissionWorkReassignmentMorphogenesisBoundaryV2,
   MorphogenesisOperatorBoundaryRouterV2,
   RoleRealignmentMorphogenesisBoundaryV2,
+  ReplacementMorphogenesisBoundaryV2,
   TeamTopologyMorphogenesisBoundaryV2,
 } from "../packages/collective-host/dist/morphogenesis-operator-adapters.js";
 import {
@@ -4317,4 +4320,329 @@ test("realign_role delegates waiting and activation to the existing role runtime
   assert.equal(state.status, "completed");
   assert.equal(state.receipts[0].resultDigest, sha("7"));
   assert.equal(runs, 2);
+});
+
+test("suspend_agent and resume_agent require continuity, fences and membership receipts", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [
+      ...baseline.allowedOperators,
+      "resume_agent",
+      "suspend_agent",
+    ].sort(),
+    enabledAdvancedCapabilities: ["agent_suspensions"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 2,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const agentDigest = sha("1");
+  const suspensionPolicyDigest = sha("2");
+  const resumptionPolicyDigest = sha("3");
+  let memberStatus = "active";
+  let membershipEpoch = 1;
+  const statusPort = {
+    async suspend(input) {
+      assert.equal(memberStatus, "active");
+      memberStatus = "suspended";
+      membershipEpoch += 1;
+      return createMorphogenesisAgentStatusReceiptV2({
+        operationId: input.operationId,
+        agentDigest: input.agentDigest,
+        previousStatus: "active",
+        nextStatus: "suspended",
+        checkpointDigest: input.checkpointDigest,
+        authorityFenceDigest: input.authorityFenceDigest,
+        policyDigest: input.policyDigest,
+        membershipConfigurationDigest: sha("4"),
+        membershipEpoch,
+        effectReceiptDigest: sha("5"),
+        appliedAtLogicalMs: input.logicalTimeMs,
+      });
+    },
+    async reconcileSuspend() { return null; },
+    async resume(input) {
+      assert.equal(memberStatus, "suspended");
+      memberStatus = "active";
+      membershipEpoch += 1;
+      return createMorphogenesisAgentStatusReceiptV2({
+        operationId: input.operationId,
+        agentDigest: input.agentDigest,
+        previousStatus: "suspended",
+        nextStatus: "active",
+        checkpointDigest: input.checkpointDigest,
+        authorityFenceDigest: input.authorityFenceDigest,
+        policyDigest: input.policyDigest,
+        membershipConfigurationDigest: sha("6"),
+        membershipEpoch,
+        effectReceiptDigest: sha("7"),
+        appliedAtLogicalMs: input.logicalTimeMs,
+      });
+    },
+    async reconcileResume() { return null; },
+  };
+  const statusAdapter = new AgentStatusMorphogenesisBoundaryV2({
+    async resolve({ mode }) {
+      return {
+        port: statusPort,
+        policyDigest:
+          mode === "suspend"
+            ? suspensionPolicyDigest
+            : resumptionPolicyDigest,
+        morphogenesisAuthorizationDigest: sha("8"),
+      };
+    },
+  });
+  const effectPort = {
+    async execute(input) {
+      return {
+        status: "applied",
+        receipt: createMorphogenesisOperatorStepReceiptV2({
+          operationId: input.operationId,
+          planDigest: input.plan.planDigest,
+          stepId: input.step.stepId,
+          stepDigest: input.step.stepDigest,
+          boundary: input.step.boundary,
+          resultDigest: input.step.targetDigest,
+          appliedAtLogicalMs: input.logicalTimeMs,
+        }),
+      };
+    },
+    async reconcile() { return { status: "not_applied" }; },
+  };
+  const workAdapter = new MissionWorkReassignmentMorphogenesisBoundaryV2({
+    async resolveMission() { return null; },
+    async resolveWorkReceipt(digest) {
+      return {
+        commandDigest: sha("9"),
+        missionResultDigest: sha("a"),
+        workContractDigest: digest,
+        workReceiptDigest: sha("b"),
+        issuedAtLogicalMs: 200,
+      };
+    },
+  });
+  const execute = async (operator, binding, ordinal) => {
+    const operation = createMorphogenesisOperationV1(
+      {
+        operationId: `operation:${operator}:${ordinal}`,
+        operator,
+        effectClass: "protected_external",
+        dependsOnOperationIds: [],
+        targetReferenceDigest: agentDigest,
+        compensation: "restore_predecessor_before_commit",
+      },
+      policy,
+    );
+    const plan = compileMorphogenesisOperatorV2({
+      planId: `compiled-plan:${operator}:${ordinal}`,
+      operation,
+      policy,
+      binding,
+      compilerId: "compiler:morphogenesis:v2",
+      compilerVersion: 1,
+      compilerImplementationDigest: sha("c"),
+      compiledAtLogicalMs: 100,
+    });
+    const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+      store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+      boundaries: new MorphogenesisOperatorBoundaryRouterV2([
+        {
+          boundaries: ["team_execution_continuity", "work_action_fence"],
+          port: effectPort,
+        },
+        { boundaries: ["governed_agent_lifecycle"], port: statusAdapter },
+        { boundaries: ["mission_work_reassignment"], port: workAdapter },
+      ]),
+    });
+    let state = await runtime.initialize({
+      stateKey: `operator-execution:${operator}:${ordinal}`,
+      plan,
+      proposalDigest: sha("d"),
+      decisionDigest: sha("e"),
+      authorizationDigest: sha("8"),
+      authorityFenceDigest: sha("f"),
+      expectedMorphologyEpoch: ordinal,
+      logicalTimeMs: 110,
+    });
+    while (state.status !== "completed")
+      state = await runtime.advance({
+        stateKey: state.stateKey,
+        logicalTimeMs: 120 + state.revision,
+      });
+    return state;
+  };
+  const suspended = await execute(
+    "suspend_agent",
+    { operator: "suspend_agent", agentDigest, suspensionPolicyDigest },
+    1,
+  );
+  assert.equal(memberStatus, "suspended");
+  assert.equal(suspended.receipts.length, 3);
+  const resumed = await execute(
+    "resume_agent",
+    {
+      operator: "resume_agent",
+      agentDigest,
+      resumptionPolicyDigest,
+      resumeCheckpointDigest: sha("0"),
+      successorWorkContractDigest: sha("9"),
+    },
+    2,
+  );
+  assert.equal(memberStatus, "active");
+  assert.equal(membershipEpoch, 3);
+  assert.equal(resumed.receipts.at(-1).resultDigest, sha("b"));
+});
+
+test("replace_agent composes successor activation, predecessor continuity and retirement", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "replace_agent"].sort(),
+    enabledAdvancedCapabilities: ["agent_replacements"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 1,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:replace-agent:1",
+      operator: "replace_agent",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "replace_agent",
+    predecessorAgentDigest: sha("2"),
+    successorTargetDigest: sha("3"),
+    continuityPolicyDigest: sha("4"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:replace-agent:1",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("5"),
+    compiledAtLogicalMs: 100,
+  });
+  const authorizationDigest = sha("6");
+  const calls = [];
+  const adapter = new ReplacementMorphogenesisBoundaryV2({
+    lifecycle: {
+      async createAndEnroll() {
+        calls.push("successor");
+        return { agentDigest: sha("7") };
+      },
+      async reconcileCreateAndEnroll() { return { agentDigest: sha("7") }; },
+      async eligibility() { return null; },
+    },
+    attestation: {
+      async attest() {
+        calls.push("attest");
+        return { attestationDigest: sha("8"), attestedAtLogicalMs: 120 };
+      },
+      async reconcile() { return { attestationDigest: sha("8"), attestedAtLogicalMs: 120 }; },
+    },
+    teams: {
+      async activateSuccessor() {
+        calls.push("team");
+        return { receiptDigest: sha("9"), activatedAtLogicalMs: 130 };
+      },
+      async reconcileActivation() { return { receiptDigest: sha("9"), activatedAtLogicalMs: 130 }; },
+    },
+    continuity: {
+      async checkpoint() {
+        calls.push("checkpoint");
+        return { continuityReceiptDigest: sha("a"), completedAtLogicalMs: 140 };
+      },
+      async reconcile() { return { continuityReceiptDigest: sha("a"), completedAtLogicalMs: 140 }; },
+    },
+    authority: {
+      async fence() {
+        calls.push("fence");
+        return { fenceReceiptDigest: sha("b"), fencedAtLogicalMs: 150 };
+      },
+      async reconcile() { return { fenceReceiptDigest: sha("b"), fencedAtLogicalMs: 150 }; },
+    },
+    retirement: {
+      async retire() {
+        calls.push("retire");
+        return { terminalReceiptDigest: sha("c"), terminatedAtLogicalMs: 160 };
+      },
+      async reconcile() { return { terminalReceiptDigest: sha("c"), terminatedAtLogicalMs: 160 }; },
+    },
+    detachment: {
+      async detach() { throw new Error("unexpected detach"); },
+      async reconcile() { return null; },
+    },
+    resolution: {
+      async resolveSuccessor() { return { input: {}, authorizationDigest }; },
+      async resolveAttestation() { return { input: {}, authorizationDigest }; },
+      async resolveTeam() { return { input: {}, authorizationDigest }; },
+      async resolveContinuity() { return { input: {}, authorizationDigest }; },
+      async resolveFence() { return { input: {}, authorizationDigest }; },
+      async resolveTerminal() {
+        return { mode: "retire", input: {}, authorizationDigest };
+      },
+    },
+  });
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: new MorphogenesisOperatorBoundaryRouterV2([
+      {
+        boundaries: [
+          "governed_agent_lifecycle",
+          "agent_attestation",
+          "team_formation",
+          "team_execution_continuity",
+          "work_action_fence",
+        ],
+        port: adapter,
+      },
+    ]),
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:replace-agent:1",
+    plan,
+    proposalDigest: sha("d"),
+    decisionDigest: sha("e"),
+    authorizationDigest,
+    authorityFenceDigest: sha("f"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  while (state.status !== "completed")
+    state = await runtime.advance({
+      stateKey: state.stateKey,
+      logicalTimeMs: 120 + state.revision,
+    });
+  assert.deepEqual(calls, [
+    "successor",
+    "attest",
+    "team",
+    "checkpoint",
+    "fence",
+    "retire",
+  ]);
+  assert.equal(state.receipts.length, 6);
+  assert.equal(state.receipts.at(-1).resultDigest, sha("c"));
 });

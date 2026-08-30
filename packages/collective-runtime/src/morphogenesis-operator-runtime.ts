@@ -44,6 +44,7 @@ export interface MorphogenesisOperatorBoundaryPortV2 {
     readonly step: MorphogenesisCompiledStepV2;
     readonly authorizationDigest: PlanningDigestV1;
     readonly authorityFenceDigest: PlanningDigestV1;
+    readonly priorReceipts: readonly MorphogenesisOperatorStepReceiptV2[];
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisOperatorStepResolutionV2>;
@@ -53,6 +54,7 @@ export interface MorphogenesisOperatorBoundaryPortV2 {
     readonly step: MorphogenesisCompiledStepV2;
     readonly authorizationDigest: PlanningDigestV1;
     readonly authorityFenceDigest: PlanningDigestV1;
+    readonly priorReceipts: readonly MorphogenesisOperatorStepReceiptV2[];
     readonly logicalTimeMs: number;
     readonly signal?: AbortSignal;
   }): Promise<MorphogenesisOperatorStepResolutionV2>;
@@ -217,6 +219,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         step,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
+        priorReceipts: current.receipts,
         logicalTimeMs: input.logicalTimeMs,
         signal: input.signal,
       });
@@ -237,6 +240,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         step,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
+        priorReceipts: current.receipts,
         logicalTimeMs: input.logicalTimeMs,
         signal: input.signal,
       });
@@ -248,6 +252,7 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         step,
         authorizationDigest: current.authorizationDigest,
         authorityFenceDigest: current.authorityFenceDigest,
+        priorReceipts: current.receipts,
         logicalTimeMs: input.logicalTimeMs,
         signal: input.signal,
       });

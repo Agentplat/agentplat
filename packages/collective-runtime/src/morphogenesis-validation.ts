@@ -1423,7 +1423,6 @@ function validateAdvancedPolicyV2(policy: MorphogenesisPolicyV2) {
     ["role_realignments", "realign_role", policy.maximumRoleChangesPerProposal],
     ["work_reassignments", "reassign_work", policy.maximumWorkReassignmentsPerProposal],
     ["agent_replacements", "replace_agent", policy.maximumReplacementsPerProposal],
-    ["agent_suspensions", "suspend_agent", policy.maximumSuspensionsPerProposal],
   ];
   for (const [capability, operator, maximum] of requirements) {
     const admitted = policy.allowedOperators.includes(
@@ -1432,6 +1431,17 @@ function validateAdvancedPolicyV2(policy: MorphogenesisPolicyV2) {
     if (admitted !== enabled.has(capability) || (admitted ? maximum < 1 : maximum !== 0))
       fail(`advanced Morphogenesis capability ${capability} is inconsistent`);
   }
+  const statusOperators = ["suspend_agent", "resume_agent"] as const;
+  const statusAdmitted = statusOperators.some((operator) =>
+    policy.allowedOperators.includes(operator),
+  );
+  if (
+    statusAdmitted !== enabled.has("agent_suspensions") ||
+    (statusAdmitted
+      ? policy.maximumSuspensionsPerProposal < 1
+      : policy.maximumSuspensionsPerProposal !== 0)
+  )
+    fail("advanced Morphogenesis suspension capability is inconsistent");
   const topologyOperators = ["split_team", "merge_teams", "federate_teams"];
   const topologyAdmitted = topologyOperators.some((operator) =>
     policy.allowedOperators.includes(operator as MorphogenesisOperatorV1),
@@ -1465,7 +1475,8 @@ function validateAdvancedOperationCountsV2(
     count(["realign_role"]) > policy.maximumRoleChangesPerProposal ||
     count(["reassign_work"]) > policy.maximumWorkReassignmentsPerProposal ||
     count(["replace_agent"]) > policy.maximumReplacementsPerProposal ||
-    count(["suspend_agent"]) > policy.maximumSuspensionsPerProposal ||
+    count(["suspend_agent", "resume_agent"]) >
+      policy.maximumSuspensionsPerProposal ||
     count(["split_team", "merge_teams", "federate_teams"]) >
       policy.maximumTopologyOperationsPerProposal
   )

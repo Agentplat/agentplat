@@ -8,9 +8,260 @@ import {
 } from "@agentplat/collective-runtime/team-topology-transformation";
 import {
   createMorphogenesisOperatorStepReceiptV2,
+  validateMorphogenesisAgentStatusReceiptV2,
+  type MorphogenesisAgentStatusPortV2,
+  type MorphogenesisAgentLifecyclePortV1,
+  type MorphogenesisAgentAttestationPortV1,
+  type MorphogenesisSuccessorTeamPortV1,
+  type MorphogenesisContinuityPortV1,
+  type MorphogenesisAuthorityFencePortV1,
+  type MorphogenesisAgentRetirementPortV1,
+  type MorphogenesisDetachmentPortV1,
   type MorphogenesisOperatorBoundaryPortV2,
   type MorphogenesisOperatorStepResolutionV2,
 } from "@agentplat/collective-runtime/morphogenesis";
+
+export interface MorphogenesisReplacementResolutionPortV2 {
+  resolveSuccessor(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisAgentLifecyclePortV1["createAndEnroll"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveAttestation(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisAgentAttestationPortV1["attest"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveTeam(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisSuccessorTeamPortV1["activateSuccessor"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveContinuity(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisContinuityPortV1["checkpoint"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveFence(targetDigest: PlanningDigestV1): Promise<{
+    readonly input: Parameters<MorphogenesisAuthorityFencePortV1["fence"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+  resolveTerminal(targetDigest: PlanningDigestV1): Promise<{
+    readonly mode: "retire" | "detach";
+    readonly input:
+      | Parameters<MorphogenesisAgentRetirementPortV1["retire"]>[0]
+      | Parameters<MorphogenesisDetachmentPortV1["detach"]>[0];
+    readonly authorizationDigest: PlanningDigestV1;
+  } | null>;
+}
+
+export class ReplacementMorphogenesisBoundaryV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  constructor(
+    readonly options: {
+      readonly lifecycle: MorphogenesisAgentLifecyclePortV1;
+      readonly attestation: MorphogenesisAgentAttestationPortV1;
+      readonly teams: MorphogenesisSuccessorTeamPortV1;
+      readonly continuity: MorphogenesisContinuityPortV1;
+      readonly authority: MorphogenesisAuthorityFencePortV1;
+      readonly retirement: MorphogenesisAgentRetirementPortV1;
+      readonly detachment: MorphogenesisDetachmentPortV1;
+      readonly resolution: MorphogenesisReplacementResolutionPortV2;
+    },
+  ) {}
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#run(input, false);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#run(input, true);
+  }
+  async #run(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+    reconcile: boolean,
+  ): Promise<MorphogenesisOperatorStepResolutionV2> {
+    if (input.plan.binding.operator !== "replace_agent")
+      throw new TypeError("Morphogenesis replacement binding is invalid");
+    const target = input.step.targetDigest;
+    let resolved: { readonly authorizationDigest: PlanningDigestV1 } | null;
+    let resultDigest: PlanningDigestV1;
+    let appliedAtLogicalMs = input.logicalTimeMs;
+    switch (input.step.operation) {
+      case "resolve_or_create_successor": {
+        const value = await this.options.resolution.resolveSuccessor(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const agent = reconcile
+          ? await this.options.lifecycle.reconcileCreateAndEnroll(value.input)
+          : await this.options.lifecycle.createAndEnroll(value.input);
+        resultDigest = asDigest(agent.agentDigest);
+        break;
+      }
+      case "attest_successor": {
+        const value = await this.options.resolution.resolveAttestation(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const receipt = reconcile
+          ? await this.options.attestation.reconcile(value.input)
+          : await this.options.attestation.attest(value.input);
+        resultDigest = asDigest(receipt.attestationDigest);
+        appliedAtLogicalMs = receipt.attestedAtLogicalMs;
+        break;
+      }
+      case "activate_successor_team": {
+        const value = await this.options.resolution.resolveTeam(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const receipt = reconcile
+          ? await this.options.teams.reconcileActivation(value.input)
+          : await this.options.teams.activateSuccessor(value.input);
+        resultDigest = asDigest(receipt.receiptDigest);
+        appliedAtLogicalMs = receipt.activatedAtLogicalMs;
+        break;
+      }
+      case "checkpoint_predecessor_work": {
+        const value = await this.options.resolution.resolveContinuity(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const receipt = reconcile
+          ? await this.options.continuity.reconcile(value.input)
+          : await this.options.continuity.checkpoint(value.input);
+        resultDigest = asDigest(receipt.continuityReceiptDigest);
+        appliedAtLogicalMs = receipt.completedAtLogicalMs;
+        break;
+      }
+      case "fence_predecessor_authority": {
+        const value = await this.options.resolution.resolveFence(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const receipt = reconcile
+          ? await this.options.authority.reconcile(value.input)
+          : await this.options.authority.fence(value.input);
+        resultDigest = asDigest(receipt.fenceReceiptDigest);
+        appliedAtLogicalMs = receipt.fencedAtLogicalMs;
+        break;
+      }
+      case "drain_and_retire_predecessor": {
+        const value = await this.options.resolution.resolveTerminal(target);
+        resolved = value;
+        if (!value) return { status: "not_applied" };
+        this.#authorize(value, input);
+        const receipt = value.mode === "retire"
+          ? reconcile
+            ? await this.options.retirement.reconcile(value.input as Parameters<MorphogenesisAgentRetirementPortV1["reconcile"]>[0])
+            : await this.options.retirement.retire(value.input as Parameters<MorphogenesisAgentRetirementPortV1["retire"]>[0])
+          : reconcile
+            ? await this.options.detachment.reconcile(value.input as Parameters<MorphogenesisDetachmentPortV1["reconcile"]>[0])
+            : await this.options.detachment.detach(value.input as Parameters<MorphogenesisDetachmentPortV1["detach"]>[0]);
+        resultDigest = asDigest(receipt.terminalReceiptDigest);
+        appliedAtLogicalMs = receipt.terminatedAtLogicalMs;
+        break;
+      }
+      default:
+        throw new TypeError("Morphogenesis replacement operation is unsupported");
+    }
+    return appliedReceipt(input, resultDigest, appliedAtLogicalMs);
+  }
+  #authorize(
+    resolved: { readonly authorizationDigest: PlanningDigestV1 },
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+  ) {
+    if (resolved.authorizationDigest !== input.authorizationDigest)
+      throw new TypeError("Morphogenesis replacement authorization is invalid");
+  }
+}
+
+export interface MorphogenesisAgentStatusResolutionPortV2 {
+  resolve(input: {
+    readonly agentDigest: PlanningDigestV1;
+    readonly mode: "suspend" | "resume";
+  }): Promise<{
+    readonly port: MorphogenesisAgentStatusPortV2;
+    readonly policyDigest: PlanningDigestV1;
+    readonly morphogenesisAuthorizationDigest: PlanningDigestV1;
+  } | null>;
+}
+
+export class AgentStatusMorphogenesisBoundaryV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  constructor(readonly resolution: MorphogenesisAgentStatusResolutionPortV2) {}
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#run(input, false);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#run(input, true);
+  }
+  async #run(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+    reconcile: boolean,
+  ): Promise<MorphogenesisOperatorStepResolutionV2> {
+    const binding = input.plan.binding;
+    if (
+      input.step.boundary !== "governed_agent_lifecycle" ||
+      !new Set(["suspend_agent_membership", "resume_agent_membership"]).has(
+        input.step.operation,
+      ) ||
+      (binding.operator !== "suspend_agent" &&
+        binding.operator !== "resume_agent")
+    ) throw new TypeError("Morphogenesis agent status boundary is invalid");
+    const mode = input.step.operation.startsWith("suspend")
+      ? "suspend"
+      : "resume";
+    const resolved = await this.resolution.resolve({
+      agentDigest: input.step.targetDigest,
+      mode,
+    });
+    if (!resolved) return { status: "not_applied" };
+    if (resolved.morphogenesisAuthorizationDigest !== input.authorizationDigest)
+      throw new TypeError("Morphogenesis agent status authorization is invalid");
+    const expectedPolicyDigest =
+      binding.operator === "suspend_agent"
+        ? binding.suspensionPolicyDigest
+        : binding.resumptionPolicyDigest;
+    if (resolved.policyDigest !== expectedPolicyDigest)
+      throw new TypeError("Morphogenesis agent status policy is substituted");
+    const checkpoint = [...input.priorReceipts]
+      .reverse()
+      .find(({ boundary }) => boundary === "team_execution_continuity");
+    if (!checkpoint) throw new TypeError("Morphogenesis agent status checkpoint is unavailable");
+    const fence = [...input.priorReceipts]
+      .reverse()
+      .find(({ boundary }) => boundary === "work_action_fence");
+    const change = {
+      operationId: input.operationId,
+      agentDigest: input.step.targetDigest,
+      checkpointDigest: checkpoint.resultDigest,
+      authorityFenceDigest: fence?.resultDigest ?? input.authorityFenceDigest,
+      policyDigest: resolved.policyDigest,
+      logicalTimeMs: input.logicalTimeMs,
+      signal: input.signal,
+    };
+    const receipt = reconcile
+      ? mode === "suspend"
+        ? await resolved.port.reconcileSuspend(change)
+        : await resolved.port.reconcileResume(change)
+      : mode === "suspend"
+        ? await resolved.port.suspend(change)
+        : await resolved.port.resume(change);
+    if (!receipt) return { status: "not_applied" };
+    const verified = validateMorphogenesisAgentStatusReceiptV2(receipt);
+    if (
+      verified.operationId !== input.operationId ||
+      verified.agentDigest !== input.step.targetDigest ||
+      verified.checkpointDigest !== checkpoint.resultDigest ||
+      verified.authorityFenceDigest !== change.authorityFenceDigest ||
+      verified.policyDigest !== resolved.policyDigest ||
+      verified.nextStatus !== (mode === "suspend" ? "suspended" : "active")
+    ) throw new TypeError("Morphogenesis agent status receipt is substituted");
+    return appliedReceipt(
+      input,
+      verified.statusReceiptDigest,
+      verified.appliedAtLogicalMs,
+    );
+  }
+}
 import {
   type GovernedMissionLifecycleRuntimeV1,
 } from "@agentplat/collective-runtime/mission-lifecycle";
@@ -180,7 +431,10 @@ export class MissionWorkReassignmentMorphogenesisBoundaryV2
         resolved.request.logicalTimeMs,
       );
     }
-    if (input.step.operation !== "issue_successor_work_contract")
+    if (
+      input.step.operation !== "issue_successor_work_contract" &&
+      input.step.operation !== "rebind_resumed_work"
+    )
       throw new TypeError("Morphogenesis Mission Work operation is invalid");
     const receipt = await this.resolution.resolveWorkReceipt(
       input.step.targetDigest,
@@ -227,6 +481,12 @@ function appliedReceipt(
       appliedAtLogicalMs,
     }),
   };
+}
+
+function asDigest(value: string): PlanningDigestV1 {
+  if (!/^sha256:[0-9a-f]{64}$/u.test(value))
+    throw new TypeError("Morphogenesis boundary result digest is invalid");
+  return value as PlanningDigestV1;
 }
 
 export interface MorphogenesisTeamTopologyStateStoreV2 {

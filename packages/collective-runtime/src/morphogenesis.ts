@@ -12,3 +12,4 @@ export * from "./morphogenesis-runtime.js";
 export * from "./morphogenesis-retirement.js";
 export * from "./morphogenesis-operator-compiler.js";
 export * from "./morphogenesis-operator-runtime.js";
+export * from "./morphogenesis-agent-status.js";
