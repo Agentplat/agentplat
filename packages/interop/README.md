@@ -108,6 +108,18 @@ revalidates the exact admission grant and passes its revision, epoch, scope
 digest and binding digest as a fence to `effects.commit`. Commit ports must
 atomically reject stale fences; effectful work does not belong in preparers.
 
+## Agent Morphogenesis
+
+`@agentplat/interop/morphogenesis` exposes the explicit
+`morphogenesis.enact` operation and `InteropMorphogenesisHandlerV2`. Its
+payload contains only the pre-authorized Morphogenesis request digest, Mission
+scope and authorization digests, and expected morphology epoch. The handler
+requires an exact stateful Interop admission grant, passes its binding to the
+effect owner for atomic revalidation, and accepts only an outcome that advances
+the expected epoch without substituting any Mission or Morphogenesis binding.
+Interop transports the verified outcome; it does not create a decision,
+authorization, fence or morphology commit.
+
 ```js
 import {
   createReferenceGovernedInteropRuntimeV1,
