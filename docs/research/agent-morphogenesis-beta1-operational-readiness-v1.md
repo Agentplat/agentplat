@@ -45,6 +45,15 @@ verification runbooks. A detached supervisor must maintain heartbeat and
 hash-chained operational events, recover closure from immutable receipts and
 never infer completion from mutable counters.
 
+The readiness supervisor plans against one clean source commit and active
+execution authorization. It runs seven prerequisite operations, twenty
+six-scenario PostgreSQL/Temporal rounds and six multiprocess Mesh cycles. At
+round ten it enters `awaiting-supervisor-restart` and releases its lock;
+completion requires an explicit, timely `resume`. After 120 iterations it
+continues heartbeat and resource sampling until the full 30-minute duration is
+reached. State is atomically replaced, events are hash-chained and interrupted
+operation attempts are never overwritten.
+
 ## Public audit repair
 
 Historical research and pilot artifacts may be isolated only through an exact
