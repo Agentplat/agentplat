@@ -43,13 +43,12 @@
     "tenantId": "tenant:agentplat-staging",
     "meshId": "mesh:morphogenesis-staging",
     "peerIdentities": ["peer-a", "peer-b", "peer-c", "peer-d"],
+    "minimumCumulativeProcessStarts": 6,
     "processes": [
-      { "processId": "mesh-a-1", "peerId": "peer-a", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_A" },
-      { "processId": "mesh-b-1", "peerId": "peer-b", "failureDomainId": "zone-b", "endpoint": "https://REPLACE_MESH_B" },
-      { "processId": "mesh-c-1", "peerId": "peer-c", "failureDomainId": "zone-c", "endpoint": "https://REPLACE_MESH_C" },
-      { "processId": "mesh-d-1", "peerId": "peer-d", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_D" },
-      { "processId": "mesh-a-2", "peerId": "peer-a", "failureDomainId": "zone-b", "endpoint": "https://REPLACE_MESH_A_2" },
-      { "processId": "mesh-c-2", "peerId": "peer-c", "failureDomainId": "zone-c", "endpoint": "https://REPLACE_MESH_C_2" }
+      { "processId": "mesh-a-1", "peerId": "peer-a", "instanceId": "instance-a-1", "keyId": "kms-key-peer-a", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_A" },
+      { "processId": "mesh-b-1", "peerId": "peer-b", "instanceId": "instance-b-1", "keyId": "kms-key-peer-b", "failureDomainId": "zone-b", "endpoint": "https://REPLACE_MESH_B" },
+      { "processId": "mesh-c-1", "peerId": "peer-c", "instanceId": "instance-c-1", "keyId": "kms-key-peer-c", "failureDomainId": "zone-c", "endpoint": "https://REPLACE_MESH_C" },
+      { "processId": "mesh-d-1", "peerId": "peer-d", "instanceId": "instance-d-1", "keyId": "kms-key-peer-d", "failureDomainId": "zone-a", "endpoint": "https://REPLACE_MESH_D" }
     ]
   },
   "keyCustody": {

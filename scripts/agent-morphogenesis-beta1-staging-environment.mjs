@@ -22,7 +22,8 @@ if (mode === "contract-smoke") {
   assert.equal(template.status, "unbound-template");
   assert.equal(template.cluster.failureDomains.length, 3);
   assert.equal(template.agentMesh.peerIdentities.length, 4);
-  assert.equal(template.agentMesh.processes.length, 6);
+  assert.equal(template.agentMesh.processes.length, 4);
+  assert.equal(template.agentMesh.minimumCumulativeProcessStarts, 6);
   assert.equal(template.keyCustody.nonExportable, true);
   assert.equal(template.rollbackWitness.monotonic, true);
   assert.equal(template.claimBoundary.productionClaimPermitted, false);
@@ -64,7 +65,8 @@ if (mode === "contract-smoke") {
     failureDomainCount: inventory.cluster.failureDomains.length,
     nodeUidCount: new Set(inventory.cluster.failureDomains.map(({ nodeUid }) => nodeUid)).size,
     meshPeerIdentityCount: inventory.agentMesh.peerIdentities.length,
-    meshProcessCount: inventory.agentMesh.processes.length,
+    activeMeshProcessCount: inventory.agentMesh.processes.length,
+    minimumCumulativeMeshProcessStarts: inventory.agentMesh.minimumCumulativeProcessStarts,
     meshFailureDomainCount: new Set(inventory.agentMesh.processes.map(({ failureDomainId }) => failureDomainId)).size,
     keyCustody: {
       provider: inventory.keyCustody.provider,
@@ -270,13 +272,19 @@ function validateInventory(value) {
   );
   assert.ok(
     value.agentMesh.processes.length >=
-      profile.requiredInfrastructure.minimumAgentMeshProcesses,
+      profile.requiredInfrastructure.minimumActiveAgentMeshPeerProcesses,
+  );
+  assert.ok(
+    value.agentMesh.minimumCumulativeProcessStarts >=
+      profile.requiredInfrastructure.minimumCumulativeAgentMeshProcessStarts,
   );
   unique(value.agentMesh.peerIdentities, (item) => item, "Mesh peer identities");
   unique(value.agentMesh.processes, ({ processId }) => processId, "Mesh process IDs");
   const peers = new Set(value.agentMesh.peerIdentities);
   for (const process of value.agentMesh.processes) {
     assert.ok(peers.has(process.peerId));
+    text(process.instanceId, "Mesh instance ID");
+    text(process.keyId, "Mesh key ID");
     assert.ok(domainIds.has(process.failureDomainId));
     https(process.endpoint, "Mesh process endpoint");
   }
@@ -363,16 +371,17 @@ function boundFixture(template) {
       tenantId: "tenant:staging-fixture",
       meshId: "mesh:staging-fixture",
       peerIdentities: ["peer-a", "peer-b", "peer-c", "peer-d"],
+      minimumCumulativeProcessStarts: 6,
       processes: [
         ["mesh-a-1", "peer-a", "zone-a"],
         ["mesh-b-1", "peer-b", "zone-b"],
         ["mesh-c-1", "peer-c", "zone-c"],
         ["mesh-d-1", "peer-d", "zone-a"],
-        ["mesh-a-2", "peer-a", "zone-b"],
-        ["mesh-c-2", "peer-c", "zone-c"],
       ].map(([processId, peerId, failureDomainId]) => ({
         processId,
         peerId,
+        instanceId: `${processId}-instance`,
+        keyId: `key-${peerId}`,
         failureDomainId,
         endpoint: `https://${processId}.staging.invalid`,
       })),

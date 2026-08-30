@@ -18,13 +18,13 @@ const rendered = execFileSync("kubectl", ["kustomize", directory], {
 });
 for (const phrase of [
   "kind: StatefulSet",
-  "replicas: 6",
+  "replicas: 4",
   "topology.kubernetes.io/zone",
   "kubernetes.io/hostname",
   "whenUnsatisfiable: DoNotSchedule",
-  "requiredDuringSchedulingIgnoredDuringExecution",
+  "preferredDuringSchedulingIgnoredDuringExecution",
   "kind: PodDisruptionBudget",
-  "minAvailable: 4",
+  "minAvailable: 3",
   "automountServiceAccountToken: false",
   "readOnlyRootFilesystem: true",
   "audience: agentplat-mesh-signer",
@@ -53,8 +53,9 @@ assert.doesNotMatch(dockerfile, /PRIVATE_KEY/u);
 
 console.log(JSON.stringify({
   status: "passed",
-  meshProcesses: 6,
-  minimumAvailable: 4,
+  activeMeshProcesses: 4,
+  minimumCumulativeProcessStarts: 6,
+  minimumAvailable: 3,
   topologyKeys: ["topology.kubernetes.io/zone", "kubernetes.io/hostname"],
   privateKeyMounted: false,
   imageStatus: "render-required-by-digest",

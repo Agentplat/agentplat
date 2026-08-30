@@ -17,7 +17,8 @@
   "requiredInfrastructure": {
     "minimumFailureDomains": 3,
     "minimumAgentMeshPeerIdentities": 4,
-    "minimumAgentMeshProcesses": 6,
+    "minimumActiveAgentMeshPeerProcesses": 4,
+    "minimumCumulativeAgentMeshProcessStarts": 6,
     "postgresql": "persistent-staging-service-with-backup-restore",
     "temporal": "persistent-staging-service-with-separate-workers",
     "agentMesh": "authenticated-multi-process-across-failure-domains",

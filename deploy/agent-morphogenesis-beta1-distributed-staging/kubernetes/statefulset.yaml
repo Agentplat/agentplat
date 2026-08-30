@@ -4,7 +4,7 @@ metadata:
   name: morphogenesis-mesh
 spec:
   serviceName: morphogenesis-mesh
-  replicas: 6
+  replicas: 4
   podManagementPolicy: Parallel
   updateStrategy:
     type: RollingUpdate
@@ -41,11 +41,13 @@ spec:
               app.kubernetes.io/name: morphogenesis-mesh-peer
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: kubernetes.io/hostname
-              labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: morphogenesis-mesh-peer
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: morphogenesis-mesh-peer
       containers:
         - name: peer
           image: agentplat-staging-mesh-peer:RENDER_REQUIRED

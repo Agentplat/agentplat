@@ -4,7 +4,8 @@ Use this runbook only after the external inventory passes
 `inspect:agent-morphogenesis-beta1-staging-environment`. The inspection receipt
 must bind a clean source commit, immutable image digest, cluster ID, at least
 three distinct zones and node UIDs, TLS PostgreSQL and Temporal endpoints, four
-Agent Mesh identities, six processes, external key custody, an independent
+active Agent Mesh identities, four initial processes and at least six cumulative
+process starts through recovery cycles, external key custody, an independent
 rollback witness and observability endpoints.
 
 Before deployment, verify provider identity read-only and compare every

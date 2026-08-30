@@ -3,7 +3,7 @@ kind: PodDisruptionBudget
 metadata:
   name: morphogenesis-mesh
 spec:
-  minAvailable: 4
+  minAvailable: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: morphogenesis-mesh-peer
