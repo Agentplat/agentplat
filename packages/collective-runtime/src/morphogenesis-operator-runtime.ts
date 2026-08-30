@@ -29,6 +29,10 @@ export type MorphogenesisOperatorStepResolutionV2 =
     }
   | { readonly status: "not_applied" }
   | {
+      readonly status: "pending";
+      readonly evidenceDigest: PlanningDigestV1;
+    }
+  | {
       readonly status: "indeterminate";
       readonly evidenceDigest: PlanningDigestV1;
     };
@@ -61,6 +65,7 @@ export interface MorphogenesisOperatorExecutionEventV2 {
     | "initialized"
     | "step_prepared"
     | "step_applied"
+    | "step_pending"
     | "step_indeterminate"
     | "completed";
   readonly stepId: AgentPlatID | null;
@@ -247,6 +252,20 @@ export class MorphogenesisOperatorExecutionRuntimeV2 {
         signal: input.signal,
       });
     }
+    if (resolution.status === "pending")
+      return this.#saveNext(current, {
+        status: "prepared",
+        pendingStepId: null,
+        logicalTimeMs: input.logicalTimeMs,
+        event: {
+          type: "step_pending",
+          stepId: step.stepId,
+          evidenceDigest: sha(
+            resolution.evidenceDigest,
+            "pending operator evidence digest",
+          ),
+        },
+      });
     if (resolution.status === "indeterminate")
       return this.#saveNext(current, {
         status: "indeterminate",

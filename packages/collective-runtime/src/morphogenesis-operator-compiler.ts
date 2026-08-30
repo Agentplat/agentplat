@@ -49,6 +49,7 @@ export interface MorphogenesisCompiledOperatorPlanV2 {
   readonly operator: MorphogenesisOperatorV1;
   readonly operationDigest: PlanningDigestV1;
   readonly policyDigest: PlanningDigestV1;
+  readonly binding: MorphogenesisOperatorBindingV2;
   readonly bindingDigest: PlanningDigestV1;
   readonly compilerId: AgentPlatID;
   readonly compilerVersion: number;
@@ -117,6 +118,7 @@ export function compileMorphogenesisOperatorV2(input: {
     operator: operation.operator,
     operationDigest: operation.operationDigest,
     policyDigest: policy.policyDigest,
+    binding,
     bindingDigest: digest("morphogenesis-operator-binding-v2", binding),
     compilerId: id(input.compilerId, "Morphogenesis compiler ID"),
     compilerVersion: positive(input.compilerVersion, "Morphogenesis compiler version"),
@@ -150,6 +152,7 @@ export function validateMorphogenesisCompiledOperatorPlanV2(
     [
       "advisoryOnly",
       "bindingDigest",
+      "binding",
       "compiledAtLogicalMs",
       "compilerId",
       "compilerImplementationDigest",
@@ -207,8 +210,7 @@ function compileSteps(
       ]);
     case "realign_role":
       return freeze([
-        step("certify-role", "governed_role_realignment", "certify_role_selection", target("roleRealignmentRequestDigest"), [], "internal"),
-        step("activate-role", "governed_role_realignment", "activate_certified_role", target("currentRoleBindingDigest"), ["certify-role"], "protected_external", "restore_predecessor_before_commit"),
+        step("realign-role", "governed_role_realignment", "run_certified_role_realignment", target("roleRealignmentRequestDigest"), [], "protected_external", "restore_predecessor_before_commit"),
       ]);
     case "reassign_work":
       return freeze([

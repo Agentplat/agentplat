@@ -94,6 +94,7 @@ import {
   InMemoryMorphogenesisTeamTopologyStateStoreV2,
   MissionWorkReassignmentMorphogenesisBoundaryV2,
   MorphogenesisOperatorBoundaryRouterV2,
+  RoleRealignmentMorphogenesisBoundaryV2,
   TeamTopologyMorphogenesisBoundaryV2,
 } from "../packages/collective-host/dist/morphogenesis-operator-adapters.js";
 import {
@@ -4210,4 +4211,110 @@ test("reassign_work observes Mission Lifecycle and an exact successor Work recei
   assert.equal(state.receipts.length, 3);
   assert.equal(state.receipts[1].resultDigest, sha("a"));
   assert.equal(missionAdvances, 1);
+});
+
+test("realign_role delegates waiting and activation to the existing role runtime", async () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "realign_role"].sort(),
+    enabledAdvancedCapabilities: ["role_realignments"],
+    maximumDerivedAgentsPerProposal: 0,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 1,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:realign-role:1",
+      operator: "realign_role",
+      effectClass: "protected_external",
+      dependsOnOperationIds: [],
+      targetReferenceDigest: sha("1"),
+      compensation: "restore_predecessor_before_commit",
+    },
+    policy,
+  );
+  const binding = {
+    operator: "realign_role",
+    roleRealignmentRequestDigest: sha("2"),
+    currentRoleBindingDigest: sha("3"),
+  };
+  const plan = compileMorphogenesisOperatorV2({
+    planId: "compiled-plan:realign-role:1",
+    operation,
+    policy,
+    binding,
+    compilerId: "compiler:morphogenesis:v2",
+    compilerVersion: 1,
+    compilerImplementationDigest: sha("4"),
+    compiledAtLogicalMs: 100,
+  });
+  let runs = 0;
+  const adapter = new RoleRealignmentMorphogenesisBoundaryV2({
+    async resolve(digest) {
+      if (digest !== binding.roleRealignmentRequestDigest) return null;
+      return {
+        runtime: {
+          async run(input) {
+            runs += 1;
+            return runs === 1
+              ? {
+                  request: { requestDigest: digest },
+                  status: "selected",
+                  stateDigest: sha("5"),
+                }
+              : {
+                  request: { requestDigest: digest },
+                  status: "activated",
+                  stateDigest: sha("6"),
+                  activation: {
+                    activationDigest: sha("7"),
+                    completedAtLogicalMs: input.logicalTimeMs,
+                  },
+                };
+          },
+        },
+        input: {
+          sessionId: "session:role:1",
+          requestId: "request:role:1",
+          selectionId: "selection:role:1",
+          activationId: "activation:role:1",
+          authorityCeiling: {},
+          logicalTimeMs: 100,
+        },
+        currentRoleBindingDigest: binding.currentRoleBindingDigest,
+        morphogenesisAuthorizationDigest: sha("8"),
+        authorityFenceDigest: sha("9"),
+      };
+    },
+  });
+  const runtime = new MorphogenesisOperatorExecutionRuntimeV2({
+    store: new InMemoryMorphogenesisOperatorExecutionStoreV2(),
+    boundaries: new MorphogenesisOperatorBoundaryRouterV2([
+      { boundaries: ["governed_role_realignment"], port: adapter },
+    ]),
+  });
+  let state = await runtime.initialize({
+    stateKey: "operator-execution:realign-role:1",
+    plan,
+    proposalDigest: sha("a"),
+    decisionDigest: sha("b"),
+    authorizationDigest: sha("8"),
+    authorityFenceDigest: sha("9"),
+    expectedMorphologyEpoch: 1,
+    logicalTimeMs: 110,
+  });
+  state = await runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 120 });
+  assert.equal(state.status, "prepared");
+  assert.equal(state.nextStepIndex, 0);
+  state = await runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 130 });
+  assert.equal(state.status, "completed");
+  assert.equal(state.receipts[0].resultDigest, sha("7"));
+  assert.equal(runs, 2);
 });

@@ -18,6 +18,74 @@ import type {
   GovernedMissionRequestV1,
   GovernedMissionStateV1,
 } from "@agentplat/collective-runtime/mission-lifecycle";
+import type {
+  RoleRealignmentPortableAgentV1,
+  RunRoleRealignmentInputV1,
+} from "@agentplat/inference-control/role-realignment/portable-agent";
+
+export interface MorphogenesisRoleRealignmentResolutionPortV2 {
+  resolve(requestDigest: PlanningDigestV1): Promise<{
+    readonly runtime: RoleRealignmentPortableAgentV1;
+    readonly input: RunRoleRealignmentInputV1;
+    readonly currentRoleBindingDigest: PlanningDigestV1;
+    readonly morphogenesisAuthorizationDigest: PlanningDigestV1;
+    readonly authorityFenceDigest: PlanningDigestV1;
+  } | null>;
+}
+
+/** Delegates the complete certified role saga to Inference Control. */
+export class RoleRealignmentMorphogenesisBoundaryV2
+  implements MorphogenesisOperatorBoundaryPortV2
+{
+  constructor(
+    readonly resolution: MorphogenesisRoleRealignmentResolutionPortV2,
+  ) {}
+  execute(input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0]) {
+    return this.#run(input);
+  }
+  reconcile(input: Parameters<MorphogenesisOperatorBoundaryPortV2["reconcile"]>[0]) {
+    return this.#run(input);
+  }
+  async #run(
+    input: Parameters<MorphogenesisOperatorBoundaryPortV2["execute"]>[0],
+  ): Promise<MorphogenesisOperatorStepResolutionV2> {
+    if (
+      input.step.boundary !== "governed_role_realignment" ||
+      input.step.operation !== "run_certified_role_realignment" ||
+      input.plan.binding.operator !== "realign_role"
+    ) throw new TypeError("Morphogenesis role realignment boundary is invalid");
+    const resolved = await this.resolution.resolve(input.step.targetDigest);
+    if (!resolved) return { status: "not_applied" };
+    if (
+      resolved.currentRoleBindingDigest !==
+        input.plan.binding.currentRoleBindingDigest ||
+      resolved.morphogenesisAuthorizationDigest !== input.authorizationDigest ||
+      resolved.authorityFenceDigest !== input.authorityFenceDigest
+    ) throw new TypeError("Morphogenesis role realignment authority binding is invalid");
+    const state = await resolved.runtime.run({
+      ...resolved.input,
+      logicalTimeMs: input.logicalTimeMs,
+      signal: input.signal,
+    });
+    if (state.request.requestDigest !== input.step.targetDigest)
+      throw new TypeError("Morphogenesis role realignment request is substituted");
+    if (state.status === "activated")
+      return appliedReceipt(
+        input,
+        state.activation!.activationDigest as PlanningDigestV1,
+        state.activation!.completedAtLogicalMs!,
+      );
+    if (state.status === "expired" || state.status === "failed")
+      return {
+        status: "indeterminate",
+        evidenceDigest: state.stateDigest as PlanningDigestV1,
+      };
+    return {
+      status: "pending",
+      evidenceDigest: state.stateDigest as PlanningDigestV1,
+    };
+  }
+}
 
 export class MorphogenesisOperatorBoundaryRouterV2
   implements MorphogenesisOperatorBoundaryPortV2
