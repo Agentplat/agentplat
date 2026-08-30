@@ -29,6 +29,7 @@ import {
   createMorphogenesisNeedV1,
   createMorphogenesisOperationV1,
   createMorphogenesisPolicyV1,
+  createMorphogenesisPolicyV2,
   createMorphogenesisProposalV1,
   createMorphogenesisBudgetReservationRequestV1,
   createMorphogenesisBudgetReservationV1,
@@ -60,6 +61,7 @@ import {
   createTargetMorphologyPositionV1,
   createTargetMorphologyV1,
   validateMorphogenesisProposalV1,
+  validateMorphogenesisPolicyV2,
   validateAgentInstantiationProfileV1,
   validateAgentInstantiationProfileEvolutionV1,
   validateAgentInstantiationAuthorityAttenuationV1,
@@ -3596,6 +3598,51 @@ test("AgentInstantiationProfileV2 derives a narrower certified material profile"
           profileDigest: child.profile.profileDigest,
         },
       },
+    }),
+  );
+});
+
+test("MorphogenesisPolicyV2 admits advanced operators only through explicit capabilities", () => {
+  const baseline = fixture().policy.policy;
+  const policy = createMorphogenesisPolicyV2({
+    ...baseline,
+    schemaVersion: 2,
+    allowedOperators: [...baseline.allowedOperators, "derive_agent"].sort(),
+    enabledAdvancedCapabilities: ["derived_profiles"],
+    maximumDerivedAgentsPerProposal: 1,
+    maximumSynthesizedAgentsPerProposal: 0,
+    maximumRoleChangesPerProposal: 0,
+    maximumWorkReassignmentsPerProposal: 0,
+    maximumReplacementsPerProposal: 0,
+    maximumSuspensionsPerProposal: 0,
+    maximumTopologyOperationsPerProposal: 0,
+    maximumCreationDepth: 0,
+  });
+  assert.equal(policy.schemaVersion, 2);
+  assert.equal(validateMorphogenesisPolicyV2(policy).policyDigest, policy.policyDigest);
+  const operation = createMorphogenesisOperationV1(
+    {
+      operationId: "operation:derive-agent:v2",
+      operator: "derive_agent",
+      effectClass: "protected_external",
+      dependsOnOperationIds: ["operation:instantiate-agent:v2"],
+      targetReferenceDigest: sha("1"),
+      compensation: "terminate_unenrolled",
+    },
+    policy,
+  );
+  assert.equal(operation.operator, "derive_agent");
+  assert.throws(() =>
+    createMorphogenesisPolicyV2({
+      ...policy.policy,
+      enabledAdvancedCapabilities: [],
+      maximumDerivedAgentsPerProposal: 0,
+    }),
+  );
+  assert.throws(() =>
+    createMorphogenesisPolicyV1({
+      ...baseline,
+      allowedOperators: [...baseline.allowedOperators, "derive_agent"],
     }),
   );
 });

@@ -8,12 +8,12 @@ import type { AgentPlatID } from "@agentplat/core";
 
 import type {
   MorphogenesisNeedV1,
-  MorphogenesisPolicyRecordV1,
+  MorphogenesisPolicyRecordAnyV1,
   MorphogenesisReasonCodeV1,
 } from "./morphogenesis-contracts.js";
 import {
   validateMorphogenesisNeedV1,
-  validateMorphogenesisPolicyV1,
+  validateMorphogenesisPolicyAnyV1,
 } from "./morphogenesis-validation.js";
 
 export interface MorphogenesisTransformationHeadV1 {
@@ -98,9 +98,9 @@ export function createMorphogenesisControlWindowV1(
     MorphogenesisControlWindowV1,
     "schemaVersion" | "windowDigest"
   >,
-  policyInput: MorphogenesisPolicyRecordV1,
+  policyInput: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisControlWindowV1 {
-  const policy = validateMorphogenesisPolicyV1(policyInput);
+  const policy = validateMorphogenesisPolicyAnyV1(policyInput);
   const observedAtLogicalMs = nonNegative(
     input.observedAtLogicalMs,
     "control-window observation time",
@@ -146,7 +146,7 @@ export function createMorphogenesisControlWindowV1(
 
 export function validateMorphogenesisControlWindowV1(
   input: unknown,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisControlWindowV1 {
   const value = exact(
     input,
@@ -177,12 +177,12 @@ export function validateMorphogenesisControlWindowV1(
 }
 
 export function assertMorphogenesisControlWindowAllowsV1(input: {
-  readonly policy: MorphogenesisPolicyRecordV1;
+  readonly policy: MorphogenesisPolicyRecordAnyV1;
   readonly window: MorphogenesisControlWindowV1;
   readonly need: MorphogenesisNeedV1;
   readonly logicalTimeMs: number;
 }): void {
-  const policy = validateMorphogenesisPolicyV1(input.policy);
+  const policy = validateMorphogenesisPolicyAnyV1(input.policy);
   const window = validateMorphogenesisControlWindowV1(input.window, policy);
   const need = validateMorphogenesisNeedV1(input.need, policy);
   const logicalTimeMs = nonNegative(

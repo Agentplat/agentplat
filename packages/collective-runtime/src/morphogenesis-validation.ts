@@ -11,16 +11,23 @@ import {
   MORPHOGENESIS_FIRST_RELEASE_OPERATORS_V1,
   MORPHOGENESIS_OPERATORS_V1,
   MORPHOGENESIS_REASON_CODES_V1,
+  MORPHOGENESIS_ADVANCED_CAPABILITIES_V2,
   MORPHOGENESIS_SCHEMA_VERSION_V1,
   MORPHOLOGY_COMPONENT_KINDS_V1,
   MORPHOLOGY_HEAD_STATE_FORMAT_V1,
   MORPHOLOGY_SOURCE_CLASSES_V1,
   type MorphogenesisBudgetEnvelopeV1,
+  type MorphogenesisAdvancedCapabilityV2,
   type MorphogenesisCurrencyAmountV1,
   type MorphogenesisNeedV1,
   type MorphogenesisOperationV1,
+  type MorphogenesisOperatorV1,
   type MorphogenesisPolicyRecordV1,
+  type MorphogenesisPolicyRecordV2,
+  type MorphogenesisPolicyRecordAnyV1,
   type MorphogenesisPolicyV1,
+  type MorphogenesisPolicyV2,
+  type MorphogenesisPolicyAnyV1,
   type MorphogenesisProposalV1,
   type MorphogenesisScopeV1,
   type MorphologyComponentReferenceV1,
@@ -43,6 +50,9 @@ const decisionRoutes = new Set<string>(MORPHOGENESIS_DECISION_ROUTES_V1);
 const operators = new Set<string>(MORPHOGENESIS_OPERATORS_V1);
 const firstReleaseOperators = new Set<string>(
   MORPHOGENESIS_FIRST_RELEASE_OPERATORS_V1,
+);
+const advancedCapabilities = new Set<string>(
+  MORPHOGENESIS_ADVANCED_CAPABILITIES_V2,
 );
 const fillModes = new Set([
   "retain_current",
@@ -70,10 +80,25 @@ export function createMorphogenesisPolicyV1(
   input: MorphogenesisPolicyV1,
 ): MorphogenesisPolicyRecordV1 {
   const policy = normalizePolicy(input);
+  if (policy.schemaVersion !== 1)
+    fail("morphogenesis policy V1 schema is invalid");
   return freeze({
     schemaVersion: 1,
     policy,
     policyDigest: digest("morphogenesis-policy", policy),
+  });
+}
+
+export function createMorphogenesisPolicyV2(
+  input: MorphogenesisPolicyV2,
+): MorphogenesisPolicyRecordV2 {
+  const policy = normalizePolicy(input);
+  if (policy.schemaVersion !== 2)
+    fail("morphogenesis policy V2 schema is invalid");
+  return freeze({
+    schemaVersion: 2,
+    policy,
+    policyDigest: digest("morphogenesis-policy-v2", policy),
   });
 }
 
@@ -92,6 +117,36 @@ export function validateMorphogenesisPolicyV1(
   if (value.policyDigest !== result.policyDigest)
     fail("morphogenesis policy digest is invalid");
   return result;
+}
+
+export function validateMorphogenesisPolicyV2(
+  input: unknown,
+): MorphogenesisPolicyRecordV2 {
+  const value = exact(
+    input,
+    ["policy", "policyDigest", "schemaVersion"],
+    "morphogenesis policy V2 record",
+  );
+  if (value.schemaVersion !== 2)
+    fail("morphogenesis policy V2 record schema is invalid");
+  const result = createMorphogenesisPolicyV2(
+    value.policy as MorphogenesisPolicyV2,
+  );
+  if (value.policyDigest !== result.policyDigest)
+    fail("morphogenesis policy V2 digest is invalid");
+  return result;
+}
+
+export function validateMorphogenesisPolicyAnyV1(
+  input: unknown,
+): MorphogenesisPolicyRecordAnyV1 {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    fail("morphogenesis policy record is invalid");
+  const schemaVersion = (input as { readonly schemaVersion?: unknown })
+    .schemaVersion;
+  return schemaVersion === 2
+    ? validateMorphogenesisPolicyV2(input)
+    : validateMorphogenesisPolicyV1(input);
 }
 
 export function createMorphogenesisScopeV1(
@@ -295,7 +350,7 @@ export function createMorphologySnapshotV1(input: {
   readonly scope: MorphogenesisScopeV1;
   readonly morphologyEpoch: number;
   readonly previousMorphologyDigest: PlanningDigestV1 | null;
-  readonly policy: MorphogenesisPolicyRecordV1;
+  readonly policy: MorphogenesisPolicyRecordAnyV1;
   readonly implementationDigest: PlanningDigestV1;
   readonly sourceHeads: readonly MorphologySourceHeadV1[];
   readonly components: readonly MorphologyComponentReferenceV1[];
@@ -305,7 +360,7 @@ export function createMorphologySnapshotV1(input: {
   readonly logicalTimeHighWaterMs: number;
 }): MorphologySnapshotV1 {
   const scope = validateMorphogenesisScopeV1(input.scope);
-  const policy = validateMorphogenesisPolicyV1(input.policy);
+  const policy = validateMorphogenesisPolicyAnyV1(input.policy);
   const sourceHeads = sortedUnique(
     input.sourceHeads,
     validateMorphologySourceHeadV1,
@@ -389,7 +444,7 @@ export function createMorphologySnapshotV1(input: {
 
 export function validateMorphologySnapshotV1(
   input: unknown,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphologySnapshotV1 {
   const value = exact(
     input,
@@ -438,7 +493,7 @@ export function validateMorphologySnapshotV1(
 
 export function createMorphogenesisNeedV1(
   input: Omit<MorphogenesisNeedV1, "schemaVersion" | "needDigest">,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisNeedV1 {
   if (!reasonCodes.has(input.reasonCode))
     fail("morphogenesis reason code is invalid");
@@ -493,7 +548,7 @@ export function createMorphogenesisNeedV1(
 
 export function validateMorphogenesisNeedV1(
   input: unknown,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisNeedV1 {
   const value = exact(
     input,
@@ -679,7 +734,7 @@ export function validateTargetMorphologyAgentDispositionV1(
 
 export function createTargetMorphologyV1(
   input: Omit<TargetMorphologyV1, "schemaVersion" | "targetDigest">,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): TargetMorphologyV1 {
   const positions = sortedUnique(
     input.positions,
@@ -759,7 +814,7 @@ export function createTargetMorphologyV1(
 
 export function validateTargetMorphologyV1(
   input: unknown,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): TargetMorphologyV1 {
   const value = exact(
     input,
@@ -884,7 +939,7 @@ export function validateMorphogenesisBudgetEnvelopeV1(
 
 export function createMorphogenesisOperationV1(
   input: Omit<MorphogenesisOperationV1, "schemaVersion" | "operationDigest">,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisOperationV1 {
   if (
     !operators.has(input.operator) ||
@@ -922,7 +977,7 @@ export function createMorphogenesisOperationV1(
 
 export function validateMorphogenesisOperationV1(
   input: unknown,
-  policy: MorphogenesisPolicyRecordV1,
+  policy: MorphogenesisPolicyRecordAnyV1,
 ): MorphogenesisOperationV1 {
   const value = exact(
     input,
@@ -958,13 +1013,13 @@ export function createMorphogenesisProposalV1(
     "schemaVersion" | "proposalDigest" | "advisoryOnly"
   >,
   context: {
-    readonly policy: MorphogenesisPolicyRecordV1;
+    readonly policy: MorphogenesisPolicyRecordAnyV1;
     readonly snapshot: MorphologySnapshotV1;
     readonly need: MorphogenesisNeedV1;
     readonly target: TargetMorphologyV1;
   },
 ): MorphogenesisProposalV1 {
-  const policy = validateMorphogenesisPolicyV1(context.policy);
+  const policy = validateMorphogenesisPolicyAnyV1(context.policy);
   const snapshot = validateMorphologySnapshotV1(context.snapshot, policy);
   const need = validateMorphogenesisNeedV1(context.need, policy);
   const target = validateTargetMorphologyV1(context.target, policy);
@@ -995,6 +1050,8 @@ export function createMorphogenesisProposalV1(
     policy.policy.limits.maximumOperations,
   );
   assertOperationDag(operations);
+  if (policy.schemaVersion === 2)
+    validateAdvancedOperationCountsV2(policy.policy, operations);
   const hasCreation = operations.some(
     ({ operator }) => operator === "instantiate_agent",
   );
@@ -1063,7 +1120,7 @@ export function createMorphogenesisProposalV1(
 export function validateMorphogenesisProposalV1(
   input: unknown,
   context: {
-    readonly policy: MorphogenesisPolicyRecordV1;
+    readonly policy: MorphogenesisPolicyRecordAnyV1;
     readonly snapshot: MorphologySnapshotV1;
     readonly need: MorphogenesisNeedV1;
     readonly target: TargetMorphologyV1;
@@ -1176,7 +1233,11 @@ export function validateMorphologyHeadV1(input: unknown): MorphologyHeadV1 {
   return result;
 }
 
-function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
+function normalizePolicy(input: MorphogenesisPolicyAnyV1): MorphogenesisPolicyAnyV1 {
+  const isV2 =
+    input !== null &&
+    typeof input === "object" &&
+    Object.keys(input).includes("enabledAdvancedCapabilities");
   const value = exact(
     input,
     [
@@ -1194,10 +1255,24 @@ function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
       "requireIndependentDecider",
       "requiredSourceClasses",
       "schemaVersion",
+      ...(isV2
+        ? [
+            "enabledAdvancedCapabilities",
+            "maximumCreationDepth",
+            "maximumDerivedAgentsPerProposal",
+            "maximumReplacementsPerProposal",
+            "maximumRoleChangesPerProposal",
+            "maximumSuspensionsPerProposal",
+            "maximumSynthesizedAgentsPerProposal",
+            "maximumTopologyOperationsPerProposal",
+            "maximumWorkReassignmentsPerProposal",
+          ]
+        : []),
     ],
     "morphogenesis policy",
   );
-  schema(value.schemaVersion, "morphogenesis policy");
+  if (value.schemaVersion !== (isV2 ? 2 : 1))
+    fail("morphogenesis policy schema is invalid");
   const limits = exact(
     value.limits,
     [
@@ -1234,7 +1309,10 @@ function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
     1,
     MORPHOGENESIS_OPERATORS_V1.length,
   ) as MorphogenesisPolicyV1["allowedOperators"];
-  if (allowedOperators.some((operator) => !firstReleaseOperators.has(operator)))
+  if (
+    !isV2 &&
+    allowedOperators.some((operator) => !firstReleaseOperators.has(operator))
+  )
     fail("morphogenesis operator is not available in the first release");
   const allowedDecisionRoutes = enumValues(
     value.allowedDecisionRoutes,
@@ -1243,8 +1321,8 @@ function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
     1,
     MORPHOGENESIS_DECISION_ROUTES_V1.length,
   ) as MorphogenesisPolicyV1["allowedDecisionRoutes"];
-  const policy = freeze({
-    schemaVersion: 1 as const,
+  const base = {
+    schemaVersion: isV2 ? (2 as const) : (1 as const),
     policyId: id(value.policyId, "morphogenesis policy ID"),
     policyVersion: positive(value.policyVersion, "morphogenesis policy version"),
     parentPolicyDigest: nullableSha(value.parentPolicyDigest, "parent policy digest"),
@@ -1278,7 +1356,53 @@ function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
       cooldownMs: nonNegative(limits.cooldownMs, "morphogenesis cooldown"),
       hysteresisBps: bps(limits.hysteresisBps, "morphogenesis hysteresis"),
     }),
-  });
+  };
+  const policy = freeze(
+    isV2
+      ? {
+          ...base,
+          enabledAdvancedCapabilities: enumValues(
+            value.enabledAdvancedCapabilities,
+            advancedCapabilities,
+            "enabled advanced Morphogenesis capabilities",
+            0,
+            MORPHOGENESIS_ADVANCED_CAPABILITIES_V2.length,
+          ),
+          maximumDerivedAgentsPerProposal: nonNegative(
+            value.maximumDerivedAgentsPerProposal,
+            "maximum derived agents per proposal",
+          ),
+          maximumSynthesizedAgentsPerProposal: nonNegative(
+            value.maximumSynthesizedAgentsPerProposal,
+            "maximum synthesized agents per proposal",
+          ),
+          maximumRoleChangesPerProposal: nonNegative(
+            value.maximumRoleChangesPerProposal,
+            "maximum role changes per proposal",
+          ),
+          maximumWorkReassignmentsPerProposal: nonNegative(
+            value.maximumWorkReassignmentsPerProposal,
+            "maximum Work reassignments per proposal",
+          ),
+          maximumReplacementsPerProposal: nonNegative(
+            value.maximumReplacementsPerProposal,
+            "maximum replacements per proposal",
+          ),
+          maximumSuspensionsPerProposal: nonNegative(
+            value.maximumSuspensionsPerProposal,
+            "maximum suspensions per proposal",
+          ),
+          maximumTopologyOperationsPerProposal: nonNegative(
+            value.maximumTopologyOperationsPerProposal,
+            "maximum topology operations per proposal",
+          ),
+          maximumCreationDepth: nonNegative(
+            value.maximumCreationDepth,
+            "maximum creation depth",
+          ),
+        }
+      : base,
+  );
   if (
     policy.maximumNewAgentsPerProposal > policy.maximumPopulation ||
     (!policy.allowAgentCreation &&
@@ -1287,7 +1411,65 @@ function normalizePolicy(input: MorphogenesisPolicyV1): MorphogenesisPolicyV1 {
       ))
   )
     fail("morphogenesis policy creation or population bounds are inconsistent");
-  return policy;
+  if (policy.schemaVersion === 2)
+    validateAdvancedPolicyV2(policy as MorphogenesisPolicyV2);
+  return policy as MorphogenesisPolicyAnyV1;
+}
+
+function validateAdvancedPolicyV2(policy: MorphogenesisPolicyV2) {
+  const enabled = new Set(policy.enabledAdvancedCapabilities);
+  const requirements: readonly [MorphogenesisAdvancedCapabilityV2, string, number][] = [
+    ["derived_profiles", "derive_agent", policy.maximumDerivedAgentsPerProposal],
+    ["role_realignments", "realign_role", policy.maximumRoleChangesPerProposal],
+    ["work_reassignments", "reassign_work", policy.maximumWorkReassignmentsPerProposal],
+    ["agent_replacements", "replace_agent", policy.maximumReplacementsPerProposal],
+    ["agent_suspensions", "suspend_agent", policy.maximumSuspensionsPerProposal],
+  ];
+  for (const [capability, operator, maximum] of requirements) {
+    const admitted = policy.allowedOperators.includes(
+      operator as MorphogenesisOperatorV1,
+    );
+    if (admitted !== enabled.has(capability) || (admitted ? maximum < 1 : maximum !== 0))
+      fail(`advanced Morphogenesis capability ${capability} is inconsistent`);
+  }
+  const topologyOperators = ["split_team", "merge_teams", "federate_teams"];
+  const topologyAdmitted = topologyOperators.some((operator) =>
+    policy.allowedOperators.includes(operator as MorphogenesisOperatorV1),
+  );
+  if (
+    topologyAdmitted !== enabled.has("team_topology_transformations") ||
+    (topologyAdmitted
+      ? policy.maximumTopologyOperationsPerProposal < 1
+      : policy.maximumTopologyOperationsPerProposal !== 0)
+  )
+    fail("advanced Morphogenesis topology capability is inconsistent");
+  if (
+    enabled.has("synthesized_profiles") !==
+      (policy.maximumSynthesizedAgentsPerProposal > 0)
+  )
+    fail("advanced Morphogenesis synthesis capability is inconsistent");
+  if (
+    enabled.has("recursive_creation") !== (policy.maximumCreationDepth > 0)
+  )
+    fail("advanced Morphogenesis recursive creation capability is inconsistent");
+}
+
+function validateAdvancedOperationCountsV2(
+  policy: MorphogenesisPolicyV2,
+  operations: readonly MorphogenesisOperationV1[],
+) {
+  const count = (operators: readonly MorphogenesisOperatorV1[]) =>
+    operations.filter(({ operator }) => operators.includes(operator)).length;
+  if (
+    count(["derive_agent"]) > policy.maximumDerivedAgentsPerProposal ||
+    count(["realign_role"]) > policy.maximumRoleChangesPerProposal ||
+    count(["reassign_work"]) > policy.maximumWorkReassignmentsPerProposal ||
+    count(["replace_agent"]) > policy.maximumReplacementsPerProposal ||
+    count(["suspend_agent"]) > policy.maximumSuspensionsPerProposal ||
+    count(["split_team", "merge_teams", "federate_teams"]) >
+      policy.maximumTopologyOperationsPerProposal
+  )
+    fail("advanced Morphogenesis operation count exceeds policy");
 }
 
 function normalizePopulation(

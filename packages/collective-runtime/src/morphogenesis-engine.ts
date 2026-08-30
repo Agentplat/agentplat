@@ -9,7 +9,7 @@ import {
 } from "./morphogenesis-control.js";
 import type {
   MorphogenesisNeedV1,
-  MorphogenesisPolicyRecordV1,
+  MorphogenesisPolicyRecordAnyV1,
   MorphogenesisProposalV1,
   MorphologyComponentReferenceV1,
   MorphologySnapshotV1,
@@ -21,7 +21,7 @@ import {
   createMorphogenesisProposalV1,
   createMorphologySnapshotV1,
   validateMorphogenesisNeedV1,
-  validateMorphogenesisPolicyV1,
+  validateMorphogenesisPolicyAnyV1,
   validateMorphologySnapshotV1,
   validateTargetMorphologyV1,
 } from "./morphogenesis-validation.js";
@@ -74,18 +74,18 @@ export class InMemoryMorphologySourceCurrentnessPortV1
 }
 
 export class MorphogenesisProposalEngineV1 {
-  readonly #policy: MorphogenesisPolicyRecordV1;
+  readonly #policy: MorphogenesisPolicyRecordAnyV1;
   readonly #currentness: MorphologySourceCurrentnessPortV1;
 
   constructor(
     readonly options: {
-      readonly policy: MorphogenesisPolicyRecordV1;
+      readonly policy: MorphogenesisPolicyRecordAnyV1;
       readonly sourceResolution: MorphologySourceResolutionPortV1;
       readonly processDefinitionDigest: WorkflowDigestV1;
       readonly sourceCurrentness?: MorphologySourceCurrentnessPortV1;
     },
   ) {
-    this.#policy = validateMorphogenesisPolicyV1(options.policy);
+    this.#policy = validateMorphogenesisPolicyAnyV1(options.policy);
     this.#currentness =
       options.sourceCurrentness ??
       new InMemoryMorphologySourceCurrentnessPortV1();

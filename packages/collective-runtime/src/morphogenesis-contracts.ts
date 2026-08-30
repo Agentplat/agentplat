@@ -343,6 +343,49 @@ export interface MorphogenesisPolicyRecordV1 {
   readonly policyDigest: PlanningDigestV1;
 }
 
+export const MORPHOGENESIS_ADVANCED_CAPABILITIES_V2 = Object.freeze([
+  "derived_profiles",
+  "synthesized_profiles",
+  "role_realignments",
+  "work_reassignments",
+  "agent_replacements",
+  "agent_suspensions",
+  "team_topology_transformations",
+  "recursive_creation",
+] as const);
+
+export type MorphogenesisAdvancedCapabilityV2 =
+  (typeof MORPHOGENESIS_ADVANCED_CAPABILITIES_V2)[number];
+
+export interface MorphogenesisPolicyV2
+  extends Omit<MorphogenesisPolicyV1, "schemaVersion"> {
+  readonly schemaVersion: 2;
+  readonly enabledAdvancedCapabilities:
+    readonly MorphogenesisAdvancedCapabilityV2[];
+  readonly maximumDerivedAgentsPerProposal: number;
+  readonly maximumSynthesizedAgentsPerProposal: number;
+  readonly maximumRoleChangesPerProposal: number;
+  readonly maximumWorkReassignmentsPerProposal: number;
+  readonly maximumReplacementsPerProposal: number;
+  readonly maximumSuspensionsPerProposal: number;
+  readonly maximumTopologyOperationsPerProposal: number;
+  readonly maximumCreationDepth: number;
+}
+
+export interface MorphogenesisPolicyRecordV2 {
+  readonly schemaVersion: 2;
+  readonly policy: MorphogenesisPolicyV2;
+  readonly policyDigest: PlanningDigestV1;
+}
+
+export type MorphogenesisPolicyAnyV1 =
+  | MorphogenesisPolicyV1
+  | MorphogenesisPolicyV2;
+
+export type MorphogenesisPolicyRecordAnyV1 =
+  | MorphogenesisPolicyRecordV1
+  | MorphogenesisPolicyRecordV2;
+
 export interface MorphologyHeadV1 {
   readonly format: typeof MORPHOLOGY_HEAD_STATE_FORMAT_V1;
   readonly schemaVersion: 1;

@@ -8,10 +8,10 @@ import type { AgentPlatID } from "@agentplat/core";
 
 import type {
   MorphogenesisDecisionRouteV1,
-  MorphogenesisPolicyRecordV1,
+  MorphogenesisPolicyRecordAnyV1,
   MorphogenesisProposalV1,
 } from "./morphogenesis-contracts.js";
-import { validateMorphogenesisPolicyV1 } from "./morphogenesis-validation.js";
+import { validateMorphogenesisPolicyAnyV1 } from "./morphogenesis-validation.js";
 
 export type MorphogenesisDecisionActorTypeV1 =
   | "agent"
@@ -175,7 +175,7 @@ export class InMemoryMorphogenesisReplayTombstoneStoreV1
 export function createMorphogenesisDecisionCandidateV1(input: {
   readonly candidateId: AgentPlatID;
   readonly proposal: MorphogenesisProposalV1;
-  readonly policy: MorphogenesisPolicyRecordV1;
+  readonly policy: MorphogenesisPolicyRecordAnyV1;
   readonly membershipConfigurationDigest: PlanningDigestV1 | null;
   readonly membershipEpoch: number | null;
   readonly authorityId: AgentPlatID;
@@ -184,7 +184,7 @@ export function createMorphogenesisDecisionCandidateV1(input: {
   readonly preparedAtLogicalMs: number;
   readonly expiresAtLogicalMs: number;
 }): MorphogenesisDecisionCandidateV1 {
-  const policy = validateMorphogenesisPolicyV1(input.policy);
+  const policy = validateMorphogenesisPolicyAnyV1(input.policy);
   const proposal = normalizeProposalReference(input.proposal);
   if (
     proposal.decisionRoute === undefined ||
@@ -646,20 +646,20 @@ export class InMemoryMorphogenesisDecisionAuthorizationIssuerV1
 }
 
 export class MorphogenesisDecisionRuntimeV1 {
-  readonly #policy: MorphogenesisPolicyRecordV1;
+  readonly #policy: MorphogenesisPolicyRecordAnyV1;
 
   constructor(
     readonly options: {
       readonly decisionPortId: AgentPlatID;
       readonly decisionPortVersion: number;
       readonly decisionPortImplementationDigest: PlanningDigestV1;
-      readonly policy: MorphogenesisPolicyRecordV1;
+      readonly policy: MorphogenesisPolicyRecordAnyV1;
       readonly proposals: MorphogenesisProposalResolutionPortV1;
       readonly authorizations: MorphogenesisDecisionAuthorizationIssuerPortV1;
       readonly store: MorphogenesisDecisionStoreV1;
     },
   ) {
-    this.#policy = validateMorphogenesisPolicyV1(options.policy);
+    this.#policy = validateMorphogenesisPolicyAnyV1(options.policy);
   }
 
   async prepare(input: Parameters<typeof createMorphogenesisDecisionCandidateV1>[0]): Promise<MorphogenesisDecisionCandidateV1> {
