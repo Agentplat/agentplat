@@ -231,6 +231,71 @@ if (options.mode === "contract-smoke") {
     sourceCommit: body.sourceCommit,
     executionPermitted: body.executionPermitted,
   }));
+} else if (options.mode === "verify-execution-authorization") {
+  exactKeys(options, [
+    "authorization-directory",
+    "expected-public-key-sha256",
+    "logical-time",
+    "mode",
+    "source-sha",
+  ]);
+  const sourceSha = required(options, "source-sha");
+  const expectedPublicKeySha256 = required(
+    options,
+    "expected-public-key-sha256",
+  );
+  if (
+    !/^[0-9a-f]{40}$/u.test(sourceSha) ||
+    !/^[0-9a-f]{64}$/u.test(expectedPublicKeySha256)
+  )
+    fail("morphogenesis_beta1_execution_authorization_binding_invalid");
+  const logicalTime = new Date(required(options, "logical-time"));
+  if (!Number.isFinite(logicalTime.getTime()))
+    fail("morphogenesis_beta1_execution_authorization_time_invalid");
+  const directory = path.resolve(required(options, "authorization-directory"));
+  const [authorization, publicKeyPem] = await Promise.all([
+    readAbsoluteJson(path.join(directory, "authorization.json")),
+    readFile(path.join(directory, "authorization-public-key.pem"), "utf8"),
+  ]);
+  const { authorizationDigest, proof, ...body } = authorization;
+  const publicKeySha256 = createHash("sha256")
+    .update(publicKeyPem, "utf8")
+    .digest("hex");
+  if (
+    authorizationDigest !==
+      digest("agentplat-agent-morphogenesis-beta1-authorization-v1", body) ||
+    proof?.algorithm !== "Ed25519" ||
+    !verifyBytes(
+      null,
+      signingBytes(
+        "agentplat-agent-morphogenesis-beta1-authorization-v1",
+        body,
+      ),
+      createPublicKey(publicKeyPem),
+      Buffer.from(proof.signature, "base64url"),
+    ) ||
+    body.sourceCommit !== sourceSha ||
+    body.executionPermitted !== true ||
+    body.maximumExternalSpendUsd !== 0 ||
+    body.authorizedScenarioIds.length !== 18 ||
+    logicalTime.getTime() < Date.parse(body.issuedAt) ||
+    logicalTime.getTime() >= Date.parse(body.expiresAt) ||
+    publicKeySha256 !== expectedPublicKeySha256 ||
+    git(["rev-parse", "HEAD"]) !== sourceSha ||
+    gitStatus(["diff", "--quiet"]) !== 0 ||
+    gitStatus(["diff", "--cached", "--quiet"]) !== 0
+  )
+    fail("morphogenesis_beta1_execution_authorization_inactive");
+  console.log(JSON.stringify({
+    status: "active",
+    authorizationDigest,
+    sourceCommit: sourceSha,
+    publicKeySha256,
+    logicalTime: logicalTime.toISOString(),
+    expiresAt: body.expiresAt,
+    executionPermitted: true,
+    maximumExternalSpendUsd: 0,
+  }));
 } else {
   fail("morphogenesis_beta1_campaign_mode_invalid");
 }
