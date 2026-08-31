@@ -13,6 +13,6 @@
 - [x] PostgreSQL governance/execution stores use CAS and witness protection.
 - [x] Organizational lineage is content-free and non-authoritative.
 - [x] Public APIs, specification, ADR, threat model and example exist.
-- [ ] Full `pnpm test` and `pnpm check` pass on the final tree.
+- [x] Full `pnpm test` and `pnpm check` pass on the final tree.
 
 No item proves production readiness or organizational improvement.
