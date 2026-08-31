@@ -18,6 +18,6 @@ do not imply production effectiveness.
 - [x] Successor catalogs preserve baseline, parent and immutable definitions.
 - [x] Agent Rooms and Agent Mesh projections grant no authority.
 - [x] Governance and simulation persistence use digest/witness protection.
-- [ ] Full workspace `pnpm test` and `pnpm check` pass on the final tree.
+- [x] Full workspace `pnpm test` and `pnpm check` pass on the final tree.
 
 No checklist item proves real-world strategy improvement or production safety.
