@@ -186,6 +186,51 @@ export function createMorphogenesisOrganizationalCandidateV7(
     candidateDigest: digest("morphogenesis-organizational-candidate-v7", body),
   });
 }
+export function validateMorphogenesisOrganizationalEvolutionPolicyV7(input: unknown) {
+  const value = exact(input, POLICY_KEYS, "organizational policy") as unknown as
+    MorphogenesisOrganizationalEvolutionPolicyV7;
+  const { policyDigest, ...body } = value;
+  const rebuilt = createMorphogenesisOrganizationalEvolutionPolicyV7(body);
+  if (rebuilt.policyDigest !== policyDigest) fail("organizational policy digest invalid");
+  return rebuilt;
+}
+export function validateMorphogenesisOrganizationalPatternV7(input: unknown,
+  policy: MorphogenesisOrganizationalEvolutionPolicyV7) {
+  const value = exact(input, PATTERN_KEYS, "organizational pattern") as unknown as
+    MorphogenesisOrganizationalPatternV7;
+  const { schemaVersion: _s, evolutionRequired: _e, advisoryOnly: _a,
+    patternDigest, ...body } = value;
+  const rebuilt = createMorphogenesisOrganizationalPatternV7({ ...body, policy });
+  if (patternDigest !== rebuilt.patternDigest || value.evolutionRequired !== true ||
+      value.advisoryOnly !== true) fail("organizational pattern invalid");
+  return rebuilt;
+}
+export function validateMorphogenesisOrganizationalCandidateV7(input: unknown,
+  policy: MorphogenesisOrganizationalEvolutionPolicyV7) {
+  const value = exact(input, CANDIDATE_KEYS, "organizational candidate") as unknown as
+    MorphogenesisOrganizationalCandidateV7;
+  const { schemaVersion: _s, policyDigest: _p, targetTopologyDigest: _t,
+    inert: _i, candidateDigest, ...body } = value;
+  const rebuilt = createMorphogenesisOrganizationalCandidateV7({ ...body, policy });
+  if (candidateDigest !== rebuilt.candidateDigest || value.inert !== true)
+    fail("organizational candidate invalid");
+  return rebuilt;
+}
+const POLICY_KEYS = ["maximumAuthorityConcentrationBps", "maximumCandidateTtlMs",
+  "maximumCandidates", "maximumChangedMembers", "maximumMembers", "maximumTeams",
+  "minimumModelDiversity", "minimumPersistentCycles", "minimumProviderDiversity",
+  "morphogenesisPolicyDigest", "policyDigest", "policyId", "policyVersion",
+  "schemaVersion"] as const;
+const PATTERN_KEYS = ["advisoryOnly", "collectiveEvidenceDigests", "consecutiveCycles",
+  "currentTopologyDigest", "currentTopologyEpoch", "evolutionRequired",
+  "expiresAtLogicalMs", "genesisEvidenceDigests", "observedAtLogicalMs", "patternDigest",
+  "patternId", "reasonCodes", "schemaVersion", "strategyEvidenceDigests",
+  "synthesisEvidenceDigests"] as const;
+const CANDIDATE_KEYS = ["authorityConcentrationBps", "candidateDigest", "candidateId",
+  "changedMemberIds", "continuityPlanDigest", "costDigest", "expiresAtLogicalMs",
+  "inert", "modelDiversity", "operators", "patternDigest", "policyDigest",
+  "proposedAtLogicalMs", "providerDiversity", "riskDigest", "rollbackPlanDigest",
+  "schemaVersion", "targetTopology", "targetTopologyDigest"] as const;
 function operatorSet(v: readonly unknown[]) {
   const r = [
     ...new Set(
@@ -257,6 +302,13 @@ function shas(v: readonly unknown[]) {
 }
 function digest(d: string, v: unknown) {
   return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function exact(value: unknown, keys: readonly string[], label: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype ||
+      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort()))
+    fail(`${label} shape invalid`);
+  return value as Record<string, unknown>;
 }
 function freeze<T>(v: T): T {
   if (v && typeof v === "object" && !Object.isFrozen(v)) {

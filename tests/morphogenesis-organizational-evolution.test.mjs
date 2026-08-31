@@ -10,7 +10,14 @@ import {
   createMorphogenesisOrganizationalReviewV7,
   validateMorphogenesisOrganizationalEvolutionPlanV7,
   createMorphogenesisOrganizationalOwnerHandoffV7,
+  createMorphogenesisOrganizationalEvolutionPolicyV7,
+  createMorphogenesisOrganizationalPatternV7,
+  createMorphogenesisOrganizationalCandidateV7,
+  validateMorphogenesisOrganizationalCandidateV7,
+  validateMorphogenesisOrganizationalPatternV7,
 } from "@agentplat/collective-runtime/morphogenesis";
+import { createTeamTopologyNodeV1 } from
+  "@agentplat/collective-runtime/team-topology-transformation";
 import {
   MorphogenesisOrganizationalMeshPublisherV7,
   projectMorphogenesisOrganizationalHandoffToMeshV7,
@@ -18,6 +25,38 @@ import {
 } from "@agentplat/rooms-mesh/morphogenesis";
 const sha = (v) =>
   digestPlanningJsonV1("morphogenesis-strategy-context-v3", { v });
+test("V7 exact validators reject hidden candidate authority", () => {
+  const policy = createMorphogenesisOrganizationalEvolutionPolicyV7({ schemaVersion: 7,
+    policyId: "policy:org:exact", policyVersion: 1,
+    morphogenesisPolicyDigest: sha("morphogenesis"), minimumPersistentCycles: 2,
+    maximumCandidates: 4, maximumTeams: 4, maximumMembers: 8,
+    maximumChangedMembers: 4, minimumProviderDiversity: 2,
+    minimumModelDiversity: 2, maximumAuthorityConcentrationBps: 5_000,
+    maximumCandidateTtlMs: 100 });
+  const pattern = createMorphogenesisOrganizationalPatternV7({
+    patternId: "pattern:exact", currentTopologyDigest: sha("topology"),
+    currentTopologyEpoch: 1, strategyEvidenceDigests: [sha("v3")],
+    collectiveEvidenceDigests: [sha("v4")], synthesisEvidenceDigests: [sha("v5")],
+    genesisEvidenceDigests: [sha("v6")], consecutiveCycles: 2,
+    reasonCodes: ["persistent_gap"], observedAtLogicalMs: 10,
+    expiresAtLogicalMs: 80, policy });
+  const node = createTeamTopologyNodeV1({ teamId: "team:successor", parentTeamIds: [],
+    memberIds: ["agent:a", "agent:b"], coordinatorId: "agent:a", membershipEpoch: 2,
+    membershipConfigurationDigest: sha("membership") });
+  const candidate = createMorphogenesisOrganizationalCandidateV7({
+    candidateId: "candidate:exact", patternDigest: pattern.patternDigest,
+    targetTopology: [node], operators: ["replace_agent"],
+    changedMemberIds: ["agent:b"], providerDiversity: 2, modelDiversity: 2,
+    authorityConcentrationBps: 4_000, costDigest: sha("cost"), riskDigest: sha("risk"),
+    continuityPlanDigest: sha("continuity"), rollbackPlanDigest: sha("rollback"),
+    proposedAtLogicalMs: 20, expiresAtLogicalMs: 70, policy });
+  assert.equal(validateMorphogenesisOrganizationalPatternV7(pattern, policy).patternDigest,
+    pattern.patternDigest);
+  assert.equal(validateMorphogenesisOrganizationalCandidateV7(candidate, policy).candidateDigest,
+    candidate.candidateDigest);
+  assert.throws(() => validateMorphogenesisOrganizationalCandidateV7({ ...candidate,
+    hiddenAuthorityGrant: sha("grant") }, policy), /shape/);
+});
 function plan() {
   const sb = {
     schemaVersion: 7,
