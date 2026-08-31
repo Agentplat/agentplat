@@ -70,6 +70,8 @@ import {
   createSignedMorphogenesisStrategyOutcomeAttestationV4,
   validateMorphogenesisStrategyOutcomeAttestationV4,
   createMorphogenesisStrategyCollectivePriorSourceV4,
+  MorphogenesisStrategyConvergenceV4,
+  createMorphogenesisStrategyGovernanceInputFromConvergenceV4,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -152,6 +154,7 @@ import {
   type MorphogenesisStrategyEvidenceBindingV4,
   type MorphogenesisStrategyIntelligencePolicyV4,
   type MorphogenesisStrategyOutcomeAttestationV4,
+  type MorphogenesisStrategyConvergenceDecisionV4,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -251,6 +254,8 @@ void createMorphogenesisStrategyIntelligencePolicyV4;
 void createSignedMorphogenesisStrategyOutcomeAttestationV4;
 void validateMorphogenesisStrategyOutcomeAttestationV4;
 void createMorphogenesisStrategyCollectivePriorSourceV4;
+void MorphogenesisStrategyConvergenceV4;
+void createMorphogenesisStrategyGovernanceInputFromConvergenceV4;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -334,6 +339,7 @@ declare const counterfactualReportV3: MorphogenesisStrategyCounterfactualReportV
 declare const intelligenceBindingV4: MorphogenesisStrategyEvidenceBindingV4;
 declare const intelligencePolicyV4: MorphogenesisStrategyIntelligencePolicyV4;
 declare const intelligenceAttestationV4: MorphogenesisStrategyOutcomeAttestationV4;
+declare const convergenceDecisionV4: MorphogenesisStrategyConvergenceDecisionV4;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -396,6 +402,7 @@ void counterfactualReportV3;
 void intelligenceBindingV4;
 void intelligencePolicyV4;
 void intelligenceAttestationV4;
+void convergenceDecisionV4;
 void budgetPort;
 void controlWindow;
 void sourceResolution;

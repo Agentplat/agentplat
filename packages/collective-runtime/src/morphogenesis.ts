@@ -22,4 +22,5 @@ export * from "./mission-morphogenesis-strategy.js";
 export * from "./morphogenesis-strategy-integrations.js";
 export * from "./morphogenesis-strategy-counterfactual.js";
 export * from "./morphogenesis-strategy-intelligence.js";
+export * from "./morphogenesis-strategy-convergence.js";
 export * from "./mission-morphogenesis.js";

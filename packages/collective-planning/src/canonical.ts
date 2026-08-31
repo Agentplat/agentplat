@@ -234,6 +234,7 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "morphogenesis-strategy-evidence-binding-v4",
   "morphogenesis-strategy-intelligence-policy-v4",
   "morphogenesis-strategy-outcome-attestation-v4",
+  "morphogenesis-strategy-convergence-decision-v4",
   "morphogenesis-budget-reservation-request",
   "morphogenesis-budget-reservation",
   "morphogenesis-transformation-head",
