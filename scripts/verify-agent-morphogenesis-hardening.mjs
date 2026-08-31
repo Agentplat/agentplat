@@ -12,6 +12,7 @@ const required = ["adapter-closure", "end-to-end-vertical", "conformance-fixture
   "adversarial-hardening", "observability-runbooks", "documentation-catalogs",
   "release-qualification", "distributed-staging", "empirical-preregistration"];
 assert.deepEqual(manifest.workstreams.map(({ id }) => id), required);
+assert.equal(manifest.workstreams.every(({ status }) => status === "source_complete"), true);
 assert.equal(manifest.claimBoundary.sourceBehaviorOnly, true);
 assert.equal(manifest.claimBoundary.operationalReadiness, false);
 assert.equal(manifest.claimBoundary.productionReadiness, false);
