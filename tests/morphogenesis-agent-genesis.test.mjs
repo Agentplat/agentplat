@@ -13,6 +13,10 @@ import {
   createMorphogenesisAgentGenesisEvaluationV6,
   createMorphogenesisAgentGenesisThreatAssessmentV6,
   MorphogenesisAgentGenesisSandboxRuntimeV6,
+  InMemoryMorphogenesisAgentGenesisLifecycleStoreV6,
+  MorphogenesisAgentGenesisLifecycleRuntimeV6,
+  createMorphogenesisAgentGenesisLifecyclePolicyV6,
+  createMorphogenesisAgentGenesisReviewV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -176,4 +180,92 @@ test("V6 requires complete adversarial evidence before authority-free sandbox pr
   assert.equal(receipt.membershipGranted, false);
   assert.equal(receipt.workGranted, false);
   assert.equal(receipt.actionAuthorityGranted, false);
+});
+
+test("V6 durably advances sandbox and probation through agent, person or quorum review", async () => {
+  const value = fixture();
+  const draft = await new MorphogenesisAgentGenesisRuntimeV6({
+    policy: value.policy, generator: value.generator,
+  }).generate({ need: value.need, logicalTimeMs: 20 });
+  const threatAssessments = MORPHOGENESIS_AGENT_GENESIS_THREATS_V6.map((threat) =>
+    createMorphogenesisAgentGenesisThreatAssessmentV6({ threat, disposition: "passed",
+      evidenceDigests: [sha(`lifecycle:${threat}`)] }));
+  const evaluation = createMorphogenesisAgentGenesisEvaluationV6({
+    evaluationId: "evaluation:lifecycle", draft, baselineBlueprintDigest: sha("baseline"),
+    simulatorImplementationDigest: sha("simulator"), environmentDigest: sha("environment"),
+    seedDigest: sha("seed"), threatAssessments, safetyMicros: 900_000,
+    confidenceBps: 9_000, interactionUnits: 5, assessorId: "agent:assessor",
+    assessorImplementationDigest: sha("assessor"), evidenceDigests: [sha("evaluation")],
+    evaluatedAtLogicalMs: 21, expiresAtLogicalMs: 70, policy: value.policy });
+  const sandboxImplementationDigest = sha("sandbox:lifecycle");
+  const sandboxReceipts = new Map();
+  let effects = 0;
+  const sandbox = new MorphogenesisAgentGenesisSandboxRuntimeV6({ sandbox: {
+    sandboxImplementationDigest, async prepare({ operationId, draft, logicalTimeMs }) {
+      const retained = sandboxReceipts.get(operationId); if (retained) return retained;
+      effects += 1;
+      const body = Object.freeze({ schemaVersion: 6, operationId,
+        draftDigest: draft.draftDigest, profileDigest: draft.profile.profileDigest,
+        sandboxId: `sandbox:${operationId}`, sandboxImplementationDigest,
+        isolationPolicyDigest: sha("isolation"), preparedAtLogicalMs: logicalTimeMs,
+        expiresAtLogicalMs: 65, membershipGranted: false, workGranted: false,
+        actionAuthorityGranted: false });
+      const receipt = Object.freeze({ ...body, receiptDigest: digestPlanningJsonV1(
+        "morphogenesis-agent-genesis-sandbox-receipt-v6", body) });
+      sandboxReceipts.set(operationId, receipt); return receipt;
+    } } });
+  const lifecyclePolicy = createMorphogenesisAgentGenesisLifecyclePolicyV6({
+    schemaVersion: 6, policyId: "policy:genesis-lifecycle", policyVersion: 1,
+    genesisPolicyDigest: value.policy.policyDigest,
+    allowedActions: ["start_probation", "admit", "suspend", "resume", "retire", "rollback"],
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    requireIndependentReviewer: true, maximumProbationObservations: 4,
+    minimumProbationObservations: 2, minimumProbationSuccesses: 2,
+    maximumUnsafeObservations: 0, maximumPendingRecommendations: 8,
+    maximumHistory: 32, maximumCommitAttempts: 4 });
+  for (const [route, actorType] of [["authorized_agent", "agent"],
+    ["authorized_person", "person"], ["collective", "collective"]]) {
+    let reviews = 0;
+    const runtime = new MorphogenesisAgentGenesisLifecycleRuntimeV6({
+      stateKey: `state:${route}`, policy: lifecyclePolicy, genesisPolicy: value.policy,
+      sandbox, store: new InMemoryMorphogenesisAgentGenesisLifecycleStoreV6(),
+      reviews: { async review({ recommendation, logicalTimeMs }) {
+        reviews += 1; return createMorphogenesisAgentGenesisReviewV6({
+          reviewId: `review:${route}:${reviews}`,
+          recommendationDigest: recommendation.recommendationDigest, route, actorType,
+          actorId: `${actorType}:reviewer`, actorMandateDigest: sha(`mandate:${route}`),
+          independenceGroupId: `group:${route}`, disposition: "approved",
+          proofDigest: sha(`proof:${route}:${reviews}`), reviewedAtLogicalMs: logicalTimeMs,
+          expiresAtLogicalMs: logicalTimeMs + 10 });
+      } } });
+    await runtime.register({ draft, evaluation, logicalTimeMs: 22 });
+    await runtime.prepareSandbox({ operationId: `operation:${route}`, draft, evaluation,
+      logicalTimeMs: 23 });
+    await runtime.prepareSandbox({ operationId: `operation:${route}`, draft, evaluation,
+      logicalTimeMs: 23 });
+    const recommend = (id, action, time) => runtime.recommend({
+      recommendationId: `recommendation:${route}:${id}`, action,
+      draftDigest: draft.draftDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha(`evidence:${id}`)], proposedAtLogicalMs: time,
+      expiresAtLogicalMs: time + 10 });
+    let recommendation = await recommend("probation", "start_probation", 24);
+    assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
+      logicalTimeMs: 25 })).nextStatus, "probationary");
+    for (let index = 1; index <= 2; index += 1)
+      await runtime.observeProbation({ observationId: `observation:${route}:${index}`,
+        draftDigest: draft.draftDigest, outcome: "success",
+        capabilityEvidenceDigests: [sha(`capability:${index}`)],
+        trustDecisionDigest: sha(`trust:${index}`),
+        inferenceControlDecisionDigest: sha(`inference:${index}`),
+        logicalTimeMs: 25 + index });
+    recommendation = await recommend("admit", "admit", 28);
+    assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
+      logicalTimeMs: 29 })).nextStatus, "admitted");
+    recommendation = await recommend("rollback", "rollback", 30);
+    assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
+      logicalTimeMs: 31 })).nextStatus, "probationary");
+    assert.equal((await runtime.state(31)).entries[0].externalAdmissionApplied, false);
+  }
+  assert.equal(effects, 3);
 });

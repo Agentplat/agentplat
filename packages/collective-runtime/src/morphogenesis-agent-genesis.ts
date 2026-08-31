@@ -368,6 +368,31 @@ export function validateMorphogenesisAgentGenesisNeedV6(value: MorphogenesisAgen
       value.advisoryOnly !== true) fail("Agent Genesis need is invalid");
   return rebuilt;
 }
+export function validateMorphogenesisAgentGenesisDraftV6(
+  value: MorphogenesisAgentGenesisDraftV6,
+  policy: MorphogenesisAgentGenesisPolicyV6) {
+  const currentPolicy = validateMorphogenesisAgentGenesisPolicyV6(policy);
+  const profile = validateAgentInstantiationProfileV2(value.profile, value.profileContext);
+  const { draftDigest, ...body } = value;
+  if (value.schemaVersion !== 6 || value.status !== "draft" || value.inert !== true ||
+      value.policyDigest !== currentPolicy.policyDigest ||
+      profile.profileDigest !== value.profile.profileDigest ||
+      draftDigest !== digest("morphogenesis-agent-genesis-draft-v6", body))
+    fail("Agent Genesis draft is invalid");
+  return freeze(structuredClone(value));
+}
+export function validateMorphogenesisAgentGenesisEvaluationV6(
+  value: MorphogenesisAgentGenesisEvaluationV6,
+  draft: MorphogenesisAgentGenesisDraftV6,
+  policy: MorphogenesisAgentGenesisPolicyV6) {
+  const { schemaVersion: _s, draftDigest: _d, disposition: _x,
+    advisoryOnly: _a, evaluationDigest, ...body } = value;
+  const rebuilt = createMorphogenesisAgentGenesisEvaluationV6({ ...body, draft, policy });
+  if (evaluationDigest !== rebuilt.evaluationDigest ||
+      value.disposition !== rebuilt.disposition || value.advisoryOnly !== true)
+    fail("Agent Genesis evaluation is invalid");
+  return rebuilt;
+}
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
