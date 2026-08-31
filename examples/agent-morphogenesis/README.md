@@ -64,6 +64,12 @@ Run the V6 governed Agent Genesis example:
 node examples/agent-morphogenesis/governed-agent-genesis.mjs
 ```
 
+Run the V7 governed organizational-evolution example:
+
+```sh
+node examples/agent-morphogenesis/governed-organizational-evolution.mjs
+```
+
 It selects from an immutable catalog through the existing bounded learner,
 binds the selected generator to an operator plan, converts one observed outcome
 into comparable feedback and applies a separately reviewed promotion. It does

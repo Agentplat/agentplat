@@ -545,6 +545,11 @@ sandbox/probation, agent/person/quorum review, governed Membership/attestation,
 compensation and authority-neutral Work handoff. See the [V6 source acceptance
 checklist](./docs/collective-runtime/agent-morphogenesis-v6-acceptance-checklist.md).
 
+[Agent Morphogenesis Governed Organizational Evolution V7](./docs/specification/agent-morphogenesis-v7.md)
+adds persistent organizational patterns, comparative morphology simulation,
+multi-owner successor plans, reviewed canaries and partial compensation. See
+the [V7 checklist](./docs/collective-runtime/agent-morphogenesis-v7-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact
