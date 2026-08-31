@@ -46,6 +46,12 @@ Run the V3 governed strategy-adaptation example:
 node examples/agent-morphogenesis/strategy-adaptation.mjs
 ```
 
+Run the V4 Agent Mesh collective-intelligence composition example:
+
+```sh
+node examples/agent-morphogenesis/collective-strategy-intelligence.mjs
+```
+
 It selects from an immutable catalog through the existing bounded learner,
 binds the selected generator to an operator plan, converts one observed outcome
 into comparable feedback and applies a separately reviewed promotion. It does

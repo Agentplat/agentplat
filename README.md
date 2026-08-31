@@ -525,6 +525,13 @@ counterfactual analysis. Learning and simulation remain advisory and cannot
 grant Morphogenesis execution authority. See the [V3 source acceptance
 checklist](./docs/collective-runtime/agent-morphogenesis-v3-acceptance-checklist.md).
 
+[Agent Morphogenesis Collective Strategy Intelligence V4](./docs/specification/agent-morphogenesis-v4.md)
+adds content-free signed outcome exchange through Agent Mesh, robust bounded
+collective priors and partition/diversity-aware convergence. Every result stays
+advisory under local policy and requires the existing agent, person or quorum
+governance route. See the [V4 source acceptance
+checklist](./docs/collective-runtime/agent-morphogenesis-v4-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

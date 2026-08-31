@@ -31,3 +31,9 @@ adaptation reducer, Trust safety projections and Collective Host persistence.
 Its catalog, outcome and counterfactual records are content-free; a separate
 governance CAS state owns lifecycle status while ordinary Morphogenesis
 decision/execution continues to own organizational effects.
+
+Morphogenesis Collective Strategy Intelligence V4 specializes the existing
+Strategy Evidence Exchange, Collective Sync and Strategy Convergence. Agent
+Mesh carries content-free signed evidence; receiving peers reapply local
+catalog, Trust, compatibility, diversity and governance policy. Collective
+certificates are bounded advice and never remote execution authority.
