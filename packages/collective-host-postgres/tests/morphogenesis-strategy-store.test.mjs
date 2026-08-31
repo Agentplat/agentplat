@@ -30,6 +30,8 @@ import {
   MorphogenesisAgentGenesisSandboxRuntimeV6,
   createMorphogenesisAgentGenesisPolicyV6,
   createMorphogenesisAgentGenesisLifecyclePolicyV6,
+  MorphogenesisIntegrationVerticalRuntimeV1,
+  MORPHOGENESIS_VERTICAL_STAGES_V1,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   createPeerStrategyEvidenceExchangePolicyV1,
@@ -48,6 +50,7 @@ import {
   PostgresMorphogenesisSynthesisGovernanceStoreV5,
   PostgresMorphogenesisSynthesisSimulationStoreV5,
   PostgresMorphogenesisAgentGenesisLifecycleStoreV6,
+  PostgresMorphogenesisVerticalStoreV1,
 } from "../dist/morphogenesis-strategy.js";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -469,6 +472,27 @@ test("PostgreSQL V6 Agent Genesis lifecycle is digest and witness guarded", asyn
   assert.equal((await new PostgresMorphogenesisAgentGenesisLifecycleStoreV6({
     pool, options, policy, genesisPolicy }).load(initial.stateKey)).stateDigest,
   initial.stateDigest);
+  witness.heads.clear();
+  await assert.rejects(store.load(initial.stateKey), /witness diverged/);
+});
+test("PostgreSQL V1-V8 vertical rejects corruption and witness rollback", async () => {
+  const pool = new FakePool(), witness = new Witness();
+  const options = { scopeId: "tenant:vertical", rollbackWitness: witness };
+  const store = new PostgresMorphogenesisVerticalStoreV1({ pool, options });
+  const unused = Object.fromEntries(MORPHOGENESIS_VERTICAL_STAGES_V1.map((stage) =>
+    [stage, { async execute() { throw new Error("unused"); },
+      async reconcile() { throw new Error("unused"); },
+      async compensate() { throw new Error("unused"); } }]));
+  const runtime = new MorphogenesisIntegrationVerticalRuntimeV1({
+    store, ports: unused, maximumCommitAttempts: 4 });
+  const initial = await runtime.initialize({ stateKey: "vertical:postgres",
+    rootInputDigest: sha("root"), logicalTimeMs: 10 });
+  assert.equal((await new PostgresMorphogenesisVerticalStoreV1({ pool, options })
+    .load(initial.stateKey)).stateDigest, initial.stateDigest);
+  const row = [...pool.rows.values()].find(({ state }) => state.stateKey === initial.stateKey);
+  row.state = { ...row.state, hiddenGrant: sha("hidden") };
+  await assert.rejects(store.load(initial.stateKey), /state invalid|digest invalid/);
+  row.state = structuredClone(initial);
   witness.heads.clear();
   await assert.rejects(store.load(initial.stateKey), /witness diverged/);
 });
