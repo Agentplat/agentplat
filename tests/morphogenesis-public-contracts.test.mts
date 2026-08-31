@@ -39,6 +39,14 @@ import {
   createMorphogenesisOperatorCompensationReceiptV2,
   GovernedMorphogenesisOperatorExecutionRuntimeV2,
   createMorphogenesisGovernedOperatorAuthorizationV2,
+  createMorphogenesisStrategyDefinitionV3,
+  createMorphogenesisStrategyCatalogV3,
+  createMorphogenesisStrategyContextV3,
+  createMorphogenesisStrategySelectionRequestV3,
+  createMorphogenesisStrategySelectionV3,
+  createMorphogenesisStrategyExecutionBindingV3,
+  createMorphogenesisStrategyOutcomeMeasurementV3,
+  createMorphogenesisStrategyFeedbackV3,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -100,6 +108,13 @@ import {
   type MorphogenesisOperatorCompensationStateV2,
   type MorphogenesisGovernedOperatorAuthorizationPortV2,
   type MorphogenesisGovernedOperatorAuthorizationV2,
+  type MorphogenesisStrategyDefinitionV3,
+  type MorphogenesisStrategyCatalogV3,
+  type MorphogenesisStrategyContextV3,
+  type MorphogenesisStrategySelectionV3,
+  type MorphogenesisStrategyExecutionBindingV3,
+  type MorphogenesisStrategyOutcomeMeasurementV3,
+  type MorphogenesisStrategyFeedbackV3,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -168,6 +183,14 @@ void MorphogenesisOperatorCompensationRuntimeV2;
 void createMorphogenesisOperatorCompensationReceiptV2;
 void GovernedMorphogenesisOperatorExecutionRuntimeV2;
 void createMorphogenesisGovernedOperatorAuthorizationV2;
+void createMorphogenesisStrategyDefinitionV3;
+void createMorphogenesisStrategyCatalogV3;
+void createMorphogenesisStrategyContextV3;
+void createMorphogenesisStrategySelectionRequestV3;
+void createMorphogenesisStrategySelectionV3;
+void createMorphogenesisStrategyExecutionBindingV3;
+void createMorphogenesisStrategyOutcomeMeasurementV3;
+void createMorphogenesisStrategyFeedbackV3;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -230,6 +253,13 @@ declare const compensationBoundary: MorphogenesisOperatorCompensationBoundaryPor
 declare const compensationState: MorphogenesisOperatorCompensationStateV2;
 declare const governedAuthorizationPort: MorphogenesisGovernedOperatorAuthorizationPortV2;
 declare const governedAuthorization: MorphogenesisGovernedOperatorAuthorizationV2;
+declare const strategyDefinitionV3: MorphogenesisStrategyDefinitionV3;
+declare const strategyCatalogV3: MorphogenesisStrategyCatalogV3;
+declare const strategyContextV3: MorphogenesisStrategyContextV3;
+declare const strategySelectionV3: MorphogenesisStrategySelectionV3;
+declare const strategyExecutionBindingV3: MorphogenesisStrategyExecutionBindingV3;
+declare const strategyMeasurementV3: MorphogenesisStrategyOutcomeMeasurementV3;
+declare const strategyFeedbackV3: MorphogenesisStrategyFeedbackV3;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -271,6 +301,13 @@ void compensationBoundary;
 void compensationState;
 void governedAuthorizationPort;
 void governedAuthorization;
+void strategyDefinitionV3;
+void strategyCatalogV3;
+void strategyContextV3;
+void strategySelectionV3;
+void strategyExecutionBindingV3;
+void strategyMeasurementV3;
+void strategyFeedbackV3;
 void budgetPort;
 void controlWindow;
 void sourceResolution;
