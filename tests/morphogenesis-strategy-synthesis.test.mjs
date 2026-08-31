@@ -4,6 +4,10 @@ import { digestPlanningJsonV1 } from "@agentplat/collective-planning";
 import {
   MORPHOGENESIS_SYNTHESIS_THREATS_V5,
   MorphogenesisStrategySynthesisRuntimeV5,
+  InMemoryMorphogenesisSynthesisGovernanceStoreV5,
+  MorphogenesisSynthesisGovernanceRuntimeV5,
+  createMorphogenesisSynthesisAdmissionReviewV5,
+  createMorphogenesisSynthesisGovernancePolicyV5,
   createMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
@@ -140,4 +144,96 @@ test("V5 requires complete adversarial evaluation and independent certification"
     expiresAtLogicalMs: 60,
   });
   assert.equal(certification.grantsAuthority, false);
+});
+
+test("V5 admits and promotes canaries through agent, person or quorum review", async () => {
+  const value = fixture();
+  const candidate = await new MorphogenesisStrategySynthesisRuntimeV5({
+    policy: value.policy, synthesizer: value.synthesizer,
+  }).synthesize({ gap: value.gap, logicalTimeMs: 20 });
+  const threatAssessments = MORPHOGENESIS_SYNTHESIS_THREATS_V5.map((threat) =>
+    createMorphogenesisSynthesisThreatAssessmentV5({
+      threat, disposition: "passed", evidenceDigests: [sha(`threat:${threat}`)],
+    }));
+  const evaluation = createMorphogenesisStrategySynthesisEvaluationV5({
+    evaluationId: "evaluation:governance", candidate,
+    baselineStrategyId: "strategy:baseline", counterfactualReportDigest: sha("report"),
+    assessorId: "agent:assessor", assessorImplementationDigest: sha("assessor"),
+    threatAssessments, safetyMicros: 900_000, confidenceBps: 9_000,
+    evidenceDigests: [sha("evaluation")], evaluatedAtLogicalMs: 21,
+    expiresAtLogicalMs: 70, policy: value.policy,
+  });
+  const certification = createMorphogenesisStrategySynthesisCertificationV5({
+    certificationId: "certification:governance", candidate, evaluation,
+    synthesizerId: candidate.synthesizerId, certifierId: "agent:certifier",
+    certifierImplementationDigest: sha("certifier"), disposition: "certified",
+    evidenceDigests: [sha("certification")], certifiedAtLogicalMs: 22,
+    expiresAtLogicalMs: 60,
+  });
+  const governancePolicy = createMorphogenesisSynthesisGovernancePolicyV5({
+    schemaVersion: 5, policyId: "policy:synthesis-governance", policyVersion: 1,
+    synthesisPolicyDigest: value.policy.policyDigest,
+    allowedActions: ["admit_experimental", "certify", "degrade", "retire", "rollback"],
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    requireIndependentReviewer: true, maximumCanarySelections: 4,
+    minimumCanaryOutcomes: 2, minimumCanarySuccesses: 2,
+    maximumCanaryUnsafeOutcomes: 0, maximumPendingRecommendations: 8,
+    maximumHistory: 16, maximumCommitAttempts: 4,
+  });
+  for (const [route, actorType] of [
+    ["authorized_agent", "agent"], ["authorized_person", "person"],
+    ["collective", "collective"],
+  ]) {
+    let reviewSequence = 0;
+    const reviews = { async review({ recommendation, logicalTimeMs }) {
+      reviewSequence += 1;
+      return createMorphogenesisSynthesisAdmissionReviewV5({
+        reviewId: `review:${route}:${reviewSequence}`,
+        recommendationDigest: recommendation.recommendationDigest,
+        route, actorType, actorId: `${actorType}:reviewer`,
+        actorMandateDigest: sha(`mandate:${route}`),
+        independenceGroupId: `group:${route}`, disposition: "approved",
+        proofDigest: sha(`proof:${route}:${reviewSequence}`),
+        reviewedAtLogicalMs: logicalTimeMs, expiresAtLogicalMs: logicalTimeMs + 10,
+      });
+    } };
+    const runtime = new MorphogenesisSynthesisGovernanceRuntimeV5({
+      stateKey: `state:${route}`, policy: governancePolicy,
+      synthesisPolicy: value.policy, reviews,
+      store: new InMemoryMorphogenesisSynthesisGovernanceStoreV5(),
+    });
+    await runtime.register({ candidate, evaluation, certification, logicalTimeMs: 23 });
+    const recommendation = await runtime.recommend({
+      recommendationId: `recommendation:${route}:admit`, action: "admit_experimental",
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha("admission")], riskDigest: sha("risk"), costDigest: sha("cost"),
+      proposedAtLogicalMs: 24, expiresAtLogicalMs: 40,
+    });
+    assert.equal(recommendation.advisoryOnly, true);
+    assert.equal((await runtime.reviewAndApply({
+      recommendationId: recommendation.recommendationId, logicalTimeMs: 25,
+    })).nextStatus, "experimental");
+    await runtime.observeCanary({ observationId: `observation:${route}:1`,
+      candidateDigest: candidate.candidateDigest,
+      outcome: "success", outcomeEvidenceDigest: sha(`${route}:outcome:1`), logicalTimeMs: 26 });
+    await runtime.observeCanary({ observationId: `observation:${route}:1`,
+      candidateDigest: candidate.candidateDigest,
+      outcome: "success", outcomeEvidenceDigest: sha(`${route}:outcome:1`), logicalTimeMs: 26 });
+    await runtime.observeCanary({ observationId: `observation:${route}:2`,
+      candidateDigest: candidate.candidateDigest,
+      outcome: "success", outcomeEvidenceDigest: sha(`${route}:outcome:2`), logicalTimeMs: 27 });
+    const promote = await runtime.recommend({
+      recommendationId: `recommendation:${route}:certify`, action: "certify",
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha("promotion")], riskDigest: sha("risk:promote"),
+      costDigest: sha("cost:promote"), proposedAtLogicalMs: 28, expiresAtLogicalMs: 45,
+    });
+    assert.equal((await runtime.reviewAndApply({
+      recommendationId: promote.recommendationId, logicalTimeMs: 29,
+    })).nextStatus, "certified");
+  }
 });
