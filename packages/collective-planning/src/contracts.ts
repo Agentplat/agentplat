@@ -301,6 +301,7 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-constitutional-rollback-receipt-v8"
   | "morphogenesis-constitutional-gate-assessment-v8"
   | "morphogenesis-constitutional-eligibility-v8"
+  | "morphogenesis-constitutional-state-v8"
   | "morphogenesis-strategy-outcome-attestation-v4"
   | "morphogenesis-strategy-convergence-decision-v4"
   | "morphogenesis-budget-reservation-request"
