@@ -18,4 +18,6 @@ export * from "./morphogenesis-operator-compensation.js";
 export * from "./morphogenesis-governed-operator.js";
 export * from "./morphogenesis-strategy-adaptation.js";
 export * from "./morphogenesis-strategy-governance.js";
+export * from "./mission-morphogenesis-strategy.js";
+export * from "./morphogenesis-strategy-integrations.js";
 export * from "./mission-morphogenesis.js";

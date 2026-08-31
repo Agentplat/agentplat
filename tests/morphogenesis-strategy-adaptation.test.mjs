@@ -24,6 +24,7 @@ import {
   createMorphogenesisStrategySelectionRequestV3,
   createMorphogenesisStrategySelectionV3,
 } from "@agentplat/collective-runtime/morphogenesis";
+import { projectMorphogenesisStrategySelectionToRoomArtifactV3 } from "@agentplat/rooms-mesh/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 const operations = ["award_selection", "bid_submission", "offer_routing", "plan_decomposition", "recovery_selection"];
@@ -177,6 +178,12 @@ test("Morphogenesis outcomes update the existing bounded strategy learner withou
   });
   assert.equal(selection.advisoryOnly, true);
   assert.equal("authorizationDigest" in selection, false);
+  const roomProjection = projectMorphogenesisStrategySelectionToRoomArtifactV3({
+    room: { tenantId: "tenant:test", id: "room:test", status: "active" },
+    scope: { tenantId: "tenant:test", roomId: "room:test" },
+    selection,
+  });
+  assert.equal(roomProjection.input.metadata.advisoryOnly, true);
   const planDigest = sha("operator-plan");
   const executionBinding = createMorphogenesisStrategyExecutionBindingV3({
     bindingId: "binding:morphogenesis-strategy:1",

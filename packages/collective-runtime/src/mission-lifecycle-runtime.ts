@@ -246,6 +246,9 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
     if (proposal.action === "request_morphogenesis" &&
         !this.#options.policy.enabledExtensions?.includes("agent_morphogenesis"))
       throw new TypeError("mission Morphogenesis extension is not enabled");
+    if (proposal.action === "request_morphogenesis_strategy_change" &&
+        !this.#options.policy.enabledExtensions?.includes("morphogenesis_strategy_adaptation"))
+      throw new TypeError("mission Morphogenesis strategy adaptation extension is not enabled");
     if (proposal.action === "continue") {
       const next = this.#state(state, request.logicalTimeMs, {
         phase: "completed",
@@ -345,6 +348,7 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
         return { phase: "paused" };
       case "enact_role_transition":
       case "enact_work_reassignment":
+      case "enact_morphogenesis_strategy_change":
         return {
           phase: "execution",
           executionObservationDigest: null,
@@ -401,6 +405,8 @@ export class GovernedMissionLifecycleRuntimeV1 implements GovernedMissionLifecyc
         return "enact_team_adaptation";
       case "request_morphogenesis":
         return "enact_morphogenesis";
+      case "request_morphogenesis_strategy_change":
+        return "enact_morphogenesis_strategy_change";
       case "request_replanning":
         return "enact_replanning";
       default:

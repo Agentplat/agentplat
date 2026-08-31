@@ -14,6 +14,13 @@ import {
   createMorphogenesisStrategyGovernancePolicyV3,
   createMorphogenesisStrategyReviewV3,
 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  MorphogenesisStrategyMeshPublisherV3,
+  projectMorphogenesisStrategyRecommendationToMeshV3,
+  projectMorphogenesisStrategyRecommendationToRoomArtifactV3,
+  projectMorphogenesisStrategyReviewToRoomMessageV3,
+  projectMorphogenesisStrategyTransitionToRoomArtifactV3,
+} from "@agentplat/rooms-mesh/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 const operations = ["award_selection", "bid_submission", "offer_routing", "plan_decomposition", "recovery_selection"];
@@ -150,6 +157,50 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "retired");
   assert.deepEqual(reviewCalls, ["authorized_agent", "authorized_person", "collective"]);
   assert.equal(state.transitions.length, 3);
+
+  const room = { tenantId: "tenant:test", id: "room:test", status: "active" };
+  const scope = {
+    tenantId: room.tenantId,
+    roomId: room.id,
+    meshId: "mesh:test",
+    missionId: "mission:test",
+    objectiveId: "objective:test",
+    morphologyId: "morphology:test",
+  };
+  const roomRecommendation = projectMorphogenesisStrategyRecommendationToRoomArtifactV3({
+    room, scope, recommendation: promote,
+  });
+  assert.equal(roomRecommendation.input.metadata.advisoryOnly, true);
+  const roomReview = projectMorphogenesisStrategyReviewToRoomMessageV3({
+    room, scope, review: state.reviews[0], createdAt: "2030-01-01T00:00:00.000Z",
+  });
+  assert.equal(roomReview.input.metadata.authorityGranted, false);
+  const roomTransition = projectMorphogenesisStrategyTransitionToRoomArtifactV3({
+    room, scope, transition: state.transitions[0],
+  });
+  assert.equal(roomTransition.input.risks.includes("authority-remains-external"), true);
+  const meshProjection = await projectMorphogenesisStrategyRecommendationToMeshV3({
+    scope, recommendation: promote,
+  });
+  assert.equal(meshProjection.unsigned, true);
+  let sends = 0;
+  await new MorphogenesisStrategyMeshPublisherV3({
+    async send(projection) {
+      sends += 1;
+      return {
+        schemaVersion: 1,
+        projectionDigest: projection.projectionDigest,
+        senderPeerId: "peer:test",
+        senderInstanceId: "instance:test",
+        membershipConfigurationDigest: sha("membership"),
+        membershipEpoch: 1,
+        envelopeDigest: sha("envelope"),
+        sentAtLogicalMs: 60,
+      };
+    },
+    async verify() { return true; },
+  }).publish(meshProjection);
+  assert.equal(sends, 1);
 
   await assert.rejects(runtime.recommend(recommendationInput({
     action: "promote", target: adaptive.strategyId,

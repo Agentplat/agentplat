@@ -375,10 +375,16 @@ function validateDefinition(value: MorphogenesisStrategyDefinitionV3) {
   if (rebuilt.definitionDigest !== value.definitionDigest) fail("Morphogenesis strategy definition digest is invalid");
   return rebuilt;
 }
+export function validateMorphogenesisStrategyDefinitionV3(value: MorphogenesisStrategyDefinitionV3) {
+  return validateDefinition(value);
+}
 function validateCatalog(value: MorphogenesisStrategyCatalogV3) {
   const rebuilt = createMorphogenesisStrategyCatalogV3(value);
   if (rebuilt.catalogDigest !== value.catalogDigest) fail("Morphogenesis strategy catalog digest is invalid");
   return rebuilt;
+}
+export function validateMorphogenesisStrategyCatalogV3(value: MorphogenesisStrategyCatalogV3) {
+  return validateCatalog(value);
 }
 function validateContext(value: MorphogenesisStrategyContextV3) {
   const { schemaVersion: _schema, contextDigest: _digest, ...body } = value;
@@ -386,17 +392,26 @@ function validateContext(value: MorphogenesisStrategyContextV3) {
   if (value.schemaVersion !== 3 || rebuilt.contextDigest !== value.contextDigest) fail("Morphogenesis strategy context is invalid");
   return rebuilt;
 }
+export function validateMorphogenesisStrategyContextV3(value: MorphogenesisStrategyContextV3) {
+  return validateContext(value);
+}
 function validateSelection(value: MorphogenesisStrategySelectionV3) {
   if (!value || value.schemaVersion !== 3 || value.advisoryOnly !== true) fail("Morphogenesis strategy selection is invalid");
   const { selectionDigest, ...body } = value;
   if (selectionDigest !== digest("morphogenesis-strategy-selection-v3", body)) fail("Morphogenesis strategy selection digest is invalid");
   return value;
 }
+export function validateMorphogenesisStrategySelectionV3(value: MorphogenesisStrategySelectionV3) {
+  return validateSelection(value);
+}
 function validateMeasurement(value: MorphogenesisStrategyOutcomeMeasurementV3) {
   if (!value || value.schemaVersion !== 3) fail("Morphogenesis strategy measurement is invalid");
   const { measurementDigest, ...body } = value;
   if (measurementDigest !== digest("morphogenesis-strategy-measurement-v3", body)) fail("Morphogenesis strategy measurement digest is invalid");
   return value;
+}
+export function validateMorphogenesisStrategyOutcomeMeasurementV3(value: MorphogenesisStrategyOutcomeMeasurementV3) {
+  return validateMeasurement(value);
 }
 function validateExecutionBinding(value: MorphogenesisStrategyExecutionBindingV3) {
   if (!value || value.schemaVersion !== 3) fail("Morphogenesis strategy execution binding is invalid");

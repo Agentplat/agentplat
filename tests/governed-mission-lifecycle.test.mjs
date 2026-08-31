@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   GovernedMissionLifecycleRuntimeV1,
   GovernedMissionMorphogenesisReconfigurationPortV2,
+  GovernedMissionMorphogenesisStrategyReconfigurationPortV3,
   InMemoryGovernedMissionStoreV1,
   governedMissionRequestDigestV1,
   governedMissionScopeDigestV1,
@@ -68,6 +69,7 @@ function ports({
   throwExecutionOnce = false,
   throwReconfigurationOnce = false,
   morphogenesisRequestDigest,
+  morphogenesisStrategyRecommendationDigest,
   calls = [],
 } = {}) {
   let throwOnce = throwExecutionOnce;
@@ -146,6 +148,9 @@ function ports({
           advisoryOnly: true,
           ...(action === "request_morphogenesis"
             ? { morphogenesisRequestDigest }
+            : {}),
+          ...(action === "request_morphogenesis_strategy_change"
+            ? { morphogenesisStrategyRecommendationDigest }
             : {}),
         };
         return {
@@ -267,6 +272,52 @@ test("Mission Lifecycle rejects Morphogenesis when the extension is not enabled"
     }).advance(request()),
     /extension is not enabled/,
   );
+});
+
+test("Mission Lifecycle enacts an explicitly enabled governed strategy change", async () => {
+  const recommendationDigest = digest("strategy-recommendation");
+  const p = ports({
+    controlActions: ["request_morphogenesis_strategy_change", "continue"],
+    morphogenesisStrategyRecommendationDigest: recommendationDigest,
+  });
+  const fallback = p.reconfiguration;
+  let changes = 0;
+  p.reconfiguration = new GovernedMissionMorphogenesisStrategyReconfigurationPortV3({
+    fallback,
+    strategies: {
+      async enact(input) {
+        changes += 1;
+        assert.equal(input.recommendationDigest, recommendationDigest);
+        return {
+          recommendation: { recommendationDigest },
+          review: { recommendationDigest, reviewDigest: digest("strategy-review") },
+          transition: {
+            recommendationDigest,
+            reviewDigest: digest("strategy-review"),
+            transitionDigest: digest("strategy-transition"),
+          },
+          missionScopeDigest: input.scope.scopeDigest,
+          missionAuthorizationDigest: input.authorization.authorizationDigest,
+        };
+      },
+    },
+  });
+  const state = await runtime(new InMemoryGovernedMissionStoreV1(), {
+    ports: p,
+    enabledExtensions: ["morphogenesis_strategy_adaptation"],
+  }).advance(request());
+  assert.equal(state.phase, "completed");
+  assert.equal(changes, 1);
+  assert.equal(state.outbox.some(({ action }) =>
+    action === "enact_morphogenesis_strategy_change"), true);
+  assert.equal(state.outbox.some(({ action }) => action === "enact_morphogenesis"), false);
+});
+
+test("Mission Lifecycle rejects strategy adaptation without its explicit extension", async () => {
+  await assert.rejects(runtime(new InMemoryGovernedMissionStoreV1(), {
+    controlAction: "request_morphogenesis_strategy_change",
+    morphogenesisStrategyRecommendationDigest: digest("strategy-recommendation"),
+  }).advance(request()), /strategy adaptation extension is not enabled/);
 });
 
 test("fails closed when approval is denied", async () => {

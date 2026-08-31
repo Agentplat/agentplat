@@ -152,7 +152,8 @@ export function validateGovernedMissionPolicyV1(
     integer(value.budget[key], `mission budget ${key}`, 1);
   const enabledExtensions = value.enabledExtensions ?? [];
   if (!Array.isArray(enabledExtensions) ||
-      enabledExtensions.some((item) => item !== "agent_morphogenesis") ||
+      enabledExtensions.some((item) =>
+        item !== "agent_morphogenesis" && item !== "morphogenesis_strategy_adaptation") ||
       new Set(enabledExtensions).size !== enabledExtensions.length)
     throw new TypeError("mission policy extensions are invalid");
   return Object.freeze({
@@ -206,6 +207,13 @@ export function validateGovernedMissionControlProposalV1(
   } else if (value.morphogenesisRequestDigest !== undefined &&
       value.morphogenesisRequestDigest !== null) {
     throw new TypeError("mission control proposal has an unexpected Morphogenesis request");
+  }
+  if (value.action === "request_morphogenesis_strategy_change") {
+    sha(value.morphogenesisStrategyRecommendationDigest,
+      "mission Morphogenesis strategy recommendation digest");
+  } else if (value.morphogenesisStrategyRecommendationDigest !== undefined &&
+      value.morphogenesisStrategyRecommendationDigest !== null) {
+    throw new TypeError("mission control proposal has an unexpected Morphogenesis strategy recommendation");
   }
   return Object.freeze({ ...value });
 }

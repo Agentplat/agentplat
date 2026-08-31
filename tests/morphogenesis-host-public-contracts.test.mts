@@ -29,6 +29,7 @@ import {
   RoleRealignmentMorphogenesisBoundaryV2,
   TeamTopologyMorphogenesisBoundaryV2,
 } from "@agentplat/collective-host/morphogenesis-operator-adapters";
+import { AgentPlatMemoryMorphogenesisStrategyPortV3 } from "@agentplat/collective-host/morphogenesis-strategy-memory";
 import {
   createAgentRoomMorphogenesisDecisionAuthorizationV1,
   createAgentRoomMorphogenesisGateConfigurationV1,
@@ -56,6 +57,7 @@ void MorphogenesisOperatorBoundaryRouterV2;
 void ReplacementMorphogenesisBoundaryV2;
 void RoleRealignmentMorphogenesisBoundaryV2;
 void TeamTopologyMorphogenesisBoundaryV2;
+void AgentPlatMemoryMorphogenesisStrategyPortV3;
 void createAgentRoomMorphogenesisDecisionAuthorizationV1;
 void createAgentRoomMorphogenesisGateConfigurationV1;
 void CollectiveAgreementMorphogenesisDecisionIssuerV1;

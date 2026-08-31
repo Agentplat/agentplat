@@ -10,6 +10,13 @@ import {
   projectMorphogenesisOperatorStatusToRoomMessageV2,
   projectMorphogenesisOperatorOutcomeToRoomArtifactV2,
   type MorphogenesisMeshOperatorPlanProjectionV2,
+  MorphogenesisStrategyMeshPublisherV3,
+  projectMorphogenesisStrategySelectionToRoomArtifactV3,
+  projectMorphogenesisStrategyRecommendationToRoomArtifactV3,
+  projectMorphogenesisStrategyReviewToRoomMessageV3,
+  projectMorphogenesisStrategyTransitionToRoomArtifactV3,
+  projectMorphogenesisStrategyRecommendationToMeshV3,
+  type MorphogenesisStrategyMeshProjectionV3,
   type MorphogenesisMeshNeedProjectionV1,
   type MorphogenesisRoomArtifactProjectionV1,
   type MorphogenesisRoomMessageProjectionV1,
@@ -28,6 +35,12 @@ void MorphogenesisAdvancedMeshPublisherV2;
 void projectMorphogenesisOperatorPlanToRoomArtifactV2;
 void projectMorphogenesisOperatorStatusToRoomMessageV2;
 void projectMorphogenesisOperatorOutcomeToRoomArtifactV2;
+void MorphogenesisStrategyMeshPublisherV3;
+void projectMorphogenesisStrategySelectionToRoomArtifactV3;
+void projectMorphogenesisStrategyRecommendationToRoomArtifactV3;
+void projectMorphogenesisStrategyReviewToRoomMessageV3;
+void projectMorphogenesisStrategyTransitionToRoomArtifactV3;
+void projectMorphogenesisStrategyRecommendationToMeshV3;
 
 declare const mesh: MorphogenesisMeshNeedProjectionV1;
 declare const artifact: MorphogenesisRoomArtifactProjectionV1;
@@ -36,6 +49,7 @@ declare const participation: MorphogenesisRoomParticipationReceiptV1;
 declare const meshReceipt: MorphogenesisAuthenticatedMeshReceiptV1;
 declare const meshTransport: MorphogenesisAuthenticatedMeshTransportV1;
 declare const advancedMesh: MorphogenesisMeshOperatorPlanProjectionV2;
+declare const strategyMesh: MorphogenesisStrategyMeshProjectionV3;
 void mesh;
 void artifact;
 void message;
@@ -43,3 +57,4 @@ void participation;
 void meshReceipt;
 void meshTransport;
 void advancedMesh;
+void strategyMesh;

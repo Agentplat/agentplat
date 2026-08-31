@@ -17,6 +17,7 @@ export const GOVERNED_MISSION_ACTIONS_V1 = Object.freeze([
   "enact_work_reassignment",
   "enact_team_adaptation",
   "enact_morphogenesis",
+  "enact_morphogenesis_strategy_change",
   "enact_replanning",
 ] as const);
 
@@ -31,6 +32,7 @@ export const GOVERNED_MISSION_CONTROL_ACTIONS_V1 = Object.freeze([
   "request_work_reassignment",
   "request_team_adaptation",
   "request_morphogenesis",
+  "request_morphogenesis_strategy_change",
   "request_replanning",
 ] as const);
 
@@ -79,7 +81,10 @@ export interface GovernedMissionPolicyV1 {
   readonly planInputDigest: PlanningDigestV1;
   readonly budget: GovernedMissionBudgetV1;
   /** Explicit opt-in; absent preserves the original V1 action set. */
-  readonly enabledExtensions?: readonly "agent_morphogenesis"[];
+  readonly enabledExtensions?: readonly (
+    | "agent_morphogenesis"
+    | "morphogenesis_strategy_adaptation"
+  )[];
 }
 
 /** A request is reference-only: no mission text, model input, or raw result may be retained. */
@@ -104,6 +109,8 @@ export interface GovernedMissionControlProposalV1 {
   readonly advisoryOnly: true;
   /** Required only when action is request_morphogenesis. */
   readonly morphogenesisRequestDigest?: PlanningDigestV1 | null;
+  /** Required only when action is request_morphogenesis_strategy_change. */
+  readonly morphogenesisStrategyRecommendationDigest?: PlanningDigestV1 | null;
 }
 
 /** Authorization is action-, scope-, epoch-, operation-, and intent-bound. */

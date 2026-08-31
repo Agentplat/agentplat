@@ -7,6 +7,7 @@ export * from "./distributed-collective-protocol.js";
 export * from "./distributed-planning-runtime.js";
 export * from "./integrated-host.js";
 export * from "./morphogenesis-operator-adapters.js";
+export * from "./morphogenesis-strategy-memory.js";
 export * from "./in-process-sparse-bft-gateway.js";
 export * from "./reference-integrated-stack.js";
 export * from "./reference-local-ports.js";
