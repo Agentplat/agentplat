@@ -4,9 +4,11 @@ import {
   type PlanningJson,
 } from "@agentplat/collective-planning";
 import type { AgentPlatID } from "@agentplat/core";
-import type {
-  MorphogenesisConstitutionV8,
-  MorphogenesisConstitutionalAmendmentV8,
+import {
+  validateMorphogenesisConstitutionV8,
+  validateMorphogenesisConstitutionalAmendmentV8,
+  type MorphogenesisConstitutionV8,
+  type MorphogenesisConstitutionalAmendmentV8,
 } from "./morphogenesis-constitutional-continuity.js";
 import type { MorphogenesisConstitutionalAuthorizationV8 } from "./morphogenesis-constitutional-governance.js";
 import type { MorphogenesisConstitutionalEligibilityV8 } from "./morphogenesis-constitutional-integrations.js";
@@ -55,7 +57,8 @@ export class InMemoryMorphogenesisConstitutionalStateStoreV8 implements Morphoge
       (c?.stateDigest ?? null) !== i.expectedStateDigest
     )
       return false;
-    this.#m.set(i.state.stateKey, freeze(structuredClone(i.state)));
+    const state = validateMorphogenesisConstitutionalStateV8(i.state);
+    this.#m.set(state.stateKey, state);
     return true;
   }
 }
@@ -74,7 +77,7 @@ export class MorphogenesisConstitutionalStateRuntimeV8 {
   }) {
     const s = record({
       stateKey: id(this.options.stateKey),
-      activeConstitution: i.constitution,
+      activeConstitution: validateMorphogenesisConstitutionV8(i.constitution),
       authorityEpoch: pos(i.authorityEpoch),
       status: "active",
       amendmentDigests: [],
@@ -106,10 +109,14 @@ export class MorphogenesisConstitutionalStateRuntimeV8 {
     readonly logicalTimeMs: number;
   }) {
     return this.commit(i.logicalTimeMs, (s) => {
+      const amendment = validateMorphogenesisConstitutionalAmendmentV8(
+        i.amendment,
+        s.activeConstitution,
+      );
       if (
-        i.amendment.currentConstitutionDigest !==
+        amendment.currentConstitutionDigest !==
           s.activeConstitution.constitutionDigest ||
-        i.authorization.amendmentDigest !== i.amendment.amendmentDigest ||
+        i.authorization.amendmentDigest !== amendment.amendmentDigest ||
         i.eligibility.authorizationDigest !==
           i.authorization.authorizationDigest ||
         i.eligibility.disposition !== "eligible" ||
@@ -118,10 +125,10 @@ export class MorphogenesisConstitutionalStateRuntimeV8 {
       )
         fail("constitutional successor admission invalid");
       return next(s, i.logicalTimeMs, {
-        activeConstitution: i.amendment.successorConstitution,
+        activeConstitution: amendment.successorConstitution,
         authorityEpoch: s.authorityEpoch + 1,
         status: "active",
-        amendmentDigests: add(s.amendmentDigests, i.amendment.amendmentDigest),
+        amendmentDigests: add(s.amendmentDigests, amendment.amendmentDigest),
         authorizationDigests: add(
           s.authorizationDigests,
           i.authorization.authorizationDigest,
@@ -158,14 +165,15 @@ export class MorphogenesisConstitutionalStateRuntimeV8 {
     readonly logicalTimeMs: number;
   }) {
     return this.commit(i.logicalTimeMs, (s) => {
+      const target = validateMorphogenesisConstitutionV8(i.target);
       if (
-        i.receipt.targetConstitutionDigest !== i.target.constitutionDigest ||
+        i.receipt.targetConstitutionDigest !== target.constitutionDigest ||
         i.receipt.successorAuthorityEpoch <= s.authorityEpoch ||
         i.receipt.reactivatesPriorAuthority
       )
         fail("constitutional rollback admission invalid");
       return next(s, i.logicalTimeMs, {
-        activeConstitution: i.target,
+        activeConstitution: target,
         authorityEpoch: i.receipt.successorAuthorityEpoch,
         status: "recovery",
         rollbackReceiptDigests: add(
@@ -186,7 +194,7 @@ export class MorphogenesisConstitutionalStateRuntimeV8 {
   async state() {
     const s = await this.options.store.load(this.options.stateKey);
     if (!s) fail("constitutional state unavailable");
-    return s;
+    return validateMorphogenesisConstitutionalStateV8(s);
   }
   async commit(
     t: number,
@@ -214,12 +222,13 @@ export function validateMorphogenesisConstitutionalStateV8(
   v: MorphogenesisConstitutionalStateV8,
 ) {
   const { stateDigest, ...body } = v;
+  const constitution = validateMorphogenesisConstitutionV8(v.activeConstitution);
   if (
     v.schemaVersion !== 8 ||
     stateDigest !== dg("morphogenesis-constitutional-state-v8", body)
   )
     fail("constitutional state invalid");
-  return freeze(structuredClone(v));
+  return freeze(structuredClone({ ...v, activeConstitution: constitution }));
 }
 function record(
   i: Omit<MorphogenesisConstitutionalStateV8, "schemaVersion" | "stateDigest">,

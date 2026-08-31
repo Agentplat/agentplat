@@ -8,6 +8,9 @@ import {
   createMorphogenesisConstitutionalInvariantV8,
   validateMorphogenesisConstitutionV8,
   validateMorphogenesisConstitutionalAmendmentV8,
+  InMemoryMorphogenesisConstitutionalStateStoreV8,
+  MorphogenesisConstitutionalStateRuntimeV8,
+  validateMorphogenesisConstitutionalStateV8,
 } from "@agentplat/collective-runtime/morphogenesis";
 const sha = (v) =>
   digestPlanningJsonV1("morphogenesis-strategy-context-v3", { v });
@@ -96,4 +99,18 @@ test("V8 preserves immutable invariants and prohibits self amendment", () => {
       }),
     /immutable/,
   );
+});
+test("V8 state rehydration rejects nested constitutional shape corruption", async () => {
+  const active = constitution(1);
+  const runtime = new MorphogenesisConstitutionalStateRuntimeV8({
+    stateKey: "state:constitution:test",
+    store: new InMemoryMorphogenesisConstitutionalStateStoreV8(),
+    maximumCommitAttempts: 4,
+  });
+  const state = await runtime.initialize({ constitution: active, authorityEpoch: 1,
+    logicalTimeMs: 10 });
+  assert.equal(validateMorphogenesisConstitutionalStateV8(state).activeConstitution
+    .constitutionDigest, active.constitutionDigest);
+  assert.throws(() => validateMorphogenesisConstitutionalStateV8({ ...state,
+    activeConstitution: { ...active, hiddenGrant: sha("grant") } }), /shape/);
 });
