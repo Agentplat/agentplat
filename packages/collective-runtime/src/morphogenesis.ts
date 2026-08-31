@@ -38,4 +38,5 @@ export * from "./morphogenesis-organizational-evolution-runtime.js";
 export * from "./morphogenesis-organizational-evolution-governance.js";
 export * from "./morphogenesis-organizational-evolution-integrations.js";
 export * from "./morphogenesis-organizational-evolution-validation.js";
+export * from "./morphogenesis-constitutional-continuity.js";
 export * from "./mission-morphogenesis.js";
