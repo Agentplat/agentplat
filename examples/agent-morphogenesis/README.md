@@ -40,6 +40,17 @@ Run the additive V2 Dynamic Topology example:
 node examples/agent-morphogenesis/advanced.mjs
 ```
 
+Run the V3 governed strategy-adaptation example:
+
+```sh
+node examples/agent-morphogenesis/strategy-adaptation.mjs
+```
+
+It selects from an immutable catalog through the existing bounded learner,
+binds the selected generator to an operator plan, converts one observed outcome
+into comparable feedback and applies a separately reviewed promotion. It does
+not claim that the selected strategy improves real missions.
+
 The advanced example enables only `team_topology_transformations`, compiles a
 `split_team` plan, durably executes its certification and activation steps, and
 prints the resulting topology epoch and content-free receipts. The decision

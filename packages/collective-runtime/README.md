@@ -48,6 +48,19 @@ See the [reference example](../../examples/agent-morphogenesis/README.md),
 specification](../../docs/specification/agent-morphogenesis-v2.md) and [source
 acceptance checklist](../../docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
 
+### Strategy Adaptation V3
+
+Morphogenesis V3 specializes the existing bounded local strategy learner for
+proposal generation. It binds selection to an immutable generator and exact
+operator plan, converts only observed outcomes into the existing five-metric
+feedback contract, and governs promotion/degradation/retirement/rollback
+through independent agent, person or collective review. Counterfactual reports
+are reproducible advisory artifacts and never observed feedback.
+
+See [ADR 0047](../../docs/adr/0047-agent-morphogenesis-strategy-adaptation.md),
+the [V3 specification](../../docs/specification/agent-morphogenesis-v3.md) and
+[V3 threat model](../../docs/security/agent-morphogenesis-strategy-adaptation-threat-model.md).
+
 ```ts
 import { createCollective } from "@agentplat/collective-runtime";
 import { DefaultAgentRuntime } from "@agentplat/runtime";

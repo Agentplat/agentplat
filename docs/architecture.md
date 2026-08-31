@@ -25,3 +25,9 @@ same owners. Governed operator admission binds an approved agent/person/quorum
 decision to a Policy V2 plan and execution fence; a separate durable
 compensation journal handles pre-commit reversal. Mission Lifecycle and Interop
 are explicit opt-in entry points, never alternate authority planes.
+
+Morphogenesis Strategy Adaptation V3 reuses the existing local strategy
+adaptation reducer, Trust safety projections and Collective Host persistence.
+Its catalog, outcome and counterfactual records are content-free; a separate
+governance CAS state owns lifecycle status while ordinary Morphogenesis
+decision/execution continues to own organizational effects.

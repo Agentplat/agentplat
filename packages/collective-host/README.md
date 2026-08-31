@@ -30,6 +30,9 @@ continue the ordinary planning path.
   Morphogenesis operation, scope, proposal, profile, creation request and
   creation certificate; the lifecycle adapter rejects material substitution
   before invoking the provider-neutral factory or Membership boundary.
+- `./morphogenesis-strategy-memory` writes only scoped, content-free V3 recall
+  records into AgentPlat Memory. Memory remains non-authoritative; catalog and
+  governance state are validated at their owning CAS boundaries.
 
 - `./distributed-protocol` provides authenticated, causal message streams over
   a bounded sparse peer plane, with content-addressed artifacts and a durable

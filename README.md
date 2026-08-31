@@ -518,6 +518,13 @@ durable compensation, Mission Lifecycle and Interop composition. These
 capabilities preserve the V1 defaults and existing subsystem authority owners.
 See the [V2 source acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
 
+[Agent Morphogenesis Strategy Adaptation V3](./docs/specification/agent-morphogenesis-v3.md)
+adds bounded outcome learning, immutable strategy catalogs, independent
+agent/person/quorum governance, regression/damage detection and reproducible
+counterfactual analysis. Learning and simulation remain advisory and cannot
+grant Morphogenesis execution authority. See the [V3 source acceptance
+checklist](./docs/collective-runtime/agent-morphogenesis-v3-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

@@ -70,6 +70,11 @@ content digest and external rollback witness; topology certification and
 activation use independent CAS revisions even when both belong to one topology
 epoch.
 
+V3 strategy adaptation uses the same table and witness for the existing local
+learner state, Morphogenesis strategy-governance state and immutable
+counterfactual reports. Simulated reports remain separate from observed
+feedback records.
+
 For staging and other deployments that require a witness outside the database
 protection domain, `HttpMorphogenesisRollbackWitnessV1` implements the same
 Morphogenesis witness port over credential-free HTTPS endpoints. Supply an
