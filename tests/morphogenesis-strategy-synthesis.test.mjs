@@ -11,6 +11,9 @@ import {
   validateMorphogenesisSynthesisGovernanceStateV5,
   MorphogenesisSynthesisEligibilityGateV5,
   createMorphogenesisSynthesisRestrictionAssessmentV5,
+  InMemoryMorphogenesisSynthesisSimulationStoreV5,
+  MorphogenesisSynthesisSimulationRuntimeV5,
+  createMorphogenesisSynthesisSimulationScenarioV5,
   createMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
@@ -351,4 +354,48 @@ test("V5 Trust or Inference Control restrictions fail closed before registration
   }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 23 });
   assert.equal(eligibility.disposition, "ineligible");
   assert.deepEqual(eligibility.reasonCodes, ["trust_restricted"]);
+});
+
+test("V5 derives evaluation from a reproducible budgeted simulation report", async () => {
+  const value = fixture();
+  const candidate = await new MorphogenesisStrategySynthesisRuntimeV5({
+    policy: value.policy, synthesizer: value.synthesizer,
+  }).synthesize({ gap: value.gap, logicalTimeMs: 20 });
+  const simulatorImplementationDigest = sha("simulator:v5");
+  const scenario = createMorphogenesisSynthesisSimulationScenarioV5({
+    scenarioId: "scenario:synthesis", candidate, baselineStrategyId: "strategy:baseline",
+    baselineDefinitionDigest: sha("baseline-definition"), simulatorId: "simulator:v5",
+    simulatorVersion: 1, simulatorImplementationDigest,
+    environmentDigest: sha("environment"), seedDigest: sha("seed"), interactionBudget: 100,
+    proposedAtLogicalMs: 21, expiresAtLogicalMs: 80, policy: value.policy,
+  });
+  let calls = 0;
+  const simulator = { simulatorId: scenario.simulatorId, simulatorVersion: 1,
+    simulatorImplementationDigest, async evaluate({ scenario, candidate }) {
+      calls += 1;
+      return { scenarioDigest: scenario.scenarioDigest,
+        candidateDigest: candidate.candidateDigest, simulatorImplementationDigest,
+        seedDigest: scenario.seedDigest,
+        threatAssessments: MORPHOGENESIS_SYNTHESIS_THREATS_V5.map((threat) =>
+          createMorphogenesisSynthesisThreatAssessmentV5({ threat, disposition: "passed",
+            evidenceDigests: [sha(`simulation:${threat}`)] })),
+        safetyMicros: 900_000, confidenceBps: 9_000,
+        evidenceDigests: [sha("simulation-evidence")], interactionUnits: 80,
+        completedAtLogicalMs: 30 };
+    } };
+  const runtime = new MorphogenesisSynthesisSimulationRuntimeV5({
+    policy: value.policy, simulator,
+    store: new InMemoryMorphogenesisSynthesisSimulationStoreV5(),
+  });
+  const first = await runtime.evaluate({ reportId: "report:synthesis",
+    evaluationId: "evaluation:simulation", scenario, candidate,
+    assessorId: "agent:assessor", assessorImplementationDigest: sha("assessor"),
+    expiresAtLogicalMs: 60, logicalTimeMs: 25 });
+  const replay = await runtime.evaluate({ reportId: "report:synthesis",
+    evaluationId: "evaluation:simulation", scenario, candidate,
+    assessorId: "agent:assessor", assessorImplementationDigest: sha("assessor"),
+    expiresAtLogicalMs: 60, logicalTimeMs: 26 });
+  assert.equal(first.evaluation.counterfactualReportDigest, first.report.reportDigest);
+  assert.equal(replay.report.reportDigest, first.report.reportDigest);
+  assert.equal(calls, 1);
 });

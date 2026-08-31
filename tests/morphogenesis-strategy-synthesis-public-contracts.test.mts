@@ -22,6 +22,10 @@ import {
   MorphogenesisSynthesisEligibilityGateV5,
   createMorphogenesisSynthesisRestrictionAssessmentV5,
   type MorphogenesisSynthesisEligibilityDecisionV5,
+  InMemoryMorphogenesisSynthesisSimulationStoreV5,
+  MorphogenesisSynthesisSimulationRuntimeV5,
+  createMorphogenesisSynthesisSimulationScenarioV5,
+  type MorphogenesisSynthesisSimulationReportV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 void MORPHOGENESIS_SYNTHESIS_THREATS_V5;
@@ -39,6 +43,9 @@ void createMorphogenesisSynthesisGovernancePolicyV5;
 void validateMorphogenesisSynthesisGovernanceStateV5;
 void MorphogenesisSynthesisEligibilityGateV5;
 void createMorphogenesisSynthesisRestrictionAssessmentV5;
+void InMemoryMorphogenesisSynthesisSimulationStoreV5;
+void MorphogenesisSynthesisSimulationRuntimeV5;
+void createMorphogenesisSynthesisSimulationScenarioV5;
 declare const contracts: [MorphogenesisStrategyGapV5,
   MorphogenesisStrategySynthesisCandidateV5,
   MorphogenesisStrategySynthesisCertificationV5,
@@ -50,3 +57,5 @@ declare const governanceState: MorphogenesisSynthesisGovernanceStateV5;
 void governanceState;
 declare const eligibility: MorphogenesisSynthesisEligibilityDecisionV5;
 void eligibility;
+declare const simulation: MorphogenesisSynthesisSimulationReportV5;
+void simulation;

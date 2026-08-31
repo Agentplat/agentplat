@@ -24,6 +24,7 @@ import {
   createMorphogenesisStrategySynthesisPolicyV5,
   createMorphogenesisSynthesisGovernancePolicyV5,
   MORPHOGENESIS_SYNTHESIS_THREATS_V5,
+  createMorphogenesisSynthesisThreatAssessmentV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   createPeerStrategyEvidenceExchangePolicyV1,
@@ -40,6 +41,7 @@ import {
   PostgresPeerStrategyEvidenceStoreV1,
   PostgresStrategyConvergenceStoreV1,
   PostgresMorphogenesisSynthesisGovernanceStoreV5,
+  PostgresMorphogenesisSynthesisSimulationStoreV5,
 } from "../dist/morphogenesis-strategy.js";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -50,8 +52,11 @@ class FakePool {
   rows = new Map();
   async query(sql, params) {
     const counterfactual = sql.includes("morphogenesis-strategy-counterfactual");
-    const kind = counterfactual ? "morphogenesis-strategy-counterfactual" : params[1];
-    const stateKey = counterfactual ? params[1] : params[2];
+    const simulation = sql.includes("morphogenesis-synthesis-simulation-report");
+    const immutable = counterfactual || simulation;
+    const kind = counterfactual ? "morphogenesis-strategy-counterfactual"
+      : simulation ? "morphogenesis-synthesis-simulation-report" : params[1];
+    const stateKey = immutable ? params[1] : params[2];
     const key = `${params[0]}:${kind}:${stateKey}`;
     if (sql.includes("SELECT")) {
       const row = this.rows.get(key);
@@ -60,10 +65,10 @@ class FakePool {
     if (sql.includes("INSERT")) {
       if (this.rows.has(key)) return { rowCount: 0, rows: [] };
       this.rows.set(key, {
-        revision: counterfactual ? 0 : params[3],
-        logical_time_high_water_ms: counterfactual ? params[2] : params[4],
-        state_digest: counterfactual ? params[3] : params[5],
-        state: JSON.parse(counterfactual ? params[4] : params[6]),
+        revision: immutable ? 0 : params[3],
+        logical_time_high_water_ms: immutable ? params[2] : params[4],
+        state_digest: immutable ? params[3] : params[5],
+        state: JSON.parse(immutable ? params[4] : params[6]),
       });
       return { rowCount: 1, rows: [] };
     }
@@ -394,4 +399,29 @@ test("PostgreSQL V5 synthesis governance state survives reconstruction and witne
   }).load(initial.stateKey)).stateDigest, initial.stateDigest);
   witness.heads.clear();
   await assert.rejects(store.load(initial.stateKey), /witness diverged/);
+});
+
+test("PostgreSQL V5 simulation reports are immutable and witness guarded", async () => {
+  const pool = new FakePool();
+  const witness = new Witness();
+  const options = { scopeId: "tenant:synthesis-simulation", rollbackWitness: witness };
+  const body = Object.freeze({ schemaVersion: 5, reportId: "report:synthesis-v5",
+    scenarioDigest: sha("scenario"), candidateDigest: sha("candidate"),
+    baselineStrategyId: "strategy:baseline",
+    simulatorImplementationDigest: sha("simulator"), seedDigest: sha("seed"),
+    threatAssessments: MORPHOGENESIS_SYNTHESIS_THREATS_V5.map((threat) =>
+      createMorphogenesisSynthesisThreatAssessmentV5({ threat, disposition: "passed",
+        evidenceDigests: [sha(`threat:${threat}`)] })),
+    safetyMicros: 900_000, confidenceBps: 9_000,
+    evidenceDigests: [sha("simulation-evidence")], interactionUnits: 80,
+    evaluatedAtLogicalMs: 30, advisoryOnly: true });
+  const report = Object.freeze({ ...body,
+    reportDigest: digestPlanningJsonV1("morphogenesis-synthesis-simulation-report-v5", body) });
+  const store = new PostgresMorphogenesisSynthesisSimulationStoreV5(pool, options);
+  assert.equal(await store.save(report), true);
+  assert.equal((await new PostgresMorphogenesisSynthesisSimulationStoreV5(pool, options)
+    .load(report.reportId)).reportDigest, report.reportDigest);
+  assert.equal(await store.save(report), true);
+  witness.heads.clear();
+  await assert.rejects(store.load(report.reportId), /witness diverged/);
 });

@@ -29,6 +29,9 @@ import {
   type MorphogenesisSynthesisGovernanceStateV5,
   type MorphogenesisSynthesisGovernanceStoreV5,
   type MorphogenesisStrategySynthesisPolicyV5,
+  validateMorphogenesisSynthesisSimulationReportV5,
+  type MorphogenesisSynthesisSimulationReportV5,
+  type MorphogenesisSynthesisSimulationStoreV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   validatePeerStrategyEvidenceExchangePolicyV1,
@@ -107,6 +110,51 @@ export class PostgresMorphogenesisStrategyCounterfactualStoreV3
       nextRevision: 0,
       nextDigest: report.reportDigest,
     }))) throw new Error("Morphogenesis counterfactual witness rejected report");
+    return true;
+  }
+}
+
+export class PostgresMorphogenesisSynthesisSimulationStoreV5
+  implements MorphogenesisSynthesisSimulationStoreV5
+{
+  readonly #prefix: string;
+  constructor(readonly pool: Pool,
+    readonly options: MorphogenesisPostgresStoreOptionsV1) {
+    if (!pool || !options.scopeId || !options.rollbackWitness)
+      throw new TypeError("Morphogenesis synthesis simulation PostgreSQL options are required");
+    this.#prefix = `${quotePostgresIdentifier(normalizePostgresIdentifier(
+      options.schema ?? defaultPostgresSchema, "schema"))}.`;
+  }
+  async load(reportId: string) {
+    const result = await this.pool.query<{ state_digest: string; state: unknown }>(
+      `SELECT state_digest,state FROM ${this.#prefix}collective_host_runtime_states
+        WHERE scope_id=$1 AND state_kind='morphogenesis-synthesis-simulation-report'
+          AND state_key=$2`, [this.options.scopeId, reportId]);
+    const row = result.rows[0]; if (!row) return null;
+    const report = validateMorphogenesisSynthesisSimulationReportV5(row.state as
+      MorphogenesisSynthesisSimulationReportV5);
+    if (row.state_digest !== report.reportDigest ||
+        !(await this.options.rollbackWitness.verify({ scopeId: this.options.scopeId,
+          stateKind: "morphogenesis-synthesis-simulation-report", stateKey: reportId,
+          revision: 0, digest: report.reportDigest })))
+      throw new Error("Morphogenesis synthesis simulation report or witness diverged");
+    return report;
+  }
+  async save(input: MorphogenesisSynthesisSimulationReportV5) {
+    const report = validateMorphogenesisSynthesisSimulationReportV5(input);
+    const result = await this.pool.query(
+      `INSERT INTO ${this.#prefix}collective_host_runtime_states
+        (scope_id,state_kind,state_key,revision,logical_time_high_water_ms,state_digest,state)
+       VALUES ($1,'morphogenesis-synthesis-simulation-report',$2,0,$3,$4,$5::jsonb)
+       ON CONFLICT DO NOTHING`, [this.options.scopeId, report.reportId,
+        report.evaluatedAtLogicalMs, report.reportDigest, JSON.stringify(report)]);
+    if ((result.rowCount ?? 0) !== 1)
+      return (await this.load(report.reportId))?.reportDigest === report.reportDigest;
+    if (!(await recordWitness(this.options.rollbackWitness, { scopeId: this.options.scopeId,
+      stateKind: "morphogenesis-synthesis-simulation-report", stateKey: report.reportId,
+      previousRevision: null, previousDigest: null, nextRevision: 0,
+      nextDigest: report.reportDigest })))
+      throw new Error("Morphogenesis synthesis simulation witness rejected report");
     return true;
   }
 }

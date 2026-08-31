@@ -248,6 +248,8 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-synthesis-canary-receipt-v5"
   | "morphogenesis-synthesis-restriction-assessment-v5"
   | "morphogenesis-synthesis-eligibility-decision-v5"
+  | "morphogenesis-synthesis-simulation-scenario-v5"
+  | "morphogenesis-synthesis-simulation-report-v5"
   | "morphogenesis-strategy-outcome-attestation-v4"
   | "morphogenesis-strategy-convergence-decision-v4"
   | "morphogenesis-budget-reservation-request"
