@@ -50,6 +50,10 @@ export interface MorphogenesisStrategyGapV5 {
   readonly governanceStateDigest: PlanningDigestV1;
   readonly contextDigest: PlanningDigestV1;
   readonly baselineStrategyId: AgentPlatID;
+  readonly evaluatedStrategyIds: readonly AgentPlatID[];
+  readonly eligibleStrategyIds: readonly AgentPlatID[];
+  readonly localEvidenceDigests: readonly PlanningDigestV1[];
+  readonly collectiveEvidenceDigests: readonly PlanningDigestV1[];
   readonly evidenceDigests: readonly PlanningDigestV1[];
   readonly reasonCodes: readonly string[];
   readonly detectedById: AgentPlatID;
@@ -200,13 +204,23 @@ export function createMorphogenesisStrategyGapV5(input:
     "advisoryOnly" | "gapDigest"> & { readonly policy: MorphogenesisStrategySynthesisPolicyV5 },
 ): MorphogenesisStrategyGapV5 {
   const policy = validateMorphogenesisStrategySynthesisPolicyV5(input.policy);
+  const localEvidenceDigests = shas(input.localEvidenceDigests, 1, 128);
+  const collectiveEvidenceDigests = shas(input.collectiveEvidenceDigests, 1, 128);
   const evidenceDigests = shas(input.evidenceDigests, policy.minimumGapEvidence, 256);
+  const expectedEvidence = [...new Set([...localEvidenceDigests,
+    ...collectiveEvidenceDigests])].sort();
+  const evaluatedStrategyIds = ids(input.evaluatedStrategyIds, 1, 256);
+  const eligibleStrategyIds = ids(input.eligibleStrategyIds, 0, 256);
+  if (!same(evidenceDigests, expectedEvidence) || eligibleStrategyIds.length !== 0 ||
+      !evaluatedStrategyIds.includes(input.baselineStrategyId))
+    fail("Morphogenesis synthesis gap is not demonstrated by V3/V4 evidence");
   const body = freeze({
     schemaVersion: 5 as const, gapId: id(input.gapId),
     catalogDigest: sha(input.catalogDigest),
     governanceStateDigest: sha(input.governanceStateDigest),
     contextDigest: sha(input.contextDigest), baselineStrategyId: id(input.baselineStrategyId),
-    evidenceDigests, reasonCodes: ids(input.reasonCodes, 1, 32),
+    evaluatedStrategyIds, eligibleStrategyIds, localEvidenceDigests,
+    collectiveEvidenceDigests, evidenceDigests, reasonCodes: ids(input.reasonCodes, 1, 32),
     detectedById: id(input.detectedById),
     detectorImplementationDigest: sha(input.detectorImplementationDigest),
     detectedAtLogicalMs: nonNegative(input.detectedAtLogicalMs),
@@ -463,7 +477,9 @@ const POLICY_KEYS = ["admittedSynthesizerImplementationDigests", "allowedReviewR
   "minimumGapEvidence", "minimumSafetyMicros", "parentPolicyDigest", "policyDigest",
   "policyId", "policyVersion", "requiredThreats", "schemaVersion"] as const;
 const GAP_KEYS = ["advisoryOnly", "baselineStrategyId", "catalogDigest", "contextDigest",
-  "detectedAtLogicalMs", "detectedById", "detectorImplementationDigest", "evidenceDigests",
+  "collectiveEvidenceDigests", "detectedAtLogicalMs", "detectedById",
+  "detectorImplementationDigest", "eligibleStrategyIds", "evaluatedStrategyIds",
+  "evidenceDigests", "localEvidenceDigests",
   "expiresAtLogicalMs", "gapDigest", "gapId", "governanceStateDigest", "reasonCodes",
   "schemaVersion", "synthesisRequired"] as const;
 const MANIFEST_KEYS = ["authorityAttenuationDigest", "blueprintCatalogDigest",

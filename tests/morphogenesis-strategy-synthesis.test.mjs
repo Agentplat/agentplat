@@ -23,6 +23,7 @@ import {
   createMorphogenesisSynthesisCatalogSuccessorV5,
   morphogenesisSynthesisStrategyAvailableV5,
   createMorphogenesisStrategyGapV5,
+  validateMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
   createMorphogenesisStrategySynthesisPolicyV5,
@@ -74,7 +75,9 @@ function fixture() {
   const gap = createMorphogenesisStrategyGapV5({
     gapId: "gap:planning", catalogDigest: policy.catalogDigest,
     governanceStateDigest: sha("governance-state"), contextDigest: sha("context"),
-    baselineStrategyId: "strategy:baseline", evidenceDigests: [sha("a"), sha("b")],
+    baselineStrategyId: "strategy:baseline", evaluatedStrategyIds: ["strategy:baseline"],
+    eligibleStrategyIds: [], localEvidenceDigests: [sha("a")],
+    collectiveEvidenceDigests: [sha("b")], evidenceDigests: [sha("a"), sha("b")],
     reasonCodes: ["catalog_candidates_inadequate"], detectedById: "agent:detector",
     detectorImplementationDigest: sha("detector"), detectedAtLogicalMs: 10,
     expiresAtLogicalMs: 100, policy,
@@ -105,6 +108,8 @@ function fixture() {
 
 test("V5 produces an inert bounded candidate from an evidenced gap", async () => {
   const value = fixture();
+  assert.throws(() => validateMorphogenesisStrategyGapV5({ ...value.gap,
+    eligibleStrategyIds: ["strategy:baseline"] }, value.policy), /not demonstrated/);
   const runtime = new MorphogenesisStrategySynthesisRuntimeV5({
     policy: value.policy, synthesizer: value.synthesizer,
   });
