@@ -11,7 +11,8 @@ import type {
   MorphogenesisStrategySynthesisEvaluationV5,
 } from "./morphogenesis-strategy-synthesis.js";
 
-export type MorphogenesisSynthesisRestrictionSourceV5 = "trust" | "inference_control";
+export type MorphogenesisSynthesisRestrictionSourceV5 =
+  "blueprint_registry" | "trust" | "inference_control";
 export type MorphogenesisSynthesisRestrictionDispositionV5 =
   "eligible" | "restricted" | "denied" | "unavailable";
 
@@ -49,6 +50,7 @@ export interface MorphogenesisSynthesisEligibilityDecisionV5 {
   readonly certificationDigest: PlanningDigestV1;
   readonly trustAssessmentDigest: PlanningDigestV1;
   readonly inferenceControlAssessmentDigest: PlanningDigestV1;
+  readonly blueprintRegistryAssessmentDigest: PlanningDigestV1;
   readonly disposition: "eligible" | "ineligible";
   readonly reasonCodes: readonly string[];
   readonly evaluatedAtLogicalMs: number;
@@ -81,9 +83,11 @@ export class MorphogenesisSynthesisEligibilityGateV5 {
   constructor(readonly options: {
     readonly trust: MorphogenesisSynthesisRestrictionPortV5;
     readonly inferenceControl: MorphogenesisSynthesisRestrictionPortV5;
+    readonly blueprints: MorphogenesisSynthesisRestrictionPortV5;
   }) {
     if (options?.trust?.source !== "trust" ||
-        options?.inferenceControl?.source !== "inference_control")
+        options?.inferenceControl?.source !== "inference_control" ||
+        options?.blueprints?.source !== "blueprint_registry")
       fail("synthesis eligibility sources are invalid");
   }
   async evaluate(input: {
@@ -92,12 +96,14 @@ export class MorphogenesisSynthesisEligibilityGateV5 {
     readonly certification: MorphogenesisStrategySynthesisCertificationV5;
     readonly logicalTimeMs: number;
   }): Promise<MorphogenesisSynthesisEligibilityDecisionV5> {
-    const [trust, inference] = await Promise.all([
+    const [trust, inference, blueprints] = await Promise.all([
       this.options.trust.assess(input), this.options.inferenceControl.assess(input),
+      this.options.blueprints.assess(input),
     ]);
     const assessments = [
       validateAssessment(trust, "trust", input),
       validateAssessment(inference, "inference_control", input),
+      validateAssessment(blueprints, "blueprint_registry", input),
     ] as const;
     const reasonCodes = assessments.filter(({ disposition }) => disposition !== "eligible")
       .map(({ source, disposition }) => `${source}_${disposition}`).sort();
@@ -108,6 +114,7 @@ export class MorphogenesisSynthesisEligibilityGateV5 {
       certificationDigest: input.certification.certificationDigest,
       trustAssessmentDigest: assessments[0].assessmentDigest,
       inferenceControlAssessmentDigest: assessments[1].assessmentDigest,
+      blueprintRegistryAssessmentDigest: assessments[2].assessmentDigest,
       disposition: disposition as "eligible" | "ineligible", reasonCodes: freeze(reasonCodes),
       evaluatedAtLogicalMs: nonNegative(input.logicalTimeMs),
       expiresAtLogicalMs: Math.min(...assessments.map(({ expiresAtLogicalMs }) =>
@@ -150,7 +157,8 @@ function validateAssessment(value: MorphogenesisSynthesisRestrictionAssessmentV5
   return rebuilt;
 }
 
-const SOURCES = new Set<MorphogenesisSynthesisRestrictionSourceV5>(["trust", "inference_control"]);
+const SOURCES = new Set<MorphogenesisSynthesisRestrictionSourceV5>(
+  ["blueprint_registry", "trust", "inference_control"]);
 const DISPOSITIONS = new Set<MorphogenesisSynthesisRestrictionDispositionV5>(
   ["eligible", "restricted", "denied", "unavailable"]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;

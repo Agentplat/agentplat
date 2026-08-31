@@ -26,6 +26,8 @@ import {
   MorphogenesisSynthesisSimulationRuntimeV5,
   createMorphogenesisSynthesisSimulationScenarioV5,
   type MorphogenesisSynthesisSimulationReportV5,
+  createMorphogenesisSynthesisCatalogSuccessorV5,
+  morphogenesisSynthesisStrategyAvailableV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 void MORPHOGENESIS_SYNTHESIS_THREATS_V5;
@@ -46,6 +48,8 @@ void createMorphogenesisSynthesisRestrictionAssessmentV5;
 void InMemoryMorphogenesisSynthesisSimulationStoreV5;
 void MorphogenesisSynthesisSimulationRuntimeV5;
 void createMorphogenesisSynthesisSimulationScenarioV5;
+void createMorphogenesisSynthesisCatalogSuccessorV5;
+void morphogenesisSynthesisStrategyAvailableV5;
 declare const contracts: [MorphogenesisStrategyGapV5,
   MorphogenesisStrategySynthesisCandidateV5,
   MorphogenesisStrategySynthesisCertificationV5,

@@ -70,6 +70,7 @@ export interface MorphogenesisSynthesizedStrategyManifestV5 {
   readonly strategyImplementationDigest: PlanningDigestV1;
   readonly proposalGeneratorDigest: PlanningDigestV1;
   readonly blueprintCatalogDigest: PlanningDigestV1;
+  readonly morphogenesisPolicyDigest: PlanningDigestV1;
   readonly materialProfileDigest: PlanningDigestV1;
   readonly profileEvolutionDigest: PlanningDigestV1;
   readonly authorityAttenuationDigest: PlanningDigestV1;
@@ -228,6 +229,7 @@ export function createMorphogenesisSynthesizedStrategyManifestV5(input:
     strategyImplementationDigest: sha(input.strategyImplementationDigest),
     proposalGeneratorDigest: sha(input.proposalGeneratorDigest),
     blueprintCatalogDigest: sha(input.blueprintCatalogDigest),
+    morphogenesisPolicyDigest: sha(input.morphogenesisPolicyDigest),
     materialProfileDigest: sha(input.materialProfileDigest),
     profileEvolutionDigest: sha(input.profileEvolutionDigest),
     authorityAttenuationDigest: sha(input.authorityAttenuationDigest),
@@ -466,6 +468,7 @@ const GAP_KEYS = ["advisoryOnly", "baselineStrategyId", "catalogDigest", "contex
   "schemaVersion", "synthesisRequired"] as const;
 const MANIFEST_KEYS = ["authorityAttenuationDigest", "blueprintCatalogDigest",
   "inputContractDigest", "manifestDigest", "materialProfileDigest", "maximumSpawnDepth",
+  "morphogenesisPolicyDigest",
   "memoryScopeDigest", "outputContractDigest", "profileEvolutionDigest",
   "proposalGeneratorDigest", "schemaVersion", "strategyId", "strategyImplementationDigest",
   "strategyVersion", "supportedOperators", "tokenBudget", "toolCallBudget", "toolSetDigest"] as const;

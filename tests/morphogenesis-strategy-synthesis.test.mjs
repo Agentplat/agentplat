@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { digestPlanningJsonV1 } from "@agentplat/collective-planning";
 import {
+  createLocalStrategyCatalogV1,
+  createLocalStrategyDefinitionV1,
+} from "@agentplat/collective-runtime/strategy-adaptation";
+import {
   MORPHOGENESIS_SYNTHESIS_THREATS_V5,
   MorphogenesisStrategySynthesisRuntimeV5,
   InMemoryMorphogenesisSynthesisGovernanceStoreV5,
@@ -14,6 +18,10 @@ import {
   InMemoryMorphogenesisSynthesisSimulationStoreV5,
   MorphogenesisSynthesisSimulationRuntimeV5,
   createMorphogenesisSynthesisSimulationScenarioV5,
+  createMorphogenesisStrategyCatalogV3,
+  createMorphogenesisStrategyDefinitionV3,
+  createMorphogenesisSynthesisCatalogSuccessorV5,
+  morphogenesisSynthesisStrategyAvailableV5,
   createMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
@@ -34,9 +42,26 @@ const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3",
 
 function fixture() {
   const synthesizerImplementationDigest = sha("synthesizer");
+  const baseline = createLocalStrategyDefinitionV1({ schemaVersion: 1,
+    strategyId: "strategy:baseline", strategyVersion: 1,
+    implementationDigest: sha("baseline-implementation"),
+    operations: ["award_selection", "bid_submission", "offer_routing",
+      "plan_decomposition", "recovery_selection"] });
+  const localCatalog = createLocalStrategyCatalogV1({ schemaVersion: 1,
+    catalogId: "catalog:local:v5", catalogVersion: 1, parentCatalogDigest: null,
+    strategies: [baseline], baselines: Object.fromEntries(baseline.operations.map(
+      (operation) => [operation, baseline.strategyId])) });
+  const catalog = createMorphogenesisStrategyCatalogV3({
+    catalogId: "catalog:morphogenesis:v5:parent", catalogVersion: 1,
+    parentCatalogDigest: null, localCatalog,
+    strategies: [createMorphogenesisStrategyDefinitionV3({ strategy: baseline,
+      morphogenesisPolicyDigest: sha("morphogenesis-policy"),
+      blueprintCatalogDigest: sha("blueprint-catalog"),
+      proposalGeneratorDigest: sha("baseline-generator"),
+      supportedOperators: ["replace_agent"] })] });
   const policy = createMorphogenesisStrategySynthesisPolicyV5({
     schemaVersion: 5, policyId: "policy:synthesis", policyVersion: 1,
-    parentPolicyDigest: null, catalogDigest: sha("catalog"),
+    parentPolicyDigest: null, catalogDigest: catalog.catalogDigest,
     governancePolicyDigest: sha("governance"),
     admittedSynthesizerImplementationDigests: [synthesizerImplementationDigest],
     requiredThreats: MORPHOGENESIS_SYNTHESIS_THREATS_V5,
@@ -59,6 +84,7 @@ function fixture() {
     strategyImplementationDigest: sha("strategy-implementation"),
     proposalGeneratorDigest: sha("proposal-generator"),
     blueprintCatalogDigest: sha("blueprint-catalog"), materialProfileDigest: sha("profile"),
+    morphogenesisPolicyDigest: sha("morphogenesis-policy"),
     profileEvolutionDigest: sha("evolution"), authorityAttenuationDigest: sha("attenuation"),
     toolSetDigest: sha("tools"), memoryScopeDigest: sha("memory"),
     inputContractDigest: sha("input"), outputContractDigest: sha("output"),
@@ -74,7 +100,7 @@ function fixture() {
         expiresAtLogicalMs: 90 };
     },
   };
-  return { policy, gap, manifest, synthesizer };
+  return { policy, gap, manifest, synthesizer, catalog };
 }
 
 test("V5 produces an inert bounded candidate from an evidenced gap", async () => {
@@ -171,6 +197,7 @@ test("V5 requires complete adversarial evaluation and independent certification"
   const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
     trust: restrictionPort("trust"),
     inferenceControl: restrictionPort("inference_control"),
+    blueprints: restrictionPort("blueprint_registry"),
   }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 22 });
   assert.equal(eligibility.grantsAuthority, false);
   assert.equal(certification.grantsAuthority, false);
@@ -210,6 +237,7 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
   } });
   const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
     trust: port("trust"), inferenceControl: port("inference_control"),
+    blueprints: port("blueprint_registry"),
   }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 22 });
   const governancePolicy = createMorphogenesisSynthesisGovernancePolicyV5({
     schemaVersion: 5, policyId: "policy:synthesis-governance", policyVersion: 1,
@@ -287,6 +315,20 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
     assert.equal((await runtime.reviewAndApply({
       recommendationId: recommendation.recommendationId, logicalTimeMs: 25,
     })).nextStatus, "experimental");
+    const experimentalEntry = (await runtime.state(25)).entries[0];
+    const successor = createMorphogenesisSynthesisCatalogSuccessorV5({
+      currentCatalog: value.catalog, candidate, entry: experimentalEntry,
+      synthesisPolicy: value.policy, localCatalogId: `catalog:local:${route}:successor`,
+      localCatalogVersion: 2,
+      morphogenesisCatalogId: `catalog:morphogenesis:${route}:successor`,
+      morphogenesisCatalogVersion: 2,
+    });
+    assert.equal(successor.availability, "canary_only");
+    assert.equal(successor.grantsAuthority, false);
+    assert.equal(morphogenesisSynthesisStrategyAvailableV5({ entry: experimentalEntry,
+      governancePolicy, canarySelection: false }), false);
+    assert.equal(morphogenesisSynthesisStrategyAvailableV5({ entry: experimentalEntry,
+      governancePolicy, canarySelection: true }), true);
     await runtime.observeCanary({ observationId: `observation:${route}:1`,
       candidateDigest: candidate.candidateDigest,
       outcome: "success", outcomeEvidenceDigest: sha(`${route}:outcome:1`), logicalTimeMs: 26 });
@@ -351,6 +393,7 @@ test("V5 Trust or Inference Control restrictions fail closed before registration
   const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
     trust: port("trust", "restricted"),
     inferenceControl: port("inference_control", "eligible"),
+    blueprints: port("blueprint_registry", "eligible"),
   }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 23 });
   assert.equal(eligibility.disposition, "ineligible");
   assert.deepEqual(eligibility.reasonCodes, ["trust_restricted"]);
