@@ -1,6 +1,6 @@
 # Agent Morphogenesis Strategy Adaptation V3 source acceptance checklist
 
-Status: implementation in progress. Checkmarks below require direct source and
+Status: source-complete. Checkmarks below require direct source and
 deterministic-test evidence and do not imply operational improvement.
 
 ## Learning and evidence
@@ -48,7 +48,7 @@ deterministic-test evidence and do not imply operational improvement.
 - [x] Runtime, host, PostgreSQL, Mission and Rooms/Mesh APIs have public type
   contracts.
 - [x] ADR, specification, threat model and executable reference example exist.
-- [ ] Full workspace `pnpm check` passes on the final tree.
+- [x] Full workspace `pnpm check` passes on the final tree.
 
 ## Non-claims
 
