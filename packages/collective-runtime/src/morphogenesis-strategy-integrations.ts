@@ -9,13 +9,24 @@ import {
   createLocalStrategySafetySignalSourceV1,
   createLocalStrategyTrustSafetySignalV1,
 } from "./strategy-adaptation-adapters.js";
-import type { LocalStrategySelectionRequestV1 } from "./strategy-adaptation-contracts.js";
+import {
+  createLocalStrategyCollectivePriorV1,
+} from "./strategy-adaptation-runtime.js";
+import type {
+  LocalStrategyCollectivePriorSourceV1,
+  LocalStrategySelectionRequestV1,
+} from "./strategy-adaptation-contracts.js";
 import {
   validateMorphogenesisStrategyCatalogV3,
   validateMorphogenesisStrategyContextV3,
   type MorphogenesisStrategyCatalogV3,
   type MorphogenesisStrategyContextV3,
 } from "./morphogenesis-strategy-adaptation.js";
+import {
+  validateMorphogenesisStrategyGovernanceStateV3,
+  type MorphogenesisStrategyGovernancePolicyV3,
+  type MorphogenesisStrategyGovernanceStateV3,
+} from "./morphogenesis-strategy-governance.js";
 
 export interface MorphogenesisStrategyContextResolutionPortV3 {
   resolve(contextDigest: PlanningDigestV1): Promise<MorphogenesisStrategyContextV3 | null>;
@@ -82,6 +93,67 @@ export function createMorphogenesisStrategyTrustSafetySourceV3(input: {
         trustDisposition: assessment.disposition,
         reasonCodes: [`morphogenesis_trust_${assessment.disposition}`],
       });
+    },
+  });
+}
+
+/** Bounded advisory influence from the reviewed active strategy back into the existing learner. */
+export function createMorphogenesisStrategyGovernancePriorSourceV3(input: {
+  readonly sourceId: AgentPlatID;
+  readonly sourceVersion: number;
+  readonly sourceImplementationDigest: PlanningDigestV1;
+  readonly stateKey: AgentPlatID;
+  readonly policy: MorphogenesisStrategyGovernancePolicyV3;
+  readonly catalog: MorphogenesisStrategyCatalogV3;
+  readonly confidenceBps: number;
+  readonly requestedInfluenceBps: number;
+  readonly maximumTtlMs: number;
+  readonly resolveState: () => Promise<MorphogenesisStrategyGovernanceStateV3>;
+}): LocalStrategyCollectivePriorSourceV1 {
+  const catalog = validateMorphogenesisStrategyCatalogV3(input.catalog);
+  const sourceId = id(input.sourceId);
+  const sourceVersion = positive(input.sourceVersion);
+  const sourceImplementationDigest = sha(input.sourceImplementationDigest);
+  const confidenceBps = basisPoints(input.confidenceBps);
+  const requestedInfluenceBps = basisPoints(input.requestedInfluenceBps);
+  const maximumTtlMs = positive(input.maximumTtlMs);
+  return Object.freeze({
+    sourceId,
+    sourceVersion,
+    sourceImplementationDigest,
+    async resolve({ request, strategies }:
+      Parameters<LocalStrategyCollectivePriorSourceV1["resolve"]>[0]) {
+      if (request.operation !== "plan_decomposition") return [];
+      const state = validateMorphogenesisStrategyGovernanceStateV3(
+        await input.resolveState(),
+        { policy: input.policy, catalog, stateKey: input.stateKey },
+      );
+      const strategy = strategies.find(({ strategyId }) =>
+        strategyId === state.activeStrategyId);
+      if (!strategy || !request.availableStrategyIds.includes(strategy.strategyId)) return [];
+      const last = state.transitions.at(-1);
+      const observedAtLogicalMs = last?.appliedAtLogicalMs ?? state.logicalTimeHighWaterMs;
+      const expiresAtLogicalMs = Math.min(Number.MAX_SAFE_INTEGER,
+        observedAtLogicalMs + maximumTtlMs);
+      if (expiresAtLogicalMs <= request.logicalTimeMs) return [];
+      return [createLocalStrategyCollectivePriorV1({
+        schemaVersion: 1,
+        requestId: request.requestId,
+        requestDigest: request.requestDigest,
+        operation: request.operation,
+        strategyId: strategy.strategyId,
+        strategyDigest: strategy.strategyDigest,
+        sourceId,
+        sourceVersion,
+        sourceImplementationDigest,
+        certificateDigest: last?.transitionDigest ?? state.stateDigest,
+        outcome: "success",
+        scoreMicros: 1_000_000,
+        confidenceBps,
+        requestedInfluenceBps,
+        observedAtLogicalMs,
+        expiresAtLogicalMs,
+      })];
     },
   });
 }
@@ -181,6 +253,8 @@ const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) throw new TypeError("Morphogenesis strategy integration ID is invalid"); return value as AgentPlatID; }
 function sha(value: unknown): PlanningDigestV1 { if (typeof value !== "string" || !SHA.test(value)) throw new TypeError("Morphogenesis strategy integration digest is invalid"); return value as PlanningDigestV1; }
 function nonNegative(value: unknown): number { if (!Number.isSafeInteger(value) || (value as number) < 0) throw new TypeError("Morphogenesis strategy integration time is invalid"); return value as number; }
+function positive(value: unknown): number { if (!Number.isSafeInteger(value) || (value as number) < 1) throw new TypeError("Morphogenesis strategy integration positive integer is invalid"); return value as number; }
+function basisPoints(value: unknown): number { const result = nonNegative(value); if (result > 10_000) throw new TypeError("Morphogenesis strategy integration basis points are invalid"); return result; }
 function one<T extends string>(value: unknown, allowed: ReadonlySet<string>): T { if (typeof value !== "string" || !allowed.has(value)) throw new TypeError("Morphogenesis strategy integration kind is invalid"); return value as T; }
 function shas(values: readonly unknown[], minimum: number, maximum: number) { const result = [...new Set(values.map(sha))].sort(); if (result.length < minimum || result.length > maximum || result.length !== values.length) throw new TypeError("Morphogenesis strategy integration digest set is invalid"); return freeze(result); }
 function digest(domain: string, value: unknown): PlanningDigestV1 { return digestPlanningJsonV1(domain as never, value as PlanningJson); }

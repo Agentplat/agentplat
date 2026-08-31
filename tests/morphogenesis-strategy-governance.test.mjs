@@ -13,6 +13,9 @@ import {
   createMorphogenesisStrategyDefinitionV3,
   createMorphogenesisStrategyGovernancePolicyV3,
   createMorphogenesisStrategyReviewV3,
+  createMorphogenesisStrategyContextV3,
+  createGovernedMorphogenesisStrategySelectionRequestV3,
+  createMorphogenesisStrategyGovernancePriorSourceV3,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   MorphogenesisStrategyMeshPublisherV3,
@@ -203,6 +206,43 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
   state = await runtime.reviewAndApply({ recommendation: rollback, logicalTimeMs: 32 });
   assert.equal(state.activeStrategyId, baseline.strategyId);
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "degraded");
+  const selectionContext = createMorphogenesisStrategyContextV3({
+    scopeDigest: sha("scope"), morphologyEpoch: 2,
+    currentSnapshotDigest: sha("snapshot"), needDigest: sha("need"),
+    targetDigest: sha("target"), morphogenesisPolicyDigest: sha("morphogenesis-policy"),
+    riskDigest: sha("risk"), costEnvelopeDigest: sha("cost"), deadlineDigest: sha("deadline"),
+  });
+  const governedRequest = createGovernedMorphogenesisStrategySelectionRequestV3({
+    requestId: "request:governed-selection",
+    scope: { tenantId: "tenant", meshId: "mesh", policyDomainId: "policy",
+      missionIntentId: "mission", objectiveId: "objective",
+      workItemId: null, workItemRevision: null },
+    context: selectionContext,
+    catalog,
+    governanceState: state,
+    governancePolicy: policy,
+    stateKey: runtime.options.stateKey,
+    logicalTimeMs: 33,
+  });
+  assert.deepEqual(governedRequest.availableStrategyIds, [baseline.strategyId]);
+  const priorSource = createMorphogenesisStrategyGovernancePriorSourceV3({
+    sourceId: "source:governance-prior",
+    sourceVersion: 1,
+    sourceImplementationDigest: sha("governance-prior"),
+    stateKey: runtime.options.stateKey,
+    policy,
+    catalog,
+    confidenceBps: 9_000,
+    requestedInfluenceBps: 1_000,
+    maximumTtlMs: 20,
+    async resolveState() { return state; },
+  });
+  const priors = await priorSource.resolve({
+    request: governedRequest,
+    strategies: catalog.localCatalog.strategies,
+  });
+  assert.equal(priors[0].strategyId, baseline.strategyId);
+  assert.equal("authorizationDigest" in priors[0], false);
 
   const retire = await runtime.recommend(recommendationInput({
     action: "retire", target: adaptive.strategyId,

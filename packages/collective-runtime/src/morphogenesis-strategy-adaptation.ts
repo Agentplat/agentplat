@@ -192,6 +192,7 @@ export function createMorphogenesisStrategySelectionRequestV3(input: {
   readonly context: MorphogenesisStrategyContextV3;
   readonly catalog: MorphogenesisStrategyCatalogV3;
   readonly logicalTimeMs: number;
+  readonly availableStrategyIds?: readonly AgentPlatID[];
 }): LocalStrategySelectionRequestV1 {
   const catalog = validateCatalog(input.catalog);
   const context = validateContext(input.context);
@@ -205,7 +206,13 @@ export function createMorphogenesisStrategySelectionRequestV3(input: {
     scope: input.scope,
     logicalTimeMs: input.logicalTimeMs,
     contextDigest: context.contextDigest,
-    availableStrategyIds: catalog.strategies.map(({ strategy }) => strategy.strategyId),
+    availableStrategyIds: (() => {
+      const catalogIds = catalog.strategies.map(({ strategy }) => strategy.strategyId);
+      const selected = input.availableStrategyIds ?? catalogIds;
+      if (selected.some((strategyId) => !catalogIds.includes(strategyId)))
+        fail("Morphogenesis available strategy is outside the catalog");
+      return selected;
+    })(),
   });
 }
 

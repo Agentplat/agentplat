@@ -54,6 +54,8 @@ import {
   validateMorphogenesisStrategyGovernanceStateV3,
   createMorphogenesisStrategyTrustSafetySourceV3,
   createMorphogenesisStrategyMemoryRecordV3,
+  createGovernedMorphogenesisStrategySelectionRequestV3,
+  createMorphogenesisStrategyGovernancePriorSourceV3,
   InMemoryMorphogenesisStrategyMemoryPortV3,
   MorphogenesisStrategyCounterfactualRuntimeV3,
   DeterministicMorphogenesisStrategyCounterfactualPortV3,
@@ -224,6 +226,8 @@ void InMemoryMorphogenesisStrategyGovernanceStoreV3;
 void validateMorphogenesisStrategyGovernanceStateV3;
 void createMorphogenesisStrategyTrustSafetySourceV3;
 void createMorphogenesisStrategyMemoryRecordV3;
+void createGovernedMorphogenesisStrategySelectionRequestV3;
+void createMorphogenesisStrategyGovernancePriorSourceV3;
 void InMemoryMorphogenesisStrategyMemoryPortV3;
 void MorphogenesisStrategyCounterfactualRuntimeV3;
 void DeterministicMorphogenesisStrategyCounterfactualPortV3;

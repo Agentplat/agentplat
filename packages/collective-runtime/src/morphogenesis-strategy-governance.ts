@@ -7,8 +7,10 @@ import type { AgentPlatID } from "@agentplat/core";
 
 import {
   createMorphogenesisStrategyCatalogV3,
+  createMorphogenesisStrategySelectionRequestV3,
   type MorphogenesisStrategyCatalogV3,
 } from "./morphogenesis-strategy-adaptation.js";
+import type { LocalStrategyScopeV1 } from "./strategy-adaptation-contracts.js";
 
 export type MorphogenesisStrategyGovernanceActionV3 =
   "promote" | "degrade" | "retire" | "rollback";
@@ -428,6 +430,35 @@ export class InMemoryMorphogenesisStrategyGovernanceStoreV3
     this.#states.set(input.state.stateKey, clone(input.state));
     return true;
   }
+}
+
+export function createGovernedMorphogenesisStrategySelectionRequestV3(input: {
+  readonly requestId: AgentPlatID;
+  readonly scope: LocalStrategyScopeV1;
+  readonly context: Parameters<typeof createMorphogenesisStrategySelectionRequestV3>[0]["context"];
+  readonly catalog: MorphogenesisStrategyCatalogV3;
+  readonly governanceState: MorphogenesisStrategyGovernanceStateV3;
+  readonly governancePolicy: MorphogenesisStrategyGovernancePolicyV3;
+  readonly stateKey: AgentPlatID;
+  readonly logicalTimeMs: number;
+}) {
+  const state = validateMorphogenesisStrategyGovernanceStateV3(
+    input.governanceState,
+    { policy: input.governancePolicy, catalog: input.catalog, stateKey: input.stateKey },
+  );
+  const availableStrategyIds = state.entries
+    .filter(({ status }) => status !== "retired" && status !== "degraded")
+    .map(({ strategyId }) => strategyId);
+  if (!availableStrategyIds.includes(state.baselineStrategyId))
+    fail("Morphogenesis governed strategy baseline is unavailable");
+  return createMorphogenesisStrategySelectionRequestV3({
+    requestId: input.requestId,
+    scope: input.scope,
+    context: input.context,
+    catalog: input.catalog,
+    logicalTimeMs: input.logicalTimeMs,
+    availableStrategyIds,
+  });
 }
 
 function createRecommendation(input: Omit<MorphogenesisStrategyRecommendationV3, "schemaVersion" | "advisoryOnly" | "recommendationDigest">) {
