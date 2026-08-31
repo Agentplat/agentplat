@@ -43,3 +43,9 @@ declarative candidates. Generation, reproducible simulation, independent
 certification, Blueprint/Trust/Inference eligibility, governance review,
 experimental canary and catalog materialization are distinct boundaries. No
 stage installs code or creates execution authority.
+
+Morphogenesis Governed Agent Genesis V6 composes V2 synthesized profiles with
+the existing Agent Factory, Membership, attestation, retirement, Rooms, Mesh
+and Work owners. Sandbox and probation remain authority-free; reviewed
+admission, Membership, attestation and Work issuance are separate durable
+boundaries.

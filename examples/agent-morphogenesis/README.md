@@ -58,6 +58,12 @@ Run the V5 governed strategy-synthesis example:
 node examples/agent-morphogenesis/governed-strategy-synthesis.mjs
 ```
 
+Run the V6 governed Agent Genesis example:
+
+```sh
+node examples/agent-morphogenesis/governed-agent-genesis.mjs
+```
+
 It selects from an immutable catalog through the existing bounded learner,
 binds the selected generator to an operator plan, converts one observed outcome
 into comparable feedback and applies a separately reviewed promotion. It does
