@@ -281,6 +281,8 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "morphogenesis-vertical-stage-receipt-v1",
   "morphogenesis-vertical-compensation-receipt-v1",
   "morphogenesis-vertical-state-v1",
+  "morphogenesis-hardening-telemetry-v1",
+  "morphogenesis-hardening-alert-v1",
   "morphogenesis-organizational-governance-policy-v7",
   "morphogenesis-organizational-canary-receipt-v7",
   "morphogenesis-organizational-recommendation-v7",

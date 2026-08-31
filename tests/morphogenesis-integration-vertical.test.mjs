@@ -5,6 +5,8 @@ import {
   InMemoryMorphogenesisVerticalStoreV1,
   MORPHOGENESIS_VERTICAL_STAGES_V1,
   MorphogenesisIntegrationVerticalRuntimeV1,
+  createMorphogenesisHardeningTelemetryV1,
+  evaluateMorphogenesisHardeningAlertsV1,
 } from "@agentplat/collective-runtime/morphogenesis";
 const sha = (v) =>
   digestPlanningJsonV1("morphogenesis-strategy-context-v3", { v });
@@ -111,6 +113,12 @@ test("hardening vertical compensates applied stages in reverse", async () => {
     ),
     [...state.receipts].reverse().map(({ receiptDigest }) => receiptDigest),
   );
+  const telemetry = createMorphogenesisHardeningTelemetryV1({ vertical: state,
+    logicalTimeMs: 30 });
+  assert.equal(telemetry.compensatedStages, 3);
+  assert.deepEqual(evaluateMorphogenesisHardeningAlertsV1({ telemetry,
+    verticalLogicalTimeHighWaterMs: state.logicalTimeHighWaterMs,
+    stallThresholdMs: 5 }).map(({ kind }) => kind), ["vertical_rolled_back"]);
 });
 test("hardening vertical reconciles a lost response without a second effect", async () => {
   const configured = ports();
