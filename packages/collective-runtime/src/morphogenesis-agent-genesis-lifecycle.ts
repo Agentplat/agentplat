@@ -6,17 +6,22 @@ import {
 import type { AgentPlatID } from "@agentplat/core";
 import type { MorphogenesisStrategyReviewRouteV3 } from
   "./morphogenesis-strategy-governance.js";
-import type {
-  MorphogenesisAgentAttestationPortV1,
-  MorphogenesisAgentAttestationV1,
-  MorphogenesisAgentLifecyclePortV1,
-  MorphogenesisLifecycleAgentV1,
+import {
+  createMorphogenesisAgentAttestationV1,
+  createMorphogenesisLifecycleAgentV1,
+  type MorphogenesisAgentAttestationPortV1,
+  type MorphogenesisAgentAttestationV1,
+  type MorphogenesisAgentLifecyclePortV1,
+  type MorphogenesisLifecycleAgentV1,
 } from "./morphogenesis-execution.js";
-import type { MorphogenesisScopeV1 } from "./morphogenesis-contracts.js";
 import type {
-  MorphogenesisAgentRetirementPortV1,
-  MorphogenesisAuthorityFenceReceiptV1,
-  MorphogenesisTerminalAgentReceiptV1,
+  MorphogenesisScopeV1,
+} from "./morphogenesis-contracts.js";
+import {
+  createMorphogenesisTerminalAgentReceiptV1,
+  type MorphogenesisAgentRetirementPortV1,
+  type MorphogenesisAuthorityFenceReceiptV1,
+  type MorphogenesisTerminalAgentReceiptV1,
 } from "./morphogenesis-retirement.js";
 import {
   MorphogenesisAgentGenesisSandboxRuntimeV6,
@@ -523,6 +528,130 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
   }
 }
 
+export function validateMorphogenesisAgentGenesisLifecyclePolicyV6(
+  value: MorphogenesisAgentGenesisLifecyclePolicyV6) { return validatePolicy(value); }
+
+export function validateMorphogenesisAgentGenesisLifecycleStateV6(
+  value: MorphogenesisAgentGenesisLifecycleStateV6,
+  input: { readonly policy: MorphogenesisAgentGenesisLifecyclePolicyV6;
+    readonly genesisPolicy: MorphogenesisAgentGenesisPolicyV6 }) {
+  const policy = validatePolicy(input.policy);
+  const genesisPolicy = validateMorphogenesisAgentGenesisPolicyV6(input.genesisPolicy);
+  if (policy.genesisPolicyDigest !== genesisPolicy.policyDigest ||
+      value.schemaVersion !== 6 || value.policyDigest !== policy.policyDigest)
+    fail("Agent Genesis lifecycle state policy is invalid");
+  const entries = value.entries.map((entry) => validateEntry(entry, genesisPolicy));
+  if (new Set(entries.map(({ draft }) => draft.draftDigest)).size !== entries.length)
+    fail("Agent Genesis lifecycle entries are duplicated");
+  const pendingRecommendations = value.pendingRecommendations.map((recommendation) => {
+    const normalized = recommendationRecord({ recommendationId: recommendation.recommendationId,
+      action: recommendation.action, draftDigest: recommendation.draftDigest,
+      proposerId: recommendation.proposerId,
+      proposerImplementationDigest: recommendation.proposerImplementationDigest,
+      reviewRoute: recommendation.reviewRoute, evidenceDigests: recommendation.evidenceDigests,
+      proposedAtLogicalMs: recommendation.proposedAtLogicalMs,
+      expiresAtLogicalMs: recommendation.expiresAtLogicalMs },
+    { stateDigest: recommendation.stateDigest, revision: recommendation.stateRevision } as
+      MorphogenesisAgentGenesisLifecycleStateV6);
+    if (normalized.recommendationDigest !== recommendation.recommendationDigest ||
+        recommendation.advisoryOnly !== true)
+      fail("Agent Genesis recommendation state is invalid");
+    return normalized;
+  });
+  const reviews = value.reviews.map((review) => {
+    const { schemaVersion: _s, reviewDigest, ...body } = review;
+    const normalized = createMorphogenesisAgentGenesisReviewV6(body);
+    if (normalized.reviewDigest !== reviewDigest) fail("Agent Genesis review state is invalid");
+    return normalized;
+  });
+  const transitions = value.transitions.map((transition) => {
+    const { transitionDigest, ...body } = transition;
+    if (transition.schemaVersion !== 6 ||
+        transitionDigest !== digest("morphogenesis-agent-genesis-transition-v6", body))
+      fail("Agent Genesis transition state is invalid");
+    one(transition.action, ACTIONS, "Agent Genesis action");
+    one(transition.priorStatus, STATUSES, "Agent Genesis prior status");
+    one(transition.nextStatus, STATUSES, "Agent Genesis next status");
+    return freeze(structuredClone(transition));
+  });
+  const rebuilt = stateRecord({ stateKey: id(value.stateKey), policyDigest: value.policyDigest,
+    entries, pendingRecommendations, reviews, transitions,
+    revision: nonNegative(value.revision),
+    logicalTimeHighWaterMs: nonNegative(value.logicalTimeHighWaterMs),
+    predecessorStateDigest: value.predecessorStateDigest === null ? null
+      : sha(value.predecessorStateDigest) });
+  if (rebuilt.stateDigest !== value.stateDigest)
+    fail("Agent Genesis lifecycle state digest is invalid");
+  return rebuilt;
+}
+
+function validateEntry(value: MorphogenesisAgentGenesisEntryV6,
+  policy: MorphogenesisAgentGenesisPolicyV6) {
+  const draft = validateMorphogenesisAgentGenesisDraftV6(value.draft, policy);
+  const sandboxReceipt = value.sandboxReceipt === null ? null : (() => {
+    const { receiptDigest, ...body } = value.sandboxReceipt!;
+    if (receiptDigest !== digest("morphogenesis-agent-genesis-sandbox-receipt-v6", body) ||
+        value.sandboxReceipt!.draftDigest !== draft.draftDigest ||
+        value.sandboxReceipt!.profileDigest !== draft.profile.profileDigest ||
+        value.sandboxReceipt!.membershipGranted !== false ||
+        value.sandboxReceipt!.workGranted !== false ||
+        value.sandboxReceipt!.actionAuthorityGranted !== false)
+      fail("Agent Genesis sandbox state is invalid");
+    return freeze(structuredClone(value.sandboxReceipt!));
+  })();
+  const probationReceipts = value.probationReceipts.map((receipt) => {
+    const { receiptDigest, ...body } = receipt;
+    if (receiptDigest !== digest("morphogenesis-agent-genesis-probation-receipt-v6", body) ||
+        receipt.draftDigest !== draft.draftDigest ||
+        receipt.sandboxReceiptDigest !== sandboxReceipt?.receiptDigest)
+      fail("Agent Genesis probation state is invalid");
+    return freeze(structuredClone(receipt));
+  });
+  if (new Set(probationReceipts.map(({ observationId }) => observationId)).size !==
+      probationReceipts.length) fail("Agent Genesis probation observations are duplicated");
+  const lifecycleAgent = value.lifecycleAgent === null ? null : (() => {
+    const { schemaVersion: _s, agentDigest, ...body } = value.lifecycleAgent!;
+    const normalized = createMorphogenesisLifecycleAgentV1(body);
+    if (normalized.agentDigest !== agentDigest || normalized.source !== "synthesized_created")
+      fail("Agent Genesis lifecycle agent state is invalid"); return normalized;
+  })();
+  const attestation = value.attestation === null ? null : (() => {
+    const { schemaVersion: _s, attestationDigest, ...body } = value.attestation!;
+    const normalized = createMorphogenesisAgentAttestationV1(body);
+    if (normalized.attestationDigest !== attestationDigest ||
+        normalized.agentDigest !== lifecycleAgent?.agentDigest ||
+        normalized.profileDigest !== draft.profile.profileDigest)
+      fail("Agent Genesis attestation state is invalid"); return normalized;
+  })();
+  const terminalReceipt = value.terminalReceipt === null ? null : (() => {
+    const { schemaVersion: _s, terminalReceiptDigest, ...body } = value.terminalReceipt!;
+    const normalized = createMorphogenesisTerminalAgentReceiptV1(body);
+    if (normalized.terminalReceiptDigest !== terminalReceiptDigest ||
+        normalized.agentDigest !== lifecycleAgent?.agentDigest)
+      fail("Agent Genesis terminal state is invalid"); return normalized;
+  })();
+  const status = one(value.status, STATUSES, "Agent Genesis status");
+  if ((value.externalAdmissionApplied && (!lifecycleAgent || !attestation || terminalReceipt)) ||
+      (status === "retired" && value.externalAdmissionApplied) ||
+      value.workGranted !== false || value.actionAuthorityGranted !== false)
+    fail("Agent Genesis external authority state is invalid");
+  return freeze({ ...value, schemaVersion: 6 as const, draft,
+    evaluationDigest: sha(value.evaluationDigest),
+    evaluationExpiresAtLogicalMs: positive(value.evaluationExpiresAtLogicalMs), status,
+    statusRevision: positive(value.statusRevision), sandboxReceipt,
+    probationReceipts: freeze(probationReceipts), lifecycleAgent, attestation, terminalReceipt,
+    pendingSandboxOperationId: value.pendingSandboxOperationId === null ? null
+      : id(value.pendingSandboxOperationId),
+    pendingMembershipOperationId: value.pendingMembershipOperationId === null ? null
+      : id(value.pendingMembershipOperationId),
+    pendingAttestationOperationId: value.pendingAttestationOperationId === null ? null
+      : id(value.pendingAttestationOperationId),
+    pendingCompensationOperationId: value.pendingCompensationOperationId === null ? null
+      : id(value.pendingCompensationOperationId),
+    lastTransitionDigest: value.lastTransitionDigest === null ? null
+      : sha(value.lastTransitionDigest) });
+}
+
 function initial(stateKey: AgentPlatID, policy: MorphogenesisAgentGenesisLifecyclePolicyV6,
   logicalTimeMs: number) { return stateRecord({ stateKey, policyDigest: policy.policyDigest,
     entries: [], pendingRecommendations: [], reviews: [], transitions: [], revision: 0,
@@ -618,6 +747,8 @@ const ROUTES = new Set<MorphogenesisStrategyReviewRouteV3>(
   ["authorized_agent", "authorized_person", "collective"]);
 const OUTCOMES = new Set<MorphogenesisAgentGenesisProbationReceiptV6["outcome"]>(
   ["success", "failure", "unsafe", "indeterminate"]);
+const STATUSES = new Set<MorphogenesisAgentGenesisStatusV6>(
+  ["draft", "sandboxed", "probationary", "admitted", "suspended", "retired"]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) fail("Agent Genesis lifecycle ID is invalid"); return value as AgentPlatID; }

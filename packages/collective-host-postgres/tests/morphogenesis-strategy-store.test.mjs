@@ -25,6 +25,11 @@ import {
   createMorphogenesisSynthesisGovernancePolicyV5,
   MORPHOGENESIS_SYNTHESIS_THREATS_V5,
   createMorphogenesisSynthesisThreatAssessmentV5,
+  MORPHOGENESIS_AGENT_GENESIS_THREATS_V6,
+  MorphogenesisAgentGenesisLifecycleRuntimeV6,
+  MorphogenesisAgentGenesisSandboxRuntimeV6,
+  createMorphogenesisAgentGenesisPolicyV6,
+  createMorphogenesisAgentGenesisLifecyclePolicyV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   createPeerStrategyEvidenceExchangePolicyV1,
@@ -42,6 +47,7 @@ import {
   PostgresStrategyConvergenceStoreV1,
   PostgresMorphogenesisSynthesisGovernanceStoreV5,
   PostgresMorphogenesisSynthesisSimulationStoreV5,
+  PostgresMorphogenesisAgentGenesisLifecycleStoreV6,
 } from "../dist/morphogenesis-strategy.js";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -424,4 +430,45 @@ test("PostgreSQL V5 simulation reports are immutable and witness guarded", async
   assert.equal(await store.save(report), true);
   witness.heads.clear();
   await assert.rejects(store.load(report.reportId), /witness diverged/);
+});
+
+test("PostgreSQL V6 Agent Genesis lifecycle is digest and witness guarded", async () => {
+  const pool = new FakePool(); const witness = new Witness();
+  const options = { scopeId: "tenant:agent-genesis-v6", rollbackWitness: witness };
+  const genesisPolicy = createMorphogenesisAgentGenesisPolicyV6({ schemaVersion: 6,
+    policyId: "policy:agent-genesis", policyVersion: 1, parentPolicyDigest: null,
+    morphogenesisPolicyDigest: sha("morphogenesis-policy"),
+    strategySynthesisPolicyDigest: sha("strategy-synthesis"),
+    admittedGeneratorImplementationDigests: [sha("generator")],
+    requiredThreats: MORPHOGENESIS_AGENT_GENESIS_THREATS_V6,
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    maximumResourceBudgetUnits: 20, maximumInteractionBudgetUnits: 30,
+    maximumActionBudgetUnits: 3, maximumDraftTtlMs: 100,
+    maximumProbationInteractions: 10, maximumSpawnDepth: 0,
+    minimumAssessmentConfidenceBps: 8_000, minimumSafetyMicros: 800_000,
+    maximumAssessmentTtlMs: 50 });
+  const policy = createMorphogenesisAgentGenesisLifecyclePolicyV6({ schemaVersion: 6,
+    policyId: "policy:agent-genesis-lifecycle", policyVersion: 1,
+    genesisPolicyDigest: genesisPolicy.policyDigest,
+    allowedActions: ["start_probation", "admit", "suspend", "resume", "retire", "rollback"],
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    requireIndependentReviewer: true, maximumProbationObservations: 4,
+    minimumProbationObservations: 2, minimumProbationSuccesses: 2,
+    maximumUnsafeObservations: 0, maximumPendingRecommendations: 8,
+    maximumHistory: 16, maximumCommitAttempts: 4 });
+  const store = new PostgresMorphogenesisAgentGenesisLifecycleStoreV6({
+    pool, options, policy, genesisPolicy });
+  const runtime = new MorphogenesisAgentGenesisLifecycleRuntimeV6({
+    stateKey: "state:agent-genesis", policy, genesisPolicy, store,
+    sandbox: new MorphogenesisAgentGenesisSandboxRuntimeV6({ sandbox: {
+      sandboxImplementationDigest: sha("sandbox"), async prepare() { throw new Error("unused"); } } }),
+    reviews: { async review() { return null; } } });
+  const initial = await runtime.state(10);
+  assert.equal(await store.save({ state: initial, expectedRevision: null,
+    expectedStateDigest: null }), true);
+  assert.equal((await new PostgresMorphogenesisAgentGenesisLifecycleStoreV6({
+    pool, options, policy, genesisPolicy }).load(initial.stateKey)).stateDigest,
+  initial.stateDigest);
+  witness.heads.clear();
+  await assert.rejects(store.load(initial.stateKey), /witness diverged/);
 });

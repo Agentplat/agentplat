@@ -32,6 +32,12 @@ import {
   validateMorphogenesisSynthesisSimulationReportV5,
   type MorphogenesisSynthesisSimulationReportV5,
   type MorphogenesisSynthesisSimulationStoreV5,
+  validateMorphogenesisAgentGenesisLifecyclePolicyV6,
+  validateMorphogenesisAgentGenesisLifecycleStateV6,
+  type MorphogenesisAgentGenesisLifecyclePolicyV6,
+  type MorphogenesisAgentGenesisLifecycleStateV6,
+  type MorphogenesisAgentGenesisLifecycleStoreV6,
+  type MorphogenesisAgentGenesisPolicyV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   validatePeerStrategyEvidenceExchangePolicyV1,
@@ -294,6 +300,29 @@ export class PostgresMorphogenesisSynthesisGovernanceStoreV5
   }
 }
 
+export class PostgresMorphogenesisAgentGenesisLifecycleStoreV6
+  implements MorphogenesisAgentGenesisLifecycleStoreV6
+{
+  readonly #repository: StrategyStateRepository<MorphogenesisAgentGenesisLifecycleStateV6>;
+  constructor(input: { readonly pool: Pool;
+    readonly options: MorphogenesisPostgresStoreOptionsV1;
+    readonly policy: MorphogenesisAgentGenesisLifecyclePolicyV6;
+    readonly genesisPolicy: MorphogenesisAgentGenesisPolicyV6 }) {
+    const policy = validateMorphogenesisAgentGenesisLifecyclePolicyV6(input.policy);
+    this.#repository = new StrategyStateRepository({ pool: input.pool, options: input.options,
+      stateKind: "morphogenesis-agent-genesis-lifecycle",
+      validate: (value) => validateMorphogenesisAgentGenesisLifecycleStateV6(
+        value as MorphogenesisAgentGenesisLifecycleStateV6,
+        { policy, genesisPolicy: input.genesisPolicy }) });
+  }
+  load(stateKey: string) { return this.#repository.load(stateKey); }
+  save(input: { readonly state: MorphogenesisAgentGenesisLifecycleStateV6;
+    readonly expectedRevision: number | null;
+    readonly expectedStateDigest: `sha256:${string}` | null }) {
+    return this.#repository.save(input);
+  }
+}
+
 type StrategyState = {
   readonly stateKey: string;
   readonly revision: number;
@@ -311,7 +340,8 @@ class StrategyStateRepository<T extends StrategyState> {
       | "morphogenesis-strategy-governance"
       | "morphogenesis-strategy-evidence-exchange"
       | "morphogenesis-strategy-convergence"
-      | "morphogenesis-strategy-synthesis-governance";
+      | "morphogenesis-strategy-synthesis-governance"
+      | "morphogenesis-agent-genesis-lifecycle";
     readonly validate: (input: unknown) => T;
   }) {
     if (!input.pool || !input.options.scopeId || !input.options.rollbackWitness)

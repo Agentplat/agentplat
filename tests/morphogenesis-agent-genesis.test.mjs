@@ -17,6 +17,10 @@ import {
   MorphogenesisAgentGenesisLifecycleRuntimeV6,
   createMorphogenesisAgentGenesisLifecyclePolicyV6,
   createMorphogenesisAgentGenesisReviewV6,
+  validateMorphogenesisAgentGenesisLifecycleStateV6,
+  createMorphogenesisLifecycleAgentV1,
+  createMorphogenesisAgentAttestationV1,
+  createMorphogenesisTerminalAgentReceiptV1,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -230,24 +234,23 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     const attestations = new Map();
     const lifecycle = { async createAndEnroll({ operationId, profile }) {
       const retained = agents.get(operationId); if (retained) return retained;
-      const agent = Object.freeze({ schemaVersion: 1, agentId: `agent:${route}`,
+      const agent = createMorphogenesisLifecycleAgentV1({ agentId: `agent:${route}`,
         peerId: `peer:${route}`, instanceId: `instance:${route}`,
         lineageDigest: sha(`lineage:${route}`), capabilityKeys: profile.capabilityKeys,
         roleDefinitionDigest: profile.roleDefinitionDigest,
         membershipConfigurationDigest: sha(`membership:${route}`), membershipEpoch: 1,
-        source: "synthesized_created", agentDigest: sha(`agent:${route}`) });
+        source: "synthesized_created" });
       agents.set(operationId, agent); return agent;
     }, async reconcileCreateAndEnroll(input) { return this.createAndEnroll(input); },
     async eligibility() { return null; } };
     const attestation = { async attest({ operationId, agent, profile, logicalTimeMs }) {
       const retained = attestations.get(operationId); if (retained) return retained;
-      const receipt = Object.freeze({ schemaVersion: 1, operationId,
+      const receipt = createMorphogenesisAgentAttestationV1({ operationId,
         agentDigest: agent.agentDigest, profileDigest: profile.profileDigest,
         runtimeAttestationDigest: sha(`runtime:${route}`),
         capabilityAssessmentDigests: [sha(`capability-assessment:${route}`)],
         eligibilityEvidenceDigests: [sha(`eligibility:${route}`)],
-        attestedAtLogicalMs: logicalTimeMs, validUntilLogicalMs: 65,
-        attestationDigest: sha(`attestation:${route}`) });
+        attestedAtLogicalMs: logicalTimeMs, validUntilLogicalMs: 65 });
       attestations.set(operationId, receipt); return receipt;
     }, async reconcile(input) { return this.attest(input); } };
     const terminal = new Map();
@@ -255,12 +258,11 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     const retirement = { async retire({ operationId, agent, logicalTimeMs }) {
       const retained = terminal.get(operationId); if (retained) return retained;
       retirementEffects += 1;
-      const receipt = Object.freeze({ schemaVersion: 1, operationId,
+      const receipt = createMorphogenesisTerminalAgentReceiptV1({ operationId,
         agentDigest: agent.agentDigest, disposition: "retired",
         membershipConfigurationDigest: sha(`membership:retired:${route}`),
         membershipEpoch: 2, lifecycleReceiptDigest: sha(`lifecycle:retired:${route}`),
-        terminatedAtLogicalMs: logicalTimeMs,
-        terminalReceiptDigest: sha(`terminal:${route}`) });
+        terminatedAtLogicalMs: logicalTimeMs });
       terminal.set(operationId, receipt); return receipt;
     }, async reconcile(input) { return this.retire(input); } };
     const runtime = new MorphogenesisAgentGenesisLifecycleRuntimeV6({
@@ -335,6 +337,13 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     assert.equal(retired.status, "retired");
     assert.equal(retired.externalAdmissionApplied, false);
     assert.equal(retirementEffects, 1);
+    const state = await runtime.state(39);
+    assert.equal(validateMorphogenesisAgentGenesisLifecycleStateV6(state, {
+      policy: lifecyclePolicy, genesisPolicy: value.policy,
+    }).entries[0].status, "retired");
+    assert.throws(() => validateMorphogenesisAgentGenesisLifecycleStateV6({
+      ...state, entries: [{ ...state.entries[0], workGranted: true }],
+    }, { policy: lifecyclePolicy, genesisPolicy: value.policy }), /authority state/);
   }
   assert.equal(effects, 3);
 });

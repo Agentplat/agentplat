@@ -30,6 +30,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-strategy-convergence"
       | "morphogenesis-strategy-synthesis-governance"
       | "morphogenesis-synthesis-simulation-report"
+      | "morphogenesis-agent-genesis-lifecycle"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
@@ -51,6 +52,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-strategy-convergence"
       | "morphogenesis-strategy-synthesis-governance"
       | "morphogenesis-synthesis-simulation-report"
+      | "morphogenesis-agent-genesis-lifecycle"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;
