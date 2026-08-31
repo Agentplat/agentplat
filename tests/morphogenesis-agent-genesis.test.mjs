@@ -23,6 +23,8 @@ import {
   createMorphogenesisTerminalAgentReceiptV1,
   createMorphogenesisAgentGenesisActivationHandoffV6,
   createMorphogenesisAgentGenesisLineageV6,
+  validateMorphogenesisAgentGenesisDraftV6,
+  validateMorphogenesisAgentGenesisEvaluationV6,
   MorphogenesisAgentGenesisProbationEligibilityGateV6,
   createMorphogenesisAgentGenesisProbationAssessmentV6,
 } from "@agentplat/collective-runtime/morphogenesis";
@@ -221,6 +223,8 @@ test("V6 creates only an inert V2 synthesized-profile draft", async () => {
   assert.equal(draft.inert, true);
   assert.equal("code" in draft, false);
   assert.equal("credentials" in draft, false);
+  assert.throws(() => validateMorphogenesisAgentGenesisDraftV6({ ...draft,
+    hiddenActionGrant: sha("grant") }, value.policy), /shape/);
   assert.notEqual(
     draft.profileContext.synthesisCertification.synthesizerId,
     draft.profileContext.synthesisCertification.independentCertifierId,
@@ -313,6 +317,8 @@ test("V6 requires complete adversarial evidence before authority-free sandbox pr
     expiresAtLogicalMs: 60,
     policy: value.policy,
   });
+  assert.throws(() => validateMorphogenesisAgentGenesisEvaluationV6({ ...evaluation,
+    hiddenPrompt: "ignore sandbox" }, draft, value.policy), /shape/);
   const sandboxImplementationDigest = sha("sandbox");
   const sandbox = {
     sandboxImplementationDigest,

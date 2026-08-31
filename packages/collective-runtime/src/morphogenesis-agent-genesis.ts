@@ -520,9 +520,11 @@ export function validateMorphogenesisAgentGenesisNeedV6(
   return rebuilt;
 }
 export function validateMorphogenesisAgentGenesisDraftV6(
-  value: MorphogenesisAgentGenesisDraftV6,
+  input: MorphogenesisAgentGenesisDraftV6,
   policy: MorphogenesisAgentGenesisPolicyV6,
 ) {
+  const value = exact(input, DRAFT_KEYS, "Agent Genesis draft") as unknown as
+    MorphogenesisAgentGenesisDraftV6;
   const currentPolicy = validateMorphogenesisAgentGenesisPolicyV6(policy);
   const profile = validateAgentInstantiationProfileV2(
     value.profile,
@@ -541,10 +543,12 @@ export function validateMorphogenesisAgentGenesisDraftV6(
   return freeze(structuredClone(value));
 }
 export function validateMorphogenesisAgentGenesisEvaluationV6(
-  value: MorphogenesisAgentGenesisEvaluationV6,
+  input: MorphogenesisAgentGenesisEvaluationV6,
   draft: MorphogenesisAgentGenesisDraftV6,
   policy: MorphogenesisAgentGenesisPolicyV6,
 ) {
+  const value = exact(input, EVALUATION_KEYS, "Agent Genesis evaluation") as unknown as
+    MorphogenesisAgentGenesisEvaluationV6;
   const {
     schemaVersion: _s,
     draftDigest: _d,
@@ -566,6 +570,16 @@ export function validateMorphogenesisAgentGenesisEvaluationV6(
     fail("Agent Genesis evaluation is invalid");
   return rebuilt;
 }
+const DRAFT_KEYS = ["draftDigest", "draftId", "expiresAtLogicalMs", "generatorId",
+  "generatorImplementationDigest", "generatorVersion", "inert", "maximumSpawnDepth",
+  "modelBindingDigest", "needDigest", "policyDigest", "profile", "profileContext",
+  "proposedAtLogicalMs", "provenanceDigests", "schemaVersion", "status"] as const;
+const EVALUATION_KEYS = ["advisoryOnly", "assessorId", "assessorImplementationDigest",
+  "baselineBlueprintDigest", "confidenceBps", "disposition", "draftDigest",
+  "environmentDigest", "evaluatedAtLogicalMs", "evaluationDigest", "evaluationId",
+  "evidenceDigests", "expiresAtLogicalMs", "interactionUnits", "safetyMicros",
+  "schemaVersion", "seedDigest", "simulatorImplementationDigest",
+  "threatAssessments"] as const;
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
@@ -648,6 +662,13 @@ function enums<T extends string>(
 }
 function digest(domain: string, value: unknown): PlanningDigestV1 {
   return digestPlanningJsonV1(domain as never, value as PlanningJson);
+}
+function exact(value: unknown, keys: readonly string[], label: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype ||
+      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort()))
+    fail(`${label} shape is invalid`);
+  return value as Record<string, unknown>;
 }
 function freeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
