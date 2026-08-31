@@ -21,7 +21,15 @@ import {
   createMorphogenesisLifecycleAgentV1,
   createMorphogenesisAgentAttestationV1,
   createMorphogenesisTerminalAgentReceiptV1,
+  createMorphogenesisAgentGenesisActivationHandoffV6,
 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  MorphogenesisAgentGenesisMeshPublisherV6,
+  projectMorphogenesisAgentGenesisDraftToMeshV6,
+  projectMorphogenesisAgentGenesisDraftToRoomArtifactV6,
+  projectMorphogenesisAgentGenesisRecommendationToMeshV6,
+  projectMorphogenesisAgentGenesisRecommendationToRoomArtifactV6,
+} from "@agentplat/rooms-mesh/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 
@@ -322,6 +330,32 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     assert.equal(admitted.externalAdmissionApplied, true);
     assert.equal(admitted.workGranted, false);
     assert.equal(admitted.actionAuthorityGranted, false);
+    const handoff = createMorphogenesisAgentGenesisActivationHandoffV6({
+      handoffId: `handoff:${route}`, entry: admitted, logicalTimeMs: 35,
+      expiresAtLogicalMs: 60 });
+    assert.equal(handoff.workGranted, false);
+    assert.equal(handoff.actionAuthorityGranted, false);
+    const room = { tenantId: "tenant:test", id: "room:test", status: "active" };
+    assert.equal(projectMorphogenesisAgentGenesisDraftToRoomArtifactV6({
+      room, scope, draft, policy: value.policy,
+    }).input.metadata.morphogenesisStrategySchemaVersion, 6);
+    assert.equal(projectMorphogenesisAgentGenesisRecommendationToRoomArtifactV6({
+      room, scope, recommendation,
+    }).input.metadata.advisoryOnly, true);
+    const meshDraft = await projectMorphogenesisAgentGenesisDraftToMeshV6({
+      scope, draft, policy: value.policy });
+    const meshRecommendation = await projectMorphogenesisAgentGenesisRecommendationToMeshV6({
+      scope, recommendation });
+    assert.equal(meshDraft.membershipGranted, false);
+    let sends = 0;
+    await new MorphogenesisAgentGenesisMeshPublisherV6({
+      async send(projection) { sends += 1; return { schemaVersion: 1,
+        projectionDigest: projection.projectionDigest, senderPeerId: "peer:test",
+        senderInstanceId: "instance:test", membershipConfigurationDigest: sha("mesh-membership"),
+        membershipEpoch: 1, envelopeDigest: sha("envelope"), sentAtLogicalMs: 35 }; },
+      async verify() { return true; },
+    }).publish(meshRecommendation);
+    assert.equal(sends, 1);
     await assert.rejects(recommend("late-rollback", "rollback", 36), /not allowed/);
     recommendation = await recommend("retire", "retire", 37);
     assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,

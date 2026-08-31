@@ -22,6 +22,11 @@ import {
   type MorphogenesisStrategySynthesisCandidateV5,
   type MorphogenesisStrategySynthesisPolicyV5,
   type MorphogenesisSynthesisAdmissionRecommendationV5,
+  validateMorphogenesisAgentGenesisDraftV6,
+  validateMorphogenesisAgentGenesisRecommendationV6,
+  type MorphogenesisAgentGenesisDraftV6,
+  type MorphogenesisAgentGenesisPolicyV6,
+  type MorphogenesisAgentGenesisRecommendationV6,
   type MorphologySnapshotV1,
   type TargetMorphologyV1,
 } from "@agentplat/collective-runtime/morphogenesis";
@@ -182,6 +187,47 @@ export class MorphogenesisSynthesisMeshPublisherV5 {
     if (receipt.projectionDigest !== projection.projectionDigest ||
         !(await this.transport.verify({ projection, receipt })))
       fail("Morphogenesis synthesis Mesh delivery was not verified");
+    return freeze(receipt);
+  }
+}
+
+export interface MorphogenesisAgentGenesisMeshProjectionV6 {
+  readonly schemaVersion: 6;
+  readonly kind: "morphogenesis.agent-genesis-draft" |
+    "morphogenesis.agent-genesis-recommendation";
+  readonly tenantId: string;
+  readonly meshId: string;
+  readonly missionId: string;
+  readonly objectiveId: string;
+  readonly morphologyId: string;
+  readonly subjectDigest: `sha256:${string}`;
+  readonly relatedDigests: readonly `sha256:${string}`[];
+  readonly evidenceDigests: readonly `sha256:${string}`[];
+  readonly action: string | null;
+  readonly reviewRoute: string | null;
+  readonly expiresAtLogicalMs: number;
+  readonly membershipGranted: false;
+  readonly workGranted: false;
+  readonly actionAuthorityGranted: false;
+  readonly unsigned: true;
+  readonly projectionDigest: `sha256:${string}`;
+}
+
+export class MorphogenesisAgentGenesisMeshPublisherV6 {
+  constructor(readonly transport: {
+    send(projection: MorphogenesisAgentGenesisMeshProjectionV6):
+      Promise<MorphogenesisAuthenticatedMeshReceiptV1>;
+    verify(input: { readonly projection: MorphogenesisAgentGenesisMeshProjectionV6;
+      readonly receipt: MorphogenesisAuthenticatedMeshReceiptV1 }): Promise<boolean>;
+  }) {}
+  async publish(projection: MorphogenesisAgentGenesisMeshProjectionV6) {
+    if (!projection.unsigned || projection.membershipGranted || projection.workGranted ||
+        projection.actionAuthorityGranted)
+      fail("Agent Genesis Mesh projection must remain authority-neutral");
+    const receipt = await this.transport.send(projection);
+    if (receipt.projectionDigest !== projection.projectionDigest ||
+        !(await this.transport.verify({ projection, receipt })))
+      fail("Agent Genesis Mesh delivery was not verified");
     return freeze(receipt);
   }
 }
@@ -906,6 +952,82 @@ async function synthesisMeshProjection(scope: MorphogenesisScopeV1, input: {
       `sha256:${string}` });
 }
 
+export function projectMorphogenesisAgentGenesisDraftToRoomArtifactV6(input: {
+  readonly room: Room; readonly scope: MorphogenesisScopeV1;
+  readonly draft: MorphogenesisAgentGenesisDraftV6;
+  readonly policy: MorphogenesisAgentGenesisPolicyV6; readonly createdBy?: string;
+}) {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const draft = validateMorphogenesisAgentGenesisDraftV6(input.draft, input.policy);
+  return strategyRoomArtifact(input.room, `morphogenesis-agent-genesis-draft:${draft.draftId}`,
+    "agent-morphogenesis-agent-genesis-draft", "Morphogenesis Agent Genesis draft",
+    draft.draftDigest, draft as unknown as CreateArtifactInput["content"], input.createdBy);
+}
+
+export function projectMorphogenesisAgentGenesisRecommendationToRoomArtifactV6(input: {
+  readonly room: Room; readonly scope: MorphogenesisScopeV1;
+  readonly recommendation: MorphogenesisAgentGenesisRecommendationV6;
+  readonly createdBy?: string;
+}) {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const recommendation = validateMorphogenesisAgentGenesisRecommendationV6(input.recommendation);
+  return strategyRoomArtifact(input.room,
+    `morphogenesis-agent-genesis-recommendation:${recommendation.recommendationId}`,
+    "agent-morphogenesis-agent-genesis-recommendation",
+    `Morphogenesis Agent Genesis ${recommendation.action} recommendation`,
+    recommendation.recommendationDigest,
+    recommendation as unknown as CreateArtifactInput["content"], input.createdBy);
+}
+
+export async function projectMorphogenesisAgentGenesisDraftToMeshV6(input: {
+  readonly scope: MorphogenesisScopeV1; readonly draft: MorphogenesisAgentGenesisDraftV6;
+  readonly policy: MorphogenesisAgentGenesisPolicyV6;
+}) {
+  const draft = validateMorphogenesisAgentGenesisDraftV6(input.draft, input.policy);
+  return genesisMeshProjection(input.scope, { kind: "morphogenesis.agent-genesis-draft",
+    subjectDigest: draft.draftDigest,
+    relatedDigests: [draft.needDigest, draft.policyDigest, draft.profile.profileDigest,
+      draft.modelBindingDigest], evidenceDigests: draft.provenanceDigests,
+    action: null, reviewRoute: null, expiresAtLogicalMs: draft.expiresAtLogicalMs });
+}
+
+export async function projectMorphogenesisAgentGenesisRecommendationToMeshV6(input: {
+  readonly scope: MorphogenesisScopeV1;
+  readonly recommendation: MorphogenesisAgentGenesisRecommendationV6;
+}) {
+  const recommendation = validateMorphogenesisAgentGenesisRecommendationV6(input.recommendation);
+  return genesisMeshProjection(input.scope, {
+    kind: "morphogenesis.agent-genesis-recommendation",
+    subjectDigest: recommendation.recommendationDigest,
+    relatedDigests: [recommendation.draftDigest, recommendation.stateDigest],
+    evidenceDigests: recommendation.evidenceDigests, action: recommendation.action,
+    reviewRoute: recommendation.reviewRoute,
+    expiresAtLogicalMs: recommendation.expiresAtLogicalMs });
+}
+
+async function genesisMeshProjection(scope: MorphogenesisScopeV1, input: {
+  readonly kind: MorphogenesisAgentGenesisMeshProjectionV6["kind"];
+  readonly subjectDigest: `sha256:${string}`;
+  readonly relatedDigests: readonly `sha256:${string}`[];
+  readonly evidenceDigests: readonly `sha256:${string}`[];
+  readonly action: string | null; readonly reviewRoute: string | null;
+  readonly expiresAtLogicalMs: number;
+}): Promise<MorphogenesisAgentGenesisMeshProjectionV6> {
+  if (!scope.meshId) fail("Agent Genesis Mesh scope is unavailable");
+  const body = freeze({ schemaVersion: 6 as const, kind: input.kind,
+    tenantId: scope.tenantId, meshId: scope.meshId, missionId: scope.missionId,
+    objectiveId: scope.objectiveId, morphologyId: scope.morphologyId,
+    subjectDigest: input.subjectDigest,
+    relatedDigests: freeze([...new Set(input.relatedDigests)].sort()),
+    evidenceDigests: freeze([...new Set(input.evidenceDigests)].sort()),
+    action: input.action, reviewRoute: input.reviewRoute,
+    expiresAtLogicalMs: input.expiresAtLogicalMs, membershipGranted: false as const,
+    workGranted: false as const, actionAuthorityGranted: false as const,
+    unsigned: true as const });
+  return freeze({ ...body,
+    projectionDigest: await computeMeshDurableValueDigest(body as never) as `sha256:${string}` });
+}
+
 function strategyRoomArtifact(
   room: Room,
   id: string,
@@ -934,7 +1056,8 @@ function strategyRoomArtifact(
       ...(createdBy ? { createdBy } : {}),
       metadata: {
         morphogenesisStrategySchemaVersion:
-          type.startsWith("agent-morphogenesis-synthesis-") ? 5 : 3,
+          type.startsWith("agent-morphogenesis-agent-genesis-") ? 6
+            : type.startsWith("agent-morphogenesis-synthesis-") ? 5 : 3,
         subjectDigest,
         advisoryOnly: true,
       },

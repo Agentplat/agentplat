@@ -30,4 +30,5 @@ export * from "./morphogenesis-strategy-synthesis-simulation.js";
 export * from "./morphogenesis-strategy-synthesis-catalog.js";
 export * from "./morphogenesis-agent-genesis.js";
 export * from "./morphogenesis-agent-genesis-lifecycle.js";
+export * from "./morphogenesis-agent-genesis-integrations.js";
 export * from "./mission-morphogenesis.js";

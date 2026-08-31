@@ -530,6 +530,19 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
 
 export function validateMorphogenesisAgentGenesisLifecyclePolicyV6(
   value: MorphogenesisAgentGenesisLifecyclePolicyV6) { return validatePolicy(value); }
+export function validateMorphogenesisAgentGenesisRecommendationV6(
+  value: MorphogenesisAgentGenesisRecommendationV6) {
+  const normalized = recommendationRecord({ recommendationId: value.recommendationId,
+    action: value.action, draftDigest: value.draftDigest, proposerId: value.proposerId,
+    proposerImplementationDigest: value.proposerImplementationDigest,
+    reviewRoute: value.reviewRoute, evidenceDigests: value.evidenceDigests,
+    proposedAtLogicalMs: value.proposedAtLogicalMs, expiresAtLogicalMs: value.expiresAtLogicalMs },
+  { stateDigest: value.stateDigest, revision: value.stateRevision } as
+    MorphogenesisAgentGenesisLifecycleStateV6);
+  if (normalized.recommendationDigest !== value.recommendationDigest ||
+      value.advisoryOnly !== true) fail("Agent Genesis recommendation is invalid");
+  return normalized;
+}
 
 export function validateMorphogenesisAgentGenesisLifecycleStateV6(
   value: MorphogenesisAgentGenesisLifecycleStateV6,
