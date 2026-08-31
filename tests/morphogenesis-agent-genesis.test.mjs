@@ -23,6 +23,8 @@ import {
   createMorphogenesisTerminalAgentReceiptV1,
   createMorphogenesisAgentGenesisActivationHandoffV6,
   createMorphogenesisAgentGenesisLineageV6,
+  MorphogenesisAgentGenesisProbationEligibilityGateV6,
+  createMorphogenesisAgentGenesisProbationAssessmentV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   MorphogenesisAgentGenesisMeshPublisherV6,
@@ -301,13 +303,26 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     let recommendation = await recommend("probation", "start_probation", 24);
     assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
       logicalTimeMs: 25 })).nextStatus, "probationary");
-    for (let index = 1; index <= 2; index += 1)
+    const probationEntry = (await runtime.state(25)).entries[0];
+    const probationPort = (source) => ({ source, async assess({ draft, sandboxReceipt,
+      logicalTimeMs }) { return createMorphogenesisAgentGenesisProbationAssessmentV6({
+        source, draftDigest: draft.draftDigest,
+        sandboxReceiptDigest: sandboxReceipt.receiptDigest, disposition: "eligible",
+        policyDigest: sha(`probation-policy:${source}`), sourceId: `source:${source}`,
+        sourceImplementationDigest: sha(`source:${source}`),
+        evidenceDigests: [sha(`probation:${source}:${logicalTimeMs}`)],
+        observedAtLogicalMs: logicalTimeMs, expiresAtLogicalMs: logicalTimeMs + 10 }); } });
+    const probationGate = new MorphogenesisAgentGenesisProbationEligibilityGateV6({
+      capability: probationPort("capability"), trust: probationPort("trust"),
+      inferenceControl: probationPort("inference_control") });
+    for (let index = 1; index <= 2; index += 1) {
+      const logicalTimeMs = 25 + index;
+      const eligibility = await probationGate.evaluate({ draft,
+        sandboxReceipt: probationEntry.sandboxReceipt, logicalTimeMs });
       await runtime.observeProbation({ observationId: `observation:${route}:${index}`,
         draftDigest: draft.draftDigest, outcome: "success",
-        capabilityEvidenceDigests: [sha(`capability:${index}`)],
-        trustDecisionDigest: sha(`trust:${index}`),
-        inferenceControlDecisionDigest: sha(`inference:${index}`),
-        logicalTimeMs: 25 + index });
+        eligibility, logicalTimeMs });
+    }
     recommendation = await recommend("admit", "admit", 28);
     assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
       logicalTimeMs: 29 })).nextStatus, "admitted");

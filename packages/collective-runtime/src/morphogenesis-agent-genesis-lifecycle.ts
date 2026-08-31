@@ -33,6 +33,10 @@ import {
   type MorphogenesisAgentGenesisPolicyV6,
   type MorphogenesisAgentGenesisSandboxReceiptV6,
 } from "./morphogenesis-agent-genesis.js";
+import {
+  validateMorphogenesisAgentGenesisProbationEligibilityV6,
+  type MorphogenesisAgentGenesisProbationEligibilityV6,
+} from "./morphogenesis-agent-genesis-integrations.js";
 
 export type MorphogenesisAgentGenesisStatusV6 =
   "draft" | "sandboxed" | "probationary" | "admitted" | "suspended" | "retired";
@@ -292,16 +296,19 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
   async observeProbation(input: { readonly observationId: AgentPlatID;
     readonly draftDigest: PlanningDigestV1;
     readonly outcome: MorphogenesisAgentGenesisProbationReceiptV6["outcome"];
-    readonly capabilityEvidenceDigests: readonly PlanningDigestV1[];
-    readonly trustDecisionDigest: PlanningDigestV1;
-    readonly inferenceControlDecisionDigest: PlanningDigestV1;
+    readonly eligibility: MorphogenesisAgentGenesisProbationEligibilityV6;
     readonly logicalTimeMs: number }) {
     return this.#commit(input.logicalTimeMs, (state) => {
       const entry = entryFor(state, input.draftDigest);
       if (entry.status !== "probationary" || !entry.sandboxReceipt ||
           entry.probationReceipts.length >= this.#policy.maximumProbationObservations)
         fail("Agent Genesis probation observation is not allowed");
-      const receipt = probationReceipt(input, entry.sandboxReceipt.receiptDigest);
+      const eligibility = validateMorphogenesisAgentGenesisProbationEligibilityV6(
+        input.eligibility, { draft: entry.draft, sandboxReceipt: entry.sandboxReceipt,
+          logicalTimeMs: input.logicalTimeMs });
+      if (eligibility.disposition !== "eligible")
+        fail("Agent Genesis probation eligibility is restrictive");
+      const receipt = probationReceipt(input, eligibility);
       const retained = entry.probationReceipts.find(({ observationId }) =>
         observationId === receipt.observationId);
       if (retained) {
@@ -694,16 +701,14 @@ function entryFor(state: MorphogenesisAgentGenesisLifecycleStateV6, draftDigest:
 function probationReceipt(input: { readonly observationId: AgentPlatID;
   readonly draftDigest: PlanningDigestV1;
   readonly outcome: MorphogenesisAgentGenesisProbationReceiptV6["outcome"];
-  readonly capabilityEvidenceDigests: readonly PlanningDigestV1[];
-  readonly trustDecisionDigest: PlanningDigestV1;
-  readonly inferenceControlDecisionDigest: PlanningDigestV1;
-  readonly logicalTimeMs: number }, sandboxReceiptDigest: PlanningDigestV1) {
+  readonly eligibility: MorphogenesisAgentGenesisProbationEligibilityV6;
+  readonly logicalTimeMs: number }, eligibility: MorphogenesisAgentGenesisProbationEligibilityV6) {
   const body = freeze({ schemaVersion: 6 as const, observationId: id(input.observationId),
-    draftDigest: sha(input.draftDigest), sandboxReceiptDigest,
+    draftDigest: sha(input.draftDigest), sandboxReceiptDigest: eligibility.sandboxReceiptDigest,
     outcome: one(input.outcome, OUTCOMES, "Agent Genesis probation outcome"),
-    capabilityEvidenceDigests: shas(input.capabilityEvidenceDigests, 1, 64),
-    trustDecisionDigest: sha(input.trustDecisionDigest),
-    inferenceControlDecisionDigest: sha(input.inferenceControlDecisionDigest),
+    capabilityEvidenceDigests: eligibility.capabilityEvidenceDigests,
+    trustDecisionDigest: eligibility.trustAssessmentDigest,
+    inferenceControlDecisionDigest: eligibility.inferenceControlAssessmentDigest,
     observedAtLogicalMs: nonNegative(input.logicalTimeMs) });
   return freeze({ ...body,
     receiptDigest: digest("morphogenesis-agent-genesis-probation-receipt-v6", body) }); }

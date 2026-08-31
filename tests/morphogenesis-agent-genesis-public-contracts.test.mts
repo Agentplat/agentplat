@@ -21,6 +21,9 @@ import {
   type MorphogenesisAgentGenesisActivationHandoffV6,
   createMorphogenesisAgentGenesisLineageV6,
   type MorphogenesisAgentGenesisLineageV6,
+  MorphogenesisAgentGenesisProbationEligibilityGateV6,
+  createMorphogenesisAgentGenesisProbationAssessmentV6,
+  type MorphogenesisAgentGenesisProbationEligibilityV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 void MORPHOGENESIS_AGENT_GENESIS_THREATS_V6;
@@ -37,6 +40,8 @@ void createMorphogenesisAgentGenesisReviewV6;
 void validateMorphogenesisAgentGenesisLifecycleStateV6;
 void createMorphogenesisAgentGenesisActivationHandoffV6;
 void createMorphogenesisAgentGenesisLineageV6;
+void MorphogenesisAgentGenesisProbationEligibilityGateV6;
+void createMorphogenesisAgentGenesisProbationAssessmentV6;
 declare const contracts: [MorphogenesisAgentGenesisDraftV6,
   MorphogenesisAgentGenesisGeneratorPortV6, MorphogenesisAgentGenesisNeedV6,
   MorphogenesisAgentGenesisPolicyV6];
@@ -49,3 +54,5 @@ declare const handoff: MorphogenesisAgentGenesisActivationHandoffV6;
 void handoff;
 declare const genesisLineage: MorphogenesisAgentGenesisLineageV6;
 void genesisLineage;
+declare const probationEligibility: MorphogenesisAgentGenesisProbationEligibilityV6;
+void probationEligibility;
