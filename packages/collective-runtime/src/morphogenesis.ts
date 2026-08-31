@@ -35,4 +35,5 @@ export * from "./morphogenesis-organizational-evolution.js";
 export * from "./morphogenesis-organizational-evolution-simulation.js";
 export * from "./morphogenesis-organizational-evolution-plan.js";
 export * from "./morphogenesis-organizational-evolution-runtime.js";
+export * from "./morphogenesis-organizational-evolution-governance.js";
 export * from "./mission-morphogenesis.js";
