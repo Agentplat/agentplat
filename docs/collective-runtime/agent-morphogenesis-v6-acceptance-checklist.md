@@ -19,7 +19,7 @@ Status: source-complete candidate; checkmarks do not imply production efficacy.
 - [x] Rooms/Mesh projections are content-free and authority-neutral.
 - [x] PostgreSQL uses semantic validation, CAS and rollback witness.
 - [x] Public contracts, specification, ADR, threat model and example exist.
-- [ ] Full workspace `pnpm test` and `pnpm check` pass on the final tree.
+- [x] Full workspace `pnpm test` and `pnpm check` pass on the final tree.
 
 No item proves that generated agents improve real missions or are safe for
 unsupervised production.
