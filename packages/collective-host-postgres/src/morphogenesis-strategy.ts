@@ -23,6 +23,12 @@ import {
   type MorphogenesisStrategyGovernanceStoreV3,
   type MorphogenesisStrategyCounterfactualReportV3,
   type MorphogenesisStrategyCounterfactualStoreV3,
+  validateMorphogenesisSynthesisGovernancePolicyV5,
+  validateMorphogenesisSynthesisGovernanceStateV5,
+  type MorphogenesisSynthesisGovernancePolicyV5,
+  type MorphogenesisSynthesisGovernanceStateV5,
+  type MorphogenesisSynthesisGovernanceStoreV5,
+  type MorphogenesisStrategySynthesisPolicyV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   validatePeerStrategyEvidenceExchangePolicyV1,
@@ -213,6 +219,33 @@ export class PostgresMorphogenesisStrategyGovernanceStoreV3
   }) { return this.#repository.save(input); }
 }
 
+export class PostgresMorphogenesisSynthesisGovernanceStoreV5
+  implements MorphogenesisSynthesisGovernanceStoreV5
+{
+  readonly #repository: StrategyStateRepository<MorphogenesisSynthesisGovernanceStateV5>;
+  constructor(input: {
+    readonly pool: Pool;
+    readonly options: MorphogenesisPostgresStoreOptionsV1;
+    readonly policy: MorphogenesisSynthesisGovernancePolicyV5;
+    readonly synthesisPolicy: MorphogenesisStrategySynthesisPolicyV5;
+  }) {
+    const policy = validateMorphogenesisSynthesisGovernancePolicyV5(input.policy);
+    this.#repository = new StrategyStateRepository({
+      pool: input.pool, options: input.options,
+      stateKind: "morphogenesis-strategy-synthesis-governance",
+      validate: (value) => validateMorphogenesisSynthesisGovernanceStateV5(
+        value as MorphogenesisSynthesisGovernanceStateV5,
+        { policy, synthesisPolicy: input.synthesisPolicy }),
+    });
+  }
+  load(stateKey: string) { return this.#repository.load(stateKey); }
+  save(input: { readonly state: MorphogenesisSynthesisGovernanceStateV5;
+    readonly expectedRevision: number | null;
+    readonly expectedStateDigest: `sha256:${string}` | null }) {
+    return this.#repository.save(input);
+  }
+}
+
 type StrategyState = {
   readonly stateKey: string;
   readonly revision: number;
@@ -229,7 +262,8 @@ class StrategyStateRepository<T extends StrategyState> {
       | "morphogenesis-strategy-adaptation"
       | "morphogenesis-strategy-governance"
       | "morphogenesis-strategy-evidence-exchange"
-      | "morphogenesis-strategy-convergence";
+      | "morphogenesis-strategy-convergence"
+      | "morphogenesis-strategy-synthesis-governance";
     readonly validate: (input: unknown) => T;
   }) {
     if (!input.pool || !input.options.scopeId || !input.options.rollbackWitness)

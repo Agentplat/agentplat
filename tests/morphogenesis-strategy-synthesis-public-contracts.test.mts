@@ -18,6 +18,7 @@ import {
   createMorphogenesisSynthesisAdmissionReviewV5,
   createMorphogenesisSynthesisGovernancePolicyV5,
   type MorphogenesisSynthesisGovernanceStateV5,
+  validateMorphogenesisSynthesisGovernanceStateV5,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 void MORPHOGENESIS_SYNTHESIS_THREATS_V5;
@@ -32,6 +33,7 @@ void InMemoryMorphogenesisSynthesisGovernanceStoreV5;
 void MorphogenesisSynthesisGovernanceRuntimeV5;
 void createMorphogenesisSynthesisAdmissionReviewV5;
 void createMorphogenesisSynthesisGovernancePolicyV5;
+void validateMorphogenesisSynthesisGovernanceStateV5;
 declare const contracts: [MorphogenesisStrategyGapV5,
   MorphogenesisStrategySynthesisCandidateV5,
   MorphogenesisStrategySynthesisCertificationV5,

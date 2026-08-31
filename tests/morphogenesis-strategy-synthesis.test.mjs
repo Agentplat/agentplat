@@ -8,6 +8,7 @@ import {
   MorphogenesisSynthesisGovernanceRuntimeV5,
   createMorphogenesisSynthesisAdmissionReviewV5,
   createMorphogenesisSynthesisGovernancePolicyV5,
+  validateMorphogenesisSynthesisGovernanceStateV5,
   createMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
@@ -235,5 +236,13 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
     assert.equal((await runtime.reviewAndApply({
       recommendationId: promote.recommendationId, logicalTimeMs: 29,
     })).nextStatus, "certified");
+    const state = await runtime.state(30);
+    assert.equal(validateMorphogenesisSynthesisGovernanceStateV5(state, {
+      policy: governancePolicy, synthesisPolicy: value.policy,
+    }).entries[0].status, "certified");
+    assert.throws(() => validateMorphogenesisSynthesisGovernanceStateV5({
+      ...state, entries: [{ ...state.entries[0],
+        canary: { ...state.entries[0].canary, successes: 99 } }],
+    }, { policy: governancePolicy, synthesisPolicy: value.policy }), /canary/);
   }
 });

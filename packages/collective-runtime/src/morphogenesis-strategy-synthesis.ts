@@ -378,6 +378,36 @@ export function validateMorphogenesisStrategySynthesisCandidateV5(
   assertManifestBudget(manifest, policy);
   return freeze(structuredClone(record));
 }
+export function validateMorphogenesisStrategySynthesisEvaluationV5(
+  value: MorphogenesisStrategySynthesisEvaluationV5,
+  candidate: MorphogenesisStrategySynthesisCandidateV5,
+  policy: MorphogenesisStrategySynthesisPolicyV5) {
+  const record = exact(value, EVALUATION_KEYS, "Morphogenesis synthesis evaluation") as
+    unknown as MorphogenesisStrategySynthesisEvaluationV5;
+  const { schemaVersion: _s, disposition: _d, advisoryOnly: _a, evaluationDigest, ...body } = record;
+  const rebuilt = createMorphogenesisStrategySynthesisEvaluationV5({
+    ...body, candidate, policy,
+  });
+  if (evaluationDigest !== rebuilt.evaluationDigest || record.disposition !== rebuilt.disposition ||
+      record.advisoryOnly !== true)
+    fail("Morphogenesis synthesis evaluation is invalid");
+  return rebuilt;
+}
+export function validateMorphogenesisStrategySynthesisCertificationV5(
+  value: MorphogenesisStrategySynthesisCertificationV5,
+  candidate: MorphogenesisStrategySynthesisCandidateV5,
+  evaluation: MorphogenesisStrategySynthesisEvaluationV5) {
+  const record = exact(value, CERTIFICATION_KEYS,
+    "Morphogenesis synthesis certification") as unknown as
+    MorphogenesisStrategySynthesisCertificationV5;
+  const { schemaVersion: _s, grantsAuthority: _g, certificationDigest, ...body } = record;
+  const rebuilt = createMorphogenesisStrategySynthesisCertificationV5({
+    ...body, candidate, evaluation,
+  });
+  if (certificationDigest !== rebuilt.certificationDigest || record.grantsAuthority !== false)
+    fail("Morphogenesis synthesis certification is invalid");
+  return rebuilt;
+}
 
 function createCandidate(draft: Awaited<ReturnType<MorphogenesisStrategySynthesizerPortV5["synthesize"]>>,
   gap: MorphogenesisStrategyGapV5, policy: MorphogenesisStrategySynthesisPolicyV5,
@@ -443,6 +473,14 @@ const CANDIDATE_KEYS = ["candidateDigest", "candidateId", "catalogDigest", "expi
   "gapDigest", "inert", "manifest", "policyDigest", "proposedAtLogicalMs",
   "provenanceDigests", "schemaVersion", "status", "synthesizerId",
   "synthesizerImplementationDigest", "synthesizerVersion"] as const;
+const EVALUATION_KEYS = ["advisoryOnly", "assessorId", "assessorImplementationDigest",
+  "baselineStrategyId", "candidateDigest", "confidenceBps", "counterfactualReportDigest",
+  "disposition", "evaluatedAtLogicalMs", "evaluationDigest", "evaluationId", "evidenceDigests",
+  "expiresAtLogicalMs", "safetyMicros", "schemaVersion", "threatAssessments"] as const;
+const CERTIFICATION_KEYS = ["candidateDigest", "certificationDigest", "certificationId",
+  "certifiedAtLogicalMs", "certifierId", "certifierImplementationDigest", "disposition",
+  "evaluationDigest", "evidenceDigests", "expiresAtLogicalMs", "grantsAuthority",
+  "schemaVersion", "synthesizerId"] as const;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function exact(value: unknown, keys: readonly string[], label: string) { if (!value || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype || !same(Object.keys(value).sort(), [...keys].sort())) fail(`${label} shape is invalid`); return value as Record<string, unknown>; }

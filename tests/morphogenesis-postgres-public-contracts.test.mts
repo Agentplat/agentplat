@@ -10,6 +10,7 @@ import {
   PostgresMorphogenesisStrategyCounterfactualStoreV3,
   PostgresPeerStrategyEvidenceStoreV1,
   PostgresStrategyConvergenceStoreV1,
+  PostgresMorphogenesisSynthesisGovernanceStoreV5,
   type MorphogenesisPostgresRollbackWitnessV1,
   type MorphogenesisPostgresStoreOptionsV1,
 } from "@agentplat/collective-host-postgres";
@@ -25,6 +26,7 @@ void PostgresMorphogenesisStrategyGovernanceStoreV3;
 void PostgresMorphogenesisStrategyCounterfactualStoreV3;
 void PostgresPeerStrategyEvidenceStoreV1;
 void PostgresStrategyConvergenceStoreV1;
+void PostgresMorphogenesisSynthesisGovernanceStoreV5;
 declare const witness: MorphogenesisPostgresRollbackWitnessV1;
 declare const options: MorphogenesisPostgresStoreOptionsV1;
 void witness;

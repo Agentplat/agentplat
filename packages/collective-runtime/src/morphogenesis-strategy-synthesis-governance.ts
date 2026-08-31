@@ -8,6 +8,8 @@ import type { AgentPlatID } from "@agentplat/core";
 import type { MorphogenesisStrategyReviewRouteV3 } from "./morphogenesis-strategy-governance.js";
 import {
   validateMorphogenesisStrategySynthesisCandidateV5,
+  validateMorphogenesisStrategySynthesisCertificationV5,
+  validateMorphogenesisStrategySynthesisEvaluationV5,
   validateMorphogenesisStrategySynthesisPolicyV5,
   type MorphogenesisStrategySynthesisCandidateV5,
   type MorphogenesisStrategySynthesisCertificationV5,
@@ -220,11 +222,12 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
     readonly logicalTimeMs: number }) {
     const candidate = validateMorphogenesisStrategySynthesisCandidateV5(
       input.candidate, this.#synthesisPolicy);
-    if (input.evaluation.candidateDigest !== candidate.candidateDigest ||
-        input.certification.candidateDigest !== candidate.candidateDigest ||
-        input.certification.evaluationDigest !== input.evaluation.evaluationDigest ||
-        input.certification.disposition !== "certified" ||
-        input.certification.expiresAtLogicalMs <= input.logicalTimeMs)
+    const evaluation = validateMorphogenesisStrategySynthesisEvaluationV5(
+      input.evaluation, candidate, this.#synthesisPolicy);
+    const certification = validateMorphogenesisStrategySynthesisCertificationV5(
+      input.certification, candidate, evaluation);
+    if (certification.disposition !== "certified" ||
+        certification.expiresAtLogicalMs <= input.logicalTimeMs)
       fail("synthesis registration evidence is invalid");
     return this.#commit(input.logicalTimeMs, (state) => {
       const existing = state.entries.find(({ candidate: value }) =>
@@ -232,8 +235,8 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
       if (existing) return state;
       return nextState(state, input.logicalTimeMs, {
         entries: [...state.entries, freeze({ schemaVersion: 5 as const, candidate,
-          evaluationDigest: input.evaluation.evaluationDigest,
-          certificationDigest: input.certification.certificationDigest, status: "draft" as const,
+          evaluationDigest: evaluation.evaluationDigest,
+          certificationDigest: certification.certificationDigest, status: "draft" as const,
           statusRevision: 1, canary: emptyCanary(), canaryReceipts: freeze([]),
           lastTransitionDigest: null })],
       });
@@ -356,6 +359,62 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
   }
 }
 
+export function validateMorphogenesisSynthesisGovernancePolicyV5(
+  value: MorphogenesisSynthesisGovernancePolicyV5) {
+  return validateGovernancePolicy(value);
+}
+
+export function validateMorphogenesisSynthesisGovernanceStateV5(
+  value: MorphogenesisSynthesisGovernanceStateV5,
+  input: { readonly policy: MorphogenesisSynthesisGovernancePolicyV5;
+    readonly synthesisPolicy: MorphogenesisStrategySynthesisPolicyV5 }) {
+  const policy = validateGovernancePolicy(input.policy);
+  const synthesisPolicy = validateMorphogenesisStrategySynthesisPolicyV5(input.synthesisPolicy);
+  const record = exact(value, STATE_KEYS, "synthesis governance state") as unknown as
+    MorphogenesisSynthesisGovernanceStateV5;
+  if (record.schemaVersion !== 5 || record.policyDigest !== policy.policyDigest ||
+      policy.synthesisPolicyDigest !== synthesisPolicy.policyDigest)
+    fail("synthesis governance state policy is invalid");
+  const entries = record.entries.map((entry) => validateEntry(entry, synthesisPolicy));
+  if (new Set(entries.map(({ candidate }) => candidate.candidateDigest)).size !== entries.length)
+    fail("synthesis governance entries are duplicated");
+  const pendingRecommendations = record.pendingRecommendations.map((recommendation) => {
+    const normalized = createRecommendation({
+      recommendationId: recommendation.recommendationId, action: recommendation.action,
+      candidateDigest: recommendation.candidateDigest,
+      evaluationDigest: recommendation.evaluationDigest,
+      certificationDigest: recommendation.certificationDigest,
+      proposerId: recommendation.proposerId,
+      proposerImplementationDigest: recommendation.proposerImplementationDigest,
+      reviewRoute: recommendation.reviewRoute, evidenceDigests: recommendation.evidenceDigests,
+      riskDigest: recommendation.riskDigest, costDigest: recommendation.costDigest,
+      proposedAtLogicalMs: recommendation.proposedAtLogicalMs,
+      expiresAtLogicalMs: recommendation.expiresAtLogicalMs,
+    }, { stateDigest: recommendation.stateDigest,
+      revision: recommendation.stateRevision } as MorphogenesisSynthesisGovernanceStateV5);
+    if (normalized.recommendationDigest !== recommendation.recommendationDigest ||
+        recommendation.advisoryOnly !== true)
+      fail("synthesis governance recommendation is invalid");
+    return normalized;
+  });
+  const reviews = record.reviews.map((review) => {
+    const { schemaVersion: _s, reviewDigest, ...body } = review;
+    const normalized = createMorphogenesisSynthesisAdmissionReviewV5(body);
+    if (normalized.reviewDigest !== reviewDigest) fail("synthesis governance review is invalid");
+    return normalized;
+  });
+  const transitions = record.transitions.map(validateTransition);
+  const rebuilt = stateBody({ stateKey: id(record.stateKey), policyDigest: record.policyDigest,
+    entries, pendingRecommendations, reviews, transitions,
+    revision: nonNegative(record.revision),
+    logicalTimeHighWaterMs: nonNegative(record.logicalTimeHighWaterMs),
+    predecessorStateDigest: record.predecessorStateDigest === null ? null
+      : sha(record.predecessorStateDigest) });
+  if (rebuilt.stateDigest !== record.stateDigest)
+    fail("synthesis governance state digest is invalid");
+  return rebuilt;
+}
+
 function initialState(stateKey: AgentPlatID, policy: MorphogenesisSynthesisGovernancePolicyV5,
   logicalTimeMs: number): MorphogenesisSynthesisGovernanceStateV5 {
   return stateBody({ stateKey, policyDigest: policy.policyDigest, entries: [],
@@ -444,6 +503,51 @@ function emptyCanary(): MorphogenesisSynthesisCanaryCountersV5 { return freeze({
 function boundedAppend<T>(values: readonly T[], value: T, maximum: number) {
   return freeze([...values, value].slice(-maximum));
 }
+function validateEntry(value: MorphogenesisSynthesisCatalogEntryV5,
+  policy: MorphogenesisStrategySynthesisPolicyV5) {
+  const record = exact(value, ENTRY_KEYS, "synthesis governance entry") as unknown as
+    MorphogenesisSynthesisCatalogEntryV5;
+  const candidate = validateMorphogenesisStrategySynthesisCandidateV5(record.candidate, policy);
+  const receipts = record.canaryReceipts.map((receipt) => {
+    const normalized = createCanaryReceipt({ observationId: receipt.observationId,
+      candidateDigest: receipt.candidateDigest, outcome: receipt.outcome,
+      outcomeEvidenceDigest: receipt.outcomeEvidenceDigest,
+      logicalTimeMs: receipt.observedAtLogicalMs });
+    if (normalized.receiptDigest !== receipt.receiptDigest ||
+        normalized.candidateDigest !== candidate.candidateDigest)
+      fail("synthesis canary receipt is invalid");
+    return normalized;
+  });
+  if (new Set(receipts.map(({ observationId }) => observationId)).size !== receipts.length)
+    fail("synthesis canary receipts are duplicated");
+  const canary = freeze({ selections: receipts.length,
+    successes: receipts.filter(({ outcome }) => outcome === "success").length,
+    failures: receipts.filter(({ outcome }) => outcome === "failure").length,
+    unsafe: receipts.filter(({ outcome }) => outcome === "unsafe").length,
+    indeterminate: receipts.filter(({ outcome }) => outcome === "indeterminate").length });
+  if (JSON.stringify(canary) !== JSON.stringify(record.canary))
+    fail("synthesis canary counters are invalid");
+  return freeze({ schemaVersion: 5 as const, candidate,
+    evaluationDigest: sha(record.evaluationDigest),
+    certificationDigest: sha(record.certificationDigest),
+    status: one(record.status, STATUSES, "synthesis lifecycle status"),
+    statusRevision: positive(record.statusRevision), canary,
+    canaryReceipts: freeze(receipts),
+    lastTransitionDigest: record.lastTransitionDigest === null ? null
+      : sha(record.lastTransitionDigest) });
+}
+function validateTransition(value: MorphogenesisSynthesisGovernanceTransitionV5) {
+  const record = exact(value, TRANSITION_KEYS, "synthesis governance transition") as unknown as
+    MorphogenesisSynthesisGovernanceTransitionV5;
+  const { transitionDigest, ...body } = record;
+  if (record.schemaVersion !== 5 ||
+      transitionDigest !== digest("morphogenesis-synthesis-governance-transition-v5", body))
+    fail("synthesis governance transition is invalid");
+  one(record.action, ACTIONS, "synthesis action");
+  one(record.priorStatus, STATUSES, "synthesis prior status");
+  one(record.nextStatus, STATUSES, "synthesis next status");
+  return freeze(structuredClone(record));
+}
 function validateGovernancePolicy(value: MorphogenesisSynthesisGovernancePolicyV5) {
   const { policyDigest, ...body } = value;
   const rebuilt = createMorphogenesisSynthesisGovernancePolicyV5(body);
@@ -454,6 +558,17 @@ const ACTIONS = new Set<MorphogenesisSynthesisGovernanceActionV5>(
   ["admit_experimental", "certify", "degrade", "retire", "rollback"]);
 const ROUTES = new Set<MorphogenesisStrategyReviewRouteV3>(
   ["authorized_agent", "authorized_person", "collective"]);
+const STATUSES = new Set<MorphogenesisSynthesisCatalogEntryV5["status"]>(
+  ["draft", "experimental", "certified", "degraded", "retired"]);
+const STATE_KEYS = ["entries", "logicalTimeHighWaterMs", "pendingRecommendations",
+  "policyDigest", "predecessorStateDigest", "reviews", "revision", "schemaVersion",
+  "stateDigest", "stateKey", "transitions"] as const;
+const ENTRY_KEYS = ["canary", "canaryReceipts", "candidate", "certificationDigest",
+  "evaluationDigest", "lastTransitionDigest", "schemaVersion", "status",
+  "statusRevision"] as const;
+const TRANSITION_KEYS = ["action", "appliedAtLogicalMs", "candidateDigest", "nextStatus",
+  "priorStatus", "recommendationDigest", "reviewDigest", "schemaVersion",
+  "transitionDigest"] as const;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) fail("synthesis governance ID is invalid"); return value as AgentPlatID; }
@@ -464,6 +579,7 @@ function bool(value: unknown) { if (typeof value !== "boolean") fail("synthesis 
 function one<T extends string>(value: unknown, allowed: ReadonlySet<T>, label: string): T { if (typeof value !== "string" || !allowed.has(value as T)) fail(`${label} is invalid`); return value as T; }
 function enums<T extends string>(values: readonly unknown[], allowed: ReadonlySet<T>, label: string) { if (!Array.isArray(values)) fail(`${label} are invalid`); const result = [...new Set(values.map((value) => one(value, allowed, label)))].sort(); if (!result.length || result.length !== values.length) fail(`${label} are invalid`); return freeze(result); }
 function shas(values: readonly unknown[], minimum: number, maximum: number) { if (!Array.isArray(values)) fail("synthesis governance digests are invalid"); const result = [...new Set(values.map(sha))].sort(); if (result.length < minimum || result.length > maximum || result.length !== values.length) fail("synthesis governance digest set is invalid"); return freeze(result); }
+function exact(value: unknown, keys: readonly string[], label: string) { if (!value || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) fail(`${label} shape is invalid`); return value as Record<string, unknown>; }
 function digest(domain: string, value: unknown): PlanningDigestV1 { return digestPlanningJsonV1(domain as never, value as PlanningJson); }
 function freeze<T>(value: T): T { if (value && typeof value === "object" && !Object.isFrozen(value)) { Object.freeze(value); for (const item of Object.values(value as Record<string, unknown>)) freeze(item); } return value; }
 function fail(message: string): never { throw new TypeError(message); }

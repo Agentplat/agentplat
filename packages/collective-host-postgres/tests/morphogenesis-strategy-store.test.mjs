@@ -20,6 +20,10 @@ import {
   createMorphogenesisStrategyReviewV3,
   createMorphogenesisStrategyCounterfactualEstimateV3,
   createMorphogenesisStrategyCounterfactualReportV3,
+  MorphogenesisSynthesisGovernanceRuntimeV5,
+  createMorphogenesisStrategySynthesisPolicyV5,
+  createMorphogenesisSynthesisGovernancePolicyV5,
+  MORPHOGENESIS_SYNTHESIS_THREATS_V5,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   createPeerStrategyEvidenceExchangePolicyV1,
@@ -35,6 +39,7 @@ import {
   PostgresMorphogenesisStrategyCounterfactualStoreV3,
   PostgresPeerStrategyEvidenceStoreV1,
   PostgresStrategyConvergenceStoreV1,
+  PostgresMorphogenesisSynthesisGovernanceStoreV5,
 } from "../dist/morphogenesis-strategy.js";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -346,4 +351,47 @@ test("PostgreSQL V4 Exchange and Convergence heads preserve CAS and rollback wit
   witness.heads.clear();
   await assert.rejects(evidenceStore.load(evidenceInitial.stateKey), /witness diverged/);
   await assert.rejects(convergenceStore.load(convergenceInitial.stateKey), /witness diverged/);
+});
+
+test("PostgreSQL V5 synthesis governance state survives reconstruction and witness rollback", async () => {
+  const pool = new FakePool();
+  const witness = new Witness();
+  const options = { scopeId: "tenant:synthesis-v5", rollbackWitness: witness };
+  const synthesisPolicy = createMorphogenesisStrategySynthesisPolicyV5({
+    schemaVersion: 5, policyId: "policy:synthesis", policyVersion: 1,
+    parentPolicyDigest: null, catalogDigest: sha("catalog"),
+    governancePolicyDigest: sha("governance-v3"),
+    admittedSynthesizerImplementationDigests: [sha("synthesizer")],
+    requiredThreats: MORPHOGENESIS_SYNTHESIS_THREATS_V5,
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    minimumGapEvidence: 2, minimumEvaluationConfidenceBps: 8_000,
+    minimumSafetyMicros: 800_000, maximumCandidateTtlMs: 100,
+    maximumEvaluationTtlMs: 50, maximumTokenBudget: 10_000,
+    maximumToolCalls: 8, maximumSpawnDepth: 0, maximumCandidatesPerGap: 4,
+  });
+  const policy = createMorphogenesisSynthesisGovernancePolicyV5({
+    schemaVersion: 5, policyId: "policy:synthesis-governance", policyVersion: 1,
+    synthesisPolicyDigest: synthesisPolicy.policyDigest,
+    allowedActions: ["admit_experimental", "certify", "degrade", "retire", "rollback"],
+    allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
+    requireIndependentReviewer: true, maximumCanarySelections: 4,
+    minimumCanaryOutcomes: 2, minimumCanarySuccesses: 2,
+    maximumCanaryUnsafeOutcomes: 0, maximumPendingRecommendations: 8,
+    maximumHistory: 16, maximumCommitAttempts: 4,
+  });
+  const store = new PostgresMorphogenesisSynthesisGovernanceStoreV5({
+    pool, options, policy, synthesisPolicy,
+  });
+  const runtime = new MorphogenesisSynthesisGovernanceRuntimeV5({
+    stateKey: "state:synthesis-v5", policy, synthesisPolicy, store,
+    reviews: { async review() { return null; } },
+  });
+  const initial = await runtime.state(10);
+  assert.equal(await store.save({ state: initial, expectedRevision: null,
+    expectedStateDigest: null }), true);
+  assert.equal((await new PostgresMorphogenesisSynthesisGovernanceStoreV5({
+    pool, options, policy, synthesisPolicy,
+  }).load(initial.stateKey)).stateDigest, initial.stateDigest);
+  witness.heads.clear();
+  await assert.rejects(store.load(initial.stateKey), /witness diverged/);
 });
