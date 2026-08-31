@@ -52,6 +52,12 @@ Run the V4 Agent Mesh collective-intelligence composition example:
 node examples/agent-morphogenesis/collective-strategy-intelligence.mjs
 ```
 
+Run the V5 governed strategy-synthesis example:
+
+```sh
+node examples/agent-morphogenesis/governed-strategy-synthesis.mjs
+```
+
 It selects from an immutable catalog through the existing bounded learner,
 binds the selected generator to an operator plan, converts one observed outcome
 into comparable feedback and applies a separately reviewed promotion. It does

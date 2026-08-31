@@ -103,6 +103,9 @@ export interface MorphogenesisSynthesisCatalogEntryV5 {
   readonly evaluationDigest: PlanningDigestV1;
   readonly certificationDigest: PlanningDigestV1;
   readonly eligibilityDecisionDigest: PlanningDigestV1;
+  readonly evaluationExpiresAtLogicalMs: number;
+  readonly certificationExpiresAtLogicalMs: number;
+  readonly eligibilityExpiresAtLogicalMs: number;
   readonly status: "draft" | "experimental" | "certified" | "degraded" | "retired";
   readonly statusRevision: number;
   readonly canary: MorphogenesisSynthesisCanaryCountersV5;
@@ -248,6 +251,9 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
           evaluationDigest: evaluation.evaluationDigest,
           certificationDigest: certification.certificationDigest, status: "draft" as const,
           eligibilityDecisionDigest: eligibility.decisionDigest,
+          evaluationExpiresAtLogicalMs: evaluation.expiresAtLogicalMs,
+          certificationExpiresAtLogicalMs: certification.expiresAtLogicalMs,
+          eligibilityExpiresAtLogicalMs: eligibility.expiresAtLogicalMs,
           statusRevision: 1, canary: emptyCanary(), canaryReceipts: freeze([]),
           lastTransitionDigest: null })],
       });
@@ -264,7 +270,10 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
           !this.#policy.allowedReviewRoutes.includes(input.reviewRoute) ||
           input.evaluationDigest !== entry.evaluationDigest ||
           input.certificationDigest !== entry.certificationDigest ||
-          input.expiresAtLogicalMs <= input.proposedAtLogicalMs)
+          input.expiresAtLogicalMs <= input.proposedAtLogicalMs ||
+          Math.min(entry.evaluationExpiresAtLogicalMs,
+            entry.certificationExpiresAtLogicalMs,
+            entry.eligibilityExpiresAtLogicalMs) <= input.proposedAtLogicalMs)
         fail("synthesis recommendation is not allowed");
       assertAction(entry, input.action, this.#policy);
       const retained = state.pendingRecommendations.find(({ recommendationId }) =>
@@ -335,7 +344,10 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
         return state;
       }
       if (entry.status !== "experimental" ||
-          entry.canary.selections >= this.#policy.maximumCanarySelections)
+          entry.canary.selections >= this.#policy.maximumCanarySelections ||
+          Math.min(entry.evaluationExpiresAtLogicalMs,
+            entry.certificationExpiresAtLogicalMs,
+            entry.eligibilityExpiresAtLogicalMs) <= input.logicalTimeMs)
         fail("synthesis canary observation is not allowed");
       const field = input.outcome === "success" ? "successes" : input.outcome === "failure"
         ? "failures" : input.outcome;
@@ -571,6 +583,9 @@ function validateEntry(value: MorphogenesisSynthesisCatalogEntryV5,
     evaluationDigest: sha(record.evaluationDigest),
     certificationDigest: sha(record.certificationDigest),
     eligibilityDecisionDigest: sha(record.eligibilityDecisionDigest),
+    evaluationExpiresAtLogicalMs: positive(record.evaluationExpiresAtLogicalMs),
+    certificationExpiresAtLogicalMs: positive(record.certificationExpiresAtLogicalMs),
+    eligibilityExpiresAtLogicalMs: positive(record.eligibilityExpiresAtLogicalMs),
     status: one(record.status, STATUSES, "synthesis lifecycle status"),
     statusRevision: positive(record.statusRevision), canary,
     canaryReceipts: freeze(receipts),
@@ -605,7 +620,9 @@ const STATE_KEYS = ["entries", "logicalTimeHighWaterMs", "pendingRecommendations
   "policyDigest", "predecessorStateDigest", "reviews", "revision", "schemaVersion",
   "stateDigest", "stateKey", "transitions"] as const;
 const ENTRY_KEYS = ["canary", "canaryReceipts", "candidate", "certificationDigest",
-  "eligibilityDecisionDigest", "evaluationDigest", "lastTransitionDigest", "schemaVersion", "status",
+  "certificationExpiresAtLogicalMs", "eligibilityDecisionDigest",
+  "eligibilityExpiresAtLogicalMs", "evaluationDigest", "evaluationExpiresAtLogicalMs",
+  "lastTransitionDigest", "schemaVersion", "status",
   "statusRevision"] as const;
 const TRANSITION_KEYS = ["action", "appliedAtLogicalMs", "candidateDigest", "nextStatus",
   "priorStatus", "recommendationDigest", "reviewDigest", "schemaVersion",

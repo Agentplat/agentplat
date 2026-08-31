@@ -357,6 +357,34 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
       ...state, entries: [{ ...state.entries[0],
         canary: { ...state.entries[0].canary, successes: 99 } }],
     }, { policy: governancePolicy, synthesisPolicy: value.policy }), /canary/);
+    const degrade = await runtime.recommend({
+      recommendationId: `recommendation:${route}:degrade`, action: "degrade",
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha("degrade")], riskDigest: sha("risk:degrade"),
+      costDigest: sha("cost:degrade"), proposedAtLogicalMs: 30, expiresAtLogicalMs: 45,
+    });
+    assert.equal((await runtime.reviewAndApply({ recommendationId: degrade.recommendationId,
+      logicalTimeMs: 31 })).nextStatus, "degraded");
+    const rollback = await runtime.recommend({
+      recommendationId: `recommendation:${route}:rollback`, action: "rollback",
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha("rollback")], riskDigest: sha("risk:rollback"),
+      costDigest: sha("cost:rollback"), proposedAtLogicalMs: 32, expiresAtLogicalMs: 46,
+    });
+    assert.equal((await runtime.reviewAndApply({ recommendationId: rollback.recommendationId,
+      logicalTimeMs: 33 })).nextStatus, "experimental");
+    await assert.rejects(runtime.recommend({
+      recommendationId: `recommendation:${route}:expired`, action: "retire",
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, proposerId: "agent:proposer",
+      proposerImplementationDigest: sha("proposer"), reviewRoute: route,
+      evidenceDigests: [sha("expired")], riskDigest: sha("risk:expired"),
+      costDigest: sha("cost:expired"), proposedAtLogicalMs: 61, expiresAtLogicalMs: 70,
+    }), /not allowed/);
   }
 });
 

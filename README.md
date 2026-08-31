@@ -532,6 +532,13 @@ advisory under local policy and requires the existing agent, person or quorum
 governance route. See the [V4 source acceptance
 checklist](./docs/collective-runtime/agent-morphogenesis-v4-acceptance-checklist.md).
 
+[Agent Morphogenesis Governed Strategy Synthesis V5](./docs/specification/agent-morphogenesis-v5.md)
+adds evidenced gap detection, declarative candidate generation, reproducible
+adversarial simulation, independent certification, Blueprint/Trust/Inference
+gates and agent/person/quorum-reviewed canaries. Synthesis remains inert until
+ordinary local governance and execution authorize later effects. See the [V5
+source acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v5-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

@@ -37,3 +37,9 @@ Strategy Evidence Exchange, Collective Sync and Strategy Convergence. Agent
 Mesh carries content-free signed evidence; receiving peers reapply local
 catalog, Trust, compatibility, diversity and governance policy. Collective
 certificates are bounded advice and never remote execution authority.
+
+Morphogenesis Governed Strategy Synthesis V5 turns evidenced catalog gaps into
+declarative candidates. Generation, reproducible simulation, independent
+certification, Blueprint/Trust/Inference eligibility, governance review,
+experimental canary and catalog materialization are distinct boundaries. No
+stage installs code or creates execution authority.
