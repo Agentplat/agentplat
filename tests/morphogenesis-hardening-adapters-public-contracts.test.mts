@@ -5,10 +5,16 @@ import {
   createMorphogenesisConstitutionalMembershipGateAdapterV8,
   createMorphogenesisConstitutionalEvidenceBoundaryGateAdapterV8,
 } from "@agentplat/collective-host";
-import { createMorphogenesisOrganizationalDynamicTopologyBoundaryV7 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  createMorphogenesisOrganizationalDynamicTopologyBoundaryV7,
+  createMorphogenesisOrganizationalWorkBoundaryV7,
+  createMorphogenesisOrganizationalActionAuthorityBoundaryV7,
+} from "@agentplat/collective-runtime/morphogenesis";
 void createMorphogenesisConstitutionalTrustGateAdapterV8;
 void createMorphogenesisConstitutionalInferenceControlGateAdapterV8;
 void createMorphogenesisConstitutionalCollectiveDecisionGateAdapterV8;
 void createMorphogenesisConstitutionalMembershipGateAdapterV8;
 void createMorphogenesisConstitutionalEvidenceBoundaryGateAdapterV8;
 void createMorphogenesisOrganizationalDynamicTopologyBoundaryV7;
+void createMorphogenesisOrganizationalWorkBoundaryV7;
+void createMorphogenesisOrganizationalActionAuthorityBoundaryV7;

@@ -277,6 +277,7 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-organizational-step-receipt-v7"
   | "morphogenesis-organizational-compensation-receipt-v7"
   | "morphogenesis-organizational-execution-state-v7"
+  | "morphogenesis-organizational-action-authority-evidence-v7"
   | "morphogenesis-organizational-governance-policy-v7"
   | "morphogenesis-organizational-canary-receipt-v7"
   | "morphogenesis-organizational-recommendation-v7"

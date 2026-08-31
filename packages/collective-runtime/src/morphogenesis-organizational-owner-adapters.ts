@@ -17,6 +17,11 @@ import type {
   MorphogenesisOrganizationalCompensationReceiptV7,
   MorphogenesisOrganizationalStepReceiptV7,
 } from "./morphogenesis-organizational-evolution-runtime.js";
+import type { WorkContractV1 } from "@agentplat/collective-control/mesh";
+import type {
+  ActionAuthorityResolver,
+  ActionScope,
+} from "@agentplat/inference-control/tools";
 export interface MorphogenesisOrganizationalTopologyStatePortV7 {
   load(topologyId: string): Promise<TeamTopologyStateV1 | null>;
   save(input: {
@@ -116,6 +121,110 @@ export function createMorphogenesisOrganizationalDynamicTopologyBoundaryV7(input
   return {
     apply: (v) => apply(v, false),
     reconcileApply: (v) => apply(v, true),
+    compensate,
+    reconcileCompensation: compensate,
+  };
+}
+export function createMorphogenesisOrganizationalWorkBoundaryV7(input: {
+  readonly resolveContract: (
+    digest: PlanningDigestV1,
+  ) => Promise<WorkContractV1 | null>;
+  readonly apply: (value: {
+    readonly operationId: string;
+    readonly contract: WorkContractV1;
+    readonly logicalTimeMs: number;
+    readonly reconcile: boolean;
+  }) => Promise<PlanningDigestV1>;
+  readonly compensate: (value: {
+    readonly operationId: string;
+    readonly contract: WorkContractV1;
+    readonly logicalTimeMs: number;
+    readonly reconcile: boolean;
+  }) => Promise<PlanningDigestV1>;
+}): MorphogenesisOrganizationalBoundaryV7 {
+  const contract = async (step: any) => {
+    const value = await input.resolveContract(step.artifactDigest);
+    if (
+      step.authorityOwner !== "work" ||
+      !value ||
+      value.workContractDigest !== step.artifactDigest ||
+      !["proposed", "active"].includes(value.status)
+    )
+      fail("organizational Work Contract invalid");
+    return value;
+  };
+  const apply = async (v: any, reconcile: boolean) =>
+    stepReceipt(
+      v.operationId,
+      v.plan.planDigest,
+      v.step.stepDigest,
+      await input.apply({
+        operationId: v.operationId,
+        contract: await contract(v.step),
+        logicalTimeMs: v.logicalTimeMs,
+        reconcile,
+      }),
+      v.logicalTimeMs,
+    );
+  const compensate = async (v: any, reconcile: boolean) =>
+    compensationReceipt(
+      v.operationId,
+      v.plan.planDigest,
+      v.receipt.receiptDigest,
+      await input.compensate({
+        operationId: v.operationId,
+        contract: await contract(v.step),
+        logicalTimeMs: v.logicalTimeMs,
+        reconcile,
+      }),
+      v.logicalTimeMs,
+    );
+  return {
+    apply: (v) => apply(v, false),
+    reconcileApply: (v) => apply(v, true),
+    compensate: (v) => compensate(v, false),
+    reconcileCompensation: (v) => compensate(v, true),
+  };
+}
+export function createMorphogenesisOrganizationalActionAuthorityBoundaryV7(input: {
+  readonly resolver: ActionAuthorityResolver;
+  readonly resolveScope: (stepDigest: PlanningDigestV1) => Promise<ActionScope>;
+}): MorphogenesisOrganizationalBoundaryV7 {
+  const apply = async (v: any) => {
+    if (v.step.authorityOwner !== "action")
+      fail("organizational Action owner invalid");
+    const result = await input.resolver.resolve(
+      await input.resolveScope(v.step.stepDigest),
+      v.step.artifactDigest,
+      v.logicalTimeMs,
+    );
+    if (
+      result.status !== "current" ||
+      result.actionDigest !== v.step.artifactDigest
+    )
+      fail("organizational Action Authority is not current");
+    return stepReceipt(
+      v.operationId,
+      v.plan.planDigest,
+      v.step.stepDigest,
+      dg("morphogenesis-organizational-action-authority-evidence-v7", result),
+      v.logicalTimeMs,
+    );
+  };
+  const compensate = async (v: any) =>
+    compensationReceipt(
+      v.operationId,
+      v.plan.planDigest,
+      v.receipt.receiptDigest,
+      dg("morphogenesis-organizational-action-authority-evidence-v7", {
+        actionDigest: v.step.artifactDigest,
+        noGrantCreated: true,
+      }),
+      v.logicalTimeMs,
+    );
+  return {
+    apply,
+    reconcileApply: apply,
     compensate,
     reconcileCompensation: compensate,
   };
