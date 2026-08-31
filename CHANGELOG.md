@@ -14,6 +14,16 @@
 - Fixed dormant Workflow compensation stages incorrectly failing successful
   normal runs and normalized absent agent enrollment phases before reserving a
   governed membership effect.
+- Added Agent Morphogenesis V2–V8 source capabilities: advanced topology and
+  synthesized profiles, governed strategy adaptation and synthesis, collective
+  evidence exchange, Agent Genesis, organizational evolution and constitutional
+  continuity. These capabilities remain opt-in and authority-neutral until
+  composed through their existing subsystem owners.
+- Added PostgreSQL CAS/witness stores, Agent Rooms/Agent Mesh projections,
+  adversarial simulations, canary lifecycles, fork isolation, reverse
+  compensation, model-checking receipts and reference examples for the new
+  Morphogenesis surfaces. Operational effectiveness remains outside the source
+  claim boundary.
 
 ## 0.3.0-beta.5 - 2026-08-21
 
