@@ -5,9 +5,84 @@ import {
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
   type MorphogenesisDecisionAuthorizationV1,
   type MorphogenesisDecisionCandidateV1,
+  createMorphogenesisStrategyReviewV3,
+  validateMorphogenesisStrategyRecommendationV3,
+  type MorphogenesisStrategyRecommendationV3,
+  type MorphogenesisStrategyReviewPortV3,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 import type { CollectiveAgreementCommitCertificateV1 } from "./agreement-contracts.js";
+
+export interface MorphogenesisStrategyCollectiveCertificatePortV3 {
+  resolve(input: {
+    readonly recommendation: MorphogenesisStrategyRecommendationV3;
+    readonly logicalTimeMs: number;
+  }): Promise<CollectiveAgreementCommitCertificateV1 | null>;
+  verify(input: {
+    readonly recommendation: MorphogenesisStrategyRecommendationV3;
+    readonly certificate: CollectiveAgreementCommitCertificateV1;
+    readonly logicalTimeMs: number;
+  }): Promise<boolean>;
+}
+
+export class CollectiveAgreementMorphogenesisStrategyReviewPortV3
+  implements MorphogenesisStrategyReviewPortV3
+{
+  constructor(readonly certificates: MorphogenesisStrategyCollectiveCertificatePortV3) {}
+  async review(input: {
+    readonly recommendation: MorphogenesisStrategyRecommendationV3;
+    readonly logicalTimeMs: number;
+  }) {
+    const recommendation = validateMorphogenesisStrategyRecommendationV3(input.recommendation);
+    if (recommendation.reviewRoute !== "collective")
+      throw new TypeError("collective strategy review route is not selected");
+    const certificate = await this.certificates.resolve({ recommendation, logicalTimeMs: input.logicalTimeMs });
+    if (!certificate) return null;
+    if (!(await this.certificates.verify({ recommendation, certificate, logicalTimeMs: input.logicalTimeMs })))
+      throw new TypeError("collective strategy review certificate is invalid");
+    if (certificate.value.kind !== "application" ||
+        certificate.value.valueId !== `morphogenesis-strategy:${recommendation.recommendationId}`)
+      throw new TypeError("collective agreement does not bind the strategy recommendation");
+    const payload = exactStrategyPayload(certificate.value.payload);
+    if (payload.recommendationDigest !== recommendation.recommendationDigest)
+      throw new TypeError("collective strategy recommendation digest changed");
+    return createMorphogenesisStrategyReviewV3({
+      reviewId: `${certificate.certificateId}:morphogenesis-strategy`,
+      recommendationId: recommendation.recommendationId,
+      recommendationDigest: recommendation.recommendationDigest,
+      route: "collective",
+      actorType: "collective",
+      actorId: `collective:${certificate.coordinate.membershipConfigurationDigest}`,
+      actorMandateDigest: payload.actorMandateDigest,
+      independenceGroupId: payload.independenceGroupId,
+      disposition: payload.disposition,
+      proofDigest: digest(certificate.certificateDigest),
+      reviewedAtLogicalMs: certificate.committedAtLogicalMs,
+      expiresAtLogicalMs: payload.expiresAtLogicalMs,
+    });
+  }
+}
+
+function exactStrategyPayload(input: Readonly<Record<string, unknown>>) {
+  const expected = ["actorMandateDigest", "disposition", "expiresAtLogicalMs",
+    "independenceGroupId", "recommendationDigest"].sort();
+  if (Object.keys(input).sort().join(",") !== expected.join(","))
+    throw new TypeError("collective strategy review payload fields are invalid");
+  const recommendationDigest = digest(input.recommendationDigest);
+  const actorMandateDigest = digest(input.actorMandateDigest);
+  if (typeof input.independenceGroupId !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.independenceGroupId) ||
+      !["approved", "rejected"].includes(input.disposition as string) ||
+      !Number.isSafeInteger(input.expiresAtLogicalMs))
+    throw new TypeError("collective strategy review payload is invalid");
+  return {
+    recommendationDigest,
+    actorMandateDigest,
+    independenceGroupId: input.independenceGroupId,
+    disposition: input.disposition as "approved" | "rejected",
+    expiresAtLogicalMs: input.expiresAtLogicalMs as number,
+  };
+}
 
 export interface MorphogenesisCollectiveAgreementCertificatePortV1 {
   resolve(input: {

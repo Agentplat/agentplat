@@ -31,12 +31,20 @@ import {
 } from "@agentplat/collective-host/morphogenesis-operator-adapters";
 import { AgentPlatMemoryMorphogenesisStrategyPortV3 } from "@agentplat/collective-host/morphogenesis-strategy-memory";
 import {
+  AuthorizedAgentMorphogenesisStrategyReviewPortV3,
+  type MorphogenesisStrategyAgentMandatePortV3,
+} from "@agentplat/collective-host/morphogenesis-strategy-review";
+import {
   createAgentRoomMorphogenesisDecisionAuthorizationV1,
   createAgentRoomMorphogenesisGateConfigurationV1,
+  createAgentRoomMorphogenesisStrategyGateConfigurationV3,
+  createAgentRoomMorphogenesisStrategyReviewV3,
 } from "@agentplat/workflows-rooms/morphogenesis";
 import {
   CollectiveAgreementMorphogenesisDecisionIssuerV1,
+  CollectiveAgreementMorphogenesisStrategyReviewPortV3,
   type MorphogenesisCollectiveAgreementCertificatePortV1,
+  type MorphogenesisStrategyCollectiveCertificatePortV3,
 } from "@agentplat/collective-quorum/morphogenesis";
 
 void compileAgentInstantiationProfileToCreationRequestV1;
@@ -58,11 +66,16 @@ void ReplacementMorphogenesisBoundaryV2;
 void RoleRealignmentMorphogenesisBoundaryV2;
 void TeamTopologyMorphogenesisBoundaryV2;
 void AgentPlatMemoryMorphogenesisStrategyPortV3;
+void AuthorizedAgentMorphogenesisStrategyReviewPortV3;
 void createAgentRoomMorphogenesisDecisionAuthorizationV1;
 void createAgentRoomMorphogenesisGateConfigurationV1;
+void createAgentRoomMorphogenesisStrategyGateConfigurationV3;
+void createAgentRoomMorphogenesisStrategyReviewV3;
 void CollectiveAgreementMorphogenesisDecisionIssuerV1;
+void CollectiveAgreementMorphogenesisStrategyReviewPortV3;
 
 declare const collectiveCertificates: MorphogenesisCollectiveAgreementCertificatePortV1;
+declare const strategyCollectiveCertificates: MorphogenesisStrategyCollectiveCertificatePortV3;
 declare const creationMaterial: MorphogenesisAgentCreationMaterialPortV1;
 declare const creationMaterialBinding: MorphogenesisAgentCreationMaterialBindingV2;
 declare const teamCommands: MorphogenesisTeamActivationCommandPortV1;
@@ -72,7 +85,9 @@ declare const actionGateways: MorphogenesisActionGatewayResolutionPortV1;
 declare const runtimeAttestation: MorphogenesisRuntimeAttestationVerifierV1;
 declare const capabilityAssessment: MorphogenesisCapabilityAssessmentPortV1;
 declare const eligibilityEvidence: MorphogenesisEligibilityEvidencePortV1;
+declare const strategyAgentMandates: MorphogenesisStrategyAgentMandatePortV3;
 void collectiveCertificates;
+void strategyCollectiveCertificates;
 void creationMaterial;
 void creationMaterialBinding;
 void teamCommands;
@@ -82,3 +97,4 @@ void actionGateways;
 void runtimeAttestation;
 void capabilityAssessment;
 void eligibilityEvidence;
+void strategyAgentMandates;

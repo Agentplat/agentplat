@@ -21,6 +21,12 @@ import {
   projectMorphogenesisStrategyReviewToRoomMessageV3,
   projectMorphogenesisStrategyTransitionToRoomArtifactV3,
 } from "@agentplat/rooms-mesh/morphogenesis";
+import {
+  createAgentRoomMorphogenesisStrategyGateConfigurationV3,
+  createAgentRoomMorphogenesisStrategyReviewV3,
+} from "@agentplat/workflows-rooms/morphogenesis";
+import { CollectiveAgreementMorphogenesisStrategyReviewPortV3 } from "@agentplat/collective-quorum/morphogenesis";
+import { AuthorizedAgentMorphogenesisStrategyReviewPortV3 } from "@agentplat/collective-host/morphogenesis-strategy-review";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 const operations = ["award_selection", "bid_submission", "offer_routing", "plan_decomposition", "recovery_selection"];
@@ -138,6 +144,21 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
   const promote = await runtime.recommend(promoteInput);
   assert.equal(promote.advisoryOnly, true);
   assert.equal("reviewDigest" in promote, false);
+  const agentReview = await new AuthorizedAgentMorphogenesisStrategyReviewPortV3({
+    async verify({ recommendation, logicalTimeMs }) {
+      return {
+        recommendationDigest: recommendation.recommendationDigest,
+        actorId: "agent:authorized-reviewer",
+        actorMandateDigest: sha("agent-mandate"),
+        independenceGroupId: "independence:agent-reviewer",
+        disposition: "approved",
+        proofDigest: sha("agent-proof"),
+        reviewedAtLogicalMs: logicalTimeMs,
+        expiresAtLogicalMs: logicalTimeMs + 10,
+      };
+    },
+  }).review({ recommendation: promote, policy, logicalTimeMs: 11 });
+  assert.equal(agentReview.actorType, "agent");
   let state = await runtime.reviewAndApply({ recommendation: promote, logicalTimeMs: 12 });
   assert.equal(state.activeStrategyId, adaptive.strategyId);
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "promoted");
@@ -148,6 +169,37 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
     action: "rollback", target: adaptive.strategyId, replacement: baseline.strategyId,
     route: "authorized_person", time: 30,
   }));
+  const roomGate = createAgentRoomMorphogenesisStrategyGateConfigurationV3({
+    recommendation: rollback,
+    roomId: "room:test",
+    requestedBy: "agent:strategy-analyst",
+  });
+  const roomApprovalReview = createAgentRoomMorphogenesisStrategyReviewV3({
+    recommendation: rollback,
+    approval: {
+      id: "approval:strategy:person",
+      tenantId: "tenant:test",
+      roomId: "room:test",
+      targetType: "action",
+      targetId: rollback.recommendationId,
+      action: roomGate.action,
+      status: "approved",
+      requestedBy: "agent:strategy-analyst",
+      decidedBy: "person:reviewer",
+      createdAt: "2030-01-01T00:00:00.000Z",
+      updatedAt: "2030-01-01T00:01:00.000Z",
+      decidedAt: "2030-01-01T00:01:00.000Z",
+    },
+    expectedTenantId: "tenant:test",
+    expectedRoomId: "room:test",
+    actorMandateDigest: sha("person-mandate"),
+    independenceGroupId: "independence:person",
+    proofDigest: sha("person-proof"),
+    reviewedAtLogicalMs: 31,
+    expiresAtLogicalMs: 40,
+  });
+  assert.equal(roomApprovalReview.actorType, "person");
+  assert.equal(roomApprovalReview.recommendationDigest, rollback.recommendationDigest);
   state = await runtime.reviewAndApply({ recommendation: rollback, logicalTimeMs: 32 });
   assert.equal(state.activeStrategyId, baseline.strategyId);
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "degraded");
@@ -156,6 +208,29 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
     action: "retire", target: adaptive.strategyId,
     route: "collective", time: 50,
   }));
+  const collectiveCertificate = {
+    certificateId: "certificate:strategy:collective",
+    certificateDigest: sha("collective-certificate"),
+    committedAtLogicalMs: 51,
+    coordinate: { membershipConfigurationDigest: sha("membership"), membershipEpoch: 1 },
+    value: {
+      kind: "application",
+      valueId: `morphogenesis-strategy:${retire.recommendationId}`,
+      payload: {
+        recommendationDigest: retire.recommendationDigest,
+        actorMandateDigest: sha("collective-mandate"),
+        independenceGroupId: "independence:collective",
+        disposition: "approved",
+        expiresAtLogicalMs: 60,
+      },
+    },
+  };
+  const collectiveReview = await new CollectiveAgreementMorphogenesisStrategyReviewPortV3({
+    async resolve() { return collectiveCertificate; },
+    async verify() { return true; },
+  }).review({ recommendation: retire, policy, logicalTimeMs: 51 });
+  assert.equal(collectiveReview.actorType, "collective");
+  assert.equal(collectiveReview.proofDigest, collectiveCertificate.certificateDigest);
   state = await runtime.reviewAndApply({ recommendation: retire, logicalTimeMs: 52 });
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "retired");
   assert.deepEqual(reviewCalls, ["authorized_agent", "authorized_person", "collective"]);
