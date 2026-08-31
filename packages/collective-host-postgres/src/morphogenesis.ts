@@ -26,6 +26,8 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-strategy-adaptation"
       | "morphogenesis-strategy-governance"
       | "morphogenesis-strategy-counterfactual"
+      | "morphogenesis-strategy-evidence-exchange"
+      | "morphogenesis-strategy-convergence"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
@@ -43,6 +45,8 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-strategy-adaptation"
       | "morphogenesis-strategy-governance"
       | "morphogenesis-strategy-counterfactual"
+      | "morphogenesis-strategy-evidence-exchange"
+      | "morphogenesis-strategy-convergence"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;

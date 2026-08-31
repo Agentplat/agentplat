@@ -36,13 +36,18 @@ import {
   validateMorphogenesisStrategyOutcomeAttestationV4,
   morphogenesisStrategyFeedbackSchemaDigestV4,
   createMorphogenesisStrategyCollectivePriorSourceV4,
+  createMorphogenesisStrategyCollectiveSyncAdapterV4,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 const operations = ["award_selection", "bid_submission", "offer_routing", "plan_decomposition", "recovery_selection"];
 const dimensions = ["authority", "capability_state", "context_integrity", "role", "trust"];
 
-async function fixture() {
+async function fixture({
+  disposition = "success",
+  metricValueMicros = 900_000,
+  safetyValueMicros = metricValueMicros,
+} = {}) {
   const strategy = createLocalStrategyDefinitionV1({
     schemaVersion: 1, strategyId: "strategy:morphogenesis:shared",
     strategyVersion: 1, implementationDigest: sha("strategy"), operations,
@@ -139,7 +144,7 @@ async function fixture() {
     planDigest, proposalDigest: executionBinding.proposalDigest,
     decisionDigest: sha("decision"), authorizationDigest: sha("authorization"),
     authorityFenceDigest: sha("fence"), stepReceiptRoot: sha("steps"),
-    disposition: "success", outcomeEvidenceDigests: [sha("outcome-evidence")],
+    disposition, outcomeEvidenceDigests: [sha(`outcome-evidence:${disposition}`)],
     resultingSnapshotDigest: sha("result"), resultingMorphologyEpoch: 2,
     evaluatedAtLogicalMs: 20,
   });
@@ -147,7 +152,8 @@ async function fixture() {
     measurementId: "measurement:intelligence", selection, executionBinding, outcome,
     metrics: ["mission_progress", "latency_efficiency", "resource_efficiency",
       "recovery_quality", "safety"].map((metric) => ({ schemaVersion: 1,
-      metric, valueMicros: 900_000 })), confidenceBps: 9_000,
+      metric, valueMicros: metric === "safety" ? safetyValueMicros : metricValueMicros })),
+    confidenceBps: 9_000,
     sourceId: feedbackSource.sourceId, sourceVersion: 1,
     sourceImplementationDigest: feedbackSource.sourceImplementationDigest,
     sourceRevision: 1, provenanceDigest: sha("provenance"),
@@ -221,6 +227,16 @@ test("V4 signs Morphogenesis lineage and delegates compatible evidence to the ex
   });
   assert.equal((await adapter.admit({ attestation, logicalTimeMs: 35 })).status, "admitted");
   assert.equal(admissions, 1);
+  const sync = createMorphogenesisStrategyCollectiveSyncAdapterV4({
+    policy, crypto: webcrypto,
+  });
+  const record = await sync.toRecord({ attestation, predecessorRecordDigest: null });
+  const received = await sync.fromRecord({ record });
+  assert.equal(received?.attestationDigest, attestation.signedAttestation.attestationDigest);
+  assert.equal((await adapter.admitFromMesh({
+    attestation: received, logicalTimeMs: 36,
+  })).status, "admitted");
+  assert.equal(admissions, 2);
   assert.equal(validateMorphogenesisStrategyOutcomeAttestationV4(attestation).attestationDigest,
     attestation.attestationDigest);
   assert.throws(() => validateMorphogenesisStrategyOutcomeAttestationV4({
@@ -316,14 +332,15 @@ test("V4 inherits duplicate, equivocation and independence controls from the rea
       exchange,
     });
   };
-  const make = async (peerId, feedbackDecisionDigest = value.feedbackDecision.feedbackDecisionDigest) => {
+  const make = async (peerId, feedbackDecisionDigest = value.feedbackDecision.feedbackDecisionDigest,
+    source = value) => {
     const keys = await webcrypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]);
     return createSignedMorphogenesisStrategyOutcomeAttestationV4({
-      catalog: value.catalog, context: value.context, contextClassDigest,
-      selection: value.selection, executionBinding: value.executionBinding,
-      outcome: value.outcome, measurement: value.measurement, feedback: value.feedback,
-      localPolicyDigest: value.adaptationPolicy.policyDigest,
-      feedbackBatchDigest: value.batch.batchDigest, feedbackDecisionDigest,
+      catalog: source.catalog, context: source.context, contextClassDigest,
+      selection: source.selection, executionBinding: source.executionBinding,
+      outcome: source.outcome, measurement: source.measurement, feedback: source.feedback,
+      localPolicyDigest: source.adaptationPolicy.policyDigest,
+      feedbackBatchDigest: source.batch.batchDigest, feedbackDecisionDigest,
       tenantId: "tenant:test", meshId: "mesh:test", policyDomainId: "policy-domain:test",
       missionIntentId: "mission-intent:test", objectiveId: "objective:test",
       issuerPeerId: peerId, issuerInstanceId: `${peerId}:instance`,
@@ -380,4 +397,23 @@ test("V4 inherits duplicate, equivocation and independence controls from the rea
     await colluded.admit({ attestation, logicalTimeMs: 35 });
   assert.equal((await colluded.certify({ attestation: attestations[0], logicalTimeMs: 40 })).status,
     "insufficient_evidence");
+
+  const unsafeValue = await fixture({
+    disposition: "successor_recovery_required",
+    metricValueMicros: 100_000,
+    safetyValueMicros: 0,
+  });
+  const poisoned = buildExchange();
+  const unsafeAttestation = await make("peer:c", unsafeValue.feedbackDecision.feedbackDecisionDigest,
+    unsafeValue);
+  await poisoned.admit({ attestation: attestations[0], logicalTimeMs: 35 });
+  await poisoned.admit({ attestation: attestations[1], logicalTimeMs: 35 });
+  await poisoned.admit({ attestation: unsafeAttestation, logicalTimeMs: 35 });
+  const poisonResistant = await poisoned.certify({
+    attestation: attestations[0], logicalTimeMs: 40,
+  });
+  assert.equal(poisonResistant.status, "certified");
+  assert.equal(poisonResistant.certificate.outcome, "success");
+  assert.equal(poisonResistant.certificate.metrics.find(({ metric }) => metric === "safety")
+    .valueMicros, 900_000);
 });

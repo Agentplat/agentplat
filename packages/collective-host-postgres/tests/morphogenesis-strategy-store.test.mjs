@@ -22,9 +22,19 @@ import {
   createMorphogenesisStrategyCounterfactualReportV3,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
+  createPeerStrategyEvidenceExchangePolicyV1,
+  createPeerStrategyEvidenceStateV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+import {
+  createStrategyConvergencePolicyV1,
+  createStrategyConvergenceStateV1,
+} from "@agentplat/collective-runtime/strategy-convergence";
+import {
   PostgresLocalStrategyAdaptationStoreV1,
   PostgresMorphogenesisStrategyGovernanceStoreV3,
   PostgresMorphogenesisStrategyCounterfactualStoreV3,
+  PostgresPeerStrategyEvidenceStoreV1,
+  PostgresStrategyConvergenceStoreV1,
 } from "../dist/morphogenesis-strategy.js";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -260,4 +270,80 @@ test("PostgreSQL counterfactual reports are immutable and witness guarded", asyn
   assert.equal((await store.load(report.reportId)).reportDigest, report.reportDigest);
   witness.heads.clear();
   await assert.rejects(store.load(report.reportId), /witness diverged/);
+});
+
+test("PostgreSQL V4 Exchange and Convergence heads preserve CAS and rollback witnesses", async () => {
+  const pool = new FakePool();
+  const witness = new Witness();
+  const options = { scopeId: "tenant:intelligence-v4", rollbackWitness: witness };
+  const evidencePolicy = createPeerStrategyEvidenceExchangePolicyV1({
+    schemaVersion: 1, policyId: "policy:evidence", policyVersion: 1,
+    parentPolicyDigest: null, feedbackSchemaDigest: sha("feedback-schema"),
+    minimumDistinctPeers: 3, minimumDistinctIndependenceGroups: 3,
+    minimumConfidenceBps: 8_000, maximumPriorInfluenceBps: 2_000,
+    limits: { maximumAttestations: 16, maximumAttestationsPerPeer: 4,
+      maximumSourceHeads: 16, maximumCertificates: 8,
+      maximumFeedbackSignalDigests: 16, maximumAttestationTtlMs: 100,
+      maximumFutureSkewMs: 5, maximumReasonCodesPerDecision: 8,
+      maximumCommitAttempts: 4, maximumGossipFanout: 4, maximumGossipHops: 3 },
+  });
+  const evidenceStore = new PostgresPeerStrategyEvidenceStoreV1({
+    pool, options, policy: evidencePolicy,
+  });
+  const evidenceInitial = createPeerStrategyEvidenceStateV1({
+    stateKey: "state:evidence", exchangerId: "exchange", exchangerVersion: 1,
+    implementationId: "exchange:v1", policy: evidencePolicy,
+  });
+  assert.equal(await evidenceStore.save({ state: evidenceInitial, expectedRevision: null }), true);
+  const evidenceNext = createPeerStrategyEvidenceStateV1({
+    stateKey: evidenceInitial.stateKey, exchangerId: evidenceInitial.exchangerId,
+    exchangerVersion: evidenceInitial.exchangerVersion,
+    implementationId: evidenceInitial.implementationId, policy: evidencePolicy,
+    revision: 1, logicalTimeHighWaterMs: 10,
+    predecessorStateDigest: evidenceInitial.stateDigest,
+  });
+  assert.equal(await evidenceStore.save({ state: evidenceNext, expectedRevision: 0 }), true);
+  assert.equal((await new PostgresPeerStrategyEvidenceStoreV1({
+    pool, options, policy: evidencePolicy,
+  }).load(evidenceInitial.stateKey)).stateDigest, evidenceNext.stateDigest);
+
+  const convergencePolicy = createStrategyConvergencePolicyV1({
+    schemaVersion: 1, policyId: "policy:convergence", policyVersion: 1,
+    parentPolicyDigest: null, minimumConfidenceBps: 8_000,
+    minimumDistinctPeers: 3, minimumDistinctIndependenceGroups: 3,
+    minimumStableCycles: 2, recoveryStableCycles: 3,
+    improvementMarginBps: 500, diversityPreservationMarginBps: 400,
+    minimumCycleIntervalMs: 10, cooldownDurationMs: 20,
+    oscillationWindowMs: 100, maximumTransitionsPerOscillationWindow: 2,
+    maximumPriorInfluenceBps: 2_000, recommendationTtlMs: 50,
+    limits: { maximumScopes: 4, maximumStrategiesPerScope: 4,
+      maximumObservationsPerCycle: 8, maximumHistoryPerScope: 16,
+      maximumSourceIdsPerObservation: 8, maximumReasonCodesPerDecision: 8,
+      maximumObservationTtlMs: 100, maximumFutureSkewMs: 5,
+      maximumCommitAttempts: 4 },
+  });
+  const convergenceStore = new PostgresStrategyConvergenceStoreV1({
+    pool, options, policy: convergencePolicy,
+  });
+  const convergenceInitial = createStrategyConvergenceStateV1({
+    stateKey: "state:convergence", controllerId: "convergence",
+    controllerVersion: 1, implementationId: "convergence:v1",
+    policy: convergencePolicy,
+  });
+  assert.equal(await convergenceStore.save({ state: convergenceInitial, expectedRevision: null }), true);
+  const convergenceNext = createStrategyConvergenceStateV1({
+    stateKey: convergenceInitial.stateKey,
+    controllerId: convergenceInitial.controllerId,
+    controllerVersion: convergenceInitial.controllerVersion,
+    implementationId: convergenceInitial.implementationId,
+    policy: convergencePolicy, revision: 1, logicalTimeHighWaterMs: 10,
+    predecessorStateDigest: convergenceInitial.stateDigest,
+  });
+  assert.equal(await convergenceStore.save({ state: convergenceNext, expectedRevision: 0 }), true);
+  assert.equal((await new PostgresStrategyConvergenceStoreV1({
+    pool, options, policy: convergencePolicy,
+  }).load(convergenceInitial.stateKey)).stateDigest, convergenceNext.stateDigest);
+  witness.heads.clear();
+  await assert.rejects(evidenceStore.load(evidenceInitial.stateKey), /witness diverged/);
+  await assert.rejects(convergenceStore.load(convergenceInitial.stateKey), /witness diverged/);
 });

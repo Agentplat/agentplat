@@ -214,6 +214,22 @@ test("V4 fails safe for partitions and preserves local diversity near the leader
   });
   assert.equal(result.convergenceDecision.status, "partitioned");
   assert.equal(result.convergenceDecision.action, "hold");
+  const recoveringOne = await partitioned.evaluate({
+    cycleId: "cycle:recovering:1", context: value.context,
+    contextClassDigest: sha("context-class"), governanceState: value.governanceState,
+    governancePolicy: value.governancePolicy, governanceStateKey: "state:governance",
+    missionIntentId: "mission", objectiveId: "objective", connectivity: "recovering",
+    certificates, logicalTimeMs: 20,
+  });
+  const recoveringTwo = await partitioned.evaluate({
+    cycleId: "cycle:recovering:2", context: value.context,
+    contextClassDigest: sha("context-class"), governanceState: value.governanceState,
+    governancePolicy: value.governancePolicy, governanceStateKey: "state:governance",
+    missionIntentId: "mission", objectiveId: "objective", connectivity: "recovering",
+    certificates, logicalTimeMs: 30,
+  });
+  assert.equal(recoveringOne.convergenceDecision.action, "hold");
+  assert.equal(recoveringTwo.convergenceDecision.action, "hold");
 
   const diverse = new MorphogenesisStrategyConvergenceV4({
     intelligencePolicy: value.intelligencePolicy,

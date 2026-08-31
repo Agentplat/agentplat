@@ -24,6 +24,20 @@ import {
   type MorphogenesisStrategyCounterfactualReportV3,
   type MorphogenesisStrategyCounterfactualStoreV3,
 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  validatePeerStrategyEvidenceExchangePolicyV1,
+  validatePeerStrategyEvidenceStateV1,
+  type PeerStrategyEvidencePolicyRecordV1,
+  type PeerStrategyEvidenceStateV1,
+  type PeerStrategyEvidenceStoreV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+import {
+  validateStrategyConvergencePolicyV1,
+  validateStrategyConvergenceStateV1,
+  type StrategyConvergencePolicyRecordV1,
+  type StrategyConvergenceStateV1,
+  type StrategyConvergenceStoreV1,
+} from "@agentplat/collective-runtime/strategy-convergence";
 
 import type {
   MorphogenesisPostgresRollbackWitnessV1,
@@ -124,6 +138,52 @@ export class PostgresLocalStrategyAdaptationStoreV1
   }
 }
 
+export class PostgresPeerStrategyEvidenceStoreV1
+  implements PeerStrategyEvidenceStoreV1
+{
+  readonly #repository: StrategyStateRepository<PeerStrategyEvidenceStateV1>;
+  constructor(input: {
+    readonly pool: Pool;
+    readonly options: MorphogenesisPostgresStoreOptionsV1;
+    readonly policy: PeerStrategyEvidencePolicyRecordV1;
+  }) {
+    const policy = validatePeerStrategyEvidenceExchangePolicyV1(input.policy);
+    this.#repository = new StrategyStateRepository({
+      pool: input.pool, options: input.options,
+      stateKind: "morphogenesis-strategy-evidence-exchange",
+      validate: (value) => validatePeerStrategyEvidenceStateV1(value, { policy }),
+    });
+  }
+  load(stateKey: string) { return this.#repository.load(stateKey); }
+  save(input: { readonly state: PeerStrategyEvidenceStateV1; readonly expectedRevision: number | null }) {
+    return this.#repository.save({ state: input.state,
+      expectedRevision: input.expectedRevision, expectedStateDigest: null });
+  }
+}
+
+export class PostgresStrategyConvergenceStoreV1
+  implements StrategyConvergenceStoreV1
+{
+  readonly #repository: StrategyStateRepository<StrategyConvergenceStateV1>;
+  constructor(input: {
+    readonly pool: Pool;
+    readonly options: MorphogenesisPostgresStoreOptionsV1;
+    readonly policy: StrategyConvergencePolicyRecordV1;
+  }) {
+    const policy = validateStrategyConvergencePolicyV1(input.policy);
+    this.#repository = new StrategyStateRepository({
+      pool: input.pool, options: input.options,
+      stateKind: "morphogenesis-strategy-convergence",
+      validate: (value) => validateStrategyConvergenceStateV1(value, { policy }),
+    });
+  }
+  load(stateKey: string) { return this.#repository.load(stateKey); }
+  save(input: { readonly state: StrategyConvergenceStateV1; readonly expectedRevision: number | null }) {
+    return this.#repository.save({ state: input.state,
+      expectedRevision: input.expectedRevision, expectedStateDigest: null });
+  }
+}
+
 export class PostgresMorphogenesisStrategyGovernanceStoreV3
   implements MorphogenesisStrategyGovernanceStoreV3
 {
@@ -165,7 +225,11 @@ class StrategyStateRepository<T extends StrategyState> {
   constructor(readonly input: {
     readonly pool: Pool;
     readonly options: MorphogenesisPostgresStoreOptionsV1;
-    readonly stateKind: "morphogenesis-strategy-adaptation" | "morphogenesis-strategy-governance";
+    readonly stateKind:
+      | "morphogenesis-strategy-adaptation"
+      | "morphogenesis-strategy-governance"
+      | "morphogenesis-strategy-evidence-exchange"
+      | "morphogenesis-strategy-convergence";
     readonly validate: (input: unknown) => T;
   }) {
     if (!input.pool || !input.options.scopeId || !input.options.rollbackWitness)

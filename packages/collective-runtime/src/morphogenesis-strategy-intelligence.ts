@@ -1,5 +1,6 @@
 import {
   createPeerStrategyEvidenceAdvisoryPriorSourceV1,
+  createPeerStrategyEvidenceCollectiveSyncAdapterV1,
 } from "./strategy-evidence-exchange-adapters.js";
 import {
   digestPlanningJsonV1,
@@ -20,6 +21,7 @@ import type {
   PeerStrategyEvidenceExchangePortV1,
   PeerStrategyEvidenceBindingV1,
   PeerStrategyEvidenceCohortV1,
+  PeerStrategyEvidenceSyncRecordV1,
   SignedPeerStrategyOutcomeAttestationV1,
 } from "./strategy-evidence-exchange-contracts.js";
 import {
@@ -79,6 +81,43 @@ export interface MorphogenesisStrategyIntelligencePolicyV4 {
   readonly admittedContextClassDigests: readonly PlanningDigestV1[];
   readonly maximumAttestationTtlMs: number;
   readonly policyDigest: PlanningDigestV1;
+}
+
+/** Content-free Agent Mesh projection. The signed V1 envelope carries every
+ * V4 lineage digest while reusing the existing authenticated sync domain. */
+export interface MorphogenesisStrategyCollectiveSyncAdapterV4 {
+  toRecord(input: {
+    readonly attestation: MorphogenesisStrategyOutcomeAttestationV4;
+    readonly predecessorRecordDigest: PlanningDigestV1 | null;
+  }): Promise<PeerStrategyEvidenceSyncRecordV1>;
+  fromRecord(input: {
+    readonly record: PeerStrategyEvidenceSyncRecordV1;
+  }): Promise<SignedPeerStrategyOutcomeAttestationV1 | null>;
+}
+
+export function createMorphogenesisStrategyCollectiveSyncAdapterV4(input: {
+  readonly policy: MorphogenesisStrategyIntelligencePolicyV4;
+  readonly crypto?: Crypto;
+}): MorphogenesisStrategyCollectiveSyncAdapterV4 {
+  const policy = validatePolicy(input.policy);
+  const adapter = createPeerStrategyEvidenceCollectiveSyncAdapterV1({
+    scope: { tenantId: policy.tenantId, meshId: policy.meshId,
+      policyDomainId: policy.policyDomainId },
+    ...(input.crypto ? { crypto: input.crypto } : {}),
+  });
+  return freeze({
+    async toRecord(value: {
+      readonly attestation: MorphogenesisStrategyOutcomeAttestationV4;
+      readonly predecessorRecordDigest: PlanningDigestV1 | null;
+    }) {
+      const attestation = validateMorphogenesisStrategyOutcomeAttestationV4(
+        value.attestation,
+      );
+      return adapter.toRecord({ attestation: attestation.signedAttestation,
+        predecessorRecordDigest: value.predecessorRecordDigest });
+    },
+    fromRecord: adapter.fromRecord.bind(adapter),
+  });
 }
 
 export function morphogenesisStrategyFeedbackSchemaDigestV4(): PlanningDigestV1 {
@@ -309,6 +348,32 @@ export class MorphogenesisStrategyEvidenceExchangeV4 {
       binding: value.signedAttestation.binding,
       logicalTimeMs: input.logicalTimeMs,
     });
+  }
+  async admitFromMesh(input: {
+    readonly attestation: SignedPeerStrategyOutcomeAttestationV1;
+    readonly logicalTimeMs: number;
+  }): Promise<PeerStrategyEvidenceAdmissionDecisionV1> {
+    const signed = validateSignedPeerStrategyOutcomeAttestationV1(input.attestation);
+    const binding = createMorphogenesisStrategyEvidenceBindingV4({
+      catalog: this.#catalog,
+      strategyId: signed.binding.strategyId,
+      contextClassDigest: signed.cohort.contextClassDigest,
+    });
+    if (signed.catalogDigest !== binding.catalogDigest ||
+        signed.binding.strategyDigest !== binding.strategyDigest ||
+        signed.binding.implementationDigest !== binding.proposalGeneratorDigest ||
+        signed.binding.feedbackSchemaDigest !== binding.feedbackSchemaDigest ||
+        !signed.feedbackSignalDigests.includes(binding.bindingDigest) ||
+        binding.morphogenesisPolicyDigest !== this.#policy.morphogenesisPolicyDigest ||
+        signed.cohort.tenantId !== this.#policy.tenantId ||
+        signed.cohort.meshId !== this.#policy.meshId ||
+        signed.cohort.policyDomainId !== this.#policy.policyDomainId ||
+        !this.#policy.admittedContextClassDigests.includes(binding.contextClassDigest) ||
+        signed.expiresAtLogicalMs - signed.observedAtLogicalMs >
+          this.#policy.maximumAttestationTtlMs)
+      fail("Morphogenesis strategy Mesh evidence is outside the compatible local cohort");
+    return this.options.exchange.admit({ attestation: signed,
+      logicalTimeMs: input.logicalTimeMs });
   }
   #compatible(value: MorphogenesisStrategyOutcomeAttestationV4) {
     const signed = value.signedAttestation;
