@@ -47,6 +47,11 @@ import {
   createMorphogenesisStrategyExecutionBindingV3,
   createMorphogenesisStrategyOutcomeMeasurementV3,
   createMorphogenesisStrategyFeedbackV3,
+  createMorphogenesisStrategyGovernancePolicyV3,
+  createMorphogenesisStrategyReviewV3,
+  MorphogenesisStrategyGovernanceRuntimeV3,
+  InMemoryMorphogenesisStrategyGovernanceStoreV3,
+  validateMorphogenesisStrategyGovernanceStateV3,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -115,6 +120,10 @@ import {
   type MorphogenesisStrategyExecutionBindingV3,
   type MorphogenesisStrategyOutcomeMeasurementV3,
   type MorphogenesisStrategyFeedbackV3,
+  type MorphogenesisStrategyGovernancePolicyV3,
+  type MorphogenesisStrategyRecommendationV3,
+  type MorphogenesisStrategyReviewV3,
+  type MorphogenesisStrategyGovernanceStateV3,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -191,6 +200,11 @@ void createMorphogenesisStrategySelectionV3;
 void createMorphogenesisStrategyExecutionBindingV3;
 void createMorphogenesisStrategyOutcomeMeasurementV3;
 void createMorphogenesisStrategyFeedbackV3;
+void createMorphogenesisStrategyGovernancePolicyV3;
+void createMorphogenesisStrategyReviewV3;
+void MorphogenesisStrategyGovernanceRuntimeV3;
+void InMemoryMorphogenesisStrategyGovernanceStoreV3;
+void validateMorphogenesisStrategyGovernanceStateV3;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -260,6 +274,10 @@ declare const strategySelectionV3: MorphogenesisStrategySelectionV3;
 declare const strategyExecutionBindingV3: MorphogenesisStrategyExecutionBindingV3;
 declare const strategyMeasurementV3: MorphogenesisStrategyOutcomeMeasurementV3;
 declare const strategyFeedbackV3: MorphogenesisStrategyFeedbackV3;
+declare const strategyGovernancePolicyV3: MorphogenesisStrategyGovernancePolicyV3;
+declare const strategyRecommendationV3: MorphogenesisStrategyRecommendationV3;
+declare const strategyReviewV3: MorphogenesisStrategyReviewV3;
+declare const strategyGovernanceStateV3: MorphogenesisStrategyGovernanceStateV3;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -308,6 +326,10 @@ void strategySelectionV3;
 void strategyExecutionBindingV3;
 void strategyMeasurementV3;
 void strategyFeedbackV3;
+void strategyGovernancePolicyV3;
+void strategyRecommendationV3;
+void strategyReviewV3;
+void strategyGovernanceStateV3;
 void budgetPort;
 void controlWindow;
 void sourceResolution;
