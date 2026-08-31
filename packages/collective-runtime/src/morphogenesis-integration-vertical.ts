@@ -95,7 +95,8 @@ export class InMemoryMorphogenesisVerticalStoreV1 implements MorphogenesisVertic
       (c?.stateDigest ?? null) !== i.expectedStateDigest
     )
       return false;
-    this.#m.set(i.state.stateKey, Object.freeze(structuredClone(i.state)));
+    const state = validateMorphogenesisVerticalStateV1(i.state);
+    this.#m.set(state.stateKey, state);
     return true;
   }
 }
@@ -255,13 +256,18 @@ export class MorphogenesisIntegrationVerticalRuntimeV1 {
     if (!s) fail("Morphogenesis vertical state unavailable");
     return s;
   }
-  async save(s: MorphogenesisVerticalStateV1, c: any) {
+  async save(s: MorphogenesisVerticalStateV1, c: Partial<Pick<
+    MorphogenesisVerticalStateV1, "status" | "nextStageIndex" | "pendingStage" |
+      "receipts" | "compensationReceipts" | "failureEvidenceDigest">> &
+      { readonly logicalTimeMs: number }) {
     for (let n = 0; n < this.options.maximumCommitAttempts; n++) {
+      const { logicalTimeMs, ...changes } = c;
+      const { schemaVersion: _schema, stateDigest: _stateDigest, ...prior } = s;
       const q = record({
-        ...s,
-        ...c,
+        ...prior,
+        ...changes,
         revision: s.revision + 1,
-        logicalTimeHighWaterMs: c.logicalTimeMs,
+        logicalTimeHighWaterMs: logicalTimeMs,
         predecessorStateDigest: s.stateDigest,
       });
       if (
@@ -312,6 +318,28 @@ function validateCompensation(
   )
     fail("Morphogenesis vertical compensation invalid");
   return Object.freeze(structuredClone(r));
+}
+export function validateMorphogenesisVerticalStateV1(value: MorphogenesisVerticalStateV1) {
+  const stageSet = new Set(MORPHOGENESIS_VERTICAL_STAGES_V1);
+  if (value.schemaVersion !== 1 || value.nextStageIndex < 0 ||
+      value.nextStageIndex > MORPHOGENESIS_VERTICAL_STAGES_V1.length ||
+      (value.pendingStage !== null && !stageSet.has(value.pendingStage)))
+    fail("Morphogenesis vertical state coordinates invalid");
+  for (const receipt of value.receipts) {
+    const { receiptDigest, ...body } = receipt;
+    if (!stageSet.has(receipt.stage) || receiptDigest !== dg(
+      "morphogenesis-vertical-stage-receipt-v1", body))
+      fail("Morphogenesis vertical retained receipt invalid");
+  }
+  for (const receipt of value.compensationReceipts) {
+    const { receiptDigest, ...body } = receipt;
+    if (receiptDigest !== dg("morphogenesis-vertical-compensation-receipt-v1", body))
+      fail("Morphogenesis vertical retained compensation invalid");
+  }
+  const { stateDigest, ...body } = value;
+  if (stateDigest !== dg("morphogenesis-vertical-state-v1", body))
+    fail("Morphogenesis vertical state digest invalid");
+  return Object.freeze(structuredClone(value));
 }
 function record(
   i: Omit<MorphogenesisVerticalStateV1, "schemaVersion" | "stateDigest">,
