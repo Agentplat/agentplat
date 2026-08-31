@@ -165,6 +165,39 @@ export function createMorphogenesisConstitutionalAmendmentV8(
     amendmentDigest: digest("morphogenesis-constitutional-amendment-v8", b),
   });
 }
+export function validateMorphogenesisConstitutionV8(input: unknown) {
+  const value = exact(input, CONSTITUTION_KEYS, "constitution") as unknown as
+    MorphogenesisConstitutionV8;
+  const { schemaVersion: _schema, constitutionDigest, ...body } = value;
+  const rebuilt = createMorphogenesisConstitutionV8(body);
+  if (value.schemaVersion !== 8 || constitutionDigest !== rebuilt.constitutionDigest)
+    fail("constitution digest invalid");
+  return rebuilt;
+}
+export function validateMorphogenesisConstitutionalAmendmentV8(
+  input: unknown,
+  current: MorphogenesisConstitutionV8,
+) {
+  const value = exact(input, AMENDMENT_KEYS, "constitutional amendment") as unknown as
+    MorphogenesisConstitutionalAmendmentV8;
+  const { schemaVersion: _schema, currentConstitutionDigest: _current,
+    advisoryOnly: _advisory, amendmentDigest, ...body } = value;
+  const rebuilt = createMorphogenesisConstitutionalAmendmentV8({ ...body, current });
+  if (value.schemaVersion !== 8 || value.advisoryOnly !== true ||
+      amendmentDigest !== rebuilt.amendmentDigest)
+    fail("constitutional amendment digest invalid");
+  return rebuilt;
+}
+const CONSTITUTION_KEYS = ["amendmentPolicyDigest", "authorityCeilingDigest",
+  "checkpointDigest", "constitutionDigest", "constitutionId", "constitutionVersion",
+  "constitutionalEpoch", "diversityPolicyDigest", "effectiveAtLogicalMs",
+  "evidenceBoundaryDigest", "invariants", "missionIntentDigest",
+  "parentConstitutionDigest", "schemaVersion", "tenantId"] as const;
+const AMENDMENT_KEYS = ["advisoryOnly", "amendmentDigest", "amendmentId",
+  "beneficiaryIds", "currentConstitutionDigest", "evidenceDigests",
+  "expiresAtLogicalMs", "organizationalLineageDigest", "proposedAtLogicalMs",
+  "proposerId", "proposerImplementationDigest", "schemaVersion",
+  "successorConstitution"] as const;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,
   SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(v: unknown) {
@@ -200,6 +233,13 @@ function shas(v: readonly unknown[]) {
 }
 function digest(d: string, v: unknown) {
   return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function exact(value: unknown, keys: readonly string[], label: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype ||
+      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort()))
+    fail(`${label} shape invalid`);
+  return value as Record<string, unknown>;
 }
 function freeze<T>(v: T): T {
   if (v && typeof v === "object" && !Object.isFrozen(v)) {
