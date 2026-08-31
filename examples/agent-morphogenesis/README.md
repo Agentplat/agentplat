@@ -70,6 +70,12 @@ Run the V7 governed organizational-evolution example:
 node examples/agent-morphogenesis/governed-organizational-evolution.mjs
 ```
 
+Run the V8 constitutional-continuity example:
+
+```sh
+node examples/agent-morphogenesis/constitutional-continuity.mjs
+```
+
 It selects from an immutable catalog through the existing bounded learner,
 binds the selected generator to an operator plan, converts one observed outcome
 into comparable feedback and applies a separately reviewed promotion. It does

@@ -550,6 +550,11 @@ adds persistent organizational patterns, comparative morphology simulation,
 multi-owner successor plans, reviewed canaries and partial compensation. See
 the [V7 checklist](./docs/collective-runtime/agent-morphogenesis-v7-acceptance-checklist.md).
 
+[Agent Morphogenesis Constitutional Continuity V8](./docs/specification/agent-morphogenesis-v8.md)
+adds longitudinal invariants, model-checked amendments, meta-governance,
+fork isolation and rollback-safe constitutional epochs. See the [V8
+checklist](./docs/collective-runtime/agent-morphogenesis-v8-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

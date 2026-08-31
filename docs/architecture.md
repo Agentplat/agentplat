@@ -54,3 +54,7 @@ Morphogenesis Governed Organizational Evolution V7 coordinates whole-collective
 successor epochs through existing Morphogenesis, Dynamic Topology, Membership,
 Work and Action owners. Plans, canaries and handoffs remain content-free and do
 not consolidate authority.
+
+Morphogenesis Constitutional Continuity V8 preserves mission and authority
+invariants across organizational generations. Proofs and meta-review authorize
+only successor constitutional epochs; local subsystem owners remain unchanged.
