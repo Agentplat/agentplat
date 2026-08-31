@@ -33,6 +33,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-agent-genesis-lifecycle"
       | "morphogenesis-organizational-execution"
       | "morphogenesis-organizational-governance"
+      | "morphogenesis-constitutional-state"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly revision: number;
@@ -57,6 +58,7 @@ export interface MorphogenesisPostgresRollbackWitnessV1 {
       | "morphogenesis-agent-genesis-lifecycle"
       | "morphogenesis-organizational-execution"
       | "morphogenesis-organizational-governance"
+      | "morphogenesis-constitutional-state"
       | "morphogenesis-budget-reservation";
     readonly stateKey: string;
     readonly previousRevision: number | null;
