@@ -26,6 +26,53 @@ export interface MorphogenesisAgentGenesisActivationHandoffV6 {
   readonly handoffDigest: PlanningDigestV1;
 }
 
+export interface MorphogenesisAgentGenesisLineageV6 {
+  readonly schemaVersion: 6;
+  readonly lineageId: AgentPlatID;
+  readonly needDigest: PlanningDigestV1;
+  readonly draftDigest: PlanningDigestV1;
+  readonly profileDigest: PlanningDigestV1;
+  readonly evolutionDigest: PlanningDigestV1;
+  readonly authorityAttenuationDigest: PlanningDigestV1;
+  readonly synthesisCertificationDigest: PlanningDigestV1;
+  readonly agentLineageDigest: PlanningDigestV1;
+  readonly agentDigest: PlanningDigestV1;
+  readonly membershipConfigurationDigest: PlanningDigestV1;
+  readonly membershipEpoch: number;
+  readonly attestationDigest: PlanningDigestV1;
+  readonly terminalReceiptDigest: PlanningDigestV1 | null;
+  readonly recordedAtLogicalMs: number;
+  readonly grantsAuthority: false;
+  readonly lineageDigest: PlanningDigestV1;
+}
+
+export function createMorphogenesisAgentGenesisLineageV6(input: {
+  readonly lineageId: AgentPlatID;
+  readonly entry: MorphogenesisAgentGenesisEntryV6;
+  readonly logicalTimeMs: number;
+}): MorphogenesisAgentGenesisLineageV6 {
+  const entry = input.entry;
+  const context = entry.draft.profileContext;
+  if (!entry.lifecycleAgent || !entry.attestation || !context.evolution ||
+      !context.attenuation || !context.synthesisCertification)
+    fail("Agent Genesis lineage material is incomplete");
+  const body = freeze({ schemaVersion: 6 as const, lineageId: id(input.lineageId),
+    needDigest: entry.draft.needDigest, draftDigest: entry.draft.draftDigest,
+    profileDigest: entry.draft.profile.profileDigest,
+    evolutionDigest: context.evolution.evolutionDigest,
+    authorityAttenuationDigest: context.attenuation.attenuationDigest,
+    synthesisCertificationDigest: context.synthesisCertification.certificationDigest,
+    agentLineageDigest: entry.lifecycleAgent.lineageDigest,
+    agentDigest: entry.lifecycleAgent.agentDigest,
+    membershipConfigurationDigest: entry.lifecycleAgent.membershipConfigurationDigest,
+    membershipEpoch: positive(entry.lifecycleAgent.membershipEpoch),
+    attestationDigest: entry.attestation.attestationDigest,
+    terminalReceiptDigest: entry.terminalReceipt?.terminalReceiptDigest ?? null,
+    recordedAtLogicalMs: nonNegative(input.logicalTimeMs), grantsAuthority: false as const });
+  return freeze({ ...body,
+    lineageDigest: digest("morphogenesis-agent-genesis-lineage-v6", body) });
+}
+
 /** Supplies verified material to the existing Team/Work owners. It deliberately
  * cannot construct Work Contracts, leases, fences or Action Grants. */
 export function createMorphogenesisAgentGenesisActivationHandoffV6(input: {

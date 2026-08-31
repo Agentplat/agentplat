@@ -22,6 +22,7 @@ import {
   createMorphogenesisAgentAttestationV1,
   createMorphogenesisTerminalAgentReceiptV1,
   createMorphogenesisAgentGenesisActivationHandoffV6,
+  createMorphogenesisAgentGenesisLineageV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   MorphogenesisAgentGenesisMeshPublisherV6,
@@ -371,6 +372,10 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     assert.equal(retired.status, "retired");
     assert.equal(retired.externalAdmissionApplied, false);
     assert.equal(retirementEffects, 1);
+    const lineage = createMorphogenesisAgentGenesisLineageV6({
+      lineageId: `lineage:genesis:${route}`, entry: retired, logicalTimeMs: 39 });
+    assert.equal(lineage.grantsAuthority, false);
+    assert.equal(lineage.terminalReceiptDigest, retired.terminalReceipt.terminalReceiptDigest);
     const state = await runtime.state(39);
     assert.equal(validateMorphogenesisAgentGenesisLifecycleStateV6(state, {
       policy: lifecyclePolicy, genesisPolicy: value.policy,
