@@ -42,4 +42,5 @@ export * from "./morphogenesis-constitutional-continuity.js";
 export * from "./morphogenesis-constitutional-verification.js";
 export * from "./morphogenesis-constitutional-model-checking.js";
 export * from "./morphogenesis-constitutional-governance.js";
+export * from "./morphogenesis-constitutional-reconciliation.js";
 export * from "./mission-morphogenesis.js";
