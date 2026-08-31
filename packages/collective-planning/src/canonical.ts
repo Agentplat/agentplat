@@ -291,6 +291,8 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "morphogenesis-constitutional-verification-policy-v8",
   "morphogenesis-constitutional-epoch-observation-v8",
   "morphogenesis-constitutional-proof-v8",
+  "morphogenesis-constitutional-model-checking-scenario-v8",
+  "morphogenesis-constitutional-model-checking-receipt-v8",
   "morphogenesis-strategy-outcome-attestation-v4",
   "morphogenesis-strategy-convergence-decision-v4",
   "morphogenesis-budget-reservation-request",

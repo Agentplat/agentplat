@@ -40,4 +40,5 @@ export * from "./morphogenesis-organizational-evolution-integrations.js";
 export * from "./morphogenesis-organizational-evolution-validation.js";
 export * from "./morphogenesis-constitutional-continuity.js";
 export * from "./morphogenesis-constitutional-verification.js";
+export * from "./morphogenesis-constitutional-model-checking.js";
 export * from "./mission-morphogenesis.js";
