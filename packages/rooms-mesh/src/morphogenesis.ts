@@ -17,6 +17,11 @@ import {
   type MorphogenesisStrategyRecommendationV3,
   type MorphogenesisStrategyReviewV3,
   type MorphogenesisStrategyGovernanceTransitionV3,
+  validateMorphogenesisStrategySynthesisCandidateV5,
+  validateMorphogenesisSynthesisAdmissionRecommendationV5,
+  type MorphogenesisStrategySynthesisCandidateV5,
+  type MorphogenesisStrategySynthesisPolicyV5,
+  type MorphogenesisSynthesisAdmissionRecommendationV5,
   type MorphologySnapshotV1,
   type TargetMorphologyV1,
 } from "@agentplat/collective-runtime/morphogenesis";
@@ -139,6 +144,46 @@ export interface MorphogenesisStrategyMeshProjectionV3 {
   readonly expiresAtLogicalMs: number;
   readonly projectionDigest: `sha256:${string}`;
   readonly unsigned: true;
+}
+
+export interface MorphogenesisSynthesisMeshProjectionV5 {
+  readonly schemaVersion: 5;
+  readonly kind: "morphogenesis.synthesis-candidate" |
+    "morphogenesis.synthesis-recommendation";
+  readonly tenantId: string;
+  readonly meshId: string;
+  readonly missionId: string;
+  readonly objectiveId: string;
+  readonly morphologyId: string;
+  readonly subjectDigest: `sha256:${string}`;
+  readonly relatedDigests: readonly `sha256:${string}`[];
+  readonly evidenceDigests: readonly `sha256:${string}`[];
+  readonly action: string | null;
+  readonly reviewRoute: string | null;
+  readonly expiresAtLogicalMs: number;
+  readonly authorityGranted: false;
+  readonly projectionDigest: `sha256:${string}`;
+  readonly unsigned: true;
+}
+
+export interface MorphogenesisSynthesisMeshTransportV5 {
+  send(projection: MorphogenesisSynthesisMeshProjectionV5):
+    Promise<MorphogenesisAuthenticatedMeshReceiptV1>;
+  verify(input: { readonly projection: MorphogenesisSynthesisMeshProjectionV5;
+    readonly receipt: MorphogenesisAuthenticatedMeshReceiptV1 }): Promise<boolean>;
+}
+
+export class MorphogenesisSynthesisMeshPublisherV5 {
+  constructor(readonly transport: MorphogenesisSynthesisMeshTransportV5) {}
+  async publish(projection: MorphogenesisSynthesisMeshProjectionV5) {
+    if (projection.unsigned !== true || projection.authorityGranted !== false)
+      fail("Morphogenesis synthesis Mesh projection must remain authority-neutral");
+    const receipt = await this.transport.send(projection);
+    if (receipt.projectionDigest !== projection.projectionDigest ||
+        !(await this.transport.verify({ projection, receipt })))
+      fail("Morphogenesis synthesis Mesh delivery was not verified");
+    return freeze(receipt);
+  }
 }
 
 export interface MorphogenesisStrategyMeshTransportV3 {
@@ -768,6 +813,99 @@ export async function projectMorphogenesisStrategyRecommendationToMeshV3(input: 
   });
 }
 
+export function projectMorphogenesisSynthesisCandidateToRoomArtifactV5(input: {
+  readonly room: Room;
+  readonly scope: MorphogenesisScopeV1;
+  readonly candidate: MorphogenesisStrategySynthesisCandidateV5;
+  readonly policy: MorphogenesisStrategySynthesisPolicyV5;
+  readonly createdBy?: string;
+}): MorphogenesisRoomArtifactProjectionV1 {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const candidate = validateMorphogenesisStrategySynthesisCandidateV5(
+    input.candidate, input.policy);
+  return strategyRoomArtifact(input.room,
+    `morphogenesis-synthesis-candidate:${candidate.candidateId}`,
+    "agent-morphogenesis-synthesis-candidate",
+    "Morphogenesis synthesized strategy candidate", candidate.candidateDigest,
+    candidate as unknown as CreateArtifactInput["content"], input.createdBy);
+}
+
+export function projectMorphogenesisSynthesisRecommendationToRoomArtifactV5(input: {
+  readonly room: Room;
+  readonly scope: MorphogenesisScopeV1;
+  readonly recommendation: MorphogenesisSynthesisAdmissionRecommendationV5;
+  readonly createdBy?: string;
+}): MorphogenesisRoomArtifactProjectionV1 {
+  assertAdvancedRoomScope(input.room, input.scope);
+  const recommendation = validateMorphogenesisSynthesisAdmissionRecommendationV5(
+    input.recommendation);
+  return strategyRoomArtifact(input.room,
+    `morphogenesis-synthesis-recommendation:${recommendation.recommendationId}`,
+    "agent-morphogenesis-synthesis-recommendation",
+    `Morphogenesis synthesis ${recommendation.action} recommendation`,
+    recommendation.recommendationDigest,
+    recommendation as unknown as CreateArtifactInput["content"], input.createdBy);
+}
+
+export async function projectMorphogenesisSynthesisCandidateToMeshV5(input: {
+  readonly scope: MorphogenesisScopeV1;
+  readonly candidate: MorphogenesisStrategySynthesisCandidateV5;
+  readonly policy: MorphogenesisStrategySynthesisPolicyV5;
+}): Promise<MorphogenesisSynthesisMeshProjectionV5> {
+  const candidate = validateMorphogenesisStrategySynthesisCandidateV5(
+    input.candidate, input.policy);
+  return synthesisMeshProjection(input.scope, {
+    kind: "morphogenesis.synthesis-candidate",
+    subjectDigest: candidate.candidateDigest,
+    relatedDigests: [candidate.gapDigest, candidate.policyDigest,
+      candidate.catalogDigest, candidate.manifest.manifestDigest],
+    evidenceDigests: candidate.provenanceDigests, action: null, reviewRoute: null,
+    expiresAtLogicalMs: candidate.expiresAtLogicalMs,
+  });
+}
+
+export async function projectMorphogenesisSynthesisRecommendationToMeshV5(input: {
+  readonly scope: MorphogenesisScopeV1;
+  readonly recommendation: MorphogenesisSynthesisAdmissionRecommendationV5;
+}): Promise<MorphogenesisSynthesisMeshProjectionV5> {
+  const recommendation = validateMorphogenesisSynthesisAdmissionRecommendationV5(
+    input.recommendation);
+  return synthesisMeshProjection(input.scope, {
+    kind: "morphogenesis.synthesis-recommendation",
+    subjectDigest: recommendation.recommendationDigest,
+    relatedDigests: [recommendation.candidateDigest, recommendation.evaluationDigest,
+      recommendation.certificationDigest, recommendation.stateDigest,
+      recommendation.riskDigest, recommendation.costDigest],
+    evidenceDigests: recommendation.evidenceDigests,
+    action: recommendation.action, reviewRoute: recommendation.reviewRoute,
+    expiresAtLogicalMs: recommendation.expiresAtLogicalMs,
+  });
+}
+
+async function synthesisMeshProjection(scope: MorphogenesisScopeV1, input: {
+  readonly kind: MorphogenesisSynthesisMeshProjectionV5["kind"];
+  readonly subjectDigest: `sha256:${string}`;
+  readonly relatedDigests: readonly `sha256:${string}`[];
+  readonly evidenceDigests: readonly `sha256:${string}`[];
+  readonly action: string | null;
+  readonly reviewRoute: string | null;
+  readonly expiresAtLogicalMs: number;
+}): Promise<MorphogenesisSynthesisMeshProjectionV5> {
+  if (!scope.meshId) fail("Morphogenesis synthesis Mesh scope is unavailable");
+  const body = freeze({ schemaVersion: 5 as const, kind: input.kind,
+    tenantId: scope.tenantId, meshId: scope.meshId, missionId: scope.missionId,
+    objectiveId: scope.objectiveId, morphologyId: scope.morphologyId,
+    subjectDigest: input.subjectDigest,
+    relatedDigests: freeze([...new Set(input.relatedDigests)].sort()),
+    evidenceDigests: freeze([...new Set(input.evidenceDigests)].sort()),
+    action: input.action, reviewRoute: input.reviewRoute,
+    expiresAtLogicalMs: input.expiresAtLogicalMs,
+    authorityGranted: false as const, unsigned: true as const });
+  return freeze({ ...body,
+    projectionDigest: (await computeMeshDurableValueDigest(body as never)) as
+      `sha256:${string}` });
+}
+
 function strategyRoomArtifact(
   room: Room,
   id: string,
@@ -795,7 +933,8 @@ function strategyRoomArtifact(
       risks: ["authority-remains-external"],
       ...(createdBy ? { createdBy } : {}),
       metadata: {
-        morphogenesisStrategySchemaVersion: 3,
+        morphogenesisStrategySchemaVersion:
+          type.startsWith("agent-morphogenesis-synthesis-") ? 5 : 3,
         subjectDigest,
         advisoryOnly: true,
       },

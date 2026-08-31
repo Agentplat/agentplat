@@ -16,6 +16,11 @@ import {
   projectMorphogenesisStrategyReviewToRoomMessageV3,
   projectMorphogenesisStrategyTransitionToRoomArtifactV3,
   projectMorphogenesisStrategyRecommendationToMeshV3,
+  MorphogenesisSynthesisMeshPublisherV5,
+  projectMorphogenesisSynthesisCandidateToMeshV5,
+  projectMorphogenesisSynthesisCandidateToRoomArtifactV5,
+  projectMorphogenesisSynthesisRecommendationToMeshV5,
+  projectMorphogenesisSynthesisRecommendationToRoomArtifactV5,
   type MorphogenesisStrategyMeshProjectionV3,
   type MorphogenesisMeshNeedProjectionV1,
   type MorphogenesisRoomArtifactProjectionV1,
@@ -41,6 +46,11 @@ void projectMorphogenesisStrategyRecommendationToRoomArtifactV3;
 void projectMorphogenesisStrategyReviewToRoomMessageV3;
 void projectMorphogenesisStrategyTransitionToRoomArtifactV3;
 void projectMorphogenesisStrategyRecommendationToMeshV3;
+void MorphogenesisSynthesisMeshPublisherV5;
+void projectMorphogenesisSynthesisCandidateToMeshV5;
+void projectMorphogenesisSynthesisCandidateToRoomArtifactV5;
+void projectMorphogenesisSynthesisRecommendationToMeshV5;
+void projectMorphogenesisSynthesisRecommendationToRoomArtifactV5;
 
 declare const mesh: MorphogenesisMeshNeedProjectionV1;
 declare const artifact: MorphogenesisRoomArtifactProjectionV1;

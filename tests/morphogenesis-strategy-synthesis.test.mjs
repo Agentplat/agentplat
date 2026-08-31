@@ -9,6 +9,8 @@ import {
   createMorphogenesisSynthesisAdmissionReviewV5,
   createMorphogenesisSynthesisGovernancePolicyV5,
   validateMorphogenesisSynthesisGovernanceStateV5,
+  MorphogenesisSynthesisEligibilityGateV5,
+  createMorphogenesisSynthesisRestrictionAssessmentV5,
   createMorphogenesisStrategyGapV5,
   createMorphogenesisStrategySynthesisCertificationV5,
   createMorphogenesisStrategySynthesisEvaluationV5,
@@ -17,6 +19,13 @@ import {
   createMorphogenesisSynthesisThreatAssessmentV5,
   validateMorphogenesisStrategySynthesisCandidateV5,
 } from "@agentplat/collective-runtime/morphogenesis";
+import {
+  MorphogenesisSynthesisMeshPublisherV5,
+  projectMorphogenesisSynthesisCandidateToMeshV5,
+  projectMorphogenesisSynthesisCandidateToRoomArtifactV5,
+  projectMorphogenesisSynthesisRecommendationToMeshV5,
+  projectMorphogenesisSynthesisRecommendationToRoomArtifactV5,
+} from "@agentplat/rooms-mesh/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
 
@@ -144,6 +153,23 @@ test("V5 requires complete adversarial evaluation and independent certification"
     evidenceDigests: [sha("certification")], certifiedAtLogicalMs: 40,
     expiresAtLogicalMs: 60,
   });
+  const restrictionPort = (source, disposition = "eligible") => ({ source,
+    async assess({ candidate, evaluation, certification, logicalTimeMs }) {
+      return createMorphogenesisSynthesisRestrictionAssessmentV5({
+        source, candidateDigest: candidate.candidateDigest,
+        evaluationDigest: evaluation.evaluationDigest,
+        certificationDigest: certification.certificationDigest, disposition,
+        policyDigest: sha(`policy:${source}`), sourceId: `source:${source}`,
+        sourceVersion: 1, sourceImplementationDigest: sha(`source:${source}`),
+        evidenceDigests: [sha(`evidence:${source}`)], observedAtLogicalMs: logicalTimeMs,
+        expiresAtLogicalMs: logicalTimeMs + 20,
+      });
+    } });
+  const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
+    trust: restrictionPort("trust"),
+    inferenceControl: restrictionPort("inference_control"),
+  }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 22 });
+  assert.equal(eligibility.grantsAuthority, false);
   assert.equal(certification.grantsAuthority, false);
 });
 
@@ -171,6 +197,17 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
     evidenceDigests: [sha("certification")], certifiedAtLogicalMs: 22,
     expiresAtLogicalMs: 60,
   });
+  const port = (source) => ({ source, async assess({ logicalTimeMs }) {
+    return createMorphogenesisSynthesisRestrictionAssessmentV5({ source,
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, disposition: "eligible",
+      policyDigest: sha(`policy:${source}`), sourceId: `source:${source}`, sourceVersion: 1,
+      sourceImplementationDigest: sha(source), evidenceDigests: [sha(`evidence:${source}`)],
+      observedAtLogicalMs: logicalTimeMs, expiresAtLogicalMs: logicalTimeMs + 20 });
+  } });
+  const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
+    trust: port("trust"), inferenceControl: port("inference_control"),
+  }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 22 });
   const governancePolicy = createMorphogenesisSynthesisGovernancePolicyV5({
     schemaVersion: 5, policyId: "policy:synthesis-governance", policyVersion: 1,
     synthesisPolicyDigest: value.policy.policyDigest,
@@ -181,6 +218,19 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
     maximumCanaryUnsafeOutcomes: 0, maximumPendingRecommendations: 8,
     maximumHistory: 16, maximumCommitAttempts: 4,
   });
+  const room = { tenantId: "tenant:test", id: "room:test", status: "active" };
+  const scope = { tenantId: room.tenantId, roomId: room.id, meshId: "mesh:test",
+    missionId: "mission:test", objectiveId: "objective:test",
+    morphologyId: "morphology:test" };
+  const roomCandidate = projectMorphogenesisSynthesisCandidateToRoomArtifactV5({
+    room, scope, candidate, policy: value.policy,
+  });
+  assert.equal(roomCandidate.input.metadata.morphogenesisStrategySchemaVersion, 5);
+  const meshCandidate = await projectMorphogenesisSynthesisCandidateToMeshV5({
+    scope, candidate, policy: value.policy,
+  });
+  assert.equal(meshCandidate.authorityGranted, false);
+  assert.equal(meshCandidate.unsigned, true);
   for (const [route, actorType] of [
     ["authorized_agent", "agent"], ["authorized_person", "person"],
     ["collective", "collective"],
@@ -203,7 +253,8 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
       synthesisPolicy: value.policy, reviews,
       store: new InMemoryMorphogenesisSynthesisGovernanceStoreV5(),
     });
-    await runtime.register({ candidate, evaluation, certification, logicalTimeMs: 23 });
+    await runtime.register({ candidate, evaluation, certification, eligibility,
+      logicalTimeMs: 23 });
     const recommendation = await runtime.recommend({
       recommendationId: `recommendation:${route}:admit`, action: "admit_experimental",
       candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
@@ -213,6 +264,23 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
       proposedAtLogicalMs: 24, expiresAtLogicalMs: 40,
     });
     assert.equal(recommendation.advisoryOnly, true);
+    const roomRecommendation = projectMorphogenesisSynthesisRecommendationToRoomArtifactV5({
+      room, scope, recommendation,
+    });
+    assert.equal(roomRecommendation.input.metadata.advisoryOnly, true);
+    const meshRecommendation = await projectMorphogenesisSynthesisRecommendationToMeshV5({
+      scope, recommendation,
+    });
+    assert.equal(meshRecommendation.authorityGranted, false);
+    let publications = 0;
+    await new MorphogenesisSynthesisMeshPublisherV5({
+      async send(projection) { publications += 1; return { schemaVersion: 1,
+        projectionDigest: projection.projectionDigest, senderPeerId: "peer:test",
+        senderInstanceId: "instance:test", membershipConfigurationDigest: sha("membership"),
+        membershipEpoch: 1, envelopeDigest: sha("envelope"), sentAtLogicalMs: 25 }; },
+      async verify() { return true; },
+    }).publish(meshRecommendation);
+    assert.equal(publications, 1);
     assert.equal((await runtime.reviewAndApply({
       recommendationId: recommendation.recommendationId, logicalTimeMs: 25,
     })).nextStatus, "experimental");
@@ -245,4 +313,42 @@ test("V5 admits and promotes canaries through agent, person or quorum review", a
         canary: { ...state.entries[0].canary, successes: 99 } }],
     }, { policy: governancePolicy, synthesisPolicy: value.policy }), /canary/);
   }
+});
+
+test("V5 Trust or Inference Control restrictions fail closed before registration", async () => {
+  const value = fixture();
+  const candidate = await new MorphogenesisStrategySynthesisRuntimeV5({
+    policy: value.policy, synthesizer: value.synthesizer,
+  }).synthesize({ gap: value.gap, logicalTimeMs: 20 });
+  const threatAssessments = MORPHOGENESIS_SYNTHESIS_THREATS_V5.map((threat) =>
+    createMorphogenesisSynthesisThreatAssessmentV5({
+      threat, disposition: "passed", evidenceDigests: [sha(threat)],
+    }));
+  const evaluation = createMorphogenesisStrategySynthesisEvaluationV5({
+    evaluationId: "evaluation:restricted", candidate, baselineStrategyId: "strategy:baseline",
+    counterfactualReportDigest: sha("report"), assessorId: "agent:assessor",
+    assessorImplementationDigest: sha("assessor"), threatAssessments,
+    safetyMicros: 900_000, confidenceBps: 9_000, evidenceDigests: [sha("evaluation")],
+    evaluatedAtLogicalMs: 21, expiresAtLogicalMs: 70, policy: value.policy,
+  });
+  const certification = createMorphogenesisStrategySynthesisCertificationV5({
+    certificationId: "certification:restricted", candidate, evaluation,
+    synthesizerId: candidate.synthesizerId, certifierId: "agent:certifier",
+    certifierImplementationDigest: sha("certifier"), disposition: "certified",
+    evidenceDigests: [sha("cert")], certifiedAtLogicalMs: 22, expiresAtLogicalMs: 60,
+  });
+  const port = (source, disposition) => ({ source, async assess({ logicalTimeMs }) {
+    return createMorphogenesisSynthesisRestrictionAssessmentV5({ source,
+      candidateDigest: candidate.candidateDigest, evaluationDigest: evaluation.evaluationDigest,
+      certificationDigest: certification.certificationDigest, disposition,
+      policyDigest: sha(`policy:${source}`), sourceId: `source:${source}`, sourceVersion: 1,
+      sourceImplementationDigest: sha(source), evidenceDigests: [sha(`evidence:${source}`)],
+      observedAtLogicalMs: logicalTimeMs, expiresAtLogicalMs: logicalTimeMs + 20 });
+  } });
+  const eligibility = await new MorphogenesisSynthesisEligibilityGateV5({
+    trust: port("trust", "restricted"),
+    inferenceControl: port("inference_control", "eligible"),
+  }).evaluate({ candidate, evaluation, certification, logicalTimeMs: 23 });
+  assert.equal(eligibility.disposition, "ineligible");
+  assert.deepEqual(eligibility.reasonCodes, ["trust_restricted"]);
 });

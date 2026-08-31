@@ -16,6 +16,10 @@ import {
   type MorphogenesisStrategySynthesisEvaluationV5,
   type MorphogenesisStrategySynthesisPolicyV5,
 } from "./morphogenesis-strategy-synthesis.js";
+import {
+  validateMorphogenesisSynthesisEligibilityDecisionV5,
+  type MorphogenesisSynthesisEligibilityDecisionV5,
+} from "./morphogenesis-strategy-synthesis-integrations.js";
 
 export type MorphogenesisSynthesisGovernanceActionV5 =
   "admit_experimental" | "certify" | "degrade" | "retire" | "rollback";
@@ -98,6 +102,7 @@ export interface MorphogenesisSynthesisCatalogEntryV5 {
   readonly candidate: MorphogenesisStrategySynthesisCandidateV5;
   readonly evaluationDigest: PlanningDigestV1;
   readonly certificationDigest: PlanningDigestV1;
+  readonly eligibilityDecisionDigest: PlanningDigestV1;
   readonly status: "draft" | "experimental" | "certified" | "degraded" | "retired";
   readonly statusRevision: number;
   readonly canary: MorphogenesisSynthesisCanaryCountersV5;
@@ -219,6 +224,7 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
   async register(input: { readonly candidate: MorphogenesisStrategySynthesisCandidateV5;
     readonly evaluation: MorphogenesisStrategySynthesisEvaluationV5;
     readonly certification: MorphogenesisStrategySynthesisCertificationV5;
+    readonly eligibility: MorphogenesisSynthesisEligibilityDecisionV5;
     readonly logicalTimeMs: number }) {
     const candidate = validateMorphogenesisStrategySynthesisCandidateV5(
       input.candidate, this.#synthesisPolicy);
@@ -226,8 +232,12 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
       input.evaluation, candidate, this.#synthesisPolicy);
     const certification = validateMorphogenesisStrategySynthesisCertificationV5(
       input.certification, candidate, evaluation);
+    const eligibility = validateMorphogenesisSynthesisEligibilityDecisionV5(
+      input.eligibility, { candidate, evaluation, certification,
+        logicalTimeMs: input.logicalTimeMs });
     if (certification.disposition !== "certified" ||
-        certification.expiresAtLogicalMs <= input.logicalTimeMs)
+        certification.expiresAtLogicalMs <= input.logicalTimeMs ||
+        eligibility.disposition !== "eligible")
       fail("synthesis registration evidence is invalid");
     return this.#commit(input.logicalTimeMs, (state) => {
       const existing = state.entries.find(({ candidate: value }) =>
@@ -237,6 +247,7 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
         entries: [...state.entries, freeze({ schemaVersion: 5 as const, candidate,
           evaluationDigest: evaluation.evaluationDigest,
           certificationDigest: certification.certificationDigest, status: "draft" as const,
+          eligibilityDecisionDigest: eligibility.decisionDigest,
           statusRevision: 1, canary: emptyCanary(), canaryReceipts: freeze([]),
           lastTransitionDigest: null })],
       });
@@ -362,6 +373,35 @@ export class MorphogenesisSynthesisGovernanceRuntimeV5 {
 export function validateMorphogenesisSynthesisGovernancePolicyV5(
   value: MorphogenesisSynthesisGovernancePolicyV5) {
   return validateGovernancePolicy(value);
+}
+export function validateMorphogenesisSynthesisAdmissionRecommendationV5(
+  value: MorphogenesisSynthesisAdmissionRecommendationV5) {
+  const normalized = createRecommendation({
+    recommendationId: value.recommendationId, action: value.action,
+    candidateDigest: value.candidateDigest, evaluationDigest: value.evaluationDigest,
+    certificationDigest: value.certificationDigest, proposerId: value.proposerId,
+    proposerImplementationDigest: value.proposerImplementationDigest,
+    reviewRoute: value.reviewRoute, evidenceDigests: value.evidenceDigests,
+    riskDigest: value.riskDigest, costDigest: value.costDigest,
+    proposedAtLogicalMs: value.proposedAtLogicalMs, expiresAtLogicalMs: value.expiresAtLogicalMs,
+  }, { stateDigest: value.stateDigest, revision: value.stateRevision } as
+    MorphogenesisSynthesisGovernanceStateV5);
+  if (normalized.recommendationDigest !== value.recommendationDigest ||
+      value.advisoryOnly !== true)
+    fail("synthesis governance recommendation is invalid");
+  return normalized;
+}
+export function validateMorphogenesisSynthesisAdmissionReviewV5(
+  value: MorphogenesisSynthesisAdmissionReviewV5) {
+  const { schemaVersion: _s, reviewDigest, ...body } = value;
+  const normalized = createMorphogenesisSynthesisAdmissionReviewV5(body);
+  if (normalized.reviewDigest !== reviewDigest)
+    fail("synthesis governance review is invalid");
+  return normalized;
+}
+export function validateMorphogenesisSynthesisGovernanceTransitionV5(
+  value: MorphogenesisSynthesisGovernanceTransitionV5) {
+  return validateTransition(value);
 }
 
 export function validateMorphogenesisSynthesisGovernanceStateV5(
@@ -530,6 +570,7 @@ function validateEntry(value: MorphogenesisSynthesisCatalogEntryV5,
   return freeze({ schemaVersion: 5 as const, candidate,
     evaluationDigest: sha(record.evaluationDigest),
     certificationDigest: sha(record.certificationDigest),
+    eligibilityDecisionDigest: sha(record.eligibilityDecisionDigest),
     status: one(record.status, STATUSES, "synthesis lifecycle status"),
     statusRevision: positive(record.statusRevision), canary,
     canaryReceipts: freeze(receipts),
@@ -564,7 +605,7 @@ const STATE_KEYS = ["entries", "logicalTimeHighWaterMs", "pendingRecommendations
   "policyDigest", "predecessorStateDigest", "reviews", "revision", "schemaVersion",
   "stateDigest", "stateKey", "transitions"] as const;
 const ENTRY_KEYS = ["canary", "canaryReceipts", "candidate", "certificationDigest",
-  "evaluationDigest", "lastTransitionDigest", "schemaVersion", "status",
+  "eligibilityDecisionDigest", "evaluationDigest", "lastTransitionDigest", "schemaVersion", "status",
   "statusRevision"] as const;
 const TRANSITION_KEYS = ["action", "appliedAtLogicalMs", "candidateDigest", "nextStatus",
   "priorStatus", "recommendationDigest", "reviewDigest", "schemaVersion",
