@@ -272,6 +272,8 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-organizational-simulation-scenario-v7"
   | "morphogenesis-organizational-estimate-v7"
   | "morphogenesis-organizational-simulation-report-v7"
+  | "morphogenesis-organizational-plan-step-v7"
+  | "morphogenesis-organizational-evolution-plan-v7"
   | "morphogenesis-strategy-outcome-attestation-v4"
   | "morphogenesis-strategy-convergence-decision-v4"
   | "morphogenesis-budget-reservation-request"
