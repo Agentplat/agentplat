@@ -16,6 +16,11 @@ import {
 } from "@agentplat/collective-runtime/strategy-adaptation";
 import { verifySignedPeerStrategyOutcomeAttestationV1 } from "@agentplat/collective-runtime/strategy-evidence-exchange";
 import {
+  InMemoryPeerStrategyEvidenceStoreV1,
+  PeerStrategyEvidenceExchangeRuntimeV1,
+  createPeerStrategyEvidenceExchangePolicyV1,
+} from "@agentplat/collective-runtime/strategy-evidence-exchange";
+import {
   MorphogenesisStrategyEvidenceExchangeV4,
   createMorphogenesisOperatorOutcomeReceiptV2,
   createMorphogenesisStrategyCatalogV3,
@@ -29,6 +34,8 @@ import {
   createMorphogenesisStrategySelectionV3,
   createSignedMorphogenesisStrategyOutcomeAttestationV4,
   validateMorphogenesisStrategyOutcomeAttestationV4,
+  morphogenesisStrategyFeedbackSchemaDigestV4,
+  createMorphogenesisStrategyCollectivePriorSourceV4,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -256,4 +263,121 @@ test("V4 rejects an incompatible context class before Exchange admission", async
   await assert.rejects(adapter.admit({ attestation, logicalTimeMs: 35 }),
     /compatible local cohort/);
   assert.equal(admissions, 0);
+});
+
+test("V4 inherits duplicate, equivocation and independence controls from the real Exchange", async () => {
+  const value = await fixture();
+  const contextClassDigest = sha("shared-context");
+  const evidencePolicy = createPeerStrategyEvidenceExchangePolicyV1({
+    schemaVersion: 1,
+    policyId: "policy:evidence-v4",
+    policyVersion: 1,
+    parentPolicyDigest: null,
+    feedbackSchemaDigest: morphogenesisStrategyFeedbackSchemaDigestV4(),
+    minimumDistinctPeers: 3,
+    minimumDistinctIndependenceGroups: 3,
+    minimumConfidenceBps: 8_000,
+    maximumPriorInfluenceBps: 2_000,
+    limits: {
+      maximumAttestations: 16, maximumAttestationsPerPeer: 4,
+      maximumSourceHeads: 16, maximumCertificates: 8,
+      maximumFeedbackSignalDigests: 16, maximumAttestationTtlMs: 100,
+      maximumFutureSkewMs: 5, maximumReasonCodesPerDecision: 8,
+      maximumCommitAttempts: 4, maximumGossipFanout: 4, maximumGossipHops: 3,
+    },
+  });
+  const buildExchange = (groupFor = (attestation) => `group:${attestation.issuerPeerId}`) => {
+    const store = new InMemoryPeerStrategyEvidenceStoreV1(evidencePolicy);
+    const exchange = new PeerStrategyEvidenceExchangeRuntimeV1({
+      stateKey: "state:exchange:v4",
+      exchangerId: "exchange:v4", exchangerVersion: 1,
+      implementationId: "exchange:v4", policy: evidencePolicy,
+      eligibility: { async evaluate({ attestation }) {
+        return { schemaVersion: 1, attestationDigest: attestation.attestationDigest,
+          disposition: "eligible", decisionDigest: sha(`eligible:${attestation.issuerPeerId}`),
+          expiresAtLogicalMs: 100 };
+      } },
+      independence: { async classify({ attestation }) {
+        const group = groupFor(attestation);
+        return { independenceGroupId: group,
+          classificationDigest: sha(group), expiresAtLogicalMs: 100 };
+      } },
+      store,
+    });
+    return new MorphogenesisStrategyEvidenceExchangeV4({
+      policy: createMorphogenesisStrategyIntelligencePolicyV4({
+        schemaVersion: 4, policyId: "policy:intelligence-v4", policyVersion: 1,
+        tenantId: "tenant:test", meshId: "mesh:test",
+        policyDomainId: "policy-domain:test", catalogDigest: value.catalog.catalogDigest,
+        morphogenesisPolicyDigest: value.context.morphogenesisPolicyDigest,
+        admittedContextClassDigests: [contextClassDigest], maximumAttestationTtlMs: 100,
+      }),
+      catalog: value.catalog,
+      exchange,
+    });
+  };
+  const make = async (peerId, feedbackDecisionDigest = value.feedbackDecision.feedbackDecisionDigest) => {
+    const keys = await webcrypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]);
+    return createSignedMorphogenesisStrategyOutcomeAttestationV4({
+      catalog: value.catalog, context: value.context, contextClassDigest,
+      selection: value.selection, executionBinding: value.executionBinding,
+      outcome: value.outcome, measurement: value.measurement, feedback: value.feedback,
+      localPolicyDigest: value.adaptationPolicy.policyDigest,
+      feedbackBatchDigest: value.batch.batchDigest, feedbackDecisionDigest,
+      tenantId: "tenant:test", meshId: "mesh:test", policyDomainId: "policy-domain:test",
+      missionIntentId: "mission-intent:test", objectiveId: "objective:test",
+      issuerPeerId: peerId, issuerInstanceId: `${peerId}:instance`,
+      issuerStreamId: `${peerId}:stream`, issuerSequence: 1,
+      predecessorAttestationDigest: null, membershipEpoch: 1,
+      membershipConfigurationDigest: sha("membership"), observedAtLogicalMs: 30,
+      expiresAtLogicalMs: 80, signing: { keyId: `${peerId}:key`, privateKey: keys.privateKey },
+      crypto: webcrypto,
+    });
+  };
+  const adapter = buildExchange();
+  const attestations = await Promise.all(["peer:a", "peer:b", "peer:c"].map((peerId) => make(peerId)));
+  for (const attestation of attestations)
+    assert.equal((await adapter.admit({ attestation, logicalTimeMs: 35 })).status, "admitted");
+  assert.equal((await adapter.admit({ attestation: attestations[0], logicalTimeMs: 36 })).status,
+    "duplicate");
+  const certified = await adapter.certify({ attestation: attestations[0], logicalTimeMs: 40 });
+  assert.equal(certified.status, "certified");
+  assert.equal(certified.certificate.independenceGroupIds.length, 3);
+  const priorRequest = createMorphogenesisStrategySelectionRequestV3({
+    requestId: "request:intelligence-prior",
+    scope: value.selection.request.scope,
+    context: value.context,
+    catalog: value.catalog,
+    logicalTimeMs: 45,
+  });
+  const priorSource = createMorphogenesisStrategyCollectivePriorSourceV4({
+    intelligence: adapter,
+    sourceId: "source:intelligence-v4",
+    sourceVersion: 1,
+    sourceImplementationDigest: sha("intelligence-v4"),
+    maximumInfluenceBps: 1_000,
+    async resolveContextClassDigest(contextDigest) {
+      return contextDigest === value.context.contextDigest ? contextClassDigest : null;
+    },
+  });
+  const priors = await priorSource.resolve({
+    request: priorRequest,
+    strategies: [value.strategy],
+  });
+  assert.equal(priors.length, 1);
+  assert.equal(priors[0].requestedInfluenceBps <= 1_000, true);
+  assert.equal("weightMicros" in priors[0], false);
+  assert.equal("authorizationDigest" in priors[0], false);
+
+  const equivocation = await make("peer:a", sha("equivocating-feedback-decision"));
+  const equivocated = buildExchange();
+  await equivocated.admit({ attestation: attestations[0], logicalTimeMs: 35 });
+  assert.equal((await equivocated.admit({ attestation: equivocation, logicalTimeMs: 37 })).status,
+    "rejected");
+
+  const colluded = buildExchange(() => "group:colluded");
+  for (const attestation of attestations)
+    await colluded.admit({ attestation, logicalTimeMs: 35 });
+  assert.equal((await colluded.certify({ attestation: attestations[0], logicalTimeMs: 40 })).status,
+    "insufficient_evidence");
 });

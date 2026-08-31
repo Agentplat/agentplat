@@ -1,4 +1,7 @@
 import {
+  createPeerStrategyEvidenceAdvisoryPriorSourceV1,
+} from "./strategy-evidence-exchange-adapters.js";
+import {
   digestPlanningJsonV1,
   type PlanningDigestV1,
   type PlanningJson,
@@ -31,6 +34,7 @@ import {
   type MorphogenesisStrategyOutcomeMeasurementV3,
   type MorphogenesisStrategySelectionV3,
 } from "./morphogenesis-strategy-adaptation.js";
+import type { LocalStrategyCollectivePriorSourceV1 } from "./strategy-adaptation-contracts.js";
 import {
   validateMorphogenesisOperatorOutcomeReceiptV2,
   type MorphogenesisOperatorOutcomeReceiptV2,
@@ -322,6 +326,55 @@ export class MorphogenesisStrategyEvidenceExchangeV4 {
           this.#policy.maximumAttestationTtlMs)
       fail("Morphogenesis strategy evidence is outside the compatible local cohort");
   }
+}
+
+export function createMorphogenesisStrategyCollectivePriorSourceV4(input: {
+  readonly intelligence: MorphogenesisStrategyEvidenceExchangeV4;
+  readonly sourceId: AgentPlatID;
+  readonly sourceVersion: number;
+  readonly sourceImplementationDigest: PlanningDigestV1;
+  readonly maximumInfluenceBps: number;
+  readonly resolveContextClassDigest: (
+    contextDigest: PlanningDigestV1,
+  ) => Promise<PlanningDigestV1 | null>;
+}): LocalStrategyCollectivePriorSourceV1 {
+  const catalog = input.intelligence.options.catalog;
+  return createPeerStrategyEvidenceAdvisoryPriorSourceV1({
+    sourceId: input.sourceId,
+    sourceVersion: input.sourceVersion,
+    sourceImplementationDigest: input.sourceImplementationDigest,
+    maximumInfluenceBps: input.maximumInfluenceBps,
+    exchange: input.intelligence.options.exchange,
+    async cohort(request) {
+      const contextClassDigest = await input.resolveContextClassDigest(request.contextDigest);
+      if (!contextClassDigest) fail("Morphogenesis collective prior context class is unavailable");
+      const policy = input.intelligence.options.policy;
+      return createPeerStrategyEvidenceCohortV1({
+        tenantId: request.scope.tenantId,
+        meshId: request.scope.meshId,
+        policyDomainId: request.scope.policyDomainId,
+        missionIntentId: request.scope.missionIntentId,
+        objectiveId: request.scope.objectiveId,
+        contextClassDigest,
+      });
+    },
+    async binding({ strategy, request }) {
+      const contextClassDigest = await input.resolveContextClassDigest(request.contextDigest);
+      if (!contextClassDigest) fail("Morphogenesis collective prior context class is unavailable");
+      const v4 = createMorphogenesisStrategyEvidenceBindingV4({
+        catalog,
+        strategyId: strategy.strategyId,
+        contextClassDigest,
+      });
+      return createPeerStrategyEvidenceBindingV1({
+        operation: "plan_decomposition",
+        strategyId: v4.strategyId,
+        strategyDigest: v4.strategyDigest,
+        implementationDigest: v4.proposalGeneratorDigest,
+        feedbackSchemaDigest: v4.feedbackSchemaDigest,
+      });
+    },
+  });
 }
 
 function validatePolicy(value: MorphogenesisStrategyIntelligencePolicyV4) { const { policyDigest, ...body } = value; const rebuilt = createMorphogenesisStrategyIntelligencePolicyV4(body); if (policyDigest !== rebuilt.policyDigest) fail("Morphogenesis intelligence policy digest is invalid"); return rebuilt; }

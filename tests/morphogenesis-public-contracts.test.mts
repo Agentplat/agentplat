@@ -69,6 +69,7 @@ import {
   createMorphogenesisStrategyIntelligencePolicyV4,
   createSignedMorphogenesisStrategyOutcomeAttestationV4,
   validateMorphogenesisStrategyOutcomeAttestationV4,
+  createMorphogenesisStrategyCollectivePriorSourceV4,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -249,6 +250,7 @@ void createMorphogenesisStrategyEvidenceBindingV4;
 void createMorphogenesisStrategyIntelligencePolicyV4;
 void createSignedMorphogenesisStrategyOutcomeAttestationV4;
 void validateMorphogenesisStrategyOutcomeAttestationV4;
+void createMorphogenesisStrategyCollectivePriorSourceV4;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
