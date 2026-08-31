@@ -10,6 +10,9 @@ import {
   createAgentInstantiationSynthesisCertificationV1,
   createMorphogenesisAgentGenesisNeedV6,
   createMorphogenesisAgentGenesisPolicyV6,
+  createMorphogenesisAgentGenesisEvaluationV6,
+  createMorphogenesisAgentGenesisThreatAssessmentV6,
+  MorphogenesisAgentGenesisSandboxRuntimeV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 const sha = (value) => digestPlanningJsonV1("morphogenesis-strategy-context-v3", { value });
@@ -81,7 +84,9 @@ function fixture(maximumResourceBudgetUnits = 20) {
     allowedReviewRoutes: ["authorized_agent", "authorized_person", "collective"],
     maximumResourceBudgetUnits, maximumInteractionBudgetUnits: 30,
     maximumActionBudgetUnits: 3, maximumDraftTtlMs: 100,
-    maximumProbationInteractions: 10, maximumSpawnDepth: 0 });
+    maximumProbationInteractions: 10, maximumSpawnDepth: 0,
+    minimumAssessmentConfidenceBps: 8_000, minimumSafetyMicros: 800_000,
+    maximumAssessmentTtlMs: 50 });
   const need = createMorphogenesisAgentGenesisNeedV6({ needId: "need:agent-genesis",
     scopeDigest: sha("scope"), morphogenesisNeedDigest: sha("morphogenesis-need"),
     strategyCandidateDigest: sha("strategy-candidate"),
@@ -126,4 +131,49 @@ test("V6 rejects eligible catalog blueprints, foreign generators and budget wide
   await assert.rejects(new MorphogenesisAgentGenesisRuntimeV6({
     policy: constrained.policy, generator: constrained.generator,
   }).generate({ need: constrained.need, logicalTimeMs: 20 }), /resource attenuation/);
+});
+
+test("V6 requires complete adversarial evidence before authority-free sandbox preparation", async () => {
+  const value = fixture();
+  const draft = await new MorphogenesisAgentGenesisRuntimeV6({
+    policy: value.policy, generator: value.generator,
+  }).generate({ need: value.need, logicalTimeMs: 20 });
+  const threatAssessments = MORPHOGENESIS_AGENT_GENESIS_THREATS_V6.map((threat) =>
+    createMorphogenesisAgentGenesisThreatAssessmentV6({ threat, disposition: "passed",
+      evidenceDigests: [sha(`threat:${threat}`)] }));
+  assert.throws(() => createMorphogenesisAgentGenesisEvaluationV6({
+    evaluationId: "evaluation:incomplete", draft,
+    baselineBlueprintDigest: sha("baseline"), simulatorImplementationDigest: sha("simulator"),
+    environmentDigest: sha("environment"), seedDigest: sha("seed"),
+    threatAssessments: threatAssessments.slice(1), safetyMicros: 900_000,
+    confidenceBps: 9_000, interactionUnits: 5, assessorId: "agent:assessor",
+    assessorImplementationDigest: sha("assessor"), evidenceDigests: [sha("evaluation")],
+    evaluatedAtLogicalMs: 30, expiresAtLogicalMs: 60, policy: value.policy,
+  }), /coverage/);
+  const evaluation = createMorphogenesisAgentGenesisEvaluationV6({
+    evaluationId: "evaluation:genesis", draft,
+    baselineBlueprintDigest: sha("baseline"), simulatorImplementationDigest: sha("simulator"),
+    environmentDigest: sha("environment"), seedDigest: sha("seed"),
+    threatAssessments, safetyMicros: 900_000, confidenceBps: 9_000,
+    interactionUnits: 5, assessorId: "agent:assessor",
+    assessorImplementationDigest: sha("assessor"), evidenceDigests: [sha("evaluation")],
+    evaluatedAtLogicalMs: 30, expiresAtLogicalMs: 60, policy: value.policy,
+  });
+  const sandboxImplementationDigest = sha("sandbox");
+  const sandbox = { sandboxImplementationDigest, async prepare({ operationId,
+    draft, logicalTimeMs }) {
+    const body = Object.freeze({ schemaVersion: 6, operationId,
+      draftDigest: draft.draftDigest, profileDigest: draft.profile.profileDigest,
+      sandboxId: "sandbox:genesis", sandboxImplementationDigest,
+      isolationPolicyDigest: sha("isolation"), preparedAtLogicalMs: logicalTimeMs,
+      expiresAtLogicalMs: 55, membershipGranted: false, workGranted: false,
+      actionAuthorityGranted: false });
+    return Object.freeze({ ...body,
+      receiptDigest: digestPlanningJsonV1("morphogenesis-agent-genesis-sandbox-receipt-v6", body) });
+  } };
+  const receipt = await new MorphogenesisAgentGenesisSandboxRuntimeV6({ sandbox }).prepare({
+    operationId: "operation:genesis", draft, evaluation, logicalTimeMs: 35 });
+  assert.equal(receipt.membershipGranted, false);
+  assert.equal(receipt.workGranted, false);
+  assert.equal(receipt.actionAuthorityGranted, false);
 });

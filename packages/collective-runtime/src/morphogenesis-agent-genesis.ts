@@ -41,6 +41,9 @@ export interface MorphogenesisAgentGenesisPolicyV6 {
   readonly maximumDraftTtlMs: number;
   readonly maximumProbationInteractions: number;
   readonly maximumSpawnDepth: number;
+  readonly minimumAssessmentConfidenceBps: number;
+  readonly minimumSafetyMicros: number;
+  readonly maximumAssessmentTtlMs: number;
   readonly policyDigest: PlanningDigestV1;
 }
 
@@ -101,6 +104,60 @@ export interface MorphogenesisAgentGenesisGeneratorPortV6 {
     }>;
 }
 
+export interface MorphogenesisAgentGenesisThreatAssessmentV6 {
+  readonly schemaVersion: 6;
+  readonly threat: MorphogenesisAgentGenesisThreatV6;
+  readonly disposition: "passed" | "failed" | "indeterminate";
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly assessmentDigest: PlanningDigestV1;
+}
+
+export interface MorphogenesisAgentGenesisEvaluationV6 {
+  readonly schemaVersion: 6;
+  readonly evaluationId: AgentPlatID;
+  readonly draftDigest: PlanningDigestV1;
+  readonly baselineBlueprintDigest: PlanningDigestV1;
+  readonly simulatorImplementationDigest: PlanningDigestV1;
+  readonly environmentDigest: PlanningDigestV1;
+  readonly seedDigest: PlanningDigestV1;
+  readonly threatAssessments: readonly MorphogenesisAgentGenesisThreatAssessmentV6[];
+  readonly safetyMicros: number;
+  readonly confidenceBps: number;
+  readonly interactionUnits: number;
+  readonly assessorId: AgentPlatID;
+  readonly assessorImplementationDigest: PlanningDigestV1;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly disposition: "eligible" | "unsafe" | "inconclusive";
+  readonly evaluatedAtLogicalMs: number;
+  readonly expiresAtLogicalMs: number;
+  readonly advisoryOnly: true;
+  readonly evaluationDigest: PlanningDigestV1;
+}
+
+export interface MorphogenesisAgentGenesisSandboxReceiptV6 {
+  readonly schemaVersion: 6;
+  readonly operationId: AgentPlatID;
+  readonly draftDigest: PlanningDigestV1;
+  readonly profileDigest: PlanningDigestV1;
+  readonly sandboxId: AgentPlatID;
+  readonly sandboxImplementationDigest: PlanningDigestV1;
+  readonly isolationPolicyDigest: PlanningDigestV1;
+  readonly preparedAtLogicalMs: number;
+  readonly expiresAtLogicalMs: number;
+  readonly membershipGranted: false;
+  readonly workGranted: false;
+  readonly actionAuthorityGranted: false;
+  readonly receiptDigest: PlanningDigestV1;
+}
+
+export interface MorphogenesisAgentGenesisSandboxPortV6 {
+  readonly sandboxImplementationDigest: PlanningDigestV1;
+  prepare(input: { readonly operationId: AgentPlatID;
+    readonly draft: MorphogenesisAgentGenesisDraftV6;
+    readonly evaluation: MorphogenesisAgentGenesisEvaluationV6;
+    readonly logicalTimeMs: number }): Promise<MorphogenesisAgentGenesisSandboxReceiptV6>;
+}
+
 export function createMorphogenesisAgentGenesisPolicyV6(input:
   Omit<MorphogenesisAgentGenesisPolicyV6, "policyDigest">,
 ): MorphogenesisAgentGenesisPolicyV6 {
@@ -126,7 +183,10 @@ export function createMorphogenesisAgentGenesisPolicyV6(input:
     maximumActionBudgetUnits: positive(input.maximumActionBudgetUnits),
     maximumDraftTtlMs: positive(input.maximumDraftTtlMs),
     maximumProbationInteractions: positive(input.maximumProbationInteractions),
-    maximumSpawnDepth: nonNegative(input.maximumSpawnDepth) });
+    maximumSpawnDepth: nonNegative(input.maximumSpawnDepth),
+    minimumAssessmentConfidenceBps: bps(input.minimumAssessmentConfidenceBps),
+    minimumSafetyMicros: micros(input.minimumSafetyMicros),
+    maximumAssessmentTtlMs: positive(input.maximumAssessmentTtlMs) });
   return freeze({ ...body,
     policyDigest: digest("morphogenesis-agent-genesis-policy-v6", body) });
 }
@@ -213,6 +273,87 @@ export class MorphogenesisAgentGenesisRuntimeV6 {
   }
 }
 
+export function createMorphogenesisAgentGenesisThreatAssessmentV6(input:
+  Omit<MorphogenesisAgentGenesisThreatAssessmentV6, "schemaVersion" | "assessmentDigest">,
+): MorphogenesisAgentGenesisThreatAssessmentV6 {
+  const body = freeze({ schemaVersion: 6 as const,
+    threat: one(input.threat, new Set(MORPHOGENESIS_AGENT_GENESIS_THREATS_V6),
+      "Agent Genesis threat"),
+    disposition: one(input.disposition,
+      new Set<MorphogenesisAgentGenesisThreatAssessmentV6["disposition"]>(
+        ["passed", "failed", "indeterminate"]), "Agent Genesis threat disposition"),
+    evidenceDigests: shas(input.evidenceDigests, 1, 64) });
+  return freeze({ ...body,
+    assessmentDigest: digest("morphogenesis-agent-genesis-threat-assessment-v6", body) });
+}
+
+export function createMorphogenesisAgentGenesisEvaluationV6(input:
+  Omit<MorphogenesisAgentGenesisEvaluationV6, "schemaVersion" | "draftDigest" |
+    "disposition" | "advisoryOnly" | "evaluationDigest"> & {
+      readonly draft: MorphogenesisAgentGenesisDraftV6;
+      readonly policy: MorphogenesisAgentGenesisPolicyV6 }) {
+  const policy = validateMorphogenesisAgentGenesisPolicyV6(input.policy);
+  const assessments = input.threatAssessments.map(
+    createMorphogenesisAgentGenesisThreatAssessmentV6).sort((a, b) =>
+    a.threat.localeCompare(b.threat));
+  if (JSON.stringify(assessments.map(({ threat }) => threat)) !==
+      JSON.stringify([...policy.requiredThreats].sort()))
+    fail("Agent Genesis adversarial coverage is incomplete");
+  const unsafe = assessments.some(({ disposition }) => disposition === "failed") ||
+    input.safetyMicros < policy.minimumSafetyMicros;
+  const inconclusive = assessments.some(({ disposition }) =>
+    disposition === "indeterminate") ||
+    input.confidenceBps < policy.minimumAssessmentConfidenceBps;
+  const body = freeze({ schemaVersion: 6 as const, evaluationId: id(input.evaluationId),
+    draftDigest: sha(input.draft.draftDigest),
+    baselineBlueprintDigest: sha(input.baselineBlueprintDigest),
+    simulatorImplementationDigest: sha(input.simulatorImplementationDigest),
+    environmentDigest: sha(input.environmentDigest), seedDigest: sha(input.seedDigest),
+    threatAssessments: freeze(assessments), safetyMicros: micros(input.safetyMicros),
+    confidenceBps: bps(input.confidenceBps),
+    interactionUnits: nonNegative(input.interactionUnits), assessorId: id(input.assessorId),
+    assessorImplementationDigest: sha(input.assessorImplementationDigest),
+    evidenceDigests: shas(input.evidenceDigests, 1, 256),
+    disposition: (unsafe ? "unsafe" : inconclusive ? "inconclusive" : "eligible") as
+      MorphogenesisAgentGenesisEvaluationV6["disposition"],
+    evaluatedAtLogicalMs: nonNegative(input.evaluatedAtLogicalMs),
+    expiresAtLogicalMs: positive(input.expiresAtLogicalMs), advisoryOnly: true as const });
+  if (body.interactionUnits > policy.maximumProbationInteractions ||
+      body.expiresAtLogicalMs <= body.evaluatedAtLogicalMs ||
+      body.expiresAtLogicalMs - body.evaluatedAtLogicalMs > policy.maximumAssessmentTtlMs)
+    fail("Agent Genesis evaluation budget or window is invalid");
+  return freeze({ ...body,
+    evaluationDigest: digest("morphogenesis-agent-genesis-evaluation-v6", body) });
+}
+
+export class MorphogenesisAgentGenesisSandboxRuntimeV6 {
+  constructor(readonly options: { readonly sandbox: MorphogenesisAgentGenesisSandboxPortV6 }) {
+    if (!options?.sandbox || typeof options.sandbox.prepare !== "function")
+      fail("Agent Genesis sandbox is required");
+  }
+  async prepare(input: { readonly operationId: AgentPlatID;
+    readonly draft: MorphogenesisAgentGenesisDraftV6;
+    readonly evaluation: MorphogenesisAgentGenesisEvaluationV6;
+    readonly logicalTimeMs: number }) {
+    if (input.evaluation.draftDigest !== input.draft.draftDigest ||
+        input.evaluation.disposition !== "eligible" ||
+        input.evaluation.expiresAtLogicalMs <= input.logicalTimeMs)
+      fail("Agent Genesis sandbox preparation is not eligible");
+    const receipt = await this.options.sandbox.prepare(input);
+    const { receiptDigest, ...body } = receipt;
+    if (receipt.schemaVersion !== 6 || receipt.operationId !== input.operationId ||
+        receipt.draftDigest !== input.draft.draftDigest ||
+        receipt.profileDigest !== input.draft.profile.profileDigest ||
+        receipt.sandboxImplementationDigest !== this.options.sandbox.sandboxImplementationDigest ||
+        receipt.membershipGranted !== false || receipt.workGranted !== false ||
+        receipt.actionAuthorityGranted !== false ||
+        receipt.expiresAtLogicalMs <= input.logicalTimeMs ||
+        receiptDigest !== digest("morphogenesis-agent-genesis-sandbox-receipt-v6", body))
+      fail("Agent Genesis sandbox receipt is invalid or grants authority");
+    return freeze(structuredClone(receipt));
+  }
+}
+
 export function validateMorphogenesisAgentGenesisPolicyV6(value: MorphogenesisAgentGenesisPolicyV6) {
   const { policyDigest, ...body } = value;
   const rebuilt = createMorphogenesisAgentGenesisPolicyV6(body);
@@ -235,6 +376,8 @@ function sha(value: unknown): PlanningDigestV1 { if (typeof value !== "string" |
 function nullableSha(value: unknown) { return value === null ? null : sha(value); }
 function positive(value: unknown) { if (!Number.isSafeInteger(value) || (value as number) < 1) fail("Agent Genesis positive integer is invalid"); return value as number; }
 function nonNegative(value: unknown) { if (!Number.isSafeInteger(value) || (value as number) < 0) fail("Agent Genesis non-negative integer is invalid"); return value as number; }
+function bps(value: unknown) { const result = nonNegative(value); if (result > 10_000) fail("Agent Genesis confidence is invalid"); return result; }
+function micros(value: unknown) { const result = nonNegative(value); if (result > 1_000_000) fail("Agent Genesis metric is invalid"); return result; }
 function ids(values: readonly unknown[], minimum: number, maximum: number) { if (!Array.isArray(values)) fail("Agent Genesis IDs are invalid"); const result = [...new Set(values.map(id))].sort(); if (result.length < minimum || result.length > maximum || result.length !== values.length) fail("Agent Genesis ID set is invalid"); return freeze(result); }
 function shas(values: readonly unknown[], minimum: number, maximum: number) { if (!Array.isArray(values)) fail("Agent Genesis digests are invalid"); const result = [...new Set(values.map(sha))].sort(); if (result.length < minimum || result.length > maximum || result.length !== values.length) fail("Agent Genesis digest set is invalid"); return freeze(result); }
 function one<T extends string>(value: unknown, allowed: ReadonlySet<T>, label: string): T { if (typeof value !== "string" || !allowed.has(value as T)) fail(`${label} is invalid`); return value as T; }

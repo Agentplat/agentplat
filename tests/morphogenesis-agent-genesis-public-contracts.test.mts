@@ -7,13 +7,22 @@ import {
   type MorphogenesisAgentGenesisGeneratorPortV6,
   type MorphogenesisAgentGenesisNeedV6,
   type MorphogenesisAgentGenesisPolicyV6,
+  MorphogenesisAgentGenesisSandboxRuntimeV6,
+  createMorphogenesisAgentGenesisEvaluationV6,
+  createMorphogenesisAgentGenesisThreatAssessmentV6,
+  type MorphogenesisAgentGenesisEvaluationV6,
 } from "@agentplat/collective-runtime/morphogenesis";
 
 void MORPHOGENESIS_AGENT_GENESIS_THREATS_V6;
 void MorphogenesisAgentGenesisRuntimeV6;
 void createMorphogenesisAgentGenesisNeedV6;
 void createMorphogenesisAgentGenesisPolicyV6;
+void MorphogenesisAgentGenesisSandboxRuntimeV6;
+void createMorphogenesisAgentGenesisEvaluationV6;
+void createMorphogenesisAgentGenesisThreatAssessmentV6;
 declare const contracts: [MorphogenesisAgentGenesisDraftV6,
   MorphogenesisAgentGenesisGeneratorPortV6, MorphogenesisAgentGenesisNeedV6,
   MorphogenesisAgentGenesisPolicyV6];
 void contracts;
+declare const evaluation: MorphogenesisAgentGenesisEvaluationV6;
+void evaluation;
