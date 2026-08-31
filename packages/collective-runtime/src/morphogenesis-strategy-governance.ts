@@ -65,6 +65,7 @@ export interface MorphogenesisStrategyRecommendationV3 {
 export interface MorphogenesisStrategyReviewV3 {
   readonly schemaVersion: 3;
   readonly reviewId: AgentPlatID;
+  readonly recommendationId: AgentPlatID;
   readonly recommendationDigest: PlanningDigestV1;
   readonly route: MorphogenesisStrategyReviewRouteV3;
   readonly actorType: "agent" | "person" | "collective";
@@ -89,6 +90,7 @@ export interface MorphogenesisStrategyGovernanceEntryV3 {
 
 export interface MorphogenesisStrategyGovernanceTransitionV3 {
   readonly schemaVersion: 3;
+  readonly recommendationId: AgentPlatID;
   readonly recommendationDigest: PlanningDigestV1;
   readonly reviewDigest: PlanningDigestV1;
   readonly action: MorphogenesisStrategyGovernanceActionV3;
@@ -167,6 +169,7 @@ export function createMorphogenesisStrategyReviewV3(
   const body = freeze({
     schemaVersion: 3 as const,
     reviewId: id(input.reviewId),
+    recommendationId: id(input.recommendationId),
     recommendationDigest: sha(input.recommendationDigest),
     route: one<MorphogenesisStrategyReviewRouteV3>(input.route, ROUTES, "strategy review route"),
     actorType: input.actorType,
@@ -217,6 +220,11 @@ export class MorphogenesisStrategyGovernanceRuntimeV3 {
           fail("Morphogenesis strategy recommendation identity was reused with different content");
         return retained;
       }
+      if (current.reviews.some(({ recommendationId }) =>
+          recommendationId === input.recommendationId) ||
+          current.transitions.some(({ recommendationId }) =>
+            recommendationId === input.recommendationId))
+        fail("Morphogenesis strategy recommendation identity is already terminal");
       this.#assertRecommendationAllowed(current, input);
       const recommendation = createRecommendation({
         ...input,
@@ -270,6 +278,10 @@ export class MorphogenesisStrategyGovernanceRuntimeV3 {
       const transition = verified.disposition === "approved"
         ? this.#transition(current, recommendation, verified, input.logicalTimeMs)
         : null;
+      if (current.reviews.length >= this.#policy.maximumReviewHistory ||
+          (transition !== null &&
+            current.transitions.length >= this.#policy.maximumTransitionHistory))
+        fail("Morphogenesis strategy governance terminal history capacity is exhausted");
       const entries = transition ? applyTransitionEntries(current, transition) : current.entries;
       const next = createState({
         ...withoutStateDigest(current),
@@ -278,9 +290,9 @@ export class MorphogenesisStrategyGovernanceRuntimeV3 {
         pendingRecommendations: current.pendingRecommendations.filter(
           ({ recommendationDigest }) => recommendationDigest !== recommendation.recommendationDigest,
         ),
-        reviews: trim([...current.reviews, verified], this.#policy.maximumReviewHistory),
+        reviews: freeze([...current.reviews, verified]),
         transitions: transition
-          ? trim([...current.transitions, transition], this.#policy.maximumTransitionHistory)
+          ? freeze([...current.transitions, transition])
           : current.transitions,
         revision: current.revision + 1,
         logicalTimeHighWaterMs: Math.max(current.logicalTimeHighWaterMs, input.logicalTimeMs),
@@ -368,7 +380,8 @@ export class MorphogenesisStrategyGovernanceRuntimeV3 {
   }
 
   #assertReview(recommendation: MorphogenesisStrategyRecommendationV3, review: MorphogenesisStrategyReviewV3, logicalTimeMs: number) {
-    if (review.recommendationDigest !== recommendation.recommendationDigest ||
+    if (review.recommendationId !== recommendation.recommendationId ||
+        review.recommendationDigest !== recommendation.recommendationDigest ||
         review.route !== recommendation.reviewRoute ||
         review.reviewedAtLogicalMs > logicalTimeMs || review.expiresAtLogicalMs <= logicalTimeMs ||
         (this.#policy.requireIndependentReviewer && review.actorId === recommendation.proposerId))
@@ -385,6 +398,7 @@ export class MorphogenesisStrategyGovernanceRuntimeV3 {
           : current.activeStrategyId;
     const body = freeze({
       schemaVersion: 3 as const,
+      recommendationId: recommendation.recommendationId,
       recommendationDigest: recommendation.recommendationDigest,
       reviewDigest: review.reviewDigest,
       action: recommendation.action,

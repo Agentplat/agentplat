@@ -114,6 +114,7 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
           ? "agent" : recommendation.reviewRoute === "authorized_person" ? "person" : "collective";
         return createMorphogenesisStrategyReviewV3({
           reviewId: `review:${recommendation.recommendationId}`,
+          recommendationId: recommendation.recommendationId,
           recommendationDigest: recommendation.recommendationDigest,
           route: recommendation.reviewRoute,
           actorType,
@@ -130,16 +131,18 @@ test("agent, person and quorum reviews govern promotion, rollback and retirement
     store: new InMemoryMorphogenesisStrategyGovernanceStoreV3(),
   });
 
-  const promote = await runtime.recommend(recommendationInput({
+  const promoteInput = recommendationInput({
     action: "promote", target: adaptive.strategyId,
     route: "authorized_agent", time: 10,
-  }));
+  });
+  const promote = await runtime.recommend(promoteInput);
   assert.equal(promote.advisoryOnly, true);
   assert.equal("reviewDigest" in promote, false);
   let state = await runtime.reviewAndApply({ recommendation: promote, logicalTimeMs: 12 });
   assert.equal(state.activeStrategyId, adaptive.strategyId);
   assert.equal(state.entries.find(({ strategyId }) => strategyId === adaptive.strategyId).status, "promoted");
   assert.equal((await runtime.reviewAndApply({ recommendation: promote, logicalTimeMs: 13 })).stateDigest, state.stateDigest);
+  await assert.rejects(runtime.recommend(promoteInput), /already terminal/);
 
   const rollback = await runtime.recommend(recommendationInput({
     action: "rollback", target: adaptive.strategyId, replacement: baseline.strategyId,
@@ -218,6 +221,7 @@ test("governance rejects self-review, low confidence and oscillation", async () 
       async review({ recommendation, logicalTimeMs }) {
         return createMorphogenesisStrategyReviewV3({
           reviewId: "review:self",
+          recommendationId: recommendation.recommendationId,
           recommendationDigest: recommendation.recommendationDigest,
           route: recommendation.reviewRoute,
           actorType: "agent",
@@ -255,6 +259,7 @@ test("governance rejects self-review, low confidence and oscillation", async () 
       async review({ recommendation, logicalTimeMs }) {
         return createMorphogenesisStrategyReviewV3({
           reviewId: `review:${recommendation.recommendationId}`,
+          recommendationId: recommendation.recommendationId,
           recommendationDigest: recommendation.recommendationDigest,
           route: "authorized_agent",
           actorType: "agent",

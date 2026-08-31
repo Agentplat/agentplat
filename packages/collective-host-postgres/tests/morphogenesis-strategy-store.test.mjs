@@ -203,6 +203,7 @@ test("PostgreSQL strategy adaptation and governance survive reconstruction and w
     reviews: { async review({ recommendation, logicalTimeMs }) {
       return createMorphogenesisStrategyReviewV3({
         reviewId: "review:test", recommendationDigest: recommendation.recommendationDigest,
+        recommendationId: recommendation.recommendationId,
         route: "authorized_agent", actorType: "agent", actorId: "agent:reviewer",
         actorMandateDigest: sha("mandate"), independenceGroupId: "independence:reviewer",
         disposition: "approved", proofDigest: sha("proof"),
