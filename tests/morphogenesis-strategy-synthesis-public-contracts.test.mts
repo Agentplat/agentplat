@@ -1,0 +1,32 @@
+import {
+  MORPHOGENESIS_SYNTHESIS_THREATS_V5,
+  MorphogenesisStrategySynthesisRuntimeV5,
+  createMorphogenesisStrategyGapV5,
+  createMorphogenesisStrategySynthesisCertificationV5,
+  createMorphogenesisStrategySynthesisEvaluationV5,
+  createMorphogenesisStrategySynthesisPolicyV5,
+  createMorphogenesisSynthesizedStrategyManifestV5,
+  createMorphogenesisSynthesisThreatAssessmentV5,
+  type MorphogenesisStrategyGapV5,
+  type MorphogenesisStrategySynthesisCandidateV5,
+  type MorphogenesisStrategySynthesisCertificationV5,
+  type MorphogenesisStrategySynthesisEvaluationV5,
+  type MorphogenesisStrategySynthesisPolicyV5,
+  type MorphogenesisStrategySynthesizerPortV5,
+} from "@agentplat/collective-runtime/morphogenesis";
+
+void MORPHOGENESIS_SYNTHESIS_THREATS_V5;
+void MorphogenesisStrategySynthesisRuntimeV5;
+void createMorphogenesisStrategyGapV5;
+void createMorphogenesisStrategySynthesisCertificationV5;
+void createMorphogenesisStrategySynthesisEvaluationV5;
+void createMorphogenesisStrategySynthesisPolicyV5;
+void createMorphogenesisSynthesizedStrategyManifestV5;
+void createMorphogenesisSynthesisThreatAssessmentV5;
+declare const contracts: [MorphogenesisStrategyGapV5,
+  MorphogenesisStrategySynthesisCandidateV5,
+  MorphogenesisStrategySynthesisCertificationV5,
+  MorphogenesisStrategySynthesisEvaluationV5,
+  MorphogenesisStrategySynthesisPolicyV5,
+  MorphogenesisStrategySynthesizerPortV5];
+void contracts;
