@@ -55,6 +55,13 @@ import {
   createMorphogenesisStrategyTrustSafetySourceV3,
   createMorphogenesisStrategyMemoryRecordV3,
   InMemoryMorphogenesisStrategyMemoryPortV3,
+  MorphogenesisStrategyCounterfactualRuntimeV3,
+  DeterministicMorphogenesisStrategyCounterfactualPortV3,
+  InMemoryMorphogenesisStrategyCounterfactualStoreV3,
+  createMorphogenesisStrategyCounterfactualPolicyV3,
+  createMorphogenesisStrategyCounterfactualScenarioV3,
+  createMorphogenesisStrategyCounterfactualEstimateV3,
+  createMorphogenesisStrategyCounterfactualReportV3,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -130,6 +137,10 @@ import {
   type MorphogenesisStrategyTrustAssessmentPortV3,
   type MorphogenesisStrategyMemoryRecordV3,
   type MorphogenesisStrategyMemoryPortV3,
+  type MorphogenesisStrategyCounterfactualPolicyV3,
+  type MorphogenesisStrategyCounterfactualScenarioV3,
+  type MorphogenesisStrategyCounterfactualEstimateV3,
+  type MorphogenesisStrategyCounterfactualReportV3,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -214,6 +225,13 @@ void validateMorphogenesisStrategyGovernanceStateV3;
 void createMorphogenesisStrategyTrustSafetySourceV3;
 void createMorphogenesisStrategyMemoryRecordV3;
 void InMemoryMorphogenesisStrategyMemoryPortV3;
+void MorphogenesisStrategyCounterfactualRuntimeV3;
+void DeterministicMorphogenesisStrategyCounterfactualPortV3;
+void InMemoryMorphogenesisStrategyCounterfactualStoreV3;
+void createMorphogenesisStrategyCounterfactualPolicyV3;
+void createMorphogenesisStrategyCounterfactualScenarioV3;
+void createMorphogenesisStrategyCounterfactualEstimateV3;
+void createMorphogenesisStrategyCounterfactualReportV3;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -290,6 +308,10 @@ declare const strategyGovernanceStateV3: MorphogenesisStrategyGovernanceStateV3;
 declare const strategyTrustV3: MorphogenesisStrategyTrustAssessmentPortV3;
 declare const strategyMemoryRecordV3: MorphogenesisStrategyMemoryRecordV3;
 declare const strategyMemoryPortV3: MorphogenesisStrategyMemoryPortV3;
+declare const counterfactualPolicyV3: MorphogenesisStrategyCounterfactualPolicyV3;
+declare const counterfactualScenarioV3: MorphogenesisStrategyCounterfactualScenarioV3;
+declare const counterfactualEstimateV3: MorphogenesisStrategyCounterfactualEstimateV3;
+declare const counterfactualReportV3: MorphogenesisStrategyCounterfactualReportV3;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -345,6 +367,10 @@ void strategyGovernanceStateV3;
 void strategyTrustV3;
 void strategyMemoryRecordV3;
 void strategyMemoryPortV3;
+void counterfactualPolicyV3;
+void counterfactualScenarioV3;
+void counterfactualEstimateV3;
+void counterfactualReportV3;
 void budgetPort;
 void controlWindow;
 void sourceResolution;
