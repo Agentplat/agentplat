@@ -13,6 +13,11 @@ import type {
   MorphogenesisLifecycleAgentV1,
 } from "./morphogenesis-execution.js";
 import type { MorphogenesisScopeV1 } from "./morphogenesis-contracts.js";
+import type {
+  MorphogenesisAgentRetirementPortV1,
+  MorphogenesisAuthorityFenceReceiptV1,
+  MorphogenesisTerminalAgentReceiptV1,
+} from "./morphogenesis-retirement.js";
 import {
   MorphogenesisAgentGenesisSandboxRuntimeV6,
   validateMorphogenesisAgentGenesisDraftV6,
@@ -107,6 +112,8 @@ export interface MorphogenesisAgentGenesisEntryV6 {
   readonly lifecycleAgent: MorphogenesisLifecycleAgentV1 | null;
   readonly pendingAttestationOperationId: AgentPlatID | null;
   readonly attestation: MorphogenesisAgentAttestationV1 | null;
+  readonly pendingCompensationOperationId: AgentPlatID | null;
+  readonly terminalReceipt: MorphogenesisTerminalAgentReceiptV1 | null;
   readonly externalAdmissionApplied: boolean;
   readonly workGranted: false;
   readonly actionAuthorityGranted: false;
@@ -216,7 +223,8 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
     readonly reviews: MorphogenesisAgentGenesisReviewPortV6;
     readonly store: MorphogenesisAgentGenesisLifecycleStoreV6;
     readonly lifecycle?: MorphogenesisAgentLifecyclePortV1;
-    readonly attestation?: MorphogenesisAgentAttestationPortV1 }) {
+    readonly attestation?: MorphogenesisAgentAttestationPortV1;
+    readonly retirement?: MorphogenesisAgentRetirementPortV1 }) {
     id(options.stateKey); this.#policy = validatePolicy(options.policy);
     this.#genesisPolicy = validateMorphogenesisAgentGenesisPolicyV6(options.genesisPolicy);
     if (this.#policy.genesisPolicyDigest !== this.#genesisPolicy.policyDigest ||
@@ -240,6 +248,7 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
           statusRevision: 1, pendingSandboxOperationId: null, sandboxReceipt: null,
           probationReceipts: freeze([]), pendingMembershipOperationId: null,
           lifecycleAgent: null, pendingAttestationOperationId: null, attestation: null,
+          pendingCompensationOperationId: null, terminalReceipt: null,
           externalAdmissionApplied: false, workGranted: false as const,
           actionAuthorityGranted: false as const,
           lastTransitionDigest: null })] });
@@ -344,7 +353,9 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
           (this.#policy.requireIndependentReviewer && review.actorId === recommendation.proposerId))
         fail("Agent Genesis review binding or independence is invalid");
       const entry = entryFor(state, recommendation.draftDigest);
-      const nextStatus = review.disposition === "approved" ? statusFor(recommendation.action)
+      const nextStatus = review.disposition === "approved"
+        ? recommendation.action === "retire" && entry.externalAdmissionApplied
+          ? "suspended" : statusFor(recommendation.action)
         : entry.status;
       const transition = transitionRecord(recommendation, review, entry.status,
         nextStatus, input.logicalTimeMs); output = transition;
@@ -443,6 +454,54 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
       return replaceEntry(state, current, { pendingAttestationOperationId: null,
         attestation: freeze(structuredClone(receipt)), externalAdmissionApplied: true },
       input.logicalTimeMs);
+    });
+    return receipt;
+  }
+  async compensateAdmission(input: { readonly operationId: AgentPlatID;
+    readonly draftDigest: PlanningDigestV1; readonly scope: MorphogenesisScopeV1;
+    readonly proposalDigest: PlanningDigestV1;
+    readonly fence: MorphogenesisAuthorityFenceReceiptV1;
+    readonly reasonCode: string; readonly logicalTimeMs: number }) {
+    if (!this.options.retirement) fail("Agent Genesis retirement is unavailable");
+    const before = await this.#load(input.logicalTimeMs);
+    const prior = entryFor(before, input.draftDigest);
+    const reconcile = prior.pendingCompensationOperationId === input.operationId;
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const entry = entryFor(state, input.draftDigest);
+      if (entry.terminalReceipt) return state;
+      const reviewedRetirement = state.transitions.some((transition) =>
+        transition.draftDigest === input.draftDigest && transition.action === "retire" &&
+        transition.nextStatus === "suspended");
+      if (!reviewedRetirement || entry.status !== "suspended" || !entry.lifecycleAgent ||
+          !entry.externalAdmissionApplied || entry.workGranted || entry.actionAuthorityGranted ||
+          (entry.pendingCompensationOperationId &&
+            entry.pendingCompensationOperationId !== input.operationId))
+        fail("Agent Genesis compensation is not allowed");
+      return replaceEntry(state, entry,
+        { pendingCompensationOperationId: input.operationId }, input.logicalTimeMs);
+    });
+    const entry = entryFor(await this.#load(input.logicalTimeMs), input.draftDigest);
+    if (entry.terminalReceipt) return entry.terminalReceipt;
+    const request = { operationId: input.operationId, scope: input.scope,
+      proposalDigest: input.proposalDigest, agent: entry.lifecycleAgent!, fence: input.fence,
+      reasonCode: input.reasonCode, logicalTimeMs: input.logicalTimeMs };
+    const receipt = await (reconcile ? this.options.retirement.reconcile(request)
+      : this.options.retirement.retire(request));
+    if (receipt.agentDigest !== entry.lifecycleAgent!.agentDigest ||
+        receipt.disposition !== "retired")
+      fail("Agent Genesis compensation receipt is invalid");
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const current = entryFor(state, input.draftDigest);
+      if (current.terminalReceipt) {
+        if (current.terminalReceipt.terminalReceiptDigest !== receipt.terminalReceiptDigest)
+          fail("Agent Genesis compensation replay diverged");
+        return state;
+      }
+      if (current.pendingCompensationOperationId !== input.operationId)
+        fail("Agent Genesis compensation was not durable");
+      return replaceEntry(state, current, { pendingCompensationOperationId: null,
+        terminalReceipt: freeze(structuredClone(receipt)), externalAdmissionApplied: false,
+        status: "retired", statusRevision: current.statusRevision + 1 }, input.logicalTimeMs);
     });
     return receipt;
   }

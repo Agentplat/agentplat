@@ -250,9 +250,22 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
         attestationDigest: sha(`attestation:${route}`) });
       attestations.set(operationId, receipt); return receipt;
     }, async reconcile(input) { return this.attest(input); } };
+    const terminal = new Map();
+    let retirementEffects = 0;
+    const retirement = { async retire({ operationId, agent, logicalTimeMs }) {
+      const retained = terminal.get(operationId); if (retained) return retained;
+      retirementEffects += 1;
+      const receipt = Object.freeze({ schemaVersion: 1, operationId,
+        agentDigest: agent.agentDigest, disposition: "retired",
+        membershipConfigurationDigest: sha(`membership:retired:${route}`),
+        membershipEpoch: 2, lifecycleReceiptDigest: sha(`lifecycle:retired:${route}`),
+        terminatedAtLogicalMs: logicalTimeMs,
+        terminalReceiptDigest: sha(`terminal:${route}`) });
+      terminal.set(operationId, receipt); return receipt;
+    }, async reconcile(input) { return this.retire(input); } };
     const runtime = new MorphogenesisAgentGenesisLifecycleRuntimeV6({
       stateKey: `state:${route}`, policy: lifecyclePolicy, genesisPolicy: value.policy,
-      sandbox, lifecycle, attestation,
+      sandbox, lifecycle, attestation, retirement,
       store: new InMemoryMorphogenesisAgentGenesisLifecycleStoreV6(),
       reviews: { async review({ recommendation, logicalTimeMs }) {
         reviews += 1; return createMorphogenesisAgentGenesisReviewV6({
@@ -308,6 +321,20 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     assert.equal(admitted.workGranted, false);
     assert.equal(admitted.actionAuthorityGranted, false);
     await assert.rejects(recommend("late-rollback", "rollback", 36), /not allowed/);
+    recommendation = await recommend("retire", "retire", 37);
+    assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
+      logicalTimeMs: 38 })).nextStatus, "suspended");
+    const fence = { agentDigest: admitted.lifecycleAgent.agentDigest };
+    await runtime.compensateAdmission({ operationId: `compensate:${route}`,
+      draftDigest: draft.draftDigest, scope, proposalDigest: sha(`proposal:${route}`),
+      fence, reasonCode: "genesis_probation_retired", logicalTimeMs: 39 });
+    await runtime.compensateAdmission({ operationId: `compensate:${route}`,
+      draftDigest: draft.draftDigest, scope, proposalDigest: sha(`proposal:${route}`),
+      fence, reasonCode: "genesis_probation_retired", logicalTimeMs: 39 });
+    const retired = (await runtime.state(39)).entries[0];
+    assert.equal(retired.status, "retired");
+    assert.equal(retired.externalAdmissionApplied, false);
+    assert.equal(retirementEffects, 1);
   }
   assert.equal(effects, 3);
 });
