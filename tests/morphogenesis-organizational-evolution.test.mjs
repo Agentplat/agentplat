@@ -15,8 +15,10 @@ import {
   createMorphogenesisOrganizationalCandidateV7,
   validateMorphogenesisOrganizationalCandidateV7,
   validateMorphogenesisOrganizationalPatternV7,
+  createMorphogenesisOrganizationalDynamicTopologyBoundaryV7,
 } from "@agentplat/collective-runtime/morphogenesis";
-import { createTeamTopologyNodeV1 } from
+import { createTeamTopologyNodeV1, createTeamTopologyStateV1,
+  createTeamTopologyTransformationRequestV1, teamTopologyDigestV1 } from
   "@agentplat/collective-runtime/team-topology-transformation";
 import {
   MorphogenesisOrganizationalMeshPublisherV7,
@@ -330,4 +332,35 @@ test("V7 executes one owner effect and compensates it with stable operation IDs"
   });
   assert.equal(s.status, "rolled_back");
   assert.equal(compensated.size, 1);
+});
+test("V7 concrete topology boundary activates and compensates", async () => {
+  const source = createTeamTopologyNodeV1({ teamId: "team:source", parentTeamIds: [],
+    memberIds: ["agent:a", "agent:b"], coordinatorId: "agent:a", membershipEpoch: 1,
+    membershipConfigurationDigest: sha("membership:1") });
+  let topology = createTeamTopologyStateV1({ topologyId: "topology:test", epoch: 1,
+    topology: [source] });
+  const targets = ["a", "b"].map((suffix, index) => createTeamTopologyNodeV1({
+    teamId: `team:${suffix}`, parentTeamIds: [source.teamId], memberIds: [`agent:${suffix}`],
+    coordinatorId: `agent:${suffix}`, membershipEpoch: 2,
+    membershipConfigurationDigest: sha(`membership:${index + 2}`) }));
+  const request = createTeamTopologyTransformationRequestV1({
+    transformationId: "transformation:split", operation: "split",
+    sourceTeamIds: [source.teamId], targetTeams: targets,
+    priorTopologyDigest: teamTopologyDigestV1([source]), policyDigest: sha("policy"),
+    quorumDigest: sha("quorum"), requestedAtLogicalMs: 10, validUntilLogicalMs: 50 });
+  const boundary = createMorphogenesisOrganizationalDynamicTopologyBoundaryV7({
+    topologyId: topology.topologyId,
+    states: { async load() { return topology; }, async save({ state, expectedStateDigest }) {
+      if (topology.stateDigest !== expectedStateDigest) return false;
+      topology = state; return true; } },
+    async resolveRequest(digest) { return digest === request.requestDigest ? request : null; } });
+  const step = { authorityOwner: "dynamic_topology", artifactKind: "topology_request_v1",
+    artifactDigest: request.requestDigest, stepDigest: sha("step") };
+  const receipt = await boundary.apply({ operationId: "operation:split",
+    plan: { planDigest: sha("plan") }, step, logicalTimeMs: 20 });
+  assert.equal(topology.epoch, 2);
+  await boundary.compensate({ operationId: "operation:rollback",
+    plan: { planDigest: sha("plan") }, step, receipt, logicalTimeMs: 21 });
+  assert.equal(topology.epoch, 3);
+  assert.deepEqual(topology.topology.map(({ teamId }) => teamId), [source.teamId]);
 });
