@@ -283,6 +283,8 @@ export type PlanningDigestDomainV1 =
   | "morphogenesis-organizational-review-v7"
   | "morphogenesis-organizational-authorization-v7"
   | "morphogenesis-organizational-governance-state-v7"
+  | "morphogenesis-organizational-owner-handoff-v7"
+  | "morphogenesis-organizational-lineage-v7"
   | "morphogenesis-strategy-outcome-attestation-v4"
   | "morphogenesis-strategy-convergence-decision-v4"
   | "morphogenesis-budget-reservation-request"

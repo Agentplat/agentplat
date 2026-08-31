@@ -27,6 +27,7 @@ import {
   type MorphogenesisAgentGenesisDraftV6,
   type MorphogenesisAgentGenesisPolicyV6,
   type MorphogenesisAgentGenesisRecommendationV6,
+  type MorphogenesisOrganizationalOwnerHandoffV7,
   type MorphologySnapshotV1,
   type TargetMorphologyV1,
 } from "@agentplat/collective-runtime/morphogenesis";
@@ -231,6 +232,8 @@ export class MorphogenesisAgentGenesisMeshPublisherV6 {
     return freeze(receipt);
   }
 }
+export interface MorphogenesisOrganizationalMeshProjectionV7{readonly schemaVersion:7;readonly kind:"morphogenesis.organizational-owner-handoff";readonly tenantId:string;readonly meshId:string;readonly missionId:string;readonly objectiveId:string;readonly morphologyId:string;readonly handoffDigest:`sha256:${string}`;readonly planDigest:`sha256:${string}`;readonly stepDigest:`sha256:${string}`;readonly owner:string;readonly sourceEpoch:number;readonly successorEpoch:number;readonly membershipGranted:false;readonly workGranted:false;readonly actionAuthorityGranted:false;readonly expiresAtLogicalMs:number;readonly unsigned:true;readonly projectionDigest:`sha256:${string}`}
+export class MorphogenesisOrganizationalMeshPublisherV7{constructor(readonly transport:{send(p:MorphogenesisOrganizationalMeshProjectionV7):Promise<MorphogenesisAuthenticatedMeshReceiptV1>;verify(i:{readonly projection:MorphogenesisOrganizationalMeshProjectionV7;readonly receipt:MorphogenesisAuthenticatedMeshReceiptV1}):Promise<boolean>}){}async publish(p:MorphogenesisOrganizationalMeshProjectionV7){if(!p.unsigned||p.membershipGranted||p.workGranted||p.actionAuthorityGranted)fail("organizational Mesh projection grants authority");const r=await this.transport.send(p);if(r.projectionDigest!==p.projectionDigest||!await this.transport.verify({projection:p,receipt:r}))fail("organizational Mesh delivery invalid");return freeze(r)}}
 
 export interface MorphogenesisStrategyMeshTransportV3 {
   send(projection: MorphogenesisStrategyMeshProjectionV3): Promise<MorphogenesisAuthenticatedMeshReceiptV1>;
@@ -1027,6 +1030,8 @@ async function genesisMeshProjection(scope: MorphogenesisScopeV1, input: {
   return freeze({ ...body,
     projectionDigest: await computeMeshDurableValueDigest(body as never) as `sha256:${string}` });
 }
+export function projectMorphogenesisOrganizationalHandoffToRoomArtifactV7(input:{readonly room:Room;readonly scope:MorphogenesisScopeV1;readonly handoff:MorphogenesisOrganizationalOwnerHandoffV7;readonly createdBy?:string}){assertAdvancedRoomScope(input.room,input.scope);return strategyRoomArtifact(input.room,`morphogenesis-organizational-handoff:${input.handoff.handoffId}`,"agent-morphogenesis-organizational-handoff","Morphogenesis organizational owner handoff",input.handoff.handoffDigest,input.handoff as unknown as CreateArtifactInput["content"],input.createdBy)}
+export async function projectMorphogenesisOrganizationalHandoffToMeshV7(input:{readonly scope:MorphogenesisScopeV1;readonly handoff:MorphogenesisOrganizationalOwnerHandoffV7}){if(!input.scope.meshId)fail("organizational Mesh scope unavailable");const h=input.handoff;const b=freeze({schemaVersion:7 as const,kind:"morphogenesis.organizational-owner-handoff" as const,tenantId:input.scope.tenantId,meshId:input.scope.meshId,missionId:input.scope.missionId,objectiveId:input.scope.objectiveId,morphologyId:input.scope.morphologyId,handoffDigest:h.handoffDigest,planDigest:h.planDigest,stepDigest:h.stepDigest,owner:h.owner,sourceEpoch:h.sourceEpoch,successorEpoch:h.successorEpoch,membershipGranted:false as const,workGranted:false as const,actionAuthorityGranted:false as const,expiresAtLogicalMs:h.expiresAtLogicalMs,unsigned:true as const});return freeze({...b,projectionDigest:await computeMeshDurableValueDigest(b as never) as `sha256:${string}`})}
 
 function strategyRoomArtifact(
   room: Room,
@@ -1056,7 +1061,8 @@ function strategyRoomArtifact(
       ...(createdBy ? { createdBy } : {}),
       metadata: {
         morphogenesisStrategySchemaVersion:
-          type.startsWith("agent-morphogenesis-agent-genesis-") ? 6
+          type.startsWith("agent-morphogenesis-organizational-") ? 7
+            : type.startsWith("agent-morphogenesis-agent-genesis-") ? 6
             : type.startsWith("agent-morphogenesis-synthesis-") ? 5 : 3,
         subjectDigest,
         advisoryOnly: true,
