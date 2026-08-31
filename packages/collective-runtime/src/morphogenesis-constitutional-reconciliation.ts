@@ -1,7 +1,207 @@
-import{digestPlanningJsonV1,type PlanningDigestV1,type PlanningJson}from"@agentplat/collective-planning";import type{AgentPlatID}from"@agentplat/core";
-export interface MorphogenesisConstitutionalBranchHeadV8{readonly schemaVersion:8;readonly branchId:AgentPlatID;readonly constitutionDigest:PlanningDigestV1;readonly constitutionalEpoch:number;readonly parentConstitutionDigest:PlanningDigestV1|null;readonly checkpointDigest:PlanningDigestV1;readonly authorizationDigest:PlanningDigestV1;readonly membershipConfigurationDigest:PlanningDigestV1;readonly membershipEpoch:number;readonly authorityEpoch:number;readonly observedAtLogicalMs:number;readonly headDigest:PlanningDigestV1}
-export interface MorphogenesisConstitutionalReconciliationV8{readonly schemaVersion:8;readonly reconciliationId:AgentPlatID;readonly ancestorConstitutionDigest:PlanningDigestV1;readonly branchHeadDigests:readonly PlanningDigestV1[];readonly disposition:"selected"|"isolated"|"rollback_required";readonly selectedBranchHeadDigest:PlanningDigestV1|null;readonly isolatedBranchHeadDigests:readonly PlanningDigestV1[];readonly reasonCodes:readonly AgentPlatID[];readonly reconciledAtLogicalMs:number;readonly mergesAuthority:false;readonly reconciliationDigest:PlanningDigestV1}
-export interface MorphogenesisConstitutionalRollbackReceiptV8{readonly schemaVersion:8;readonly rollbackId:AgentPlatID;readonly reconciliationDigest:PlanningDigestV1;readonly targetConstitutionDigest:PlanningDigestV1;readonly targetCheckpointDigest:PlanningDigestV1;readonly priorAuthorityEpochs:readonly number[];readonly successorAuthorityEpoch:number;readonly revokedAuthorizationDigests:readonly PlanningDigestV1[];readonly rolledBackAtLogicalMs:number;readonly reactivatesPriorAuthority:false;readonly receiptDigest:PlanningDigestV1}
-export function createMorphogenesisConstitutionalBranchHeadV8(i:Omit<MorphogenesisConstitutionalBranchHeadV8,"schemaVersion"|"headDigest">){const b=freeze({schemaVersion:8 as const,branchId:id(i.branchId),constitutionDigest:sha(i.constitutionDigest),constitutionalEpoch:pos(i.constitutionalEpoch),parentConstitutionDigest:i.parentConstitutionDigest===null?null:sha(i.parentConstitutionDigest),checkpointDigest:sha(i.checkpointDigest),authorizationDigest:sha(i.authorizationDigest),membershipConfigurationDigest:sha(i.membershipConfigurationDigest),membershipEpoch:pos(i.membershipEpoch),authorityEpoch:pos(i.authorityEpoch),observedAtLogicalMs:nn(i.observedAtLogicalMs)});return freeze({...b,headDigest:dg("morphogenesis-constitutional-branch-head-v8",b)})}
-export function reconcileMorphogenesisConstitutionalBranchesV8(i:{readonly reconciliationId:AgentPlatID;readonly ancestorConstitutionDigest:PlanningDigestV1;readonly branches:readonly MorphogenesisConstitutionalBranchHeadV8[];readonly locallyAuthorizedHeadDigests:readonly PlanningDigestV1[];readonly logicalTimeMs:number}){const branches=i.branches.map(createMorphogenesisConstitutionalBranchHeadV8),authorized=new Set(i.locallyAuthorizedHeadDigests.map(sha)),compatible=branches.filter(x=>x.parentConstitutionDigest===i.ancestorConstitutionDigest&&authorized.has(x.headDigest)),sameEpochConflict=compatible.some((x,n)=>compatible.some((y,m)=>m>n&&x.constitutionalEpoch===y.constitutionalEpoch&&x.constitutionDigest!==y.constitutionDigest));let disposition:MorphogenesisConstitutionalReconciliationV8["disposition"],selected:MorphogenesisConstitutionalBranchHeadV8|undefined,reasons:AgentPlatID[]=[];if(sameEpochConflict){disposition="isolated";reasons=["conflicting_successor_epoch"]}else if(compatible.length===1){disposition="selected";selected=compatible[0]}else{disposition="rollback_required";reasons=[compatible.length?"ambiguous_branches":"no_authorized_successor"]}const isolated=disposition==="selected"?branches.filter(x=>x.headDigest!==selected!.headDigest):branches;const b=freeze({schemaVersion:8 as const,reconciliationId:id(i.reconciliationId),ancestorConstitutionDigest:sha(i.ancestorConstitutionDigest),branchHeadDigests:freeze(branches.map(x=>x.headDigest).sort()),disposition,selectedBranchHeadDigest:selected?.headDigest??null,isolatedBranchHeadDigests:freeze(isolated.map(x=>x.headDigest).sort()),reasonCodes:freeze(reasons),reconciledAtLogicalMs:nn(i.logicalTimeMs),mergesAuthority:false as const});return freeze({...b,reconciliationDigest:dg("morphogenesis-constitutional-reconciliation-v8",b)})}
-export function createMorphogenesisConstitutionalRollbackReceiptV8(i:Omit<MorphogenesisConstitutionalRollbackReceiptV8,"schemaVersion"|"successorAuthorityEpoch"|"reactivatesPriorAuthority"|"receiptDigest">){const epochs=freeze([...new Set(i.priorAuthorityEpochs)].sort((a,b)=>a-b));if(!epochs.length)fail("constitutional rollback epochs unavailable");const b=freeze({schemaVersion:8 as const,rollbackId:id(i.rollbackId),reconciliationDigest:sha(i.reconciliationDigest),targetConstitutionDigest:sha(i.targetConstitutionDigest),targetCheckpointDigest:sha(i.targetCheckpointDigest),priorAuthorityEpochs:epochs,successorAuthorityEpoch:Math.max(...epochs)+1,revokedAuthorizationDigests:shas(i.revokedAuthorizationDigests),rolledBackAtLogicalMs:nn(i.rolledBackAtLogicalMs),reactivatesPriorAuthority:false as const});return freeze({...b,receiptDigest:dg("morphogenesis-constitutional-rollback-receipt-v8",b)})}const ID=/^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,SHA=/^sha256:[0-9a-f]{64}$/u;function id(v:unknown){if(typeof v!=="string"||!ID.test(v))fail("constitutional reconciliation ID invalid");return v as AgentPlatID}function sha(v:unknown){if(typeof v!=="string"||!SHA.test(v))fail("constitutional reconciliation digest invalid");return v as PlanningDigestV1}function pos(v:unknown){if(!Number.isSafeInteger(v)||(v as number)<1)fail("constitutional reconciliation integer invalid");return v as number}function nn(v:unknown){if(!Number.isSafeInteger(v)||(v as number)<0)fail("constitutional reconciliation integer invalid");return v as number}function shas(v:readonly unknown[]){const r=[...new Set(v.map(sha))].sort();if(!r.length||r.length!==v.length)fail("constitutional reconciliation set invalid");return freeze(r)}function dg(d:string,v:unknown){return digestPlanningJsonV1(d as never,v as PlanningJson)}function freeze<T>(v:T):T{if(v&&typeof v==="object"&&!Object.isFrozen(v)){Object.freeze(v);for(const x of Object.values(v as Record<string,unknown>))freeze(x)}return v}function fail(m:string):never{throw new TypeError(m)}
+import {
+  digestPlanningJsonV1,
+  type PlanningDigestV1,
+  type PlanningJson,
+} from "@agentplat/collective-planning";
+import type { AgentPlatID } from "@agentplat/core";
+export interface MorphogenesisConstitutionalBranchHeadV8 {
+  readonly schemaVersion: 8;
+  readonly branchId: AgentPlatID;
+  readonly constitutionDigest: PlanningDigestV1;
+  readonly constitutionalEpoch: number;
+  readonly parentConstitutionDigest: PlanningDigestV1 | null;
+  readonly checkpointDigest: PlanningDigestV1;
+  readonly authorizationDigest: PlanningDigestV1;
+  readonly membershipConfigurationDigest: PlanningDigestV1;
+  readonly membershipEpoch: number;
+  readonly authorityEpoch: number;
+  readonly observedAtLogicalMs: number;
+  readonly headDigest: PlanningDigestV1;
+}
+export interface MorphogenesisConstitutionalReconciliationV8 {
+  readonly schemaVersion: 8;
+  readonly reconciliationId: AgentPlatID;
+  readonly ancestorConstitutionDigest: PlanningDigestV1;
+  readonly branchHeadDigests: readonly PlanningDigestV1[];
+  readonly disposition: "selected" | "isolated" | "rollback_required";
+  readonly selectedBranchHeadDigest: PlanningDigestV1 | null;
+  readonly isolatedBranchHeadDigests: readonly PlanningDigestV1[];
+  readonly reasonCodes: readonly AgentPlatID[];
+  readonly reconciledAtLogicalMs: number;
+  readonly mergesAuthority: false;
+  readonly reconciliationDigest: PlanningDigestV1;
+}
+export interface MorphogenesisConstitutionalRollbackReceiptV8 {
+  readonly schemaVersion: 8;
+  readonly rollbackId: AgentPlatID;
+  readonly reconciliationDigest: PlanningDigestV1;
+  readonly targetConstitutionDigest: PlanningDigestV1;
+  readonly targetCheckpointDigest: PlanningDigestV1;
+  readonly priorAuthorityEpochs: readonly number[];
+  readonly successorAuthorityEpoch: number;
+  readonly revokedAuthorizationDigests: readonly PlanningDigestV1[];
+  readonly rolledBackAtLogicalMs: number;
+  readonly reactivatesPriorAuthority: false;
+  readonly receiptDigest: PlanningDigestV1;
+}
+export function createMorphogenesisConstitutionalBranchHeadV8(
+  i: Omit<
+    MorphogenesisConstitutionalBranchHeadV8,
+    "schemaVersion" | "headDigest"
+  >,
+) {
+  const b = freeze({
+    schemaVersion: 8 as const,
+    branchId: id(i.branchId),
+    constitutionDigest: sha(i.constitutionDigest),
+    constitutionalEpoch: pos(i.constitutionalEpoch),
+    parentConstitutionDigest:
+      i.parentConstitutionDigest === null
+        ? null
+        : sha(i.parentConstitutionDigest),
+    checkpointDigest: sha(i.checkpointDigest),
+    authorizationDigest: sha(i.authorizationDigest),
+    membershipConfigurationDigest: sha(i.membershipConfigurationDigest),
+    membershipEpoch: pos(i.membershipEpoch),
+    authorityEpoch: pos(i.authorityEpoch),
+    observedAtLogicalMs: nn(i.observedAtLogicalMs),
+  });
+  return freeze({
+    ...b,
+    headDigest: dg("morphogenesis-constitutional-branch-head-v8", b),
+  });
+}
+export function reconcileMorphogenesisConstitutionalBranchesV8(i: {
+  readonly reconciliationId: AgentPlatID;
+  readonly ancestorConstitutionDigest: PlanningDigestV1;
+  readonly branches: readonly MorphogenesisConstitutionalBranchHeadV8[];
+  readonly locallyAuthorizedHeadDigests: readonly PlanningDigestV1[];
+  readonly logicalTimeMs: number;
+}) {
+  const branches = i.branches.map(
+      createMorphogenesisConstitutionalBranchHeadV8,
+    ),
+    authorized = new Set(i.locallyAuthorizedHeadDigests.map(sha)),
+    compatible = branches.filter(
+      (x) =>
+        x.parentConstitutionDigest === i.ancestorConstitutionDigest &&
+        authorized.has(x.headDigest),
+    ),
+    sameEpochConflict = compatible.some((x, n) =>
+      compatible.some(
+        (y, m) =>
+          m > n &&
+          x.constitutionalEpoch === y.constitutionalEpoch &&
+          x.constitutionDigest !== y.constitutionDigest,
+      ),
+    );
+  let disposition: MorphogenesisConstitutionalReconciliationV8["disposition"],
+    selected: MorphogenesisConstitutionalBranchHeadV8 | undefined,
+    reasons: AgentPlatID[] = [];
+  if (sameEpochConflict) {
+    disposition = "isolated";
+    reasons = ["conflicting_successor_epoch"];
+  } else if (compatible.length === 1) {
+    disposition = "selected";
+    selected = compatible[0];
+  } else {
+    disposition = "rollback_required";
+    reasons = [
+      compatible.length ? "ambiguous_branches" : "no_authorized_successor",
+    ];
+  }
+  const isolated =
+    disposition === "selected"
+      ? branches.filter((x) => x.headDigest !== selected!.headDigest)
+      : branches;
+  const b = freeze({
+    schemaVersion: 8 as const,
+    reconciliationId: id(i.reconciliationId),
+    ancestorConstitutionDigest: sha(i.ancestorConstitutionDigest),
+    branchHeadDigests: freeze(branches.map((x) => x.headDigest).sort()),
+    disposition,
+    selectedBranchHeadDigest: selected?.headDigest ?? null,
+    isolatedBranchHeadDigests: freeze(isolated.map((x) => x.headDigest).sort()),
+    reasonCodes: freeze(reasons),
+    reconciledAtLogicalMs: nn(i.logicalTimeMs),
+    mergesAuthority: false as const,
+  });
+  return freeze({
+    ...b,
+    reconciliationDigest: dg(
+      "morphogenesis-constitutional-reconciliation-v8",
+      b,
+    ),
+  });
+}
+export function createMorphogenesisConstitutionalRollbackReceiptV8(
+  i: Omit<
+    MorphogenesisConstitutionalRollbackReceiptV8,
+    | "schemaVersion"
+    | "successorAuthorityEpoch"
+    | "reactivatesPriorAuthority"
+    | "receiptDigest"
+  >,
+) {
+  const epochs = freeze(
+    [...new Set(i.priorAuthorityEpochs)].sort((a, b) => a - b),
+  );
+  if (!epochs.length) fail("constitutional rollback epochs unavailable");
+  const b = freeze({
+    schemaVersion: 8 as const,
+    rollbackId: id(i.rollbackId),
+    reconciliationDigest: sha(i.reconciliationDigest),
+    targetConstitutionDigest: sha(i.targetConstitutionDigest),
+    targetCheckpointDigest: sha(i.targetCheckpointDigest),
+    priorAuthorityEpochs: epochs,
+    successorAuthorityEpoch: Math.max(...epochs) + 1,
+    revokedAuthorizationDigests: shas(i.revokedAuthorizationDigests),
+    rolledBackAtLogicalMs: nn(i.rolledBackAtLogicalMs),
+    reactivatesPriorAuthority: false as const,
+  });
+  return freeze({
+    ...b,
+    receiptDigest: dg("morphogenesis-constitutional-rollback-receipt-v8", b),
+  });
+}
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,
+  SHA = /^sha256:[0-9a-f]{64}$/u;
+function id(v: unknown) {
+  if (typeof v !== "string" || !ID.test(v))
+    fail("constitutional reconciliation ID invalid");
+  return v as AgentPlatID;
+}
+function sha(v: unknown) {
+  if (typeof v !== "string" || !SHA.test(v))
+    fail("constitutional reconciliation digest invalid");
+  return v as PlanningDigestV1;
+}
+function pos(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 1)
+    fail("constitutional reconciliation integer invalid");
+  return v as number;
+}
+function nn(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 0)
+    fail("constitutional reconciliation integer invalid");
+  return v as number;
+}
+function shas(v: readonly unknown[]) {
+  const r = [...new Set(v.map(sha))].sort();
+  if (!r.length || r.length !== v.length)
+    fail("constitutional reconciliation set invalid");
+  return freeze(r);
+}
+function dg(d: string, v: unknown) {
+  return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function freeze<T>(v: T): T {
+  if (v && typeof v === "object" && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const x of Object.values(v as Record<string, unknown>)) freeze(x);
+  }
+  return v;
+}
+function fail(m: string): never {
+  throw new TypeError(m);
+}

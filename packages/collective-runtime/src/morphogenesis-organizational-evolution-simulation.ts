@@ -1,16 +1,297 @@
-import { digestPlanningJsonV1,type PlanningDigestV1,type PlanningJson } from "@agentplat/collective-planning";
+import {
+  digestPlanningJsonV1,
+  type PlanningDigestV1,
+  type PlanningJson,
+} from "@agentplat/collective-planning";
 import type { AgentPlatID } from "@agentplat/core";
 import type { MorphogenesisOrganizationalCandidateV7 } from "./morphogenesis-organizational-evolution.js";
 
-export const ORGANIZATIONAL_EVALUATION_METRICS_V7=Object.freeze(["capacity","cost","diversity","continuity","risk","rollback","authority_distribution"] as const);
-export type MorphogenesisOrganizationalMetricV7=(typeof ORGANIZATIONAL_EVALUATION_METRICS_V7)[number];
-export interface MorphogenesisOrganizationalSimulationScenarioV7 {readonly schemaVersion:7;readonly scenarioId:AgentPlatID;readonly currentTopologyDigest:PlanningDigestV1;readonly currentTopologyEpoch:number;readonly candidateDigests:readonly PlanningDigestV1[];readonly simulatorId:AgentPlatID;readonly simulatorVersion:number;readonly simulatorImplementationDigest:PlanningDigestV1;readonly environmentDigest:PlanningDigestV1;readonly seedDigest:PlanningDigestV1;readonly interactionBudget:number;readonly proposedAtLogicalMs:number;readonly expiresAtLogicalMs:number;readonly scenarioDigest:PlanningDigestV1}
-export interface MorphogenesisOrganizationalEstimateV7 {readonly schemaVersion:7;readonly scenarioDigest:PlanningDigestV1;readonly candidateDigest:PlanningDigestV1;readonly metrics:Readonly<Record<MorphogenesisOrganizationalMetricV7,number>>;readonly confidenceBps:number;readonly interactionUnits:number;readonly evidenceDigests:readonly PlanningDigestV1[];readonly estimateDigest:PlanningDigestV1}
-export interface MorphogenesisOrganizationalSimulationPortV7 {readonly simulatorId:AgentPlatID;readonly simulatorVersion:number;readonly simulatorImplementationDigest:PlanningDigestV1;evaluate(input:{readonly scenario:MorphogenesisOrganizationalSimulationScenarioV7;readonly candidate:MorphogenesisOrganizationalCandidateV7}):Promise<MorphogenesisOrganizationalEstimateV7>}
-export interface MorphogenesisOrganizationalSimulationReportV7 {readonly schemaVersion:7;readonly reportId:AgentPlatID;readonly scenarioDigest:PlanningDigestV1;readonly estimates:readonly MorphogenesisOrganizationalEstimateV7[];readonly eligibleCandidateDigests:readonly PlanningDigestV1[];readonly recommendedCandidateDigest:PlanningDigestV1|null;readonly evidenceDigests:readonly PlanningDigestV1[];readonly evaluatedAtLogicalMs:number;readonly advisoryOnly:true;readonly reportDigest:PlanningDigestV1}
-export interface MorphogenesisOrganizationalSimulationStoreV7{load(id:AgentPlatID):Promise<MorphogenesisOrganizationalSimulationReportV7|null>;save(report:MorphogenesisOrganizationalSimulationReportV7):Promise<boolean>}
-export function createMorphogenesisOrganizationalSimulationScenarioV7(input:Omit<MorphogenesisOrganizationalSimulationScenarioV7,"schemaVersion"|"candidateDigests"|"scenarioDigest">&{readonly candidates:readonly MorphogenesisOrganizationalCandidateV7[]}){const cds=shas(input.candidates.map(x=>x.candidateDigest));const body=freeze({schemaVersion:7 as const,scenarioId:id(input.scenarioId),currentTopologyDigest:sha(input.currentTopologyDigest),currentTopologyEpoch:pos(input.currentTopologyEpoch),candidateDigests:cds,simulatorId:id(input.simulatorId),simulatorVersion:pos(input.simulatorVersion),simulatorImplementationDigest:sha(input.simulatorImplementationDigest),environmentDigest:sha(input.environmentDigest),seedDigest:sha(input.seedDigest),interactionBudget:pos(input.interactionBudget),proposedAtLogicalMs:nonneg(input.proposedAtLogicalMs),expiresAtLogicalMs:pos(input.expiresAtLogicalMs)});if(body.expiresAtLogicalMs<=body.proposedAtLogicalMs)fail("organizational simulation window invalid");return freeze({...body,scenarioDigest:digest("morphogenesis-organizational-simulation-scenario-v7",body)})}
-export function createMorphogenesisOrganizationalEstimateV7(input:Omit<MorphogenesisOrganizationalEstimateV7,"schemaVersion"|"estimateDigest">){const metrics=Object.fromEntries(ORGANIZATIONAL_EVALUATION_METRICS_V7.map(k=>[k,micros(input.metrics[k])])) as Record<MorphogenesisOrganizationalMetricV7,number>;const body=freeze({schemaVersion:7 as const,scenarioDigest:sha(input.scenarioDigest),candidateDigest:sha(input.candidateDigest),metrics:freeze(metrics),confidenceBps:bps(input.confidenceBps),interactionUnits:nonneg(input.interactionUnits),evidenceDigests:shas(input.evidenceDigests)});return freeze({...body,estimateDigest:digest("morphogenesis-organizational-estimate-v7",body)})}
-export class InMemoryMorphogenesisOrganizationalSimulationStoreV7 implements MorphogenesisOrganizationalSimulationStoreV7{#v=new Map<string,MorphogenesisOrganizationalSimulationReportV7>();async load(id:AgentPlatID){return this.#v.get(id)??null}async save(r:MorphogenesisOrganizationalSimulationReportV7){const x=this.#v.get(r.reportId);if(x)return x.reportDigest===r.reportDigest;this.#v.set(r.reportId,r);return true}}
-export class MorphogenesisOrganizationalSimulationRuntimeV7{constructor(readonly options:{readonly simulator:MorphogenesisOrganizationalSimulationPortV7;readonly store:MorphogenesisOrganizationalSimulationStoreV7;readonly minimumConfidenceBps:number;readonly minimumSafetyMicros:number}){}async evaluate(input:{readonly reportId:AgentPlatID;readonly scenario:MorphogenesisOrganizationalSimulationScenarioV7;readonly candidates:readonly MorphogenesisOrganizationalCandidateV7[];readonly logicalTimeMs:number}){const old=await this.options.store.load(input.reportId);if(old){if(old.scenarioDigest!==input.scenario.scenarioDigest)fail("organizational simulation replay diverged");return old}if(input.scenario.expiresAtLogicalMs<=input.logicalTimeMs||this.options.simulator.simulatorId!==input.scenario.simulatorId||this.options.simulator.simulatorVersion!==input.scenario.simulatorVersion||this.options.simulator.simulatorImplementationDigest!==input.scenario.simulatorImplementationDigest)fail("organizational simulator binding invalid");let used=0;const estimates=[] as MorphogenesisOrganizationalEstimateV7[];for(const c of input.candidates){const e=createMorphogenesisOrganizationalEstimateV7(await this.options.simulator.evaluate({scenario:input.scenario,candidate:c}));if(e.scenarioDigest!==input.scenario.scenarioDigest||e.candidateDigest!==c.candidateDigest)fail("organizational estimate binding invalid");used+=e.interactionUnits;if(used>input.scenario.interactionBudget)fail("organizational simulation budget exceeded");estimates.push(e)}const eligible=estimates.filter(e=>e.confidenceBps>=this.options.minimumConfidenceBps&&e.metrics.risk>=this.options.minimumSafetyMicros&&e.metrics.continuity>=this.options.minimumSafetyMicros&&e.metrics.rollback>=this.options.minimumSafetyMicros).sort((a,b)=>score(b)-score(a)||a.candidateDigest.localeCompare(b.candidateDigest));const body=freeze({schemaVersion:7 as const,reportId:id(input.reportId),scenarioDigest:input.scenario.scenarioDigest,estimates:freeze(estimates.sort((a,b)=>a.candidateDigest.localeCompare(b.candidateDigest))),eligibleCandidateDigests:freeze(eligible.map(x=>x.candidateDigest)),recommendedCandidateDigest:eligible[0]?.candidateDigest??null,evidenceDigests:shas(estimates.flatMap(x=>x.evidenceDigests)),evaluatedAtLogicalMs:nonneg(input.logicalTimeMs),advisoryOnly:true as const});const report=freeze({...body,reportDigest:digest("morphogenesis-organizational-simulation-report-v7",body)});if(!await this.options.store.save(report))fail("organizational report conflict");return report}}
-function score(e:MorphogenesisOrganizationalEstimateV7){return e.metrics.capacity+e.metrics.diversity+e.metrics.continuity+e.metrics.rollback+e.metrics.authority_distribution+e.metrics.cost+e.metrics.risk}const ID=/^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,SHA=/^sha256:[0-9a-f]{64}$/u;function id(v:unknown){if(typeof v!=="string"||!ID.test(v))fail("organizational simulation ID invalid");return v as AgentPlatID}function sha(v:unknown){if(typeof v!=="string"||!SHA.test(v))fail("organizational simulation digest invalid");return v as PlanningDigestV1}function pos(v:unknown){if(!Number.isSafeInteger(v)||(v as number)<1)fail("organizational simulation integer invalid");return v as number}function nonneg(v:unknown){if(!Number.isSafeInteger(v)||(v as number)<0)fail("organizational simulation integer invalid");return v as number}function bps(v:unknown){const n=nonneg(v);if(n>10000)fail("organizational confidence invalid");return n}function micros(v:unknown){const n=nonneg(v);if(n>1000000)fail("organizational metric invalid");return n}function shas(v:readonly unknown[]){const r=[...new Set(v.map(sha))].sort();if(!r.length||r.length!==v.length)fail("organizational simulation evidence invalid");return freeze(r)}function digest(d:string,v:unknown){return digestPlanningJsonV1(d as never,v as PlanningJson)}function freeze<T>(v:T):T{if(v&&typeof v==="object"&&!Object.isFrozen(v)){Object.freeze(v);for(const x of Object.values(v as Record<string,unknown>))freeze(x)}return v}function fail(m:string):never{throw new TypeError(m)}
+export const ORGANIZATIONAL_EVALUATION_METRICS_V7 = Object.freeze([
+  "capacity",
+  "cost",
+  "diversity",
+  "continuity",
+  "risk",
+  "rollback",
+  "authority_distribution",
+] as const);
+export type MorphogenesisOrganizationalMetricV7 =
+  (typeof ORGANIZATIONAL_EVALUATION_METRICS_V7)[number];
+export interface MorphogenesisOrganizationalSimulationScenarioV7 {
+  readonly schemaVersion: 7;
+  readonly scenarioId: AgentPlatID;
+  readonly currentTopologyDigest: PlanningDigestV1;
+  readonly currentTopologyEpoch: number;
+  readonly candidateDigests: readonly PlanningDigestV1[];
+  readonly simulatorId: AgentPlatID;
+  readonly simulatorVersion: number;
+  readonly simulatorImplementationDigest: PlanningDigestV1;
+  readonly environmentDigest: PlanningDigestV1;
+  readonly seedDigest: PlanningDigestV1;
+  readonly interactionBudget: number;
+  readonly proposedAtLogicalMs: number;
+  readonly expiresAtLogicalMs: number;
+  readonly scenarioDigest: PlanningDigestV1;
+}
+export interface MorphogenesisOrganizationalEstimateV7 {
+  readonly schemaVersion: 7;
+  readonly scenarioDigest: PlanningDigestV1;
+  readonly candidateDigest: PlanningDigestV1;
+  readonly metrics: Readonly<
+    Record<MorphogenesisOrganizationalMetricV7, number>
+  >;
+  readonly confidenceBps: number;
+  readonly interactionUnits: number;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly estimateDigest: PlanningDigestV1;
+}
+export interface MorphogenesisOrganizationalSimulationPortV7 {
+  readonly simulatorId: AgentPlatID;
+  readonly simulatorVersion: number;
+  readonly simulatorImplementationDigest: PlanningDigestV1;
+  evaluate(input: {
+    readonly scenario: MorphogenesisOrganizationalSimulationScenarioV7;
+    readonly candidate: MorphogenesisOrganizationalCandidateV7;
+  }): Promise<MorphogenesisOrganizationalEstimateV7>;
+}
+export interface MorphogenesisOrganizationalSimulationReportV7 {
+  readonly schemaVersion: 7;
+  readonly reportId: AgentPlatID;
+  readonly scenarioDigest: PlanningDigestV1;
+  readonly estimates: readonly MorphogenesisOrganizationalEstimateV7[];
+  readonly eligibleCandidateDigests: readonly PlanningDigestV1[];
+  readonly recommendedCandidateDigest: PlanningDigestV1 | null;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly evaluatedAtLogicalMs: number;
+  readonly advisoryOnly: true;
+  readonly reportDigest: PlanningDigestV1;
+}
+export interface MorphogenesisOrganizationalSimulationStoreV7 {
+  load(
+    id: AgentPlatID,
+  ): Promise<MorphogenesisOrganizationalSimulationReportV7 | null>;
+  save(report: MorphogenesisOrganizationalSimulationReportV7): Promise<boolean>;
+}
+export function createMorphogenesisOrganizationalSimulationScenarioV7(
+  input: Omit<
+    MorphogenesisOrganizationalSimulationScenarioV7,
+    "schemaVersion" | "candidateDigests" | "scenarioDigest"
+  > & {
+    readonly candidates: readonly MorphogenesisOrganizationalCandidateV7[];
+  },
+) {
+  const cds = shas(input.candidates.map((x) => x.candidateDigest));
+  const body = freeze({
+    schemaVersion: 7 as const,
+    scenarioId: id(input.scenarioId),
+    currentTopologyDigest: sha(input.currentTopologyDigest),
+    currentTopologyEpoch: pos(input.currentTopologyEpoch),
+    candidateDigests: cds,
+    simulatorId: id(input.simulatorId),
+    simulatorVersion: pos(input.simulatorVersion),
+    simulatorImplementationDigest: sha(input.simulatorImplementationDigest),
+    environmentDigest: sha(input.environmentDigest),
+    seedDigest: sha(input.seedDigest),
+    interactionBudget: pos(input.interactionBudget),
+    proposedAtLogicalMs: nonneg(input.proposedAtLogicalMs),
+    expiresAtLogicalMs: pos(input.expiresAtLogicalMs),
+  });
+  if (body.expiresAtLogicalMs <= body.proposedAtLogicalMs)
+    fail("organizational simulation window invalid");
+  return freeze({
+    ...body,
+    scenarioDigest: digest(
+      "morphogenesis-organizational-simulation-scenario-v7",
+      body,
+    ),
+  });
+}
+export function createMorphogenesisOrganizationalEstimateV7(
+  input: Omit<
+    MorphogenesisOrganizationalEstimateV7,
+    "schemaVersion" | "estimateDigest"
+  >,
+) {
+  const metrics = Object.fromEntries(
+    ORGANIZATIONAL_EVALUATION_METRICS_V7.map((k) => [
+      k,
+      micros(input.metrics[k]),
+    ]),
+  ) as Record<MorphogenesisOrganizationalMetricV7, number>;
+  const body = freeze({
+    schemaVersion: 7 as const,
+    scenarioDigest: sha(input.scenarioDigest),
+    candidateDigest: sha(input.candidateDigest),
+    metrics: freeze(metrics),
+    confidenceBps: bps(input.confidenceBps),
+    interactionUnits: nonneg(input.interactionUnits),
+    evidenceDigests: shas(input.evidenceDigests),
+  });
+  return freeze({
+    ...body,
+    estimateDigest: digest("morphogenesis-organizational-estimate-v7", body),
+  });
+}
+export class InMemoryMorphogenesisOrganizationalSimulationStoreV7 implements MorphogenesisOrganizationalSimulationStoreV7 {
+  #v = new Map<string, MorphogenesisOrganizationalSimulationReportV7>();
+  async load(id: AgentPlatID) {
+    return this.#v.get(id) ?? null;
+  }
+  async save(r: MorphogenesisOrganizationalSimulationReportV7) {
+    const x = this.#v.get(r.reportId);
+    if (x) return x.reportDigest === r.reportDigest;
+    this.#v.set(r.reportId, r);
+    return true;
+  }
+}
+export class MorphogenesisOrganizationalSimulationRuntimeV7 {
+  constructor(
+    readonly options: {
+      readonly simulator: MorphogenesisOrganizationalSimulationPortV7;
+      readonly store: MorphogenesisOrganizationalSimulationStoreV7;
+      readonly minimumConfidenceBps: number;
+      readonly minimumSafetyMicros: number;
+    },
+  ) {}
+  async evaluate(input: {
+    readonly reportId: AgentPlatID;
+    readonly scenario: MorphogenesisOrganizationalSimulationScenarioV7;
+    readonly candidates: readonly MorphogenesisOrganizationalCandidateV7[];
+    readonly logicalTimeMs: number;
+  }) {
+    const old = await this.options.store.load(input.reportId);
+    if (old) {
+      if (old.scenarioDigest !== input.scenario.scenarioDigest)
+        fail("organizational simulation replay diverged");
+      return old;
+    }
+    if (
+      input.scenario.expiresAtLogicalMs <= input.logicalTimeMs ||
+      this.options.simulator.simulatorId !== input.scenario.simulatorId ||
+      this.options.simulator.simulatorVersion !==
+        input.scenario.simulatorVersion ||
+      this.options.simulator.simulatorImplementationDigest !==
+        input.scenario.simulatorImplementationDigest
+    )
+      fail("organizational simulator binding invalid");
+    let used = 0;
+    const estimates = [] as MorphogenesisOrganizationalEstimateV7[];
+    for (const c of input.candidates) {
+      const e = createMorphogenesisOrganizationalEstimateV7(
+        await this.options.simulator.evaluate({
+          scenario: input.scenario,
+          candidate: c,
+        }),
+      );
+      if (
+        e.scenarioDigest !== input.scenario.scenarioDigest ||
+        e.candidateDigest !== c.candidateDigest
+      )
+        fail("organizational estimate binding invalid");
+      used += e.interactionUnits;
+      if (used > input.scenario.interactionBudget)
+        fail("organizational simulation budget exceeded");
+      estimates.push(e);
+    }
+    const eligible = estimates
+      .filter(
+        (e) =>
+          e.confidenceBps >= this.options.minimumConfidenceBps &&
+          e.metrics.risk >= this.options.minimumSafetyMicros &&
+          e.metrics.continuity >= this.options.minimumSafetyMicros &&
+          e.metrics.rollback >= this.options.minimumSafetyMicros,
+      )
+      .sort(
+        (a, b) =>
+          score(b) - score(a) ||
+          a.candidateDigest.localeCompare(b.candidateDigest),
+      );
+    const body = freeze({
+      schemaVersion: 7 as const,
+      reportId: id(input.reportId),
+      scenarioDigest: input.scenario.scenarioDigest,
+      estimates: freeze(
+        estimates.sort((a, b) =>
+          a.candidateDigest.localeCompare(b.candidateDigest),
+        ),
+      ),
+      eligibleCandidateDigests: freeze(eligible.map((x) => x.candidateDigest)),
+      recommendedCandidateDigest: eligible[0]?.candidateDigest ?? null,
+      evidenceDigests: shas(estimates.flatMap((x) => x.evidenceDigests)),
+      evaluatedAtLogicalMs: nonneg(input.logicalTimeMs),
+      advisoryOnly: true as const,
+    });
+    const report = freeze({
+      ...body,
+      reportDigest: digest(
+        "morphogenesis-organizational-simulation-report-v7",
+        body,
+      ),
+    });
+    if (!(await this.options.store.save(report)))
+      fail("organizational report conflict");
+    return report;
+  }
+}
+function score(e: MorphogenesisOrganizationalEstimateV7) {
+  return (
+    e.metrics.capacity +
+    e.metrics.diversity +
+    e.metrics.continuity +
+    e.metrics.rollback +
+    e.metrics.authority_distribution +
+    e.metrics.cost +
+    e.metrics.risk
+  );
+}
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,
+  SHA = /^sha256:[0-9a-f]{64}$/u;
+function id(v: unknown) {
+  if (typeof v !== "string" || !ID.test(v))
+    fail("organizational simulation ID invalid");
+  return v as AgentPlatID;
+}
+function sha(v: unknown) {
+  if (typeof v !== "string" || !SHA.test(v))
+    fail("organizational simulation digest invalid");
+  return v as PlanningDigestV1;
+}
+function pos(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 1)
+    fail("organizational simulation integer invalid");
+  return v as number;
+}
+function nonneg(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 0)
+    fail("organizational simulation integer invalid");
+  return v as number;
+}
+function bps(v: unknown) {
+  const n = nonneg(v);
+  if (n > 10000) fail("organizational confidence invalid");
+  return n;
+}
+function micros(v: unknown) {
+  const n = nonneg(v);
+  if (n > 1000000) fail("organizational metric invalid");
+  return n;
+}
+function shas(v: readonly unknown[]) {
+  const r = [...new Set(v.map(sha))].sort();
+  if (!r.length || r.length !== v.length)
+    fail("organizational simulation evidence invalid");
+  return freeze(r);
+}
+function digest(d: string, v: unknown) {
+  return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function freeze<T>(v: T): T {
+  if (v && typeof v === "object" && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const x of Object.values(v as Record<string, unknown>)) freeze(x);
+  }
+  return v;
+}
+function fail(m: string): never {
+  throw new TypeError(m);
+}

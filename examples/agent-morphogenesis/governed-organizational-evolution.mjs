@@ -1,1 +1,46 @@
-import{createHash}from"node:crypto";import{createMorphogenesisOrganizationalEvolutionPolicyV7,createMorphogenesisOrganizationalPatternV7}from"@agentplat/collective-runtime/morphogenesis";const d=v=>`sha256:${createHash("sha256").update(v).digest("hex")}`;const policy=createMorphogenesisOrganizationalEvolutionPolicyV7({schemaVersion:7,policyId:"policy:organizational-evolution",policyVersion:1,morphogenesisPolicyDigest:d("morphogenesis"),minimumPersistentCycles:3,maximumCandidates:4,maximumTeams:8,maximumMembers:32,maximumChangedMembers:8,minimumProviderDiversity:2,minimumModelDiversity:2,maximumAuthorityConcentrationBps:4000,maximumCandidateTtlMs:60000});const pattern=createMorphogenesisOrganizationalPatternV7({patternId:"pattern:example",currentTopologyDigest:d("topology"),currentTopologyEpoch:4,strategyEvidenceDigests:[d("v3")],collectiveEvidenceDigests:[d("v4")],synthesisEvidenceDigests:[d("v5")],genesisEvidenceDigests:[d("v6")],consecutiveCycles:3,reasonCodes:["persistent_capability_gap"],observedAtLogicalMs:10,expiresAtLogicalMs:50000,policy});console.log(JSON.stringify({patternDigest:pattern.patternDigest,evolutionRequired:pattern.evolutionRequired,next:"compare candidates, compile DAG, review, canary, stabilize or rollback"},null,2));
+import { createHash } from "node:crypto";
+import {
+  createMorphogenesisOrganizationalEvolutionPolicyV7,
+  createMorphogenesisOrganizationalPatternV7,
+} from "@agentplat/collective-runtime/morphogenesis";
+const d = (v) => `sha256:${createHash("sha256").update(v).digest("hex")}`;
+const policy = createMorphogenesisOrganizationalEvolutionPolicyV7({
+  schemaVersion: 7,
+  policyId: "policy:organizational-evolution",
+  policyVersion: 1,
+  morphogenesisPolicyDigest: d("morphogenesis"),
+  minimumPersistentCycles: 3,
+  maximumCandidates: 4,
+  maximumTeams: 8,
+  maximumMembers: 32,
+  maximumChangedMembers: 8,
+  minimumProviderDiversity: 2,
+  minimumModelDiversity: 2,
+  maximumAuthorityConcentrationBps: 4000,
+  maximumCandidateTtlMs: 60000,
+});
+const pattern = createMorphogenesisOrganizationalPatternV7({
+  patternId: "pattern:example",
+  currentTopologyDigest: d("topology"),
+  currentTopologyEpoch: 4,
+  strategyEvidenceDigests: [d("v3")],
+  collectiveEvidenceDigests: [d("v4")],
+  synthesisEvidenceDigests: [d("v5")],
+  genesisEvidenceDigests: [d("v6")],
+  consecutiveCycles: 3,
+  reasonCodes: ["persistent_capability_gap"],
+  observedAtLogicalMs: 10,
+  expiresAtLogicalMs: 50000,
+  policy,
+});
+console.log(
+  JSON.stringify(
+    {
+      patternDigest: pattern.patternDigest,
+      evolutionRequired: pattern.evolutionRequired,
+      next: "compare candidates, compile DAG, review, canary, stabilize or rollback",
+    },
+    null,
+    2,
+  ),
+);
