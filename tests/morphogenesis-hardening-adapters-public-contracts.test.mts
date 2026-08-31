@@ -1,0 +1,8 @@
+import {
+  createMorphogenesisConstitutionalTrustGateAdapterV8,
+  createMorphogenesisConstitutionalInferenceControlGateAdapterV8,
+} from "@agentplat/collective-host";
+import { createMorphogenesisOrganizationalDynamicTopologyBoundaryV7 } from "@agentplat/collective-runtime/morphogenesis";
+void createMorphogenesisConstitutionalTrustGateAdapterV8;
+void createMorphogenesisConstitutionalInferenceControlGateAdapterV8;
+void createMorphogenesisOrganizationalDynamicTopologyBoundaryV7;
