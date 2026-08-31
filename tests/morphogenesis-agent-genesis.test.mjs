@@ -315,6 +315,24 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     const probationGate = new MorphogenesisAgentGenesisProbationEligibilityGateV6({
       capability: probationPort("capability"), trust: probationPort("trust"),
       inferenceControl: probationPort("inference_control") });
+    if (route === "authorized_agent") {
+      const restrictedTrust = { source: "trust", async assess({ draft, sandboxReceipt,
+        logicalTimeMs }) { return createMorphogenesisAgentGenesisProbationAssessmentV6({
+          source: "trust", draftDigest: draft.draftDigest,
+          sandboxReceiptDigest: sandboxReceipt.receiptDigest, disposition: "restricted",
+          policyDigest: sha("probation-policy:trust"), sourceId: "source:trust",
+          sourceImplementationDigest: sha("source:trust"),
+          evidenceDigests: [sha("probation:trust:restricted")],
+          observedAtLogicalMs: logicalTimeMs, expiresAtLogicalMs: logicalTimeMs + 10 }); } };
+      const restricted = await new MorphogenesisAgentGenesisProbationEligibilityGateV6({
+        capability: probationPort("capability"), trust: restrictedTrust,
+        inferenceControl: probationPort("inference_control") }).evaluate({
+          draft, sandboxReceipt: probationEntry.sandboxReceipt, logicalTimeMs: 26 });
+      assert.equal(restricted.disposition, "ineligible");
+      await assert.rejects(runtime.observeProbation({ observationId: "observation:restricted",
+        draftDigest: draft.draftDigest, outcome: "success", eligibility: restricted,
+        logicalTimeMs: 26 }), /restrictive/);
+    }
     for (let index = 1; index <= 2; index += 1) {
       const logicalTimeMs = 25 + index;
       const eligibility = await probationGate.evaluate({ draft,
