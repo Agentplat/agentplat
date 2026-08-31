@@ -112,8 +112,10 @@ export function createMorphogenesisOrganizationalEvolutionPlanV7(input: {
   });
 }
 export function validateMorphogenesisOrganizationalEvolutionPlanV7(
-  v: MorphogenesisOrganizationalEvolutionPlanV7,
+  input: MorphogenesisOrganizationalEvolutionPlanV7,
 ) {
+  const v = exact(input, PLAN_KEYS, "organizational plan") as unknown as
+    MorphogenesisOrganizationalEvolutionPlanV7;
   if (
     v.schemaVersion !== 7 ||
     v.advisoryOnly !== true ||
@@ -124,6 +126,7 @@ export function validateMorphogenesisOrganizationalEvolutionPlanV7(
   if (names.size !== v.steps.length)
     fail("organizational plan steps duplicated");
   for (const s of v.steps) {
+    exact(s, STEP_KEYS, "organizational plan step");
     const { stepDigest, ...b } = s;
     if (
       stepDigest !== digest("morphogenesis-organizational-plan-step-v7", b) ||
@@ -140,6 +143,13 @@ export function validateMorphogenesisOrganizationalEvolutionPlanV7(
     fail("organizational plan digest invalid");
   return freeze(structuredClone(v));
 }
+const PLAN_KEYS = ["advisoryOnly", "candidateDigest", "compiledAtLogicalMs",
+  "continuityPlanDigest", "planDigest", "planId", "rollbackPlanDigest",
+  "schemaVersion", "sourceEpoch", "sourceTopologyDigest", "steps",
+  "successorEpoch"] as const;
+const STEP_KEYS = ["artifactDigest", "artifactKind", "authorityOwner",
+  "compensationRequired", "dependsOnStepIds", "operator", "schemaVersion",
+  "stepDigest", "stepId"] as const;
 function step(x: {
   readonly stepId: AgentPlatID;
   readonly artifact: MorphogenesisOrganizationalArtifactV7;
@@ -220,6 +230,13 @@ function nonneg(v: unknown) {
 }
 function digest(d: string, v: unknown) {
   return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function exact(value: unknown, keys: readonly string[], label: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype ||
+      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort()))
+    fail(`${label} shape invalid`);
+  return value as Record<string, unknown>;
 }
 function freeze<T>(v: T): T {
   if (v && typeof v === "object" && !Object.isFrozen(v)) {

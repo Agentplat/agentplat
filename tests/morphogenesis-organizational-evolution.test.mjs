@@ -238,6 +238,15 @@ test("V7 executes one owner effect and compensates it with stable operation IDs"
   const p = plan(),
     applied = new Map(),
     compensated = new Map();
+  const { stepDigest: _stepDigest, ...stepBody } = p.steps[0];
+  const poisonedStepBody = { ...stepBody, hiddenAuthorityGrant: sha("grant") };
+  const poisonedStep = { ...poisonedStepBody, stepDigest: digestPlanningJsonV1(
+    "morphogenesis-organizational-plan-step-v7", poisonedStepBody) };
+  const { planDigest: _planDigest, ...planBody } = p;
+  const poisonedPlanBody = { ...planBody, steps: [poisonedStep] };
+  assert.throws(() => validateMorphogenesisOrganizationalEvolutionPlanV7({
+    ...poisonedPlanBody, planDigest: digestPlanningJsonV1(
+      "morphogenesis-organizational-evolution-plan-v7", poisonedPlanBody) }), /shape/);
   const boundary = {
     async apply({ operationId, plan, step, logicalTimeMs }) {
       const b = {
