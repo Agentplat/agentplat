@@ -20,7 +20,7 @@ assert.equal(manifest.frozenCapabilityBaselineV1Modified, false);
 const evidence = JSON.parse(await readFile(new URL(
   "../config/agent-morphogenesis-hardening-evidence-v1.json", import.meta.url), "utf8"));
 assert.equal(evidence.schemaVersion, 1);
-assert.deepEqual(evidence.evidence.map(({ workstream }) => workstream), required.slice(0, 6));
+assert.deepEqual(evidence.evidence.map(({ workstream }) => workstream), required);
 assert.equal(evidence.evidence.every(({ sources }) => sources.length >= 2), true);
 assert.equal(evidence.claimBoundary, "source_evidence_only");
 console.log(`Agent Morphogenesis hardening manifest verified: ${required.length} workstreams`);
