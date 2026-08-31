@@ -38,6 +38,14 @@ import {
   type MorphogenesisAgentGenesisLifecycleStateV6,
   type MorphogenesisAgentGenesisLifecycleStoreV6,
   type MorphogenesisAgentGenesisPolicyV6,
+  validateMorphogenesisOrganizationalExecutionStateV7,
+  validateMorphogenesisOrganizationalGovernancePolicyV7,
+  validateMorphogenesisOrganizationalGovernanceStateV7,
+  type MorphogenesisOrganizationalExecutionStateV7,
+  type MorphogenesisOrganizationalExecutionStoreV7,
+  type MorphogenesisOrganizationalGovernancePolicyV7,
+  type MorphogenesisOrganizationalGovernanceStateV7,
+  type MorphogenesisOrganizationalGovernanceStoreV7,
 } from "@agentplat/collective-runtime/morphogenesis";
 import {
   validatePeerStrategyEvidenceExchangePolicyV1,
@@ -322,6 +330,8 @@ export class PostgresMorphogenesisAgentGenesisLifecycleStoreV6
     return this.#repository.save(input);
   }
 }
+export class PostgresMorphogenesisOrganizationalExecutionStoreV7 implements MorphogenesisOrganizationalExecutionStoreV7{readonly #r:StrategyStateRepository<MorphogenesisOrganizationalExecutionStateV7>;constructor(input:{readonly pool:Pool;readonly options:MorphogenesisPostgresStoreOptionsV1}){this.#r=new StrategyStateRepository({pool:input.pool,options:input.options,stateKind:"morphogenesis-organizational-execution",validate:v=>validateMorphogenesisOrganizationalExecutionStateV7(v as MorphogenesisOrganizationalExecutionStateV7)})}load(k:string){return this.#r.load(k)}save(i:{readonly state:MorphogenesisOrganizationalExecutionStateV7;readonly expectedRevision:number|null;readonly expectedStateDigest:`sha256:${string}`|null}){return this.#r.save(i)}}
+export class PostgresMorphogenesisOrganizationalGovernanceStoreV7 implements MorphogenesisOrganizationalGovernanceStoreV7{readonly #r:StrategyStateRepository<MorphogenesisOrganizationalGovernanceStateV7>;constructor(input:{readonly pool:Pool;readonly options:MorphogenesisPostgresStoreOptionsV1;readonly policy:MorphogenesisOrganizationalGovernancePolicyV7}){const p=validateMorphogenesisOrganizationalGovernancePolicyV7(input.policy);this.#r=new StrategyStateRepository({pool:input.pool,options:input.options,stateKind:"morphogenesis-organizational-governance",validate:v=>validateMorphogenesisOrganizationalGovernanceStateV7(v as MorphogenesisOrganizationalGovernanceStateV7,p)})}load(k:string){return this.#r.load(k)}save(i:{readonly state:MorphogenesisOrganizationalGovernanceStateV7;readonly expectedRevision:number|null;readonly expectedStateDigest:`sha256:${string}`|null}){return this.#r.save(i)}}
 
 type StrategyState = {
   readonly stateKey: string;
@@ -341,7 +351,9 @@ class StrategyStateRepository<T extends StrategyState> {
       | "morphogenesis-strategy-evidence-exchange"
       | "morphogenesis-strategy-convergence"
       | "morphogenesis-strategy-synthesis-governance"
-      | "morphogenesis-agent-genesis-lifecycle";
+      | "morphogenesis-agent-genesis-lifecycle"
+      | "morphogenesis-organizational-execution"
+      | "morphogenesis-organizational-governance";
     readonly validate: (input: unknown) => T;
   }) {
     if (!input.pool || !input.options.scopeId || !input.options.rollbackWitness)
