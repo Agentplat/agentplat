@@ -64,6 +64,11 @@ import {
   createMorphogenesisStrategyCounterfactualScenarioV3,
   createMorphogenesisStrategyCounterfactualEstimateV3,
   createMorphogenesisStrategyCounterfactualReportV3,
+  MorphogenesisStrategyEvidenceExchangeV4,
+  createMorphogenesisStrategyEvidenceBindingV4,
+  createMorphogenesisStrategyIntelligencePolicyV4,
+  createSignedMorphogenesisStrategyOutcomeAttestationV4,
+  validateMorphogenesisStrategyOutcomeAttestationV4,
   createMorphogenesisLineageLinkV1,
   createCompositeMorphogenesisDecisionAuthorizationV1,
   createMorphogenesisReplayTombstoneV1,
@@ -143,6 +148,9 @@ import {
   type MorphogenesisStrategyCounterfactualScenarioV3,
   type MorphogenesisStrategyCounterfactualEstimateV3,
   type MorphogenesisStrategyCounterfactualReportV3,
+  type MorphogenesisStrategyEvidenceBindingV4,
+  type MorphogenesisStrategyIntelligencePolicyV4,
+  type MorphogenesisStrategyOutcomeAttestationV4,
   type MorphogenesisBudgetReservationPortV1,
   type MorphogenesisControlWindowV1,
   type MorphogenesisDecisionAuthorizationIssuerPortV1,
@@ -236,6 +244,11 @@ void createMorphogenesisStrategyCounterfactualPolicyV3;
 void createMorphogenesisStrategyCounterfactualScenarioV3;
 void createMorphogenesisStrategyCounterfactualEstimateV3;
 void createMorphogenesisStrategyCounterfactualReportV3;
+void MorphogenesisStrategyEvidenceExchangeV4;
+void createMorphogenesisStrategyEvidenceBindingV4;
+void createMorphogenesisStrategyIntelligencePolicyV4;
+void createSignedMorphogenesisStrategyOutcomeAttestationV4;
+void validateMorphogenesisStrategyOutcomeAttestationV4;
 void createMorphogenesisLineageLinkV1;
 void createCompositeMorphogenesisDecisionAuthorizationV1;
 void createMorphogenesisReplayTombstoneV1;
@@ -316,6 +329,9 @@ declare const counterfactualPolicyV3: MorphogenesisStrategyCounterfactualPolicyV
 declare const counterfactualScenarioV3: MorphogenesisStrategyCounterfactualScenarioV3;
 declare const counterfactualEstimateV3: MorphogenesisStrategyCounterfactualEstimateV3;
 declare const counterfactualReportV3: MorphogenesisStrategyCounterfactualReportV3;
+declare const intelligenceBindingV4: MorphogenesisStrategyEvidenceBindingV4;
+declare const intelligencePolicyV4: MorphogenesisStrategyIntelligencePolicyV4;
+declare const intelligenceAttestationV4: MorphogenesisStrategyOutcomeAttestationV4;
 declare const budgetPort: MorphogenesisBudgetReservationPortV1;
 declare const controlWindow: MorphogenesisControlWindowV1;
 declare const sourceResolution: MorphologySourceResolutionPortV1;
@@ -375,6 +391,9 @@ void counterfactualPolicyV3;
 void counterfactualScenarioV3;
 void counterfactualEstimateV3;
 void counterfactualReportV3;
+void intelligenceBindingV4;
+void intelligencePolicyV4;
+void intelligenceAttestationV4;
 void budgetPort;
 void controlWindow;
 void sourceResolution;
