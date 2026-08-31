@@ -112,3 +112,31 @@ test("hardening vertical compensates applied stages in reverse", async () => {
     [...state.receipts].reverse().map(({ receiptDigest }) => receiptDigest),
   );
 });
+test("hardening vertical reconciles a lost response without a second effect", async () => {
+  const configured = ports();
+  const stage = MORPHOGENESIS_VERTICAL_STAGES_V1[0];
+  let effects = 0;
+  let retained;
+  configured[stage] = { ...configured[stage], async execute(input) {
+    effects += 1;
+    const body = { schemaVersion: 1, operationId: input.operationId, stage,
+      inputDigest: input.inputDigest, outputDigest: sha("lost-response-output"),
+      appliedAtLogicalMs: input.logicalTimeMs };
+    retained = { ...body, receiptDigest: digestPlanningJsonV1(
+      "morphogenesis-vertical-stage-receipt-v1", body) };
+    throw new Error("response lost after effect");
+  }, async reconcile(input) {
+    assert.equal(input.operationId, retained.operationId);
+    return retained;
+  } };
+  const runtime = new MorphogenesisIntegrationVerticalRuntimeV1({
+    store: new InMemoryMorphogenesisVerticalStoreV1(), ports: configured,
+    maximumCommitAttempts: 4 });
+  const state = await runtime.initialize({ stateKey: "vertical:lost-response",
+    rootInputDigest: sha("root"), logicalTimeMs: 10 });
+  await assert.rejects(runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 11 }),
+    /response lost/);
+  const recovered = await runtime.advance({ stateKey: state.stateKey, logicalTimeMs: 12 });
+  assert.equal(recovered.receipts.length, 1);
+  assert.equal(effects, 1);
+});

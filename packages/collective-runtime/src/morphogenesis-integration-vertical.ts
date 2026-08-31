@@ -184,6 +184,7 @@ export class MorphogenesisIntegrationVerticalRuntimeV1 {
       stage,
       inputDigest,
       logicalTimeMs: i.logicalTimeMs,
+      reconcile: retry,
     });
     return this.save(s, {
       status: "prepared",
@@ -290,6 +291,7 @@ function validateStageReceipt(
     readonly stage: MorphogenesisVerticalStageV1;
     readonly inputDigest: PlanningDigestV1;
     readonly logicalTimeMs: number;
+    readonly reconcile: boolean;
   },
 ) {
   const { receiptDigest, ...b } = r;
@@ -297,7 +299,9 @@ function validateStageReceipt(
     r.operationId !== i.operationId ||
     r.stage !== i.stage ||
     r.inputDigest !== i.inputDigest ||
-    r.appliedAtLogicalMs !== i.logicalTimeMs ||
+    (i.reconcile
+      ? r.appliedAtLogicalMs > i.logicalTimeMs
+      : r.appliedAtLogicalMs !== i.logicalTimeMs) ||
     receiptDigest !== dg("morphogenesis-vertical-stage-receipt-v1", b)
   )
     fail("Morphogenesis vertical receipt invalid");
