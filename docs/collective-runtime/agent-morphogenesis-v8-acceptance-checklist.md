@@ -12,6 +12,6 @@
 - [x] Estado PostgreSQL usa CAS y witness.
 - [x] Rooms/Mesh permanecen no autoritativos.
 - [x] APIs, ejemplo, spec, ADR y threat model existen.
-- [ ] `pnpm test` y `pnpm check` pasan en el árbol final.
+- [x] `pnpm test` y `pnpm check` pasan en el árbol final.
 
 No implica producción ni eficacia constitucional real.
