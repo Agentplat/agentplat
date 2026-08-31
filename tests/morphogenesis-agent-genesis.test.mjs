@@ -226,9 +226,34 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
   for (const [route, actorType] of [["authorized_agent", "agent"],
     ["authorized_person", "person"], ["collective", "collective"]]) {
     let reviews = 0;
+    const agents = new Map();
+    const attestations = new Map();
+    const lifecycle = { async createAndEnroll({ operationId, profile }) {
+      const retained = agents.get(operationId); if (retained) return retained;
+      const agent = Object.freeze({ schemaVersion: 1, agentId: `agent:${route}`,
+        peerId: `peer:${route}`, instanceId: `instance:${route}`,
+        lineageDigest: sha(`lineage:${route}`), capabilityKeys: profile.capabilityKeys,
+        roleDefinitionDigest: profile.roleDefinitionDigest,
+        membershipConfigurationDigest: sha(`membership:${route}`), membershipEpoch: 1,
+        source: "synthesized_created", agentDigest: sha(`agent:${route}`) });
+      agents.set(operationId, agent); return agent;
+    }, async reconcileCreateAndEnroll(input) { return this.createAndEnroll(input); },
+    async eligibility() { return null; } };
+    const attestation = { async attest({ operationId, agent, profile, logicalTimeMs }) {
+      const retained = attestations.get(operationId); if (retained) return retained;
+      const receipt = Object.freeze({ schemaVersion: 1, operationId,
+        agentDigest: agent.agentDigest, profileDigest: profile.profileDigest,
+        runtimeAttestationDigest: sha(`runtime:${route}`),
+        capabilityAssessmentDigests: [sha(`capability-assessment:${route}`)],
+        eligibilityEvidenceDigests: [sha(`eligibility:${route}`)],
+        attestedAtLogicalMs: logicalTimeMs, validUntilLogicalMs: 65,
+        attestationDigest: sha(`attestation:${route}`) });
+      attestations.set(operationId, receipt); return receipt;
+    }, async reconcile(input) { return this.attest(input); } };
     const runtime = new MorphogenesisAgentGenesisLifecycleRuntimeV6({
       stateKey: `state:${route}`, policy: lifecyclePolicy, genesisPolicy: value.policy,
-      sandbox, store: new InMemoryMorphogenesisAgentGenesisLifecycleStoreV6(),
+      sandbox, lifecycle, attestation,
+      store: new InMemoryMorphogenesisAgentGenesisLifecycleStoreV6(),
       reviews: { async review({ recommendation, logicalTimeMs }) {
         reviews += 1; return createMorphogenesisAgentGenesisReviewV6({
           reviewId: `review:${route}:${reviews}`,
@@ -265,7 +290,24 @@ test("V6 durably advances sandbox and probation through agent, person or quorum 
     recommendation = await recommend("rollback", "rollback", 30);
     assert.equal((await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
       logicalTimeMs: 31 })).nextStatus, "probationary");
-    assert.equal((await runtime.state(31)).entries[0].externalAdmissionApplied, false);
+    recommendation = await recommend("readmit", "admit", 32);
+    await runtime.reviewAndApply({ recommendationId: recommendation.recommendationId,
+      logicalTimeMs: 33 });
+    const scope = { tenantId: "tenant:test", roomId: "room:test", meshId: "mesh:test",
+      missionId: "mission:test", objectiveId: "objective:test", workItemId: null,
+      workItemRevision: null, morphologyId: "morphology:test",
+      scopeDigest: sha(`scope:${route}`) };
+    await runtime.applyMembership({ operationId: `membership:${route}`,
+      draftDigest: draft.draftDigest, scope, proposalDigest: sha(`proposal:${route}`),
+      logicalTimeMs: 34 });
+    await runtime.attestAdmission({ operationId: `attest:${route}`,
+      draftDigest: draft.draftDigest, scope, proposalDigest: sha(`proposal:${route}`),
+      logicalTimeMs: 35 });
+    const admitted = (await runtime.state(35)).entries[0];
+    assert.equal(admitted.externalAdmissionApplied, true);
+    assert.equal(admitted.workGranted, false);
+    assert.equal(admitted.actionAuthorityGranted, false);
+    await assert.rejects(recommend("late-rollback", "rollback", 36), /not allowed/);
   }
   assert.equal(effects, 3);
 });

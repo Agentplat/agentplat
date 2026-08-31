@@ -6,6 +6,13 @@ import {
 import type { AgentPlatID } from "@agentplat/core";
 import type { MorphogenesisStrategyReviewRouteV3 } from
   "./morphogenesis-strategy-governance.js";
+import type {
+  MorphogenesisAgentAttestationPortV1,
+  MorphogenesisAgentAttestationV1,
+  MorphogenesisAgentLifecyclePortV1,
+  MorphogenesisLifecycleAgentV1,
+} from "./morphogenesis-execution.js";
+import type { MorphogenesisScopeV1 } from "./morphogenesis-contracts.js";
 import {
   MorphogenesisAgentGenesisSandboxRuntimeV6,
   validateMorphogenesisAgentGenesisDraftV6,
@@ -96,7 +103,13 @@ export interface MorphogenesisAgentGenesisEntryV6 {
   readonly pendingSandboxOperationId: AgentPlatID | null;
   readonly sandboxReceipt: MorphogenesisAgentGenesisSandboxReceiptV6 | null;
   readonly probationReceipts: readonly MorphogenesisAgentGenesisProbationReceiptV6[];
-  readonly externalAdmissionApplied: false;
+  readonly pendingMembershipOperationId: AgentPlatID | null;
+  readonly lifecycleAgent: MorphogenesisLifecycleAgentV1 | null;
+  readonly pendingAttestationOperationId: AgentPlatID | null;
+  readonly attestation: MorphogenesisAgentAttestationV1 | null;
+  readonly externalAdmissionApplied: boolean;
+  readonly workGranted: false;
+  readonly actionAuthorityGranted: false;
   readonly lastTransitionDigest: PlanningDigestV1 | null;
 }
 
@@ -201,7 +214,9 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
     readonly genesisPolicy: MorphogenesisAgentGenesisPolicyV6;
     readonly sandbox: MorphogenesisAgentGenesisSandboxRuntimeV6;
     readonly reviews: MorphogenesisAgentGenesisReviewPortV6;
-    readonly store: MorphogenesisAgentGenesisLifecycleStoreV6 }) {
+    readonly store: MorphogenesisAgentGenesisLifecycleStoreV6;
+    readonly lifecycle?: MorphogenesisAgentLifecyclePortV1;
+    readonly attestation?: MorphogenesisAgentAttestationPortV1 }) {
     id(options.stateKey); this.#policy = validatePolicy(options.policy);
     this.#genesisPolicy = validateMorphogenesisAgentGenesisPolicyV6(options.genesisPolicy);
     if (this.#policy.genesisPolicyDigest !== this.#genesisPolicy.policyDigest ||
@@ -223,7 +238,10 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
         freeze({ schemaVersion: 6 as const, draft, evaluationDigest: evaluation.evaluationDigest,
           evaluationExpiresAtLogicalMs: evaluation.expiresAtLogicalMs, status: "draft" as const,
           statusRevision: 1, pendingSandboxOperationId: null, sandboxReceipt: null,
-          probationReceipts: freeze([]), externalAdmissionApplied: false as const,
+          probationReceipts: freeze([]), pendingMembershipOperationId: null,
+          lifecycleAgent: null, pendingAttestationOperationId: null, attestation: null,
+          externalAdmissionApplied: false, workGranted: false as const,
+          actionAuthorityGranted: false as const,
           lastTransitionDigest: null })] });
     });
   }
@@ -340,6 +358,94 @@ export class MorphogenesisAgentGenesisLifecycleRuntimeV6 {
       return updated;
     }); return output!;
   }
+  async applyMembership(input: { readonly operationId: AgentPlatID;
+    readonly draftDigest: PlanningDigestV1;
+    readonly scope: MorphogenesisScopeV1;
+    readonly proposalDigest: PlanningDigestV1;
+    readonly logicalTimeMs: number; readonly signal?: AbortSignal }) {
+    if (!this.options.lifecycle) fail("Agent Genesis Membership lifecycle is unavailable");
+    id(input.operationId);
+    const before = await this.#load(input.logicalTimeMs);
+    const prior = entryFor(before, input.draftDigest);
+    const reconcile = prior.pendingMembershipOperationId === input.operationId;
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const entry = entryFor(state, input.draftDigest);
+      if (entry.lifecycleAgent) return state;
+      if (entry.status !== "admitted" || (entry.pendingMembershipOperationId &&
+          entry.pendingMembershipOperationId !== input.operationId))
+        fail("Agent Genesis Membership application is not allowed");
+      return replaceEntry(state, entry,
+        { pendingMembershipOperationId: input.operationId }, input.logicalTimeMs);
+    });
+    const entry = entryFor(await this.#load(input.logicalTimeMs), input.draftDigest);
+    if (entry.lifecycleAgent) return entry.lifecycleAgent;
+    const request = { operationId: input.operationId, scope: input.scope,
+      proposalDigest: input.proposalDigest, profile: entry.draft.profile,
+      logicalTimeMs: input.logicalTimeMs, ...(input.signal ? { signal: input.signal } : {}) };
+    const agent = await (reconcile
+      ? this.options.lifecycle.reconcileCreateAndEnroll(request)
+      : this.options.lifecycle.createAndEnroll(request));
+    if (agent.source !== "synthesized_created" ||
+        agent.roleDefinitionDigest !== entry.draft.profile.roleDefinitionDigest ||
+        JSON.stringify(agent.capabilityKeys) !== JSON.stringify(entry.draft.profile.capabilityKeys))
+      fail("Agent Genesis lifecycle substituted the synthesized profile");
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const current = entryFor(state, input.draftDigest);
+      if (current.lifecycleAgent) {
+        if (current.lifecycleAgent.agentDigest !== agent.agentDigest)
+          fail("Agent Genesis Membership replay diverged");
+        return state;
+      }
+      if (current.pendingMembershipOperationId !== input.operationId)
+        fail("Agent Genesis Membership operation was not durable");
+      return replaceEntry(state, current, { pendingMembershipOperationId: null,
+        lifecycleAgent: freeze(structuredClone(agent)) }, input.logicalTimeMs);
+    });
+    return agent;
+  }
+  async attestAdmission(input: { readonly operationId: AgentPlatID;
+    readonly draftDigest: PlanningDigestV1; readonly scope: MorphogenesisScopeV1;
+    readonly proposalDigest: PlanningDigestV1; readonly logicalTimeMs: number;
+    readonly signal?: AbortSignal }) {
+    if (!this.options.attestation) fail("Agent Genesis attestation is unavailable");
+    const before = await this.#load(input.logicalTimeMs);
+    const prior = entryFor(before, input.draftDigest);
+    const reconcile = prior.pendingAttestationOperationId === input.operationId;
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const entry = entryFor(state, input.draftDigest);
+      if (entry.attestation) return state;
+      if (entry.status !== "admitted" || !entry.lifecycleAgent ||
+          (entry.pendingAttestationOperationId &&
+            entry.pendingAttestationOperationId !== input.operationId))
+        fail("Agent Genesis attestation is not allowed");
+      return replaceEntry(state, entry,
+        { pendingAttestationOperationId: input.operationId }, input.logicalTimeMs);
+    });
+    const entry = entryFor(await this.#load(input.logicalTimeMs), input.draftDigest);
+    if (entry.attestation) return entry.attestation;
+    const request = { operationId: input.operationId, scope: input.scope,
+      proposalDigest: input.proposalDigest, agent: entry.lifecycleAgent!,
+      profile: entry.draft.profile, logicalTimeMs: input.logicalTimeMs,
+      ...(input.signal ? { signal: input.signal } : {}) };
+    const receipt = await (reconcile ? this.options.attestation.reconcile(request)
+      : this.options.attestation.attest(request));
+    if (receipt.agentDigest !== entry.lifecycleAgent!.agentDigest ||
+        receipt.profileDigest !== entry.draft.profile.profileDigest ||
+        receipt.validUntilLogicalMs <= input.logicalTimeMs)
+      fail("Agent Genesis attestation binding is invalid");
+    await this.#commit(input.logicalTimeMs, (state) => {
+      const current = entryFor(state, input.draftDigest);
+      if (current.attestation) {
+        if (current.attestation.attestationDigest !== receipt.attestationDigest)
+          fail("Agent Genesis attestation replay diverged");
+        return state;
+      }
+      return replaceEntry(state, current, { pendingAttestationOperationId: null,
+        attestation: freeze(structuredClone(receipt)), externalAdmissionApplied: true },
+      input.logicalTimeMs);
+    });
+    return receipt;
+  }
   async state(logicalTimeMs: number) { return this.#load(logicalTimeMs); }
   async #load(logicalTimeMs: number) { return await this.options.store.load(this.options.stateKey) ??
     initial(this.options.stateKey, this.#policy, logicalTimeMs); }
@@ -434,7 +540,7 @@ function assertAction(entry: MorphogenesisAgentGenesisEntryV6,
     : action === "suspend" ? ["probationary", "admitted"].includes(entry.status)
     : action === "resume" ? entry.status === "suspended"
     : action === "retire" ? entry.status !== "retired"
-    : entry.status === "admitted";
+    : entry.status === "admitted" && !entry.externalAdmissionApplied;
   if (!allowed) fail("Agent Genesis lifecycle transition is not allowed"); }
 function statusFor(action: MorphogenesisAgentGenesisActionV6): MorphogenesisAgentGenesisStatusV6 {
   return action === "start_probation" || action === "resume" || action === "rollback"
