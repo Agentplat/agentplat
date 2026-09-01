@@ -751,7 +751,7 @@ function digest(domain: string, value: unknown): PlanningDigestV1 {
 function identifier(value: unknown, label: string): string {
   if (
     typeof value !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(value)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(value)
   )
     fail(`${label} is invalid`);
   return value;

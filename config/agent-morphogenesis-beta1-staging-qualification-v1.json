@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "kind": "agentplat-agent-morphogenesis-beta1-staging-qualification-v1",
+  "profileId": "agentplat-morphogenesis-beta1-distributed-staging-v1",
+  "status": "frozen-before-staging-execution",
+  "sourceOperationalReadinessEvidence": "docs/research/agent-morphogenesis-beta1-readiness-v2/readiness-bundle.json",
+  "qualificationStages": {
+    "singleHostContainerPreflight": {
+      "required": true,
+      "mayEstablishStagingQualification": false
+    },
+    "distributedStaging": {
+      "required": true,
+      "mayEstablishStagingQualification": true
+    }
+  },
+  "requiredInfrastructure": {
+    "minimumFailureDomains": 3,
+    "minimumAgentMeshPeerIdentities": 4,
+    "minimumActiveAgentMeshPeerProcesses": 4,
+    "minimumCumulativeAgentMeshProcessStarts": 6,
+    "postgresql": "persistent-staging-service-with-backup-restore",
+    "temporal": "persistent-staging-service-with-separate-workers",
+    "agentMesh": "authenticated-multi-process-across-failure-domains",
+    "keyCustody": "external-kms-or-hsm-backed-nonexportable-signing-key",
+    "rollbackWitness": "durable-and-independent-from-deployment-controller",
+    "observability": "centralized-metrics-logs-traces-and-alert-delivery",
+    "maximumExternalSpendUsd": 250
+  },
+  "executionGeometry": {
+    "minimumSoakDurationMs": 86400000,
+    "targetSoakDurationMs": 259200000,
+    "minimumCompletedMorphogenesisRuns": 1000,
+    "minimumRunsPerTenant": 200,
+    "minimumTenants": 3,
+    "minimumConcurrentMissions": 8,
+    "minimumRollingDeploymentCycles": 3,
+    "minimumSchemaUpgradeCycles": 2,
+    "minimumBackupRestoreCycles": 2,
+    "minimumKeyRotationCycles": 3,
+    "minimumHostLossCycles": 3,
+    "minimumNetworkPartitionCycles": 6,
+    "minimumPostgresFailoverCycles": 3,
+    "minimumTemporalWorkerLossCycles": 6
+  },
+  "canonicalScenarioSource": "config/agent-morphogenesis-beta1-operational-readiness-v1.json",
+  "requiredScenarioCoverage": {
+    "exactCanonicalScenarioCount": 22,
+    "repeatEveryScenarioAfterRollingUpgrade": true,
+    "repeatAuthorityScenariosDuringPartition": true,
+    "rejectMissingDuplicateOrUnexpectedScenarioIds": true
+  },
+  "partitionAuthorityScenarioIds": [
+    "mesh-minority-partition",
+    "stale-decision-authority",
+    "agent-self-approval",
+    "dependent-actor-collusion",
+    "authorization-expiry",
+    "authorization-key-rotation"
+  ],
+  "requiredFaultClasses": [
+    "network-partition-and-heal",
+    "agent-mesh-peer-process-loss",
+    "complete-host-loss",
+    "postgres-primary-failover",
+    "postgres-connection-loss",
+    "temporal-worker-loss-and-replay",
+    "stale-and-expired-authorization",
+    "kms-key-rotation-and-revocation",
+    "rolling-version-skew",
+    "backup-restore-to-clean-environment"
+  ],
+  "isolationRequirements": {
+    "tenantCount": 3,
+    "missionCountPerTenant": 2,
+    "maximumCrossTenantReads": 0,
+    "maximumCrossTenantWrites": 0,
+    "maximumCrossMissionAuthorityUse": 0,
+    "maximumCrossScopeReceiptAcceptance": 0
+  },
+  "serviceLevelObjectives": {
+    "minimumScenarioPassRatio": 1,
+    "minimumMissionContinuityRatio": 1,
+    "maximumUnauthorizedActivations": 0,
+    "maximumDuplicateMaterialEffects": 0,
+    "maximumLostCommittedReceipts": 0,
+    "maximumMorphologyHeadForks": 0,
+    "maximumCrossTenantEffects": 0,
+    "maximumCrossMissionEffects": 0,
+    "maximumNominalP95WallTimeMs": 5000,
+    "maximumRecoveryP95WallTimeMs": 30000,
+    "maximumRollbackP95WallTimeMs": 120000,
+    "maximumRestorePointLossMs": 60000,
+    "maximumRestoreTimeMs": 900000,
+    "maximumFinalPendingMeshInboxRows": 0,
+    "maximumFinalPendingMeshOutboxRows": 0,
+    "maximumPeakWorkerRssBytes": 1073741824,
+    "maximumAggregateWorkerCpuPercent": 400
+  },
+  "requiredEvidence": [
+    "immutable-environment-manifest",
+    "failure-domain-topology",
+    "image-and-source-digests",
+    "signed-execution-authorization",
+    "external-key-custody-attestation",
+    "fault-injection-journal",
+    "rolling-deployment-receipts",
+    "backup-restore-receipts",
+    "tenant-isolation-receipts",
+    "canonical-scenario-receipts",
+    "soak-resource-samples",
+    "alert-delivery-receipts",
+    "signed-analysis-bundle",
+    "independent-rollback-witness"
+  ],
+  "requiredRunbooks": [
+    "distributed-deployment",
+    "rolling-upgrade",
+    "rollback",
+    "key-custody-and-rotation",
+    "postgres-failover-and-restore",
+    "temporal-worker-recovery",
+    "mesh-partition-and-host-loss",
+    "tenant-isolation-incident",
+    "observability-and-alerting",
+    "evidence-verification"
+  ],
+  "claimBoundary": {
+    "stagingQualificationTarget": "beta1-distributed-staging-profile-established",
+    "operationalReadinessTarget": "staging-profile-established",
+    "experimentalEvidence": "not-collected",
+    "productionReadiness": "not-established",
+    "productionClaimPermitted": false,
+    "securityCertificationClaimPermitted": false
+  },
+  "excludedCapabilities": [
+    "profile-synthesis",
+    "recursive-agent-creation",
+    "team-split-merge-federation"
+  ]
+}

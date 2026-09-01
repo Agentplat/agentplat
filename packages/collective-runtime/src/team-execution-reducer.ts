@@ -650,7 +650,7 @@ export function cancelTeamExecutionV1(input: {
   if (
     !Number.isSafeInteger(input.logicalTimeMs) ||
     input.logicalTimeMs < state.logicalTimeHighWaterMs ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.reasonCode)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(input.reasonCode)
   )
     fail("team execution cancellation input is invalid");
   if (execution.status === "cancelled") {

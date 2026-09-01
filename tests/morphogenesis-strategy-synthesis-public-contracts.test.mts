@@ -1,0 +1,65 @@
+import {
+  MORPHOGENESIS_SYNTHESIS_THREATS_V5,
+  MorphogenesisStrategySynthesisRuntimeV5,
+  createMorphogenesisStrategyGapV5,
+  createMorphogenesisStrategySynthesisCertificationV5,
+  createMorphogenesisStrategySynthesisEvaluationV5,
+  createMorphogenesisStrategySynthesisPolicyV5,
+  createMorphogenesisSynthesizedStrategyManifestV5,
+  createMorphogenesisSynthesisThreatAssessmentV5,
+  type MorphogenesisStrategyGapV5,
+  type MorphogenesisStrategySynthesisCandidateV5,
+  type MorphogenesisStrategySynthesisCertificationV5,
+  type MorphogenesisStrategySynthesisEvaluationV5,
+  type MorphogenesisStrategySynthesisPolicyV5,
+  type MorphogenesisStrategySynthesizerPortV5,
+  InMemoryMorphogenesisSynthesisGovernanceStoreV5,
+  MorphogenesisSynthesisGovernanceRuntimeV5,
+  createMorphogenesisSynthesisAdmissionReviewV5,
+  createMorphogenesisSynthesisGovernancePolicyV5,
+  type MorphogenesisSynthesisGovernanceStateV5,
+  validateMorphogenesisSynthesisGovernanceStateV5,
+  MorphogenesisSynthesisEligibilityGateV5,
+  createMorphogenesisSynthesisRestrictionAssessmentV5,
+  type MorphogenesisSynthesisEligibilityDecisionV5,
+  InMemoryMorphogenesisSynthesisSimulationStoreV5,
+  MorphogenesisSynthesisSimulationRuntimeV5,
+  createMorphogenesisSynthesisSimulationScenarioV5,
+  type MorphogenesisSynthesisSimulationReportV5,
+  createMorphogenesisSynthesisCatalogSuccessorV5,
+  morphogenesisSynthesisStrategyAvailableV5,
+} from "@agentplat/collective-runtime/morphogenesis";
+
+void MORPHOGENESIS_SYNTHESIS_THREATS_V5;
+void MorphogenesisStrategySynthesisRuntimeV5;
+void createMorphogenesisStrategyGapV5;
+void createMorphogenesisStrategySynthesisCertificationV5;
+void createMorphogenesisStrategySynthesisEvaluationV5;
+void createMorphogenesisStrategySynthesisPolicyV5;
+void createMorphogenesisSynthesizedStrategyManifestV5;
+void createMorphogenesisSynthesisThreatAssessmentV5;
+void InMemoryMorphogenesisSynthesisGovernanceStoreV5;
+void MorphogenesisSynthesisGovernanceRuntimeV5;
+void createMorphogenesisSynthesisAdmissionReviewV5;
+void createMorphogenesisSynthesisGovernancePolicyV5;
+void validateMorphogenesisSynthesisGovernanceStateV5;
+void MorphogenesisSynthesisEligibilityGateV5;
+void createMorphogenesisSynthesisRestrictionAssessmentV5;
+void InMemoryMorphogenesisSynthesisSimulationStoreV5;
+void MorphogenesisSynthesisSimulationRuntimeV5;
+void createMorphogenesisSynthesisSimulationScenarioV5;
+void createMorphogenesisSynthesisCatalogSuccessorV5;
+void morphogenesisSynthesisStrategyAvailableV5;
+declare const contracts: [MorphogenesisStrategyGapV5,
+  MorphogenesisStrategySynthesisCandidateV5,
+  MorphogenesisStrategySynthesisCertificationV5,
+  MorphogenesisStrategySynthesisEvaluationV5,
+  MorphogenesisStrategySynthesisPolicyV5,
+  MorphogenesisStrategySynthesizerPortV5];
+void contracts;
+declare const governanceState: MorphogenesisSynthesisGovernanceStateV5;
+void governanceState;
+declare const eligibility: MorphogenesisSynthesisEligibilityDecisionV5;
+void eligibility;
+declare const simulation: MorphogenesisSynthesisSimulationReportV5;
+void simulation;

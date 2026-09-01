@@ -32,7 +32,8 @@ export type InteropOperationV1 =
   | "environment.act"
   | "environment.snapshot"
   | "environment.restore"
-  | "environment.close";
+  | "environment.close"
+  | "morphogenesis.enact";
 
 export interface InteropEndpointManifestV1 {
   readonly schemaVersion: 1;
@@ -2032,6 +2033,7 @@ function validateManifestBody(
     "environment.reset",
     "environment.restore",
     "environment.snapshot",
+    "morphogenesis.enact",
   ];
   if (
     operations.length === 0 ||

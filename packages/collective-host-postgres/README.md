@@ -16,6 +16,9 @@ checkpoint used to reconcile commit-start crashes before semantic replay.
 Migration 008 adds fenced autonomous-node advance reservations and durable
 command bindings/results so a replacement process can resume the same logical
 advance without repeating non-repeatable finality or protected-effect calls.
+Migration 009 adds scope-serialized Morphogenesis budget reservations so
+independent workers cannot double-spend one capacity envelope; exact retries,
+logical expiry and release remain content-bound and durable.
 Node revisions use `saveWithTelemetry()` and assurance receipts use
 `completeWithTelemetry()`;
 each method writes the domain commit and ordered content-free envelopes in one
@@ -43,6 +46,54 @@ runtime.
 
 Run the exported migrations before constructing a repository. Rollback is
 destructive and requires both an explicit confirmation token and an externally
-verified backup. `rollbackConfirmation(schema)` targets migration 008 by
+verified backup. `rollbackConfirmation(schema)` targets migration 009 by
 default; pass the current version explicitly to `rollbackMigrations()` and do
 not reuse a token generated for an older migration head.
+
+`PostgresMorphogenesisBudgetReservationPortV1` implements the public
+Morphogenesis budget authority with a PostgreSQL advisory transaction lock per
+scope. Independent pools serialize capacity inspection and insertion, so two
+different reservation IDs cannot both consume the same remaining envelope.
+Exact retries return the retained digest; changed-input identity reuse,
+cross-scope requests and over-capacity reservations fail closed. Release and
+logical expiry advance the reservation once and bind an external rollback
+witness. The capacity configuration is construction-bound and is not restored
+from database rows.
+
+Advanced Morphogenesis reuses `collective_host_runtime_states` rather than a
+parallel database schema. `PostgresMorphogenesisOperatorExecutionStoreV2`,
+`PostgresMorphogenesisOperatorOutcomeStoreV2` and
+`PostgresMorphogenesisOperatorCompensationStoreV2` and
+`PostgresMorphogenesisTeamTopologyStateStoreV2` persist the operator journal,
+immutable outcome and Dynamic Topology state. Each reopen validates the full
+content digest and external rollback witness; topology certification and
+activation use independent CAS revisions even when both belong to one topology
+epoch.
+
+V3 strategy adaptation uses the same table and witness for the existing local
+learner state, Morphogenesis strategy-governance state and immutable
+counterfactual reports. Simulated reports remain separate from observed
+feedback records.
+
+For staging and other deployments that require a witness outside the database
+protection domain, `HttpMorphogenesisRollbackWitnessV1` implements the same
+Morphogenesis witness port over credential-free HTTPS endpoints. Supply an
+authorization callback backed by workload identity; the adapter does not store
+tokens. Requests bind the full state coordinate and predecessor/successor head
+to a digest, and successful responses must echo that digest and the exact head.
+Malformed, replayed, oversized, non-JSON, rejected or divergent responses fail
+closed. The remote service remains responsible for monotonic durable storage,
+identity policy, audit retention and availability.
+
+```ts
+import { HttpMorphogenesisRollbackWitnessV1 } from "@agentplat/collective-host-postgres";
+
+const rollbackWitness = new HttpMorphogenesisRollbackWitnessV1({
+  endpoint: "https://witness.staging.internal/agentplat/",
+  authorizationHeader: async () => `Bearer ${await workloadIdentityToken()}`,
+});
+```
+
+Do not place witness credentials in the endpoint URL. An HTTP witness on the
+same host, account or failure domain as PostgreSQL is not independent staging
+evidence and does not establish production readiness.

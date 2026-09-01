@@ -92,6 +92,26 @@ export interface MeshSignRequest<
   readonly protocolOptions?: MeshProtocolOptions;
 }
 
+/** External custody boundary for signing canonical Mesh bytes. */
+export interface MeshExternalSignaturePort {
+  sign(input: {
+    readonly algorithm: MeshSignatureAlgorithm;
+    readonly keyId: string;
+    readonly signingBytes: Uint8Array;
+  }): Promise<Uint8Array>;
+}
+
+/** Input for an envelope whose private key remains in an external KMS/HSM. */
+export interface MeshExternalSignRequest<
+  TPayload extends MeshMessagePayload = MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+> {
+  readonly envelope: UnsignedMeshEnvelope<TPayload, TWireVersion>;
+  readonly signaturePort: MeshExternalSignaturePort;
+  readonly crypto?: Crypto;
+  readonly protocolOptions?: MeshProtocolOptions;
+}
+
 /** Input required for bounded local signature verification. */
 export interface MeshVerifyRequest<
   TPayload extends MeshMessagePayload = MeshMessagePayload,

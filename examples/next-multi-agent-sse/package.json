@@ -17,7 +17,7 @@
     "@agentplat/runtime-mock": "link:../../packages/runtime-mock",
     "@agentplat/sessions": "link:../../packages/sessions",
     "@agentplat/streaming": "link:../../packages/streaming",
-    "next": "^15.3.0",
+    "next": "^15.5.25",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -26,5 +26,12 @@
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "nanoid": "3.3.18",
+      "postcss": "8.5.26",
+      "sharp": "0.35.4"
+    }
   }
 }

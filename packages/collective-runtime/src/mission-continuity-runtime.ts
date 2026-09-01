@@ -1092,7 +1092,7 @@ function requestShape(input: unknown, keys: readonly string[]): void {
 function id(value: unknown, label: string): string {
   if (
     typeof value !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(value)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(value)
   )
     fail(`${label} is invalid`);
   return value;

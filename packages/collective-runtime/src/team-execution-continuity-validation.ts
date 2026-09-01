@@ -14,7 +14,7 @@ import type {
 import { TEAM_EXECUTION_CONTINUITY_STATE_FORMAT_V1 } from "./team-execution-continuity-contracts.js";
 import { validateTeamExecutionScopeV1 } from "./team-execution-validation.js";
 
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 
 export function createTeamExecutionWorkOwnerAuthorityV1(

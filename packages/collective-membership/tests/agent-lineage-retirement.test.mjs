@@ -86,6 +86,99 @@ test("a persisted retirement reservation prevents concurrent external effects an
   assert.equal(terminateCalls, 1);
 });
 
+test("governed lifecycle suspends and resumes exact membership and lineage idempotently", async () => {
+  let memberPresent = true;
+  let membershipEpoch = 1;
+  let membershipDigest = digest("b");
+  let removeCalls = 0;
+  let restoreCalls = 0;
+  const fixture = await createRuntime("active", {
+    async remove() {
+      removeCalls += 1;
+      memberPresent = false;
+      membershipEpoch = 2;
+      membershipDigest = digest("c");
+      return { removed: true, membershipConfigurationDigest: membershipDigest, membershipEpoch };
+    },
+    async restore(input) {
+      restoreCalls += 1;
+      assert.equal(input.agent.status, "suspended");
+      assert.equal(input.change.kind, "join");
+      memberPresent = true;
+      membershipEpoch = 3;
+      membershipDigest = digest("e");
+      return { restored: true, membershipConfigurationDigest: membershipDigest, membershipEpoch };
+    },
+    async terminate() { throw new Error("not used"); },
+  });
+  const lifecycle = new GovernedAgentLifecycleRuntimeV1({
+    lineage: fixture.runtime,
+    registry: { current: () => ({
+      epoch: membershipEpoch,
+      configurationDigest: membershipDigest,
+      members: memberPresent
+        ? [{ peerId: "peer:root", instanceId: "instance:root" },
+            { peerId: "peer:child", instanceId: "instance:child" }]
+        : [{ peerId: "peer:root", instanceId: "instance:root" }],
+    }) },
+  });
+  const suspended = await lifecycle.suspendPeer({
+    peerId: "peer:child", logicalTimeMs: 10,
+  });
+  assert.equal(suspended.status, "suspended");
+  assert.equal(suspended.membershipEpoch, 2);
+  assert.equal((await lifecycle.suspendPeer({ peerId: "peer:child", logicalTimeMs: 11 })).lineageDigest,
+    suspended.lineageDigest);
+  assert.equal(removeCalls, 1);
+  const resumed = await lifecycle.resumePeer({
+    peerId: "peer:child", logicalTimeMs: 20,
+    activeKeyProof: { algorithm: "Ed25519", keyId: "key:agent:child", value: "proof" },
+  });
+  assert.equal(resumed.status, "active");
+  assert.equal(resumed.membershipEpoch, 3);
+  assert.notEqual(resumed.lineageDigest, suspended.lineageDigest);
+  assert.equal((await lifecycle.resumePeer({
+    peerId: "peer:child", logicalTimeMs: 21,
+    activeKeyProof: { algorithm: "Ed25519", keyId: "key:agent:child", value: "proof" },
+  })).lineageDigest, resumed.lineageDigest);
+  assert.equal(restoreCalls, 1);
+});
+
+test("status reconciliation survives crashes after membership effects", async () => {
+  let memberPresent = true;
+  let physicalRemovals = 0;
+  let physicalRestores = 0;
+  const fixture = await createRuntime("active", {
+    failFirstSuspensionSave: true,
+    failFirstResumptionSave: true,
+    async remove() {
+      if (memberPresent) { memberPresent = false; physicalRemovals += 1; }
+      return { removed: true, membershipConfigurationDigest: digest("c"), membershipEpoch: 2 };
+    },
+    async restore() {
+      if (!memberPresent) { memberPresent = true; physicalRestores += 1; }
+      return { restored: true, membershipConfigurationDigest: digest("e"), membershipEpoch: 3 };
+    },
+    async terminate() { throw new Error("not used"); },
+  });
+  await assert.rejects(
+    fixture.runtime.suspend({ agentId: "agent:child", logicalTimeMs: 10 }),
+    /simulated suspension lineage crash/,
+  );
+  assert.equal((await fixture.runtime.suspend({ agentId: "agent:child", logicalTimeMs: 10 })).status,
+    "suspended");
+  await assert.rejects(
+    fixture.runtime.resume({ agentId: "agent:child", logicalTimeMs: 20,
+      activeKeyProof: { algorithm: "Ed25519", keyId: "key:agent:child", value: "proof" } }),
+    /simulated resumption lineage crash/,
+  );
+  assert.equal((await fixture.runtime.resume({ agentId: "agent:child", logicalTimeMs: 20,
+    activeKeyProof: { algorithm: "Ed25519", keyId: "key:agent:child", value: "proof" } })).status,
+    "active");
+  assert.equal(physicalRemovals, 1);
+  assert.equal(physicalRestores, 1);
+});
+
 for (const initialStatus of ["suspended", "revoked"]) {
   test(`${initialStatus} material completes membership retirement without repeated factory cleanup`, async () => {
     let removeCalls = 0;
@@ -682,6 +775,8 @@ async function createRuntime(childStatus, effects) {
   const backingStore = new InMemoryAgentLineageStoreV1();
   let failedSaveAfterRemoval = false;
   let failedCreationFinalization = false;
+  let failedSuspensionSave = false;
+  let failedResumptionSave = false;
   const store = {
     load: (stateKey) => backingStore.load(stateKey),
     async save(next, expectedRevision) {
@@ -696,6 +791,17 @@ async function createRuntime(childStatus, effects) {
       ) {
         failedSaveAfterRemoval = true;
         throw new Error("simulated removal journal crash");
+      }
+      if (effects.failFirstSuspensionSave && !failedSuspensionSave &&
+          next.agents.some((agent) => agent.agentId === "agent:child" && agent.status === "suspended")) {
+        failedSuspensionSave = true;
+        throw new Error("simulated suspension lineage crash");
+      }
+      if (effects.failFirstResumptionSave && !failedResumptionSave &&
+          next.revision > 0 && next.agents.some((agent) =>
+            agent.agentId === "agent:child" && agent.status === "active" && agent.membershipEpoch === 3)) {
+        failedResumptionSave = true;
+        throw new Error("simulated resumption lineage crash");
       }
       if (
         effects.failCreationFinalization &&
@@ -725,6 +831,7 @@ async function createRuntime(childStatus, effects) {
       throw new Error("not used");
     },
     remove: effects.remove,
+    restore: effects.restore,
   };
   return {
     policy,

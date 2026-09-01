@@ -1,0 +1,431 @@
+import {
+  MORPHOGENESIS_CATALOG_LIFECYCLE_PROCESS_ID_V1,
+  MORPHOGENESIS_DECISION_ROUTES_V1,
+  MORPHOGENESIS_OPERATORS_V1,
+  MORPHOGENESIS_ADVANCED_CAPABILITIES_V2,
+  MORPHOLOGY_SOURCE_CLASSES_V1,
+  InMemoryMorphologyHeadStoreV1,
+  InMemoryMorphogenesisBudgetReservationPortV1,
+  InMemoryMorphogenesisDecisionAuthorizationIssuerV1,
+  InMemoryMorphogenesisDecisionStoreV1,
+  InMemoryMorphogenesisExecutionStoreV1,
+  InMemoryMorphologySourceCurrentnessPortV1,
+  InMemoryMorphogenesisReplayTombstoneStoreV1,
+  MorphologyHeadRuntimeV1,
+  MorphogenesisDecisionGateProviderV1,
+  MorphogenesisDecisionRuntimeV1,
+  MorphogenesisExecutionRuntimeV1,
+  MorphogenesisExecutionTaskExecutorV1,
+  MorphogenesisWorkflowOutcomeEvaluationPortV1,
+  MorphologyHeadMorphogenesisActivationPortV1,
+  MorphogenesisTaskExecutionBindingResolverV1,
+  MorphogenesisProposalEngineV1,
+  assertMorphogenesisControlWindowAllowsV1,
+  createAgentInstantiationProfileCertificationV1,
+  createAgentInstantiationProfileV1,
+  createAgentInstantiationProfileEvolutionV1,
+  createAgentInstantiationAuthorityAttenuationV1,
+  createAgentInstantiationSynthesisCertificationV1,
+  createAgentInstantiationProfileV2,
+  createMorphogenesisPolicyV2,
+  compileMorphogenesisOperatorV2,
+  InMemoryMorphogenesisOperatorExecutionStoreV2,
+  MorphogenesisOperatorExecutionRuntimeV2,
+  InMemoryMorphogenesisOperatorOutcomeStoreV2,
+  MorphogenesisOperatorCycleRuntimeV2,
+  createMorphogenesisOperatorOutcomeReceiptV2,
+  InMemoryMorphogenesisOperatorCompensationStoreV2,
+  MorphogenesisOperatorCompensationRuntimeV2,
+  createMorphogenesisOperatorCompensationReceiptV2,
+  GovernedMorphogenesisOperatorExecutionRuntimeV2,
+  createMorphogenesisGovernedOperatorAuthorizationV2,
+  createMorphogenesisStrategyDefinitionV3,
+  createMorphogenesisStrategyCatalogV3,
+  createMorphogenesisStrategyContextV3,
+  createMorphogenesisStrategySelectionRequestV3,
+  createMorphogenesisStrategySelectionV3,
+  createMorphogenesisStrategyExecutionBindingV3,
+  createMorphogenesisStrategyOutcomeMeasurementV3,
+  createMorphogenesisStrategyFeedbackV3,
+  createMorphogenesisStrategyGovernancePolicyV3,
+  createMorphogenesisStrategyReviewV3,
+  MorphogenesisStrategyGovernanceRuntimeV3,
+  InMemoryMorphogenesisStrategyGovernanceStoreV3,
+  validateMorphogenesisStrategyGovernanceStateV3,
+  createMorphogenesisStrategyTrustSafetySourceV3,
+  createMorphogenesisStrategyMemoryRecordV3,
+  createGovernedMorphogenesisStrategySelectionRequestV3,
+  createMorphogenesisStrategyGovernancePriorSourceV3,
+  InMemoryMorphogenesisStrategyMemoryPortV3,
+  MorphogenesisStrategyCounterfactualRuntimeV3,
+  DeterministicMorphogenesisStrategyCounterfactualPortV3,
+  InMemoryMorphogenesisStrategyCounterfactualStoreV3,
+  createMorphogenesisStrategyCounterfactualPolicyV3,
+  createMorphogenesisStrategyCounterfactualScenarioV3,
+  createMorphogenesisStrategyCounterfactualEstimateV3,
+  createMorphogenesisStrategyCounterfactualReportV3,
+  MorphogenesisStrategyEvidenceExchangeV4,
+  createMorphogenesisStrategyEvidenceBindingV4,
+  createMorphogenesisStrategyIntelligencePolicyV4,
+  createSignedMorphogenesisStrategyOutcomeAttestationV4,
+  validateMorphogenesisStrategyOutcomeAttestationV4,
+  createMorphogenesisStrategyCollectivePriorSourceV4,
+  MorphogenesisStrategyConvergenceV4,
+  createMorphogenesisStrategyGovernanceInputFromConvergenceV4,
+  createMorphogenesisLineageLinkV1,
+  createCompositeMorphogenesisDecisionAuthorizationV1,
+  createMorphogenesisReplayTombstoneV1,
+  createMorphogenesisSuccessorRecoveryV1,
+  createInitialMorphologyHeadV1,
+  createMorphogenesisBudgetEnvelopeV1,
+  createMorphogenesisNeedV1,
+  createMorphogenesisBudgetReservationRequestV1,
+  createMorphogenesisControlWindowV1,
+  createMorphogenesisDecisionAuthorizationV1,
+  createMorphogenesisDecisionCandidateV1,
+  createMorphogenesisCatalogLifecycleProcessDefinitionV1,
+  createMorphogenesisCatalogLifecycleTaskDefinitionsV1,
+  createMorphogenesisCandidateSearchRequestV1,
+  createMorphogenesisCandidateSearchResultV1,
+  createMorphogenesisExistingCandidateV1,
+  createMorphogenesisLifecycleAgentV1,
+  createMorphogenesisAgentAttestationV1,
+  createMorphogenesisSuccessorTeamReceiptV1,
+  createMorphogenesisContinuityReceiptV1,
+  createMorphogenesisAuthorityFenceReceiptV1,
+  createMorphogenesisTerminalAgentReceiptV1,
+  createMorphogenesisReceiptV1,
+  createMorphogenesisProcessBindingV1,
+  createMorphogenesisOperationV1,
+  createMorphogenesisPolicyV1,
+  createMorphogenesisProposalV1,
+  createMorphogenesisScopeV1,
+  createMorphogenesisTransformationHeadV1,
+  createMorphologyComponentReferenceV1,
+  createMorphologySnapshotV1,
+  createMorphologySourceHeadV1,
+  createSuccessorMorphologyHeadV1,
+  createTargetMorphologyAgentDispositionV1,
+  createTargetMorphologyPositionV1,
+  createTargetMorphologyV1,
+  validateMorphogenesisPolicyV1,
+  validateMorphogenesisProposalV1,
+  validateAgentInstantiationProfileV1,
+  validateMorphogenesisLineageLinkV1,
+  validateMorphogenesisBudgetReservationV1,
+  validateMorphogenesisControlWindowV1,
+  validateMorphogenesisDecisionBindingV1,
+  validateMorphogenesisDecisionCandidateV1,
+  validateMorphogenesisProcessBindingV1,
+  validateMorphologyHeadV1,
+  validateMorphologySnapshotV1,
+  type MorphogenesisPolicyV1,
+  type MorphogenesisProposalV1,
+  type MorphogenesisScopeV1,
+  type AgentInstantiationProfileV1,
+  type AgentInstantiationProfileV2,
+  type AgentInstantiationProfileV2Context,
+  type MorphogenesisPolicyV2,
+  type MorphogenesisCompiledOperatorPlanV2,
+  type MorphogenesisOperatorExecutionStateV2,
+  type MorphogenesisOperatorOutcomeReceiptV2,
+  type MorphogenesisOperatorCompensationBoundaryPortV2,
+  type MorphogenesisOperatorCompensationStateV2,
+  type MorphogenesisGovernedOperatorAuthorizationPortV2,
+  type MorphogenesisGovernedOperatorAuthorizationV2,
+  type MorphogenesisStrategyDefinitionV3,
+  type MorphogenesisStrategyCatalogV3,
+  type MorphogenesisStrategyContextV3,
+  type MorphogenesisStrategySelectionV3,
+  type MorphogenesisStrategyExecutionBindingV3,
+  type MorphogenesisStrategyOutcomeMeasurementV3,
+  type MorphogenesisStrategyFeedbackV3,
+  type MorphogenesisStrategyGovernancePolicyV3,
+  type MorphogenesisStrategyRecommendationV3,
+  type MorphogenesisStrategyReviewV3,
+  type MorphogenesisStrategyGovernanceStateV3,
+  type MorphogenesisStrategyTrustAssessmentPortV3,
+  type MorphogenesisStrategyMemoryRecordV3,
+  type MorphogenesisStrategyMemoryPortV3,
+  type MorphogenesisStrategyCounterfactualPolicyV3,
+  type MorphogenesisStrategyCounterfactualScenarioV3,
+  type MorphogenesisStrategyCounterfactualEstimateV3,
+  type MorphogenesisStrategyCounterfactualReportV3,
+  type MorphogenesisStrategyEvidenceBindingV4,
+  type MorphogenesisStrategyIntelligencePolicyV4,
+  type MorphogenesisStrategyOutcomeAttestationV4,
+  type MorphogenesisStrategyConvergenceDecisionV4,
+  type MorphogenesisBudgetReservationPortV1,
+  type MorphogenesisControlWindowV1,
+  type MorphogenesisDecisionAuthorizationIssuerPortV1,
+  type MorphogenesisDecisionBindingV1,
+  type MorphogenesisDecisionStoreV1,
+  type MorphogenesisProcessBindingV1,
+  type MorphogenesisCandidateDiscoveryPortV1,
+  type MorphogenesisExecutionRecordV1,
+  type MorphogenesisExecutionStoreV1,
+  type MorphogenesisAgentLifecyclePortV1,
+  type MorphogenesisSuccessorTeamPortV1,
+  type MorphogenesisContinuityPortV1,
+  type MorphogenesisAuthorityFencePortV1,
+  type MorphogenesisAgentRetirementPortV1,
+  type MorphogenesisDetachmentPortV1,
+  type MorphogenesisReceiptV1,
+  type MorphogenesisLineageLinkV1,
+  type MorphologySourceCurrentnessPortV1,
+  type MorphogenesisReplayTombstoneV1,
+  type MorphogenesisReplayTombstoneStoreV1,
+  type MorphogenesisSuccessorRecoveryV1,
+  type MorphologySourceResolutionPortV1,
+  type MorphologyHeadStoreV1,
+  type MorphologyHeadV1,
+  type MorphologySnapshotV1,
+  type TargetMorphologyV1,
+} from "@agentplat/collective-runtime/morphogenesis";
+
+void MORPHOGENESIS_CATALOG_LIFECYCLE_PROCESS_ID_V1;
+void MORPHOGENESIS_DECISION_ROUTES_V1;
+void MORPHOGENESIS_OPERATORS_V1;
+void MORPHOGENESIS_ADVANCED_CAPABILITIES_V2;
+void MORPHOLOGY_SOURCE_CLASSES_V1;
+void InMemoryMorphologyHeadStoreV1;
+void InMemoryMorphogenesisBudgetReservationPortV1;
+void InMemoryMorphogenesisDecisionAuthorizationIssuerV1;
+void InMemoryMorphogenesisDecisionStoreV1;
+void InMemoryMorphogenesisExecutionStoreV1;
+void InMemoryMorphologySourceCurrentnessPortV1;
+void InMemoryMorphogenesisReplayTombstoneStoreV1;
+void MorphologyHeadRuntimeV1;
+void MorphogenesisDecisionGateProviderV1;
+void MorphogenesisDecisionRuntimeV1;
+void MorphogenesisExecutionRuntimeV1;
+void MorphogenesisExecutionTaskExecutorV1;
+void MorphogenesisWorkflowOutcomeEvaluationPortV1;
+void MorphologyHeadMorphogenesisActivationPortV1;
+void MorphogenesisTaskExecutionBindingResolverV1;
+void MorphogenesisProposalEngineV1;
+void assertMorphogenesisControlWindowAllowsV1;
+void createAgentInstantiationProfileCertificationV1;
+void createAgentInstantiationProfileV1;
+void createAgentInstantiationProfileEvolutionV1;
+void createAgentInstantiationAuthorityAttenuationV1;
+void createAgentInstantiationSynthesisCertificationV1;
+void createAgentInstantiationProfileV2;
+void createMorphogenesisPolicyV2;
+void compileMorphogenesisOperatorV2;
+void InMemoryMorphogenesisOperatorExecutionStoreV2;
+void MorphogenesisOperatorExecutionRuntimeV2;
+void InMemoryMorphogenesisOperatorOutcomeStoreV2;
+void MorphogenesisOperatorCycleRuntimeV2;
+void createMorphogenesisOperatorOutcomeReceiptV2;
+void InMemoryMorphogenesisOperatorCompensationStoreV2;
+void MorphogenesisOperatorCompensationRuntimeV2;
+void createMorphogenesisOperatorCompensationReceiptV2;
+void GovernedMorphogenesisOperatorExecutionRuntimeV2;
+void createMorphogenesisGovernedOperatorAuthorizationV2;
+void createMorphogenesisStrategyDefinitionV3;
+void createMorphogenesisStrategyCatalogV3;
+void createMorphogenesisStrategyContextV3;
+void createMorphogenesisStrategySelectionRequestV3;
+void createMorphogenesisStrategySelectionV3;
+void createMorphogenesisStrategyExecutionBindingV3;
+void createMorphogenesisStrategyOutcomeMeasurementV3;
+void createMorphogenesisStrategyFeedbackV3;
+void createMorphogenesisStrategyGovernancePolicyV3;
+void createMorphogenesisStrategyReviewV3;
+void MorphogenesisStrategyGovernanceRuntimeV3;
+void InMemoryMorphogenesisStrategyGovernanceStoreV3;
+void validateMorphogenesisStrategyGovernanceStateV3;
+void createMorphogenesisStrategyTrustSafetySourceV3;
+void createMorphogenesisStrategyMemoryRecordV3;
+void createGovernedMorphogenesisStrategySelectionRequestV3;
+void createMorphogenesisStrategyGovernancePriorSourceV3;
+void InMemoryMorphogenesisStrategyMemoryPortV3;
+void MorphogenesisStrategyCounterfactualRuntimeV3;
+void DeterministicMorphogenesisStrategyCounterfactualPortV3;
+void InMemoryMorphogenesisStrategyCounterfactualStoreV3;
+void createMorphogenesisStrategyCounterfactualPolicyV3;
+void createMorphogenesisStrategyCounterfactualScenarioV3;
+void createMorphogenesisStrategyCounterfactualEstimateV3;
+void createMorphogenesisStrategyCounterfactualReportV3;
+void MorphogenesisStrategyEvidenceExchangeV4;
+void createMorphogenesisStrategyEvidenceBindingV4;
+void createMorphogenesisStrategyIntelligencePolicyV4;
+void createSignedMorphogenesisStrategyOutcomeAttestationV4;
+void validateMorphogenesisStrategyOutcomeAttestationV4;
+void createMorphogenesisStrategyCollectivePriorSourceV4;
+void MorphogenesisStrategyConvergenceV4;
+void createMorphogenesisStrategyGovernanceInputFromConvergenceV4;
+void createMorphogenesisLineageLinkV1;
+void createCompositeMorphogenesisDecisionAuthorizationV1;
+void createMorphogenesisReplayTombstoneV1;
+void createMorphogenesisSuccessorRecoveryV1;
+void createInitialMorphologyHeadV1;
+void createMorphogenesisBudgetEnvelopeV1;
+void createMorphogenesisNeedV1;
+void createMorphogenesisBudgetReservationRequestV1;
+void createMorphogenesisControlWindowV1;
+void createMorphogenesisDecisionAuthorizationV1;
+void createMorphogenesisDecisionCandidateV1;
+void createMorphogenesisCatalogLifecycleProcessDefinitionV1;
+void createMorphogenesisCatalogLifecycleTaskDefinitionsV1;
+void createMorphogenesisCandidateSearchRequestV1;
+void createMorphogenesisCandidateSearchResultV1;
+void createMorphogenesisExistingCandidateV1;
+void createMorphogenesisLifecycleAgentV1;
+void createMorphogenesisAgentAttestationV1;
+void createMorphogenesisSuccessorTeamReceiptV1;
+void createMorphogenesisContinuityReceiptV1;
+void createMorphogenesisAuthorityFenceReceiptV1;
+void createMorphogenesisTerminalAgentReceiptV1;
+void createMorphogenesisReceiptV1;
+void createMorphogenesisProcessBindingV1;
+void createMorphogenesisOperationV1;
+void createMorphogenesisPolicyV1;
+void createMorphogenesisProposalV1;
+void createMorphogenesisScopeV1;
+void createMorphogenesisTransformationHeadV1;
+void createMorphologyComponentReferenceV1;
+void createMorphologySnapshotV1;
+void createMorphologySourceHeadV1;
+void createSuccessorMorphologyHeadV1;
+void createTargetMorphologyAgentDispositionV1;
+void createTargetMorphologyPositionV1;
+void createTargetMorphologyV1;
+void validateMorphogenesisPolicyV1;
+void validateMorphogenesisProposalV1;
+void validateAgentInstantiationProfileV1;
+void validateMorphogenesisLineageLinkV1;
+void validateMorphogenesisBudgetReservationV1;
+void validateMorphogenesisControlWindowV1;
+void validateMorphogenesisDecisionBindingV1;
+void validateMorphogenesisDecisionCandidateV1;
+void validateMorphogenesisProcessBindingV1;
+void validateMorphologyHeadV1;
+void validateMorphologySnapshotV1;
+
+declare const policy: MorphogenesisPolicyV1;
+declare const proposal: MorphogenesisProposalV1;
+declare const scope: MorphogenesisScopeV1;
+declare const profile: AgentInstantiationProfileV1;
+declare const profileV2: AgentInstantiationProfileV2;
+declare const profileV2Context: AgentInstantiationProfileV2Context;
+declare const policyV2: MorphogenesisPolicyV2;
+declare const operatorPlan: MorphogenesisCompiledOperatorPlanV2;
+declare const operatorState: MorphogenesisOperatorExecutionStateV2;
+declare const operatorOutcome: MorphogenesisOperatorOutcomeReceiptV2;
+declare const compensationBoundary: MorphogenesisOperatorCompensationBoundaryPortV2;
+declare const compensationState: MorphogenesisOperatorCompensationStateV2;
+declare const governedAuthorizationPort: MorphogenesisGovernedOperatorAuthorizationPortV2;
+declare const governedAuthorization: MorphogenesisGovernedOperatorAuthorizationV2;
+declare const strategyDefinitionV3: MorphogenesisStrategyDefinitionV3;
+declare const strategyCatalogV3: MorphogenesisStrategyCatalogV3;
+declare const strategyContextV3: MorphogenesisStrategyContextV3;
+declare const strategySelectionV3: MorphogenesisStrategySelectionV3;
+declare const strategyExecutionBindingV3: MorphogenesisStrategyExecutionBindingV3;
+declare const strategyMeasurementV3: MorphogenesisStrategyOutcomeMeasurementV3;
+declare const strategyFeedbackV3: MorphogenesisStrategyFeedbackV3;
+declare const strategyGovernancePolicyV3: MorphogenesisStrategyGovernancePolicyV3;
+declare const strategyRecommendationV3: MorphogenesisStrategyRecommendationV3;
+declare const strategyReviewV3: MorphogenesisStrategyReviewV3;
+declare const strategyGovernanceStateV3: MorphogenesisStrategyGovernanceStateV3;
+declare const strategyTrustV3: MorphogenesisStrategyTrustAssessmentPortV3;
+declare const strategyMemoryRecordV3: MorphogenesisStrategyMemoryRecordV3;
+declare const strategyMemoryPortV3: MorphogenesisStrategyMemoryPortV3;
+declare const counterfactualPolicyV3: MorphogenesisStrategyCounterfactualPolicyV3;
+declare const counterfactualScenarioV3: MorphogenesisStrategyCounterfactualScenarioV3;
+declare const counterfactualEstimateV3: MorphogenesisStrategyCounterfactualEstimateV3;
+declare const counterfactualReportV3: MorphogenesisStrategyCounterfactualReportV3;
+declare const intelligenceBindingV4: MorphogenesisStrategyEvidenceBindingV4;
+declare const intelligencePolicyV4: MorphogenesisStrategyIntelligencePolicyV4;
+declare const intelligenceAttestationV4: MorphogenesisStrategyOutcomeAttestationV4;
+declare const convergenceDecisionV4: MorphogenesisStrategyConvergenceDecisionV4;
+declare const budgetPort: MorphogenesisBudgetReservationPortV1;
+declare const controlWindow: MorphogenesisControlWindowV1;
+declare const sourceResolution: MorphologySourceResolutionPortV1;
+declare const decisionIssuer: MorphogenesisDecisionAuthorizationIssuerPortV1;
+declare const decisionBinding: MorphogenesisDecisionBindingV1;
+declare const decisionStore: MorphogenesisDecisionStoreV1;
+declare const processBinding: MorphogenesisProcessBindingV1;
+declare const discoveryPort: MorphogenesisCandidateDiscoveryPortV1;
+declare const executionRecord: MorphogenesisExecutionRecordV1;
+declare const executionStore: MorphogenesisExecutionStoreV1;
+declare const lifecyclePort: MorphogenesisAgentLifecyclePortV1;
+declare const successorTeamPort: MorphogenesisSuccessorTeamPortV1;
+declare const continuityPort: MorphogenesisContinuityPortV1;
+declare const authorityFencePort: MorphogenesisAuthorityFencePortV1;
+declare const retirementPort: MorphogenesisAgentRetirementPortV1;
+declare const detachmentPort: MorphogenesisDetachmentPortV1;
+declare const finalReceipt: MorphogenesisReceiptV1;
+declare const lineageLink: MorphogenesisLineageLinkV1;
+declare const sourceCurrentness: MorphologySourceCurrentnessPortV1;
+declare const tombstone: MorphogenesisReplayTombstoneV1;
+declare const tombstoneStore: MorphogenesisReplayTombstoneStoreV1;
+declare const successorRecovery: MorphogenesisSuccessorRecoveryV1;
+declare const head: MorphologyHeadV1;
+declare const store: MorphologyHeadStoreV1;
+declare const snapshot: MorphologySnapshotV1;
+declare const target: TargetMorphologyV1;
+
+void policy;
+void proposal;
+void scope;
+void profile;
+void profileV2;
+void profileV2Context;
+void policyV2;
+void operatorPlan;
+void operatorState;
+void operatorOutcome;
+void compensationBoundary;
+void compensationState;
+void governedAuthorizationPort;
+void governedAuthorization;
+void strategyDefinitionV3;
+void strategyCatalogV3;
+void strategyContextV3;
+void strategySelectionV3;
+void strategyExecutionBindingV3;
+void strategyMeasurementV3;
+void strategyFeedbackV3;
+void strategyGovernancePolicyV3;
+void strategyRecommendationV3;
+void strategyReviewV3;
+void strategyGovernanceStateV3;
+void strategyTrustV3;
+void strategyMemoryRecordV3;
+void strategyMemoryPortV3;
+void counterfactualPolicyV3;
+void counterfactualScenarioV3;
+void counterfactualEstimateV3;
+void counterfactualReportV3;
+void intelligenceBindingV4;
+void intelligencePolicyV4;
+void intelligenceAttestationV4;
+void convergenceDecisionV4;
+void budgetPort;
+void controlWindow;
+void sourceResolution;
+void decisionIssuer;
+void decisionBinding;
+void decisionStore;
+void processBinding;
+void discoveryPort;
+void executionRecord;
+void executionStore;
+void lifecyclePort;
+void successorTeamPort;
+void continuityPort;
+void authorityFencePort;
+void retirementPort;
+void detachmentPort;
+void finalReceipt;
+void lineageLink;
+void sourceCurrentness;
+void tombstone;
+void tombstoneStore;
+void successorRecovery;
+void head;
+void store;
+void snapshot;
+void target;

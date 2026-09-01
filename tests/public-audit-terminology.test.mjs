@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -205,6 +206,66 @@ test('public audit fails closed for symlinks, large files and unknown binary fil
   }
 });
 
+test('public audit evidence exceptions require exact path, size and digest', async () => {
+  const fixture = await auditFixture();
+  try {
+    const relativeFile = 'evidence/large.json';
+    const file = path.join(fixture.root, relativeFile);
+    const contents = Buffer.from(`{"value":"${'x'.repeat(1_000_000)}"}\n`);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, contents);
+    await writeEvidenceLedger(fixture.root, [exception(relativeFile, contents)]);
+    const report = await runPublicAudit({ root: fixture.root });
+    assert.equal(report.evidenceExceptionFiles, 1);
+
+    const changed = Buffer.from(contents);
+    changed[changed.length - 3] = 'y'.charCodeAt(0);
+    await writeFile(file, changed);
+    await assert.rejects(
+      runPublicAudit({ root: fixture.root }),
+      /evidence exception digest changed/,
+    );
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('public audit rejects stale exception entries and still scans excepted text', async () => {
+  const staleFixture = await auditFixture();
+  try {
+    const contents = Buffer.from('missing evidence');
+    await writeEvidenceLedger(staleFixture.root, [
+      exception('evidence/missing.json', contents),
+    ]);
+    await assert.rejects(
+      runPublicAudit({ root: staleFixture.root }),
+      /evidence exception was not observed exactly/,
+    );
+  } finally {
+    await staleFixture.cleanup();
+  }
+
+  const secretFixture = await auditFixture();
+  try {
+    const relativeFile = 'evidence/large-secret.json';
+    const file = path.join(secretFixture.root, relativeFile);
+    const contents = Buffer.from(
+      `${'x'.repeat(1_000_001)}\nAPI_KEY='abcdefghijklmnopqrstuvwxyz123456'\n`,
+    );
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, contents);
+    await writeEvidenceLedger(secretFixture.root, [
+      exception(relativeFile, contents),
+    ]);
+    await assert.rejects(
+      runPublicAudit({ root: secretFixture.root }),
+      /secret assignment/,
+    );
+  } finally {
+    await secretFixture.cleanup();
+  }
+});
+
 test('public audit CLI arguments reject unknown or incomplete options', () => {
   assert.deepEqual(parsePublicAuditArguments(['--root', '/tmp/example']), {
     root: '/tmp/example',
@@ -237,4 +298,34 @@ async function auditFixture() {
     denylist: path.join(parent, 'terms.txt'),
     cleanup: () => rm(parent, { recursive: true, force: true }),
   };
+}
+
+function exception(relativePath, contents) {
+  return {
+    path: relativePath,
+    sha256: createHash('sha256').update(contents).digest('hex'),
+    bytes: contents.byteLength,
+    reason: 'Immutable test evidence retained to verify exact exception behavior.',
+  };
+}
+
+async function writeEvidenceLedger(root, entries) {
+  const config = path.join(root, 'config');
+  await mkdir(config, { recursive: true });
+  await writeFile(
+    path.join(config, 'public-audit-evidence-exceptions-v1.json'),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      kind: 'agentplat-public-audit-evidence-exceptions-v1',
+      status: 'frozen-exact-files',
+      policy: {
+        allowPathGlobExceptions: false,
+        allowDirectoryExceptions: false,
+        maximumExceptionBytesPerFile: 20_000_000,
+        requireSha256Match: true,
+        continueSecretAndTerminologyScanningForText: true,
+      },
+      entries,
+    })}\n`,
+  );
 }

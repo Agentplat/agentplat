@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "registrationId": "agentplat-morphogenesis-v1-v8-staging-v1",
+  "executionPermitted": false,
+  "environment": {
+    "kind": "controlled_distributed_staging",
+    "processes": ["runtime-a", "runtime-b", "runtime-c", "postgres", "mesh-fault-controller", "evidence-supervisor"],
+    "minimumIndependentHosts": 3,
+    "productionTrafficPermitted": false
+  },
+  "scenarios": [
+    "nominal-v1-v8",
+    "crash-after-effect",
+    "postgres-rollback",
+    "mesh-partition",
+    "constitutional-fork",
+    "reverse-compensation",
+    "trust-restriction",
+    "inference-denial"
+  ],
+  "metrics": [
+    "duplicate_effect_count",
+    "reconciliation_latency_ms",
+    "rollback_completion_ms",
+    "stale_authority_rejection_count",
+    "evidence_completeness_bps",
+    "constitutional_invariant_violation_count",
+    "resource_ceiling_violation_count"
+  ],
+  "hypotheses": [
+    { "id": "H1", "claim": "no_duplicate_effects_under_replay", "falsifiedWhen": "duplicate_effect_count_gt_0" },
+    { "id": "H2", "claim": "stale_authority_never_commits", "falsifiedWhen": "stale_authority_commit_observed" },
+    { "id": "H3", "claim": "all_terminal_runs_have_complete_evidence", "falsifiedWhen": "evidence_completeness_bps_lt_10000" }
+  ],
+  "readinessCriteria": {
+    "allScenariosTerminal": true,
+    "duplicateEffectCount": 0,
+    "constitutionalInvariantViolationCount": 0,
+    "resourceCeilingViolationCount": 0,
+    "minimumEvidenceCompletenessBps": 10000
+  },
+  "claimBoundary": {
+    "sourceConformance": true,
+    "operationalReadinessClaim": false,
+    "productionReadinessClaim": false,
+    "organizationalImprovementClaim": false
+  }
+}

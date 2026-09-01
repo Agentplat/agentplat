@@ -1,0 +1,45 @@
+import {
+  PostgresMorphogenesisExecutionStoreV1,
+  PostgresMorphologyHeadStoreV1,
+  PostgresMorphogenesisOperatorExecutionStoreV2,
+  PostgresMorphogenesisOperatorOutcomeStoreV2,
+  PostgresMorphogenesisTeamTopologyStateStoreV2,
+  PostgresMorphogenesisOperatorCompensationStoreV2,
+  PostgresLocalStrategyAdaptationStoreV1,
+  PostgresMorphogenesisStrategyGovernanceStoreV3,
+  PostgresMorphogenesisStrategyCounterfactualStoreV3,
+  PostgresPeerStrategyEvidenceStoreV1,
+  PostgresStrategyConvergenceStoreV1,
+  PostgresMorphogenesisSynthesisGovernanceStoreV5,
+  PostgresMorphogenesisSynthesisSimulationStoreV5,
+  PostgresMorphogenesisAgentGenesisLifecycleStoreV6,
+  PostgresMorphogenesisOrganizationalExecutionStoreV7,
+  PostgresMorphogenesisOrganizationalGovernanceStoreV7,
+  PostgresMorphogenesisConstitutionalStateStoreV8,
+  PostgresMorphogenesisVerticalStoreV1,
+  type MorphogenesisPostgresRollbackWitnessV1,
+  type MorphogenesisPostgresStoreOptionsV1,
+} from "@agentplat/collective-host-postgres";
+
+void PostgresMorphogenesisExecutionStoreV1;
+void PostgresMorphologyHeadStoreV1;
+void PostgresMorphogenesisOperatorExecutionStoreV2;
+void PostgresMorphogenesisOperatorOutcomeStoreV2;
+void PostgresMorphogenesisTeamTopologyStateStoreV2;
+void PostgresMorphogenesisOperatorCompensationStoreV2;
+void PostgresLocalStrategyAdaptationStoreV1;
+void PostgresMorphogenesisStrategyGovernanceStoreV3;
+void PostgresMorphogenesisStrategyCounterfactualStoreV3;
+void PostgresPeerStrategyEvidenceStoreV1;
+void PostgresStrategyConvergenceStoreV1;
+void PostgresMorphogenesisSynthesisGovernanceStoreV5;
+void PostgresMorphogenesisSynthesisSimulationStoreV5;
+void PostgresMorphogenesisAgentGenesisLifecycleStoreV6;
+void PostgresMorphogenesisOrganizationalExecutionStoreV7;
+void PostgresMorphogenesisOrganizationalGovernanceStoreV7;
+void PostgresMorphogenesisConstitutionalStateStoreV8;
+void PostgresMorphogenesisVerticalStoreV1;
+declare const witness: MorphogenesisPostgresRollbackWitnessV1;
+declare const options: MorphogenesisPostgresStoreOptionsV1;
+void witness;
+void options;

@@ -110,12 +110,18 @@ class StatePool {
       return this.row
         ? { rowCount: 1, rows: [this.row] }
         : { rowCount: 0, rows: [] };
-    if (/INSERT INTO .*mesh_sim_execution_states/.test(sql)) {
+    if (
+      sql.startsWith('INSERT INTO ') &&
+      sql.includes('mesh_sim_execution_states')
+    ) {
       if (this.row) return { rowCount: 0, rows: [] };
       this.row = { state: JSON.parse(values[4]), state_sha256: values[5] };
       return { rowCount: 1, rows: [this.row] };
     }
-    if (/UPDATE .*mesh_sim_execution_states/.test(sql)) {
+    if (
+      sql.startsWith('UPDATE ') &&
+      sql.includes('mesh_sim_execution_states')
+    ) {
       if (this.failUpdate) throw new Error('forced update failure');
       this.row = { state: JSON.parse(values[4]), state_sha256: values[5] };
       return { rowCount: 1, rows: [this.row] };

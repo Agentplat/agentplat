@@ -21,6 +21,21 @@ organize that material for research communication.
 - [Durable local campaign supervisor V1](./durable-local-campaign-supervisor-v1.md):
   detached sequential execution, heartbeat, pause/resume/stop controls,
   hash-chained operational events and an incremental paper report.
+- [Agent Morphogenesis Beta 1 operational validation V1](./agent-morphogenesis-beta1-operational-validation-v1.md):
+  planned PostgreSQL, Temporal and multi-process Agent Mesh campaign with
+  actor-neutral governed decisions and an explicit production-claim boundary.
+- [Agent Morphogenesis Beta 1 release evidence V1](./agent-morphogenesis-beta1-release-v1/README.md):
+  signed, commit-bound 18-scenario local-profile evidence with explicit
+  separation from experiments, operational readiness and production claims.
+- [Agent Morphogenesis Beta 1 operational readiness V1](./agent-morphogenesis-beta1-operational-readiness-v1.md):
+  frozen 30-minute local/staging soak profile, resource SLOs, recovery gates,
+  runbook requirements and exact-digest public-audit repair policy.
+- [Agent Morphogenesis Beta 1 operational readiness evidence V2](./agent-morphogenesis-beta1-readiness-v2/README.md):
+  authoritative signed 30-minute soak evidence with exact 22-scenario coverage,
+  while keeping experiments and production readiness explicitly separate.
+- [Superseded Agent Morphogenesis readiness evidence V1](./agent-morphogenesis-beta1-readiness-v1/README.md):
+  retained incident record for the scenario-ID mismatch found by the terminal
+  coverage audit; it does not establish readiness.
 - [Empirical validation protocol V1](../collective-runtime/empirical-validation-protocol-v1.md):
   authoritative hypotheses, study design, statistical plan and cost gates.
 - [Evaluation contract V2](../adaptive-mission/evaluation-contract-v2.md):

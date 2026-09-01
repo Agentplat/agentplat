@@ -759,7 +759,7 @@ function canonicalIdentifiers(values: readonly string[], label: string): readonl
 }
 
 function identifier(value: unknown, label: string): asserts value is string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/.test(value))
+  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/.test(value))
     throw new TypeError(`${label} is invalid`);
 }
 

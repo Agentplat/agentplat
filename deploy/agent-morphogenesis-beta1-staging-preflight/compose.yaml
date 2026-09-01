@@ -1,0 +1,88 @@
+name: agentplat-morphogenesis-beta1-preflight
+
+services:
+  agent-postgres:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: agentplat_morphogenesis
+      POSTGRES_USER: agentplat
+      POSTGRES_PASSWORD: agentplat-preflight-only
+    ports:
+      - "${AGENTPLAT_PREFLIGHT_POSTGRES_PORT:-55434}:5432"
+    volumes:
+      - agent-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentplat -d agentplat_morphogenesis"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [agent-data, agent-control]
+
+  temporal-postgres:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal-preflight-only
+    volumes:
+      - temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [temporal-data]
+
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal-preflight-only
+      POSTGRES_SEEDS: temporal-postgres
+    ports:
+      - "${AGENTPLAT_PREFLIGHT_TEMPORAL_PORT:-57233}:7233"
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - temporal operator cluster health --address "$$(hostname -i | cut -d' ' -f1):7233"
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    restart: unless-stopped
+    networks: [temporal-data]
+
+  restore-postgres:
+    profiles: [restore]
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: agentplat_restore
+      POSTGRES_USER: agentplat_restore
+      POSTGRES_PASSWORD: agentplat-restore-preflight-only
+    ports:
+      - "${AGENTPLAT_PREFLIGHT_RESTORE_POSTGRES_PORT:-55435}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentplat_restore -d agentplat_restore"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [restore-control]
+
+networks:
+  agent-data:
+    internal: true
+  agent-control: {}
+  temporal-data: {}
+  restore-control: {}
+
+volumes:
+  agent-postgres-data:
+  temporal-postgres-data:

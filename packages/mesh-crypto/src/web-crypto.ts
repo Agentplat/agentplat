@@ -20,6 +20,7 @@ import {
   type MeshCryptoRejectionCode,
   type MeshDigestRequest,
   type MeshEnvelopeSigner,
+  type MeshExternalSignRequest,
   type MeshEnvelopeVerifier,
   type MeshKeyRecord,
   type MeshSignRequest,
@@ -101,18 +102,36 @@ export async function signMeshEnvelope<
   }
 }
 
+/** Hashes and signs through an external custody port without a private key. */
+export async function signMeshEnvelopeExternally<
+  TPayload extends MeshMessagePayload,
+  TWireVersion extends MeshWireVersion = MeshWireVersion,
+>(
+  request: MeshExternalSignRequest<TPayload, TWireVersion>,
+  signingPolicy: Readonly<MeshSigningPolicy> = DEFAULT_MESH_SIGNING_POLICY
+): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
+  try {
+    return await signMeshEnvelopeInternal(request, snapshotSigningPolicy(signingPolicy));
+  } catch (error) {
+    throw normalizeCryptoError(error);
+  }
+}
+
 async function signMeshEnvelopeInternal<
   TPayload extends MeshMessagePayload,
   TWireVersion extends MeshWireVersion = MeshWireVersion,
 >(
-  request: MeshSignRequest<TPayload, TWireVersion>,
+  request:
+    | MeshSignRequest<TPayload, TWireVersion>
+    | MeshExternalSignRequest<TPayload, TWireVersion>,
   signingPolicy: Readonly<MeshSigningPolicy>
 ): Promise<SignedMeshEnvelope<TPayload, TWireVersion>> {
   if (!request || typeof request !== 'object') {
     throw new MeshCryptoError('invalid_envelope');
   }
   const inputEnvelope = request.envelope;
-  const privateKey = request.privateKey;
+  const privateKey = 'privateKey' in request ? request.privateKey : undefined;
+  const signaturePort = 'signaturePort' in request ? request.signaturePort : undefined;
   const injectedCrypto = request.crypto;
   const protocolOptions = snapshotProtocolOptions(request.protocolOptions);
   if (
@@ -129,7 +148,10 @@ async function signMeshEnvelopeInternal<
   if (!signingPolicy.allowedWireVersions.includes(inputEnvelope.wireVersion)) {
     throw new MeshCryptoError('unsupported_wire_version');
   }
-  if (!isEd25519Key(privateKey, 'private', 'sign')) {
+  if (
+    signaturePort === undefined &&
+    (privateKey === undefined || !isEd25519Key(privateKey, 'private', 'sign'))
+  ) {
     throw new MeshCryptoError('invalid_private_key');
   }
   const inputValidation = validateSignedMeshEnvelope(
@@ -179,13 +201,21 @@ async function signMeshEnvelopeInternal<
 
   let signature: Uint8Array;
   try {
-    signature = new Uint8Array(
-      await crypto.subtle.sign(
-        MESH_SIGNATURE_ALGORITHM,
-        privateKey,
-        copyToArrayBuffer(signingBytes.value)
-      )
-    );
+    signature = signaturePort === undefined
+      ? new Uint8Array(
+          await crypto.subtle.sign(
+            MESH_SIGNATURE_ALGORITHM,
+            privateKey as CryptoKey,
+            copyToArrayBuffer(signingBytes.value)
+          )
+        )
+      : new Uint8Array(
+          await signaturePort.sign({
+            algorithm: MESH_SIGNATURE_ALGORITHM,
+            keyId: structuralEnvelope.proof.keyId,
+            signingBytes: signingBytes.value.slice(),
+          })
+        );
   } catch {
     throw new MeshCryptoError('crypto_operation_failed');
   }

@@ -484,6 +484,77 @@ advance and recovery methods without becoming an authority source. See [ADR
 0033](./docs/adr/0033-governed-autonomous-mission-lifecycle.md) and its [threat
 model](./docs/security/governed-autonomous-mission-lifecycle-threat-model.md).
 
+### Agent Morphogenesis V1
+
+The opt-in `@agentplat/collective-runtime/morphogenesis` subpath turns bounded,
+authenticated mission evidence into an exact proposed successor morphology and
+coordinates the already-authoritative lifecycle, membership, Team, individual
+Work Contract, Action Gateway and evidence boundaries required to enact it.
+Policy may select an authorized agent, an authorized person, local policy,
+collective agreement or a composite decision route.
+
+The first future-baseline vertical slice recruits an eligible existing agent or
+creates a catalog-certified temporary specialist, activates a successor Team,
+preserves causal work, commits one morphology head, checkpoints and fences
+authority, then detaches or retires the agent and releases its budget. Governed
+Durable Workflows owns process execution; PostgreSQL and Temporal remain
+exchangeable adapters. Passing source and conformance tests does not establish
+organizational improvement or production readiness. See [ADR
+0046](./docs/adr/0046-agent-morphogenesis.md), the [implementation
+plan](./docs/collective-runtime/agent-morphogenesis-v1-implementation-plan.md),
+[threat model](./docs/security/agent-morphogenesis-threat-model.md) and
+[acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v1-acceptance-checklist.md).
+
+The [Beta 1 operational validation protocol](./docs/research/agent-morphogenesis-beta1-operational-validation-v1.md)
+defines a closed 18-scenario PostgreSQL, Temporal and multiprocess Agent Mesh
+campaign. Its manifests, receipts, metrics, firmable bundle and report keep
+diagnostic conformance separate from experimental evidence, operational
+readiness and production claims.
+
+The additive [Agent Morphogenesis V2 specification](./docs/specification/agent-morphogenesis-v2.md)
+adds explicitly gated derived/synthesized profiles, role and Work evolution,
+replacement, suspension/resumption, Dynamic Topology split/merge/federation,
+durable compensation, Mission Lifecycle and Interop composition. These
+capabilities preserve the V1 defaults and existing subsystem authority owners.
+See the [V2 source acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
+
+[Agent Morphogenesis Strategy Adaptation V3](./docs/specification/agent-morphogenesis-v3.md)
+adds bounded outcome learning, immutable strategy catalogs, independent
+agent/person/quorum governance, regression/damage detection and reproducible
+counterfactual analysis. Learning and simulation remain advisory and cannot
+grant Morphogenesis execution authority. See the [V3 source acceptance
+checklist](./docs/collective-runtime/agent-morphogenesis-v3-acceptance-checklist.md).
+
+[Agent Morphogenesis Collective Strategy Intelligence V4](./docs/specification/agent-morphogenesis-v4.md)
+adds content-free signed outcome exchange through Agent Mesh, robust bounded
+collective priors and partition/diversity-aware convergence. Every result stays
+advisory under local policy and requires the existing agent, person or quorum
+governance route. See the [V4 source acceptance
+checklist](./docs/collective-runtime/agent-morphogenesis-v4-acceptance-checklist.md).
+
+[Agent Morphogenesis Governed Strategy Synthesis V5](./docs/specification/agent-morphogenesis-v5.md)
+adds evidenced gap detection, declarative candidate generation, reproducible
+adversarial simulation, independent certification, Blueprint/Trust/Inference
+gates and agent/person/quorum-reviewed canaries. Synthesis remains inert until
+ordinary local governance and execution authorize later effects. See the [V5
+source acceptance checklist](./docs/collective-runtime/agent-morphogenesis-v5-acceptance-checklist.md).
+
+[Agent Morphogenesis Governed Agent Genesis V6](./docs/specification/agent-morphogenesis-v6.md)
+adds evidenced blueprint gaps, V2 synthesized-profile generation, adversarial
+sandbox/probation, agent/person/quorum review, governed Membership/attestation,
+compensation and authority-neutral Work handoff. See the [V6 source acceptance
+checklist](./docs/collective-runtime/agent-morphogenesis-v6-acceptance-checklist.md).
+
+[Agent Morphogenesis Governed Organizational Evolution V7](./docs/specification/agent-morphogenesis-v7.md)
+adds persistent organizational patterns, comparative morphology simulation,
+multi-owner successor plans, reviewed canaries and partial compensation. See
+the [V7 checklist](./docs/collective-runtime/agent-morphogenesis-v7-acceptance-checklist.md).
+
+[Agent Morphogenesis Constitutional Continuity V8](./docs/specification/agent-morphogenesis-v8.md)
+adds longitudinal invariants, model-checked amendments, meta-governance,
+fork isolation and rollback-safe constitutional epochs. See the [V8
+checklist](./docs/collective-runtime/agent-morphogenesis-v8-acceptance-checklist.md).
+
 ### Heterogeneous Inference Intervention SDK V1
 
 The opt-in `@agentplat/inference-control/intervention` subpath negotiates exact

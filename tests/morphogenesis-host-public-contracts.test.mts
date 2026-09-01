@@ -1,0 +1,100 @@
+import {
+  GovernedAgentLifecycleMorphogenesisPortV1,
+  TeamFormationMorphogenesisSuccessorPortV1,
+  TeamExecutionContinuityMorphogenesisPortV1,
+  WorkActionMorphogenesisAuthorityFencePortV1,
+  MorphogenesisActionGatewayTaskExecutorV1,
+  MorphogenesisTelemetryPublisherV1,
+  TrustInferenceMorphogenesisAttestationPortV1,
+  compileAgentInstantiationProfileToCreationRequestV1,
+  createMorphogenesisAgentCreationMaterialBindingV2,
+  type MorphogenesisAgentCreationMaterialBindingV2,
+  type MorphogenesisAgentCreationMaterialPortV1,
+  type MorphogenesisTeamActivationCommandPortV1,
+  type MorphogenesisContinuityProjectionPortV1,
+  type MorphogenesisWorkActionFenceCommandPortV1,
+  type MorphogenesisActionGatewayResolutionPortV1,
+  type MorphogenesisRuntimeAttestationVerifierV1,
+  type MorphogenesisCapabilityAssessmentPortV1,
+  type MorphogenesisEligibilityEvidencePortV1,
+} from "@agentplat/collective-host/morphogenesis";
+import {
+  AgentStatusMorphogenesisBoundaryV2,
+  DerivedAgentMorphogenesisBoundaryV2,
+  GovernedMembershipMorphogenesisAgentStatusPortV2,
+  InMemoryMorphogenesisTeamTopologyStateStoreV2,
+  MissionWorkReassignmentMorphogenesisBoundaryV2,
+  MorphogenesisOperatorBoundaryRouterV2,
+  ReplacementMorphogenesisBoundaryV2,
+  RoleRealignmentMorphogenesisBoundaryV2,
+  TeamTopologyMorphogenesisBoundaryV2,
+} from "@agentplat/collective-host/morphogenesis-operator-adapters";
+import { AgentPlatMemoryMorphogenesisStrategyPortV3 } from "@agentplat/collective-host/morphogenesis-strategy-memory";
+import {
+  AuthorizedAgentMorphogenesisStrategyReviewPortV3,
+  type MorphogenesisStrategyAgentMandatePortV3,
+} from "@agentplat/collective-host/morphogenesis-strategy-review";
+import {
+  createAgentRoomMorphogenesisDecisionAuthorizationV1,
+  createAgentRoomMorphogenesisGateConfigurationV1,
+  createAgentRoomMorphogenesisStrategyGateConfigurationV3,
+  createAgentRoomMorphogenesisStrategyReviewV3,
+} from "@agentplat/workflows-rooms/morphogenesis";
+import {
+  CollectiveAgreementMorphogenesisDecisionIssuerV1,
+  CollectiveAgreementMorphogenesisStrategyReviewPortV3,
+  type MorphogenesisCollectiveAgreementCertificatePortV1,
+  type MorphogenesisStrategyCollectiveCertificatePortV3,
+} from "@agentplat/collective-quorum/morphogenesis";
+
+void compileAgentInstantiationProfileToCreationRequestV1;
+void createMorphogenesisAgentCreationMaterialBindingV2;
+void GovernedAgentLifecycleMorphogenesisPortV1;
+void TeamFormationMorphogenesisSuccessorPortV1;
+void TeamExecutionContinuityMorphogenesisPortV1;
+void WorkActionMorphogenesisAuthorityFencePortV1;
+void MorphogenesisActionGatewayTaskExecutorV1;
+void MorphogenesisTelemetryPublisherV1;
+void TrustInferenceMorphogenesisAttestationPortV1;
+void AgentStatusMorphogenesisBoundaryV2;
+void DerivedAgentMorphogenesisBoundaryV2;
+void GovernedMembershipMorphogenesisAgentStatusPortV2;
+void InMemoryMorphogenesisTeamTopologyStateStoreV2;
+void MissionWorkReassignmentMorphogenesisBoundaryV2;
+void MorphogenesisOperatorBoundaryRouterV2;
+void ReplacementMorphogenesisBoundaryV2;
+void RoleRealignmentMorphogenesisBoundaryV2;
+void TeamTopologyMorphogenesisBoundaryV2;
+void AgentPlatMemoryMorphogenesisStrategyPortV3;
+void AuthorizedAgentMorphogenesisStrategyReviewPortV3;
+void createAgentRoomMorphogenesisDecisionAuthorizationV1;
+void createAgentRoomMorphogenesisGateConfigurationV1;
+void createAgentRoomMorphogenesisStrategyGateConfigurationV3;
+void createAgentRoomMorphogenesisStrategyReviewV3;
+void CollectiveAgreementMorphogenesisDecisionIssuerV1;
+void CollectiveAgreementMorphogenesisStrategyReviewPortV3;
+
+declare const collectiveCertificates: MorphogenesisCollectiveAgreementCertificatePortV1;
+declare const strategyCollectiveCertificates: MorphogenesisStrategyCollectiveCertificatePortV3;
+declare const creationMaterial: MorphogenesisAgentCreationMaterialPortV1;
+declare const creationMaterialBinding: MorphogenesisAgentCreationMaterialBindingV2;
+declare const teamCommands: MorphogenesisTeamActivationCommandPortV1;
+declare const continuityProjection: MorphogenesisContinuityProjectionPortV1;
+declare const workActionFence: MorphogenesisWorkActionFenceCommandPortV1;
+declare const actionGateways: MorphogenesisActionGatewayResolutionPortV1;
+declare const runtimeAttestation: MorphogenesisRuntimeAttestationVerifierV1;
+declare const capabilityAssessment: MorphogenesisCapabilityAssessmentPortV1;
+declare const eligibilityEvidence: MorphogenesisEligibilityEvidencePortV1;
+declare const strategyAgentMandates: MorphogenesisStrategyAgentMandatePortV3;
+void collectiveCertificates;
+void strategyCollectiveCertificates;
+void creationMaterial;
+void creationMaterialBinding;
+void teamCommands;
+void continuityProjection;
+void workActionFence;
+void actionGateways;
+void runtimeAttestation;
+void capabilityAssessment;
+void eligibilityEvidence;
+void strategyAgentMandates;

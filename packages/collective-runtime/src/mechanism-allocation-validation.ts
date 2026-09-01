@@ -26,8 +26,8 @@ import {
 } from "./mechanism-allocation-contracts.js";
 import { validateTeamFormationScopeV1 } from "./team-formation-validation.js";
 
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
-const KEY = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
+const KEY = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const REASON = /^[A-Za-z0-9][A-Za-z0-9._:@/+-= ]{0,255}$/u;
 

@@ -1,0 +1,58 @@
+import {
+  MORPHOGENESIS_AGENT_GENESIS_THREATS_V6,
+  MorphogenesisAgentGenesisRuntimeV6,
+  createMorphogenesisAgentGenesisNeedV6,
+  createMorphogenesisAgentGenesisPolicyV6,
+  type MorphogenesisAgentGenesisDraftV6,
+  type MorphogenesisAgentGenesisGeneratorPortV6,
+  type MorphogenesisAgentGenesisNeedV6,
+  type MorphogenesisAgentGenesisPolicyV6,
+  MorphogenesisAgentGenesisSandboxRuntimeV6,
+  createMorphogenesisAgentGenesisEvaluationV6,
+  createMorphogenesisAgentGenesisThreatAssessmentV6,
+  type MorphogenesisAgentGenesisEvaluationV6,
+  InMemoryMorphogenesisAgentGenesisLifecycleStoreV6,
+  MorphogenesisAgentGenesisLifecycleRuntimeV6,
+  createMorphogenesisAgentGenesisLifecyclePolicyV6,
+  createMorphogenesisAgentGenesisReviewV6,
+  type MorphogenesisAgentGenesisLifecycleStateV6,
+  validateMorphogenesisAgentGenesisLifecycleStateV6,
+  createMorphogenesisAgentGenesisActivationHandoffV6,
+  type MorphogenesisAgentGenesisActivationHandoffV6,
+  createMorphogenesisAgentGenesisLineageV6,
+  type MorphogenesisAgentGenesisLineageV6,
+  MorphogenesisAgentGenesisProbationEligibilityGateV6,
+  createMorphogenesisAgentGenesisProbationAssessmentV6,
+  type MorphogenesisAgentGenesisProbationEligibilityV6,
+} from "@agentplat/collective-runtime/morphogenesis";
+
+void MORPHOGENESIS_AGENT_GENESIS_THREATS_V6;
+void MorphogenesisAgentGenesisRuntimeV6;
+void createMorphogenesisAgentGenesisNeedV6;
+void createMorphogenesisAgentGenesisPolicyV6;
+void MorphogenesisAgentGenesisSandboxRuntimeV6;
+void createMorphogenesisAgentGenesisEvaluationV6;
+void createMorphogenesisAgentGenesisThreatAssessmentV6;
+void InMemoryMorphogenesisAgentGenesisLifecycleStoreV6;
+void MorphogenesisAgentGenesisLifecycleRuntimeV6;
+void createMorphogenesisAgentGenesisLifecyclePolicyV6;
+void createMorphogenesisAgentGenesisReviewV6;
+void validateMorphogenesisAgentGenesisLifecycleStateV6;
+void createMorphogenesisAgentGenesisActivationHandoffV6;
+void createMorphogenesisAgentGenesisLineageV6;
+void MorphogenesisAgentGenesisProbationEligibilityGateV6;
+void createMorphogenesisAgentGenesisProbationAssessmentV6;
+declare const contracts: [MorphogenesisAgentGenesisDraftV6,
+  MorphogenesisAgentGenesisGeneratorPortV6, MorphogenesisAgentGenesisNeedV6,
+  MorphogenesisAgentGenesisPolicyV6];
+void contracts;
+declare const evaluation: MorphogenesisAgentGenesisEvaluationV6;
+void evaluation;
+declare const lifecycle: MorphogenesisAgentGenesisLifecycleStateV6;
+void lifecycle;
+declare const handoff: MorphogenesisAgentGenesisActivationHandoffV6;
+void handoff;
+declare const genesisLineage: MorphogenesisAgentGenesisLineageV6;
+void genesisLineage;
+declare const probationEligibility: MorphogenesisAgentGenesisProbationEligibilityV6;
+void probationEligibility;

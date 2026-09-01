@@ -11,7 +11,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16-alpine
@@ -27,7 +27,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       temporal:
-        image: temporalio/auto-setup:1.31.2
+        image: temporalio/auto-setup:1.29.7
         env:
           DB: postgres12
           DB_PORT: "5432"
@@ -37,7 +37,7 @@ jobs:
         ports:
           - 7233:7233
         options: >-
-          --health-cmd "temporal operator cluster health --address 127.0.0.1:7233"
+          --health-cmd "temporal operator cluster health --address temporal:7233"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20

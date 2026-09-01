@@ -16,9 +16,10 @@ const migrationNames = [
   "006_semantic_horizon_budgets",
   "007_assurance_effect_checkpoints",
   "008_autonomous_node_advances",
+  "009_morphogenesis_budget_reservations",
 ];
 
-test("package ships the complete eight-migration host chain", async () => {
+test("package ships the complete nine-migration host chain", async () => {
   await Promise.all(
     migrationNames.flatMap((name) =>
       ["up", "down"].map((direction) =>
@@ -28,9 +29,9 @@ test("package ships the complete eight-migration host chain", async () => {
   );
 });
 
-test("rollback confirmation defaults to migration head 008", () => {
+test("rollback confirmation defaults to migration head 009", () => {
   assert.equal(
     rollbackConfirmation("agentplat_release"),
-    "ROLLBACK @agentplat/collective-host-postgres VERSION 8 FROM agentplat_release",
+    "ROLLBACK @agentplat/collective-host-postgres VERSION 9 FROM agentplat_release",
   );
 });

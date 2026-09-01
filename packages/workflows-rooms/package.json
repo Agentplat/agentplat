@@ -11,6 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./morphogenesis": {
+      "types": "./dist/morphogenesis.d.ts",
+      "import": "./dist/morphogenesis.js"
     }
   },
   "files": [
@@ -25,6 +29,7 @@
   },
   "dependencies": {
     "@agentplat/autonomy": "workspace:^",
+    "@agentplat/collective-runtime": "workspace:^",
     "@agentplat/core": "workspace:^",
     "@agentplat/rooms": "workspace:^",
     "@agentplat/workflows": "workspace:^"

@@ -210,6 +210,17 @@ export interface AgentMembershipEnrollmentPortV1 {
     readonly membershipConfigurationDigest: string;
     readonly membershipEpoch: number;
   }>;
+  /** Re-admits the exact material identity of a suspended lineage record. */
+  restore?(input: {
+    readonly agent: AgentLineageRecordV1;
+    readonly member: CollectiveMembershipMemberV1;
+    readonly change: CollectiveMembershipChangeV1;
+    readonly logicalTimeMs: number;
+  }): Promise<{
+    readonly restored: boolean;
+    readonly membershipConfigurationDigest: string;
+    readonly membershipEpoch: number;
+  }>;
 }
 
 export interface AgentLineageStateV1 {
@@ -268,6 +279,10 @@ type GovernedAgentLineageEnrollInputV1 = Parameters<
 type GovernedAgentLineageRetireInputV1 = Parameters<
   GovernedAgentLineageRuntimeV1["terminate"]
 >[0];
+type GovernedAgentLineageStatusInputV1 = {
+  readonly agentId: string;
+  readonly logicalTimeMs: number;
+};
 
 interface GovernedAgentLineageInvokersV1 {
   initialize(
@@ -279,6 +294,10 @@ interface GovernedAgentLineageInvokersV1 {
   enroll(
     input: GovernedAgentLineageEnrollInputV1,
   ): Promise<AgentLineageRecordV1>;
+  suspend(input: GovernedAgentLineageStatusInputV1): Promise<AgentLineageRecordV1>;
+  resume(input: GovernedAgentLineageStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1>;
   terminate(
     input: GovernedAgentLineageRetireInputV1,
   ): Promise<AgentLineageStateV1>;
@@ -313,6 +332,7 @@ export class GovernedAgentLineageRuntimeV1 {
   readonly #verifyAuthorityAttenuation: AgentCreationCertificationPortV1["verifyAuthorityAttenuation"];
   readonly #enrollMembership: AgentMembershipEnrollmentPortV1["enroll"];
   readonly #removeMembership: AgentMembershipEnrollmentPortV1["remove"];
+  readonly #restoreMembership: AgentMembershipEnrollmentPortV1["restore"] | null;
   #policyVerification: Promise<AgentCreationPolicyV1> | null = null;
 
   constructor(options: {
@@ -352,6 +372,7 @@ export class GovernedAgentLineageRuntimeV1 {
       certification?.verifyAuthorityAttenuation;
     const enrollMembership = enrollment?.enroll;
     const removeMembership = enrollment?.remove;
+    const restoreMembership = enrollment?.restore;
     if (typeof storeLoad !== "function" || typeof storeSave !== "function")
       fail("agent lineage store is required");
     if (
@@ -400,11 +421,18 @@ export class GovernedAgentLineageRuntimeV1 {
       enrollMembership.call(enrollment, input);
     this.#removeMembership = (input) =>
       removeMembership.call(enrollment, input);
+    this.#restoreMembership = typeof restoreMembership === "function"
+      ? (input) => restoreMembership.call(enrollment, input)
+      : null;
     const invokers: GovernedAgentLineageInvokersV1 = Object.freeze({
       initialize: (root: Omit<AgentLineageRecordV1, "lineageDigest">) =>
         this.#initialize(root),
       create: (input: GovernedAgentLineageCreateInputV1) => this.#create(input),
       enroll: (input: GovernedAgentLineageEnrollInputV1) => this.#enroll(input),
+      suspend: (input: GovernedAgentLineageStatusInputV1) => this.#suspend(input),
+      resume: (input: GovernedAgentLineageStatusInputV1 & {
+        readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+      }) => this.#resume(input),
       terminate: (input: GovernedAgentLineageRetireInputV1) =>
         this.#retire(input, false),
       completeRetirement: (input: GovernedAgentLineageRetireInputV1) =>
@@ -834,6 +862,89 @@ export class GovernedAgentLineageRuntimeV1 {
     return invokeGovernedAgentLineageEnrollV1(this, input);
   }
 
+  async suspend(input: GovernedAgentLineageStatusInputV1): Promise<AgentLineageRecordV1> {
+    return invokeGovernedAgentLineageSuspendV1(this, input);
+  }
+
+  async resume(input: GovernedAgentLineageStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1> {
+    return invokeGovernedAgentLineageResumeV1(this, input);
+  }
+
+  async #suspend(input: GovernedAgentLineageStatusInputV1): Promise<AgentLineageRecordV1> {
+    identifier(input.agentId, "agentId");
+    integer(input.logicalTimeMs, "logicalTimeMs", 0, Number.MAX_SAFE_INTEGER);
+    const observed = (await this.#load()).agents.find(({ agentId }) => agentId === input.agentId);
+    if (!observed || observed.parentAgentId === null)
+      fail("agent suspension target is unavailable or is the root");
+    if (observed.status === "suspended") return observed;
+    if (observed.status !== "active") fail("only an active agent can be suspended");
+    const removed = await this.#removeMembership({ agent: observed, logicalTimeMs: input.logicalTimeMs });
+    if (!removed.removed) fail("agent membership suspension was denied");
+    quorumDigest(removed.membershipConfigurationDigest, "suspensionMembershipConfigurationDigest");
+    integer(removed.membershipEpoch, "suspensionMembershipEpoch", 1, Number.MAX_SAFE_INTEGER);
+    if (observed.membershipEpoch === null ||
+        removed.membershipEpoch <= observed.membershipEpoch ||
+        removed.membershipConfigurationDigest === observed.membershipConfigurationDigest)
+      fail("agent suspension membership is not a certified successor");
+    let result: AgentLineageRecordV1 | null = null;
+    await this.#commit(input.logicalTimeMs, async (current) => {
+      const retained = current.agents.find(({ agentId }) => agentId === input.agentId);
+      if (!retained) fail("agent suspension lineage is unavailable");
+      if (retained.status === "suspended") { result = retained; return current; }
+      if (retained.status !== "active" || retained.lineageDigest !== observed.lineageDigest)
+        fail("agent suspension lineage changed");
+      result = await createLineageRecord({
+        ...retained,
+        status: "suspended",
+        membershipConfigurationDigest: removed.membershipConfigurationDigest,
+        membershipEpoch: removed.membershipEpoch,
+      }, this.#crypto);
+      return createState({ ...current, revision: current.revision + 1, fence: current.fence + 1,
+        agents: current.agents.map((agent) => agent.agentId === input.agentId ? result! : agent),
+        logicalTimeHighWaterMs: input.logicalTimeMs, previousStateDigest: current.stateDigest }, this.#crypto);
+    });
+    return result!;
+  }
+
+  async #resume(input: GovernedAgentLineageStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1> {
+    identifier(input.agentId, "agentId");
+    integer(input.logicalTimeMs, "logicalTimeMs", 0, Number.MAX_SAFE_INTEGER);
+    if (!this.#restoreMembership) fail("agent membership restoration is unavailable");
+    const observed = (await this.#load()).agents.find(({ agentId }) => agentId === input.agentId);
+    if (!observed || observed.parentAgentId === null)
+      fail("agent resumption target is unavailable or is the root");
+    if (observed.status === "active") return observed;
+    if (observed.status !== "suspended") fail("only a suspended agent can be resumed");
+    const projection = projectSuspendedAgentToMembershipJoinV1(observed, input.activeKeyProof);
+    const restored = await this.#restoreMembership({ agent: observed, ...projection, logicalTimeMs: input.logicalTimeMs });
+    if (!restored.restored) fail("agent membership resumption was denied");
+    quorumDigest(restored.membershipConfigurationDigest, "resumptionMembershipConfigurationDigest");
+    integer(restored.membershipEpoch, "resumptionMembershipEpoch", 1, Number.MAX_SAFE_INTEGER);
+    if (observed.membershipEpoch === null ||
+        restored.membershipEpoch <= observed.membershipEpoch ||
+        restored.membershipConfigurationDigest === observed.membershipConfigurationDigest)
+      fail("agent resumption membership is not a certified successor");
+    let result: AgentLineageRecordV1 | null = null;
+    await this.#commit(input.logicalTimeMs, async (current) => {
+      const retained = current.agents.find(({ agentId }) => agentId === input.agentId);
+      if (!retained) fail("agent resumption lineage is unavailable");
+      if (retained.status === "active") { result = retained; return current; }
+      if (retained.status !== "suspended" || retained.lineageDigest !== observed.lineageDigest)
+        fail("agent resumption lineage changed");
+      result = await createLineageRecord({ ...retained, status: "active",
+        membershipConfigurationDigest: restored.membershipConfigurationDigest,
+        membershipEpoch: restored.membershipEpoch }, this.#crypto);
+      return createState({ ...current, revision: current.revision + 1, fence: current.fence + 1,
+        agents: current.agents.map((agent) => agent.agentId === input.agentId ? result! : agent),
+        logicalTimeHighWaterMs: input.logicalTimeMs, previousStateDigest: current.stateDigest }, this.#crypto);
+    });
+    return result!;
+  }
+
   async #enroll(
     input: GovernedAgentLineageEnrollInputV1,
   ): Promise<AgentLineageRecordV1> {
@@ -856,7 +967,11 @@ export class GovernedAgentLineageRuntimeV1 {
         );
         if (!retained || retained.status !== "pending_enrollment")
           fail("agent pending enrollment changed before reservation");
-        if (retained.enrollmentPhase !== null) return current;
+        if (
+          retained.enrollmentPhase !== null &&
+          retained.enrollmentPhase !== undefined
+        )
+          return current;
         const prepared = await createLineageRecord(
           {
             ...retained,
@@ -1686,6 +1801,20 @@ export function invokeGovernedAgentLineageEnrollV1(
   return lineageInvokers(runtime).enroll(input);
 }
 
+export function invokeGovernedAgentLineageSuspendV1(
+  runtime: GovernedAgentLineageRuntimeV1,
+  input: Parameters<GovernedAgentLineageRuntimeV1["suspend"]>[0],
+): ReturnType<GovernedAgentLineageRuntimeV1["suspend"]> {
+  return lineageInvokers(runtime).suspend(input);
+}
+
+export function invokeGovernedAgentLineageResumeV1(
+  runtime: GovernedAgentLineageRuntimeV1,
+  input: Parameters<GovernedAgentLineageRuntimeV1["resume"]>[0],
+): ReturnType<GovernedAgentLineageRuntimeV1["resume"]> {
+  return lineageInvokers(runtime).resume(input);
+}
+
 export function invokeGovernedAgentLineageTerminateV1(
   runtime: GovernedAgentLineageRuntimeV1,
   input: Parameters<GovernedAgentLineageRuntimeV1["terminate"]>[0],
@@ -2013,6 +2142,15 @@ export function projectAgentLineageToMembershipJoinV1(
       activeKeyProof,
     },
   });
+}
+
+export function projectSuspendedAgentToMembershipJoinV1(
+  agent: AgentLineageRecordV1,
+  activeKeyProof: CollectiveMembershipKeyProofV1,
+): ReturnType<typeof projectAgentLineageToMembershipJoinV1> {
+  if (agent.status !== "suspended") fail("agent is not suspended");
+  const pending = { ...agent, status: "pending_enrollment" as const };
+  return projectAgentLineageToMembershipJoinV1(pending, activeKeyProof);
 }
 
 async function createLineageRecord(
@@ -2469,7 +2607,7 @@ function validateDigestList(values: readonly string[], label: string): void {
 function identifier(value: unknown, label: string): asserts value is string {
   if (
     typeof value !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/.test(value)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/.test(value)
   )
     fail(`${label} invalid`);
 }

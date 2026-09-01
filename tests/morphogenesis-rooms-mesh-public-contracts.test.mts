@@ -1,0 +1,80 @@
+import {
+  projectMorphogenesisDiffToRoomArtifactV1,
+  projectMorphogenesisNeedToMeshV1,
+  projectMorphogenesisReceiptToRoomArtifactV1,
+  projectMorphogenesisStatusToRoomMessageV1,
+  MorphogenesisRoomParticipationPortV1,
+  MorphogenesisMeshPublisherV1,
+  MorphogenesisAdvancedMeshPublisherV2,
+  projectMorphogenesisOperatorPlanToRoomArtifactV2,
+  projectMorphogenesisOperatorStatusToRoomMessageV2,
+  projectMorphogenesisOperatorOutcomeToRoomArtifactV2,
+  type MorphogenesisMeshOperatorPlanProjectionV2,
+  MorphogenesisStrategyMeshPublisherV3,
+  projectMorphogenesisStrategySelectionToRoomArtifactV3,
+  projectMorphogenesisStrategyRecommendationToRoomArtifactV3,
+  projectMorphogenesisStrategyReviewToRoomMessageV3,
+  projectMorphogenesisStrategyTransitionToRoomArtifactV3,
+  projectMorphogenesisStrategyRecommendationToMeshV3,
+  MorphogenesisSynthesisMeshPublisherV5,
+  projectMorphogenesisSynthesisCandidateToMeshV5,
+  projectMorphogenesisSynthesisCandidateToRoomArtifactV5,
+  projectMorphogenesisSynthesisRecommendationToMeshV5,
+  projectMorphogenesisSynthesisRecommendationToRoomArtifactV5,
+  MorphogenesisAgentGenesisMeshPublisherV6,
+  projectMorphogenesisAgentGenesisDraftToMeshV6,
+  projectMorphogenesisAgentGenesisDraftToRoomArtifactV6,
+  projectMorphogenesisAgentGenesisRecommendationToMeshV6,
+  projectMorphogenesisAgentGenesisRecommendationToRoomArtifactV6,
+  type MorphogenesisStrategyMeshProjectionV3,
+  type MorphogenesisMeshNeedProjectionV1,
+  type MorphogenesisRoomArtifactProjectionV1,
+  type MorphogenesisRoomMessageProjectionV1,
+  type MorphogenesisRoomParticipationReceiptV1,
+  type MorphogenesisAuthenticatedMeshReceiptV1,
+  type MorphogenesisAuthenticatedMeshTransportV1,
+} from "@agentplat/rooms-mesh/morphogenesis";
+
+void projectMorphogenesisDiffToRoomArtifactV1;
+void projectMorphogenesisNeedToMeshV1;
+void projectMorphogenesisReceiptToRoomArtifactV1;
+void projectMorphogenesisStatusToRoomMessageV1;
+void MorphogenesisRoomParticipationPortV1;
+void MorphogenesisMeshPublisherV1;
+void MorphogenesisAdvancedMeshPublisherV2;
+void projectMorphogenesisOperatorPlanToRoomArtifactV2;
+void projectMorphogenesisOperatorStatusToRoomMessageV2;
+void projectMorphogenesisOperatorOutcomeToRoomArtifactV2;
+void MorphogenesisStrategyMeshPublisherV3;
+void projectMorphogenesisStrategySelectionToRoomArtifactV3;
+void projectMorphogenesisStrategyRecommendationToRoomArtifactV3;
+void projectMorphogenesisStrategyReviewToRoomMessageV3;
+void projectMorphogenesisStrategyTransitionToRoomArtifactV3;
+void projectMorphogenesisStrategyRecommendationToMeshV3;
+void MorphogenesisSynthesisMeshPublisherV5;
+void projectMorphogenesisSynthesisCandidateToMeshV5;
+void projectMorphogenesisSynthesisCandidateToRoomArtifactV5;
+void projectMorphogenesisSynthesisRecommendationToMeshV5;
+void projectMorphogenesisSynthesisRecommendationToRoomArtifactV5;
+void MorphogenesisAgentGenesisMeshPublisherV6;
+void projectMorphogenesisAgentGenesisDraftToMeshV6;
+void projectMorphogenesisAgentGenesisDraftToRoomArtifactV6;
+void projectMorphogenesisAgentGenesisRecommendationToMeshV6;
+void projectMorphogenesisAgentGenesisRecommendationToRoomArtifactV6;
+
+declare const mesh: MorphogenesisMeshNeedProjectionV1;
+declare const artifact: MorphogenesisRoomArtifactProjectionV1;
+declare const message: MorphogenesisRoomMessageProjectionV1;
+declare const participation: MorphogenesisRoomParticipationReceiptV1;
+declare const meshReceipt: MorphogenesisAuthenticatedMeshReceiptV1;
+declare const meshTransport: MorphogenesisAuthenticatedMeshTransportV1;
+declare const advancedMesh: MorphogenesisMeshOperatorPlanProjectionV2;
+declare const strategyMesh: MorphogenesisStrategyMeshProjectionV3;
+void mesh;
+void artifact;
+void message;
+void participation;
+void meshReceipt;
+void meshTransport;
+void advancedMesh;
+void strategyMesh;

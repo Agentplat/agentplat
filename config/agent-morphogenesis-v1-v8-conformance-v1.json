@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "suiteId": "agentplat-morphogenesis-v1-v8-conformance-v1",
+  "stages": ["v1_lifecycle", "v2_topology", "v3_local_strategy", "v4_collective_intelligence", "v5_strategy_synthesis", "v6_agent_genesis", "v7_organizational_evolution", "v8_constitutional_continuity"],
+  "scenarios": [
+    { "id": "complete", "expectedStatus": "completed" },
+    { "id": "crash-before-stage-effect", "expectedBehavior": "reconcile_same_operation_id" },
+    { "id": "partial-failure", "expectedStatus": "rolled_back" },
+    { "id": "mesh-partition", "expectedBehavior": "fail_closed" },
+    { "id": "constitutional-fork", "expectedBehavior": "isolate_without_authority_merge" },
+    { "id": "postgres-rollback", "expectedBehavior": "witness_rejects" }
+  ],
+  "claimBoundary": "source_conformance_only"
+}

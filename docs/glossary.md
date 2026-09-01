@@ -60,6 +60,18 @@ execution, recovery, continuity, adaptation and collective decisions.
 Source: [`@agentplat/collective-runtime`](../packages/collective-runtime/README.md),
 [Collective Runtime capability matrix](./collective-runtime/development-capability-matrix-v1.md).
 
+### AgentPlat Agent Morphogenesis
+
+The governed, mission-driven evolution of an agent collective's operational
+form through bounded successor epochs. Agent Morphogenesis turns authenticated
+evidence into an inert organizational-change proposal, routes the exact change
+through a policy-selected human, agent, local-policy, collective or composite
+decision, and coordinates existing lifecycle, membership, Team, individual
+Work, Action Gateway and evidence boundaries. It grants no authority itself.
+
+Source: [`@agentplat/collective-runtime/morphogenesis`](../packages/collective-runtime/README.md#agent-morphogenesis),
+[ADR 0046](./adr/0046-agent-morphogenesis.md).
+
 ### AgentPlat Agent Mesh
 
 An authenticated peer-to-peer coordination layer with bounded peer views,
@@ -354,4 +366,3 @@ Source: [`@agentplat/interop`](../packages/interop/README.md),
 - [AgentPlat specification v1](./specification/agentplat-spec-v1.md)
 - [Architecture](./architecture.md)
 - [Collective capability baseline](./collective-runtime/development-capability-matrix-v1.md)
-

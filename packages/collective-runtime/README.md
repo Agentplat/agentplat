@@ -24,6 +24,43 @@ void auditSink;
 void createCollective; // Configure runtime, agents and a plan before creating one.
 ```
 
+## Agent Morphogenesis
+
+`@agentplat/collective-runtime/morphogenesis` is the opt-in, provider-neutral
+future-baseline surface for governed mission-scoped organizational change. It
+exports bounded morphology observations, needs, targets and proposals;
+catalog, derived and independently certified synthesized instantiation
+profiles; human/agent/policy/collective decisions;
+budget and churn controls; the fixed Governed Durable Workflow definition;
+CAS-safe execution and morphology heads; continuity, fencing, retirement and
+final receipts; and in-memory reference stores.
+
+Application and host adapters continue to own authenticated discovery,
+identity/key material, profile certification, Agent Rooms, Agent Mesh,
+individual Work Contracts, Action Gateway effects and external resources.
+`@agentplat/collective-host/morphogenesis` composes the existing governed agent
+lifecycle and Team Formation APIs. Durable morphology state is available from
+`@agentplat/collective-host-postgres`; generic process state remains in
+`@agentplat/workflows-postgres` and Temporal remains a wakeup transport.
+
+See the [reference example](../../examples/agent-morphogenesis/README.md),
+[ADR 0046](../../docs/adr/0046-agent-morphogenesis.md), the [V2
+specification](../../docs/specification/agent-morphogenesis-v2.md) and [source
+acceptance checklist](../../docs/collective-runtime/agent-morphogenesis-v2-acceptance-checklist.md).
+
+### Strategy Adaptation V3
+
+Morphogenesis V3 specializes the existing bounded local strategy learner for
+proposal generation. It binds selection to an immutable generator and exact
+operator plan, converts only observed outcomes into the existing five-metric
+feedback contract, and governs promotion/degradation/retirement/rollback
+through independent agent, person or collective review. Counterfactual reports
+are reproducible advisory artifacts and never observed feedback.
+
+See [ADR 0047](../../docs/adr/0047-agent-morphogenesis-strategy-adaptation.md),
+the [V3 specification](../../docs/specification/agent-morphogenesis-v3.md) and
+[V3 threat model](../../docs/security/agent-morphogenesis-strategy-adaptation-threat-model.md).
+
 ```ts
 import { createCollective } from "@agentplat/collective-runtime";
 import { DefaultAgentRuntime } from "@agentplat/runtime";
@@ -854,6 +891,26 @@ reauthenticates applied authorizations and resumes pending operations through
 application-provided idempotent ports. Control output remains advisory until a
 separate reconfiguration port enacts the approved pause, restriction, role
 transition, reassignment, team adaptation or replanning action.
+
+Agent Morphogenesis is a distinct opt-in extension, not an alias for team
+adaptation. A policy must include `agent_morphogenesis` in
+`enabledExtensions`; control then emits `request_morphogenesis` with an exact
+`morphogenesisRequestDigest`, which prepares `enact_morphogenesis` through the
+ordinary durable outbox and authorization fence.
+`GovernedMissionMorphogenesisReconfigurationPortV2` delegates only that action
+to a provider-neutral Morphogenesis cycle port, verifies the Mission scope and
+authorization, requires an exact successful outcome and successor morphology
+epoch, and forwards every other reconfiguration to its existing owner.
+
+Advanced operator plans use `MorphogenesisOperatorExecutionRuntimeV2` for the
+forward journal primitive. Applications enter it through
+`GovernedMorphogenesisOperatorExecutionRuntimeV2`, which binds the exact
+proposal operation and Policy V2 to an approved decision plus a separately
+issued execution authorization and fence. `MorphogenesisOperatorCompensationRuntimeV2` provides a distinct
+pre-commit compensation journal. Compensation walks applied steps in reverse,
+uses stable operation IDs and reconciles ambiguous acknowledgements through the
+owning boundary. A completed execution is not eligible for this rollback path;
+post-commit failure remains an explicit successor recovery.
 
 The runtime enforces action, reconfiguration, transition and CAS budgets.
 Replanning, formation and execution changes return to their corresponding

@@ -1,0 +1,210 @@
+import {
+  digestPlanningJsonV1,
+  type PlanningDigestV1,
+  type PlanningJson,
+} from "@agentplat/collective-planning";
+import type { AgentPlatID } from "@agentplat/core";
+import type {
+  MorphogenesisConstitutionV8,
+  MorphogenesisConstitutionalAmendmentV8,
+} from "./morphogenesis-constitutional-continuity.js";
+export interface MorphogenesisConstitutionalVerificationPolicyV8 {
+  readonly schemaVersion: 8;
+  readonly policyId: AgentPlatID;
+  readonly policyVersion: number;
+  readonly minimumHistoryEpochs: number;
+  readonly maximumAuthorityCreepBps: number;
+  readonly maximumProviderCaptureBps: number;
+  readonly maximumModelCaptureBps: number;
+  readonly maximumGroupCaptureBps: number;
+  readonly maximumLineageCaptureBps: number;
+  readonly maximumDegradationBps: number;
+  readonly policyDigest: PlanningDigestV1;
+}
+export interface MorphogenesisConstitutionalEpochObservationV8 {
+  readonly schemaVersion: 8;
+  readonly constitutionalEpoch: number;
+  readonly constitutionDigest: PlanningDigestV1;
+  readonly organizationalLineageDigest: PlanningDigestV1;
+  readonly tenantId: AgentPlatID;
+  readonly missionIntentDigest: PlanningDigestV1;
+  readonly authorityCeilingDigest: PlanningDigestV1;
+  readonly evidenceBoundaryDigest: PlanningDigestV1;
+  readonly authorityCreepBps: number;
+  readonly providerCaptureBps: number;
+  readonly modelCaptureBps: number;
+  readonly groupCaptureBps: number;
+  readonly lineageCaptureBps: number;
+  readonly degradationBps: number;
+  readonly evidenceDigests: readonly PlanningDigestV1[];
+  readonly observationDigest: PlanningDigestV1;
+}
+export interface MorphogenesisConstitutionalProofV8 {
+  readonly schemaVersion: 8;
+  readonly proofId: AgentPlatID;
+  readonly currentConstitutionDigest: PlanningDigestV1;
+  readonly successorConstitutionDigest: PlanningDigestV1;
+  readonly amendmentDigest: PlanningDigestV1;
+  readonly observationDigests: readonly PlanningDigestV1[];
+  readonly disposition: "satisfied" | "violated" | "inconclusive";
+  readonly violationCodes: readonly AgentPlatID[];
+  readonly verifierImplementationDigest: PlanningDigestV1;
+  readonly verifiedAtLogicalMs: number;
+  readonly grantsAuthority: false;
+  readonly proofDigest: PlanningDigestV1;
+}
+export function createMorphogenesisConstitutionalVerificationPolicyV8(
+  i: Omit<MorphogenesisConstitutionalVerificationPolicyV8, "policyDigest">,
+) {
+  const b = freeze({
+    ...i,
+    schemaVersion: 8 as const,
+    policyId: id(i.policyId),
+    policyVersion: pos(i.policyVersion),
+    minimumHistoryEpochs: pos(i.minimumHistoryEpochs),
+    maximumAuthorityCreepBps: bps(i.maximumAuthorityCreepBps),
+    maximumProviderCaptureBps: bps(i.maximumProviderCaptureBps),
+    maximumModelCaptureBps: bps(i.maximumModelCaptureBps),
+    maximumGroupCaptureBps: bps(i.maximumGroupCaptureBps),
+    maximumLineageCaptureBps: bps(i.maximumLineageCaptureBps),
+    maximumDegradationBps: bps(i.maximumDegradationBps),
+  });
+  return freeze({
+    ...b,
+    policyDigest: dg("morphogenesis-constitutional-verification-policy-v8", b),
+  });
+}
+export function createMorphogenesisConstitutionalEpochObservationV8(
+  i: Omit<
+    MorphogenesisConstitutionalEpochObservationV8,
+    "schemaVersion" | "observationDigest"
+  >,
+) {
+  const b = freeze({
+    ...i,
+    schemaVersion: 8 as const,
+    constitutionalEpoch: pos(i.constitutionalEpoch),
+    constitutionDigest: sha(i.constitutionDigest),
+    organizationalLineageDigest: sha(i.organizationalLineageDigest),
+    tenantId: id(i.tenantId),
+    missionIntentDigest: sha(i.missionIntentDigest),
+    authorityCeilingDigest: sha(i.authorityCeilingDigest),
+    evidenceBoundaryDigest: sha(i.evidenceBoundaryDigest),
+    authorityCreepBps: bps(i.authorityCreepBps),
+    providerCaptureBps: bps(i.providerCaptureBps),
+    modelCaptureBps: bps(i.modelCaptureBps),
+    groupCaptureBps: bps(i.groupCaptureBps),
+    lineageCaptureBps: bps(i.lineageCaptureBps),
+    degradationBps: bps(i.degradationBps),
+    evidenceDigests: shas(i.evidenceDigests),
+  });
+  return freeze({
+    ...b,
+    observationDigest: dg(
+      "morphogenesis-constitutional-epoch-observation-v8",
+      b,
+    ),
+  });
+}
+export function verifyMorphogenesisConstitutionalAmendmentV8(i: {
+  readonly proofId: AgentPlatID;
+  readonly current: MorphogenesisConstitutionV8;
+  readonly amendment: MorphogenesisConstitutionalAmendmentV8;
+  readonly history: readonly MorphogenesisConstitutionalEpochObservationV8[];
+  readonly policy: MorphogenesisConstitutionalVerificationPolicyV8;
+  readonly verifierImplementationDigest: PlanningDigestV1;
+  readonly logicalTimeMs: number;
+}) {
+  const h = i.history
+      .map((x) => createMorphogenesisConstitutionalEpochObservationV8(x))
+      .sort((a, b) => a.constitutionalEpoch - b.constitutionalEpoch),
+    codes = [] as AgentPlatID[];
+  if (h.length < i.policy.minimumHistoryEpochs)
+    codes.push("insufficient_history");
+  for (const x of h) {
+    if (x.tenantId !== i.current.tenantId) codes.push("tenant_substitution");
+    if (x.missionIntentDigest !== i.current.missionIntentDigest)
+      codes.push("mission_drift");
+    if (x.evidenceBoundaryDigest !== i.current.evidenceBoundaryDigest)
+      codes.push("evidence_boundary_drift");
+    if (x.authorityCreepBps > i.policy.maximumAuthorityCreepBps)
+      codes.push("authority_creep");
+    if (x.providerCaptureBps > i.policy.maximumProviderCaptureBps)
+      codes.push("provider_capture");
+    if (x.modelCaptureBps > i.policy.maximumModelCaptureBps)
+      codes.push("model_capture");
+    if (x.groupCaptureBps > i.policy.maximumGroupCaptureBps)
+      codes.push("group_capture");
+    if (x.lineageCaptureBps > i.policy.maximumLineageCaptureBps)
+      codes.push("lineage_capture");
+    if (x.degradationBps > i.policy.maximumDegradationBps)
+      codes.push("cumulative_degradation");
+  }
+  const unique = freeze([...new Set(codes)].sort()),
+    disposition = unique.length
+      ? unique.length === 1 && unique[0] === "insufficient_history"
+        ? "inconclusive"
+        : "violated"
+      : "satisfied";
+  const b = freeze({
+    schemaVersion: 8 as const,
+    proofId: id(i.proofId),
+    currentConstitutionDigest: i.current.constitutionDigest,
+    successorConstitutionDigest:
+      i.amendment.successorConstitution.constitutionDigest,
+    amendmentDigest: i.amendment.amendmentDigest,
+    observationDigests: freeze(h.map((x) => x.observationDigest)),
+    disposition,
+    violationCodes: unique,
+    verifierImplementationDigest: sha(i.verifierImplementationDigest),
+    verifiedAtLogicalMs: nn(i.logicalTimeMs),
+    grantsAuthority: false as const,
+  });
+  return freeze({
+    ...b,
+    proofDigest: dg("morphogenesis-constitutional-proof-v8", b),
+  });
+}
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-=]{0,255}$/u,
+  SHA = /^sha256:[0-9a-f]{64}$/u;
+function id(v: unknown) {
+  if (typeof v !== "string" || !ID.test(v))
+    throw new TypeError("constitutional verification ID invalid");
+  return v as AgentPlatID;
+}
+function sha(v: unknown) {
+  if (typeof v !== "string" || !SHA.test(v))
+    throw new TypeError("constitutional verification digest invalid");
+  return v as PlanningDigestV1;
+}
+function pos(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 1)
+    throw new TypeError("constitutional verification integer invalid");
+  return v as number;
+}
+function nn(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 0)
+    throw new TypeError("constitutional verification integer invalid");
+  return v as number;
+}
+function bps(v: unknown) {
+  if (!Number.isSafeInteger(v) || (v as number) < 0 || (v as number) > 10000)
+    throw new TypeError("constitutional verification bps invalid");
+  return v as number;
+}
+function shas(v: readonly unknown[]) {
+  const r = [...new Set(v.map(sha))].sort();
+  if (!r.length || r.length !== v.length)
+    throw new TypeError("constitutional verification evidence invalid");
+  return freeze(r);
+}
+function dg(d: string, v: unknown) {
+  return digestPlanningJsonV1(d as never, v as PlanningJson);
+}
+function freeze<T>(v: T): T {
+  if (v && typeof v === "object" && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const x of Object.values(v as Record<string, unknown>)) freeze(x);
+  }
+  return v;
+}

@@ -6,6 +6,7 @@ import type {
   CollectiveMembershipChangeV1,
   CollectiveMembershipClockV1,
   CollectiveMembershipConfigurationV1,
+  CollectiveMembershipKeyProofV1,
   CollectiveMembershipMemberV1,
   CollectiveMembershipRegistryV1,
 } from "./contracts.js";
@@ -23,6 +24,8 @@ import {
   invokeGovernedAgentLineageEnrollV1,
   invokeGovernedAgentLineageLoadV1,
   invokeGovernedAgentLineageReconcileRetirementV1,
+  invokeGovernedAgentLineageResumeV1,
+  invokeGovernedAgentLineageSuspendV1,
   invokeGovernedAgentLineageTerminateV1,
   isGovernedAgentLineageRuntimeV1,
 } from "./agent-lineage.js";
@@ -44,7 +47,7 @@ export interface GovernedAgentEligibilityDecisionV1 {
 export interface GovernedAgentLifecycleTelemetryPortV1 {
   record(event: {
     readonly category: "membership";
-    readonly operation: "agent.activated" | "agent.retired";
+    readonly operation: "agent.activated" | "agent.retired" | "agent.suspended" | "agent.resumed";
     readonly outcome: "completed";
     readonly logicalTimeMs: number;
     readonly operationDigest: string;
@@ -212,6 +215,38 @@ export class ReferenceAgentMembershipEnrollmentPortV1 implements AgentMembership
     });
   }
 
+  async restore(
+    input: Parameters<NonNullable<AgentMembershipEnrollmentPortV1["restore"]>>[0],
+  ) {
+    if (input.agent.status !== "suspended" || input.change.kind !== "join" ||
+        input.change.peerId !== input.agent.peerId ||
+        input.member.peerId !== input.agent.peerId ||
+        input.member.instanceId !== input.agent.instanceId)
+      throw new TypeError("governed agent restoration binding is invalid");
+    const current = this.#currentMembership();
+    const existing = current.members.find(({ peerId }) => peerId === input.agent.peerId);
+    if (existing) {
+      if (!sameMember(existing, input.member))
+        throw new Error("governed agent restoration conflicts with an active peer");
+      return Object.freeze({
+        restored: true as const,
+        membershipConfigurationDigest: current.configurationDigest,
+        membershipEpoch: current.epoch,
+      });
+    }
+    const next = await this.#nextConfiguration(current, [...current.members, input.member]);
+    const proposal = await this.#proposal(current, next, input.change);
+    const certificate = await this.#transition(proposal);
+    if (!certificate || certificate.proposal.nextConfiguration.configurationDigest !== next.configurationDigest ||
+        certificate.proposal.nextConfiguration.epoch !== next.epoch)
+      throw new Error("governed agent membership restoration was not certified");
+    return Object.freeze({
+      restored: true as const,
+      membershipConfigurationDigest: next.configurationDigest,
+      membershipEpoch: next.epoch,
+    });
+  }
+
   #enrollmentSuccessor(
     input: Parameters<AgentMembershipEnrollmentPortV1["enroll"]>[0],
   ): Awaited<ReturnType<AgentMembershipEnrollmentPortV1["enroll"]>> | null {
@@ -365,6 +400,12 @@ type GovernedAgentRetirementV1 = {
   readonly retiredAtLogicalMs: number;
 };
 
+type GovernedAgentStatusInputV1 = {
+  readonly peerId: string;
+  readonly logicalTimeMs: number;
+  readonly activeKeyProof?: CollectiveMembershipKeyProofV1;
+};
+
 type GovernedAgentEligibilityInputV1 = {
   readonly peerId: string;
   readonly instanceId?: string;
@@ -387,6 +428,10 @@ interface GovernedAgentLifecycleInvokersV1 {
   reconcileRetirement(
     input: GovernedAgentRetirePeerInputV1,
   ): Promise<GovernedAgentRetirementV1>;
+  suspendPeer(input: GovernedAgentStatusInputV1): Promise<AgentLineageRecordV1>;
+  resumePeer(input: GovernedAgentStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1>;
   eligibility(
     input: GovernedAgentEligibilityInputV1,
   ): Promise<GovernedAgentEligibilityDecisionV1>;
@@ -446,6 +491,10 @@ export class GovernedAgentLifecycleRuntimeV1 {
         this.#retirePeer(input),
       reconcileRetirement: (input: GovernedAgentRetirePeerInputV1) =>
         this.#reconcileRetirement(input),
+      suspendPeer: (input: GovernedAgentStatusInputV1) => this.#suspendPeer(input),
+      resumePeer: (input: GovernedAgentStatusInputV1 & {
+        readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+      }) => this.#resumePeer(input),
       eligibility: (input: GovernedAgentEligibilityInputV1) =>
         this.#eligibility(input),
     });
@@ -459,6 +508,8 @@ export class GovernedAgentLifecycleRuntimeV1 {
       ),
       retirePeer: immutableInvoker(invokers.retirePeer),
       reconcileRetirement: immutableInvoker(invokers.reconcileRetirement),
+      suspendPeer: immutableInvoker(invokers.suspendPeer),
+      resumePeer: immutableInvoker(invokers.resumePeer),
       eligibility: immutableInvoker(invokers.eligibility),
     });
   }
@@ -534,6 +585,51 @@ export class GovernedAgentLifecycleRuntimeV1 {
     input: GovernedAgentRetirePeerInputV1,
   ): Promise<GovernedAgentRetirementV1> {
     return lifecycleInvokers(this).reconcileRetirement(input);
+  }
+
+  async suspendPeer(input: GovernedAgentStatusInputV1): Promise<AgentLineageRecordV1> {
+    return invokeGovernedAgentLifecycleSuspendPeerV1(this, input);
+  }
+
+  async resumePeer(input: GovernedAgentStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1> {
+    return invokeGovernedAgentLifecycleResumePeerV1(this, input);
+  }
+
+  async #suspendPeer(input: GovernedAgentStatusInputV1): Promise<AgentLineageRecordV1> {
+    const state = await invokeGovernedAgentLineageLoadV1(this.#lineage);
+    const agent = state.agents.find(({ peerId }) => peerId === input.peerId);
+    if (!agent) throw new Error("governed agent peer is unknown");
+    const suspended = await invokeGovernedAgentLineageSuspendV1(this.#lineage, {
+      agentId: agent.agentId,
+      logicalTimeMs: input.logicalTimeMs,
+    });
+    await bestEffortTelemetry(this.#recordTelemetry, {
+      category: "membership", operation: "agent.suspended", outcome: "completed",
+      logicalTimeMs: input.logicalTimeMs, operationDigest: suspended.lineageDigest,
+      evidenceDigests: [suspended.membershipConfigurationDigest!, suspended.lineageDigest].sort(),
+    });
+    return suspended;
+  }
+
+  async #resumePeer(input: GovernedAgentStatusInputV1 & {
+    readonly activeKeyProof: CollectiveMembershipKeyProofV1;
+  }): Promise<AgentLineageRecordV1> {
+    const state = await invokeGovernedAgentLineageLoadV1(this.#lineage);
+    const agent = state.agents.find(({ peerId }) => peerId === input.peerId);
+    if (!agent) throw new Error("governed agent peer is unknown");
+    const resumed = await invokeGovernedAgentLineageResumeV1(this.#lineage, {
+      agentId: agent.agentId,
+      activeKeyProof: input.activeKeyProof,
+      logicalTimeMs: input.logicalTimeMs,
+    });
+    await bestEffortTelemetry(this.#recordTelemetry, {
+      category: "membership", operation: "agent.resumed", outcome: "completed",
+      logicalTimeMs: input.logicalTimeMs, operationDigest: resumed.lineageDigest,
+      evidenceDigests: [resumed.membershipConfigurationDigest!, resumed.lineageDigest].sort(),
+    });
+    return resumed;
   }
 
   async #reconcileRetirement(
@@ -734,6 +830,20 @@ export function invokeGovernedAgentLifecycleReconcileRetirementV1(
   input: Parameters<GovernedAgentLifecycleRuntimeV1["reconcileRetirement"]>[0],
 ): ReturnType<GovernedAgentLifecycleRuntimeV1["reconcileRetirement"]> {
   return lifecycleInvokers(runtime).reconcileRetirement(input);
+}
+
+export function invokeGovernedAgentLifecycleSuspendPeerV1(
+  runtime: GovernedAgentLifecycleRuntimeV1,
+  input: Parameters<GovernedAgentLifecycleRuntimeV1["suspendPeer"]>[0],
+): ReturnType<GovernedAgentLifecycleRuntimeV1["suspendPeer"]> {
+  return lifecycleInvokers(runtime).suspendPeer(input);
+}
+
+export function invokeGovernedAgentLifecycleResumePeerV1(
+  runtime: GovernedAgentLifecycleRuntimeV1,
+  input: Parameters<GovernedAgentLifecycleRuntimeV1["resumePeer"]>[0],
+): ReturnType<GovernedAgentLifecycleRuntimeV1["resumePeer"]> {
+  return lifecycleInvokers(runtime).resumePeer(input);
 }
 
 /** Invokes current-lineage eligibility without structural dispatch. */

@@ -127,6 +127,15 @@ current membership. The membership configuration in an agent-creation
 certificate is the quorum configuration that authorized creation; the joined
 agent becomes active in its certified successor epoch.
 
+The same composition owns governed suspension and resumption. `suspendPeer()`
+first obtains the certified membership successor that excludes the peer and
+then advances its lineage record from `active` to `suspended` with CAS.
+`resumePeer()` requires a fresh active-key proof, certifies re-admission of the
+same peer, instance and public-key material, and advances the record back to
+`active`. Retries reconcile membership history or the already-current member,
+so a crash between the external transition and lineage commit does not repeat
+the physical effect or invent a membership epoch.
+
 Both lineage and lifecycle runtimes use capability authenticity rather than
 structural typing at the closed composition boundary. A module-private nominal
 brand identifies instances constructed by the package, and module-owned

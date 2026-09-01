@@ -46,8 +46,8 @@ import {
   validateTeamProposalV1,
 } from "./team-formation-validation.js";
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
-const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
+const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const MEDIA_TYPE =
   /^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}\/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}$/u;

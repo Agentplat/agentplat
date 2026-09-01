@@ -20,6 +20,7 @@ const migrationNames = [
   "006_semantic_horizon_budgets",
   "007_assurance_effect_checkpoints",
   "008_autonomous_node_advances",
+  "009_morphogenesis_budget_reservations",
 ] as const;
 
 export const migrationDirectory = fileURLToPath(
@@ -88,6 +89,11 @@ async function migrations() {
       ...files[7],
       destructiveDown: true,
     },
+    {
+      version: 9,
+      ...files[8],
+      destructiveDown: true,
+    },
   ] as const;
 }
 
@@ -115,7 +121,7 @@ export async function getMigrationStatus(
 }
 
 export function rollbackConfirmation(schema = defaultPostgresSchema): string {
-  return postgresRollbackConfirmation(applicationId, schema, 8);
+  return postgresRollbackConfirmation(applicationId, schema, 9);
 }
 
 export async function rollbackMigrations(

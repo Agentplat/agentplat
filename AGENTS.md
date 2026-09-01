@@ -27,5 +27,4 @@ Use canonical AgentPlat terms. Prefer existing contracts and adapters over new p
 
 ## Canonical names
 
-AgentPlat Agent Room, AgentPlat Collaboration Protocol, AgentPlat Planner, AgentPlat Handoff, AgentPlat Collective Runtime, AgentPlat Agent Mesh, AgentPlat Inference Control and AgentPlat Evidence Boundary.
-
+AgentPlat Agent Room, AgentPlat Collaboration Protocol, AgentPlat Planner, AgentPlat Handoff, AgentPlat Collective Runtime, AgentPlat Agent Morphogenesis, AgentPlat Agent Mesh, AgentPlat Inference Control and AgentPlat Evidence Boundary.

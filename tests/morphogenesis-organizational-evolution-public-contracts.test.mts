@@ -1,0 +1,14 @@
+import {
+  createMorphogenesisOrganizationalCandidateV7,
+  createMorphogenesisOrganizationalEvolutionPolicyV7,
+  createMorphogenesisOrganizationalPatternV7,
+  type MorphogenesisOrganizationalCandidateV7,
+  type MorphogenesisOrganizationalEvolutionPolicyV7,
+  type MorphogenesisOrganizationalPatternV7,
+} from "@agentplat/collective-runtime/morphogenesis";
+void createMorphogenesisOrganizationalCandidateV7;
+void createMorphogenesisOrganizationalEvolutionPolicyV7;
+void createMorphogenesisOrganizationalPatternV7;
+declare const contracts: [MorphogenesisOrganizationalCandidateV7,
+  MorphogenesisOrganizationalEvolutionPolicyV7, MorphogenesisOrganizationalPatternV7];
+void contracts;

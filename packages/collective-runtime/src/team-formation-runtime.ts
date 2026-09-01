@@ -35,7 +35,7 @@ import {
 } from "./team-formation-validation.js";
 import { createTeamMemberContractBindingsV1 } from "./team-formation-adapters.js";
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 
 export class TeamFormationRuntimeV1 implements TeamFormationPortV1 {

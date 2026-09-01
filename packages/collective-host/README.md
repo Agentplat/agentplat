@@ -19,6 +19,21 @@ continue the ordinary planning path.
 
 ## Distributed runtime surfaces
 
+- `./morphogenesis-operator-adapters` maps advanced Agent Morphogenesis plans
+  onto existing governed boundaries. Its Membership adapter delegates
+  suspension and resumption to the nominal governed lifecycle, returns the
+  resulting configuration epoch/digest and lineage digest as an exact status
+  receipt, and requires active-key proof before re-admission.
+- `./morphogenesis` compiles catalog, derived and independently certified
+  synthesized instantiation profiles into the existing governed factory
+  request. Derived and synthesized material must carry a V2 binding over the
+  Morphogenesis operation, scope, proposal, profile, creation request and
+  creation certificate; the lifecycle adapter rejects material substitution
+  before invoking the provider-neutral factory or Membership boundary.
+- `./morphogenesis-strategy-memory` writes only scoped, content-free V3 recall
+  records into AgentPlat Memory. Memory remains non-authoritative; catalog and
+  governance state are validated at their owning CAS boundaries.
+
 - `./distributed-protocol` provides authenticated, causal message streams over
   a bounded sparse peer plane, with content-addressed artifacts and a durable
   at-least-once outbox. Its constructor captures scalar bindings and bound

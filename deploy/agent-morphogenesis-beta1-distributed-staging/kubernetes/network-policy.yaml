@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: morphogenesis-mesh
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: morphogenesis-mesh-peer
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: morphogenesis-mesh-peer
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: morphogenesis-campaign-controller
+      ports:
+        - protocol: TCP
+          port: 43101
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432

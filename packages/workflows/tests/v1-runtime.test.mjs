@@ -557,6 +557,37 @@ test("cancellation prevents pending work and compensates succeeded tasks once", 
   assert.equal(calls.length, 2);
 });
 
+test("inactive compensation stages do not fail a successful normal run", async () => {
+  const calls = [];
+  const definition = createProcessDefinitionV1({
+    processId: "process-normal-with-compensation",
+    version: "1",
+    name: "Normal process with dormant compensation",
+    stages: [
+      task("applied"),
+      task("complete", [{ stageId: "applied", outcomes: ["succeeded"] }]),
+      task("compensate", [], { compensationForStageId: "applied" }),
+    ],
+  });
+  const runner = new InMemoryProcessRunnerV1(undefined, {
+    taskExecutor: taskExecutor(calls),
+  });
+  await registerProcess(runner, definition);
+  const result = await runner.start(
+    startInput({ processId: definition.processId }),
+  );
+  assert.equal(result.run.status, "completed");
+  assert.deepEqual(
+    calls.map((call) => call.stageId),
+    ["applied", "complete"],
+  );
+  assert.equal(
+    result.run.stageStates.find(({ stageId }) => stageId === "compensate")
+      .status,
+    "blocked",
+  );
+});
+
 test("expired task lease takeover fences the old worker and preserves one settlement", async () => {
   const definition = createProcessDefinitionV1({
     processId: "process-a",

@@ -350,7 +350,7 @@ function requiredSelection(
 function token(value: unknown, label: string): string {
   if (
     typeof value !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(value)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(value)
   )
     throw new TypeError(`${label} is invalid`);
   return value;
