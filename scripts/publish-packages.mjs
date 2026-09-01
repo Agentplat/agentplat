@@ -23,12 +23,19 @@ export const PUBLIC_NPM_READ_ARGUMENTS = Object.freeze([
   '--prefer-online',
 ]);
 
+export function withoutNodeAuthToken(environment) {
+  const result = { ...environment };
+  delete result.NODE_AUTH_TOKEN;
+  return result;
+}
+
 export async function publishPackages({
   root = process.cwd(),
   environment = process.env,
 } = {}) {
   const distributionTag = environment.NPM_DIST_TAG ?? 'latest';
   const dryRun = environment.NPM_PUBLISH_DRY_RUN === '1';
+  const distributionTagEnvironment = withoutNodeAuthToken(environment);
   if (!/^[a-z][0-9a-z._-]*$/i.test(distributionTag)) {
     throw new TypeError(`Invalid npm distribution tag: ${distributionTag}`);
   }
@@ -263,7 +270,7 @@ export async function publishPackages({
         );
         if (!dryRun) {
           addDistributionTag({
-            environment,
+            environment: distributionTagEnvironment,
             packageName: name,
             root,
             tag: stagingTag,
@@ -328,7 +335,7 @@ export async function publishPackages({
       tag: distributionTag,
       addTag: ({ name, tag, version }) =>
         addDistributionTag({
-          environment,
+          environment: distributionTagEnvironment,
           packageName: name,
           root,
           tag,
@@ -336,7 +343,7 @@ export async function publishPackages({
         }),
       removeTag: ({ name, tag }) =>
         removeDistributionTag({
-          environment,
+          environment: distributionTagEnvironment,
           packageName: name,
           root,
           tag,
@@ -363,7 +370,7 @@ export async function publishPackages({
       for (const tag of [...stagingTags].sort()) {
         try {
           removeDistributionTag({
-            environment,
+            environment: distributionTagEnvironment,
             packageName: name,
             root,
             tag,
