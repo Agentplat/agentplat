@@ -38,7 +38,7 @@ import {
   validateTeamExecutionStepResultV1,
 } from "./team-execution-validation.js";
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 
 export class TeamExecutionRuntimeV1 implements TeamExecutionPortV1 {

@@ -334,7 +334,7 @@ export class InMemoryTeamStructureObservationAdmissionPortV1 implements TeamStru
 function stringId(input: unknown, label: string): string {
   if (
     typeof input !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input)
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(input)
   )
     throw new TypeError(`${label} is invalid`);
   return input;

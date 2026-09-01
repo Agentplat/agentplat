@@ -618,7 +618,7 @@ function canonicalDigests(values: readonly PlanningDigestV1[], label: string): v
 }
 
 function identifier(value: unknown, label: string): asserts value is string {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/.test(value)) fail(`${label} invalid`);
+  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/.test(value)) fail(`${label} invalid`);
 }
 
 function planningDigest(value: unknown, label: string): asserts value is PlanningDigestV1 {

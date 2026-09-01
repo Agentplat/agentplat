@@ -34,9 +34,9 @@ export class GeminiModelAdapter implements ModelAdapter {
         'ADAPTER_ERROR',
         'A fetch implementation is required by the Gemini adapter'
       );
-    this.baseURL = (
+    this.baseURL = trimTrailingSlashes(
       options.baseURL ?? 'https://generativelanguage.googleapis.com/v1beta'
-    ).replace(/\/+$/, '');
+    );
   }
   async generate(
     request: ModelRequest,
@@ -151,6 +151,12 @@ export class GeminiModelAdapter implements ModelAdapter {
   private async json(response: Response): Promise<JsonObject> {
     return object(await response.json()) ?? {};
   }
+}
+
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }
 export const gemini = (options: GeminiModelAdapterOptions = {}) =>
   new GeminiModelAdapter(options);

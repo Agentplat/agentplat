@@ -350,7 +350,7 @@ export function createMorphogenesisSuccessorRecoveryV1(input: {
   });
 }
 
-function id(value: unknown, label: string): AgentPlatID { if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(value)) fail(`${label} is invalid`); return value as AgentPlatID; }
+function id(value: unknown, label: string): AgentPlatID { if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(value)) fail(`${label} is invalid`); return value as AgentPlatID; }
 function sha(value: unknown, label: string): PlanningDigestV1 { if (typeof value !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value)) fail(`${label} is invalid`); return value as PlanningDigestV1; }
 function positive(value: unknown, label: string): number { const result = nonNegative(value, label); if (result < 1) fail(`${label} is invalid`); return result; } function nonNegative(value: unknown, label: string): number { if (!Number.isSafeInteger(value) || (value as number) < 0) fail(`${label} is invalid`); return value as number; }
 function digests(input: readonly unknown[], label: string, minimum: number): readonly PlanningDigestV1[] { if (!Array.isArray(input) || input.length < minimum || input.length > 4_096) fail(`${label} count is invalid`); const result = input.map((item) => sha(item, label)).sort(); if (new Set(result).size !== result.length) fail(`${label} contain duplicates`); return freeze(result); }

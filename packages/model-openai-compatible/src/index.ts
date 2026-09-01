@@ -69,7 +69,7 @@ export class OpenAICompatibleModelAdapter implements ModelAdapter {
   constructor(
     private readonly options: OpenAICompatibleModelAdapterOptions = {}
   ) {
-    this.baseURL = (options.baseURL ?? defaultBaseURL).replace(/\/+$/, '');
+    this.baseURL = trimTrailingSlashes(options.baseURL ?? defaultBaseURL);
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
     if (!this.fetchImplementation) {
       throw new AgentPlatError(
@@ -237,6 +237,12 @@ export class OpenAICompatibleModelAdapter implements ModelAdapter {
     }
     return apiKey?.trim() || undefined;
   }
+}
+
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }
 
 /** Create an OpenAI-compatible model adapter without `new`. */

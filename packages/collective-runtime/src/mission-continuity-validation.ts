@@ -15,7 +15,7 @@ import {
 } from "./mission-continuity-contracts.js";
 import { validateGovernedMissionStateV1 } from "./mission-lifecycle-validation.js";
 
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 const ACTIONS = new Set(["snapshot", "replicate", "checkpoint", "takeover"]);
 

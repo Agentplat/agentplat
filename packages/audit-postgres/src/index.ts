@@ -531,7 +531,7 @@ function validateTelemetryAnchor(anchor: CollectiveTelemetryAnchorV1): void {
 }
 
 function validateTelemetryIdentifier(value: string, label: string): void {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/.test(value))
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/.test(value))
     throw new TypeError(`collective telemetry ${label} is invalid`);
 }
 

@@ -440,7 +440,7 @@ function mapOutcome(value: MorphogenesisOperatorOutcomeReceiptV2["disposition"])
       : value === "indeterminate" ? "indeterminate" : "failure";
 }
 const OPERATORS = new Set(["recruit_existing", "instantiate_agent", "derive_agent", "realign_role", "reassign_work", "replace_agent", "split_team", "merge_teams", "federate_teams", "detach_agent", "suspend_agent", "resume_agent", "retire_agent"]);
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) fail("Morphogenesis strategy ID is invalid"); return value as AgentPlatID; }
 function sha(value: unknown): PlanningDigestV1 { if (typeof value !== "string" || !SHA.test(value)) fail("Morphogenesis strategy digest is invalid"); return value as PlanningDigestV1; }

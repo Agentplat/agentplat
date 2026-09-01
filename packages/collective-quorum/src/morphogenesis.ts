@@ -71,7 +71,7 @@ function exactStrategyPayload(input: Readonly<Record<string, unknown>>) {
   const recommendationDigest = digest(input.recommendationDigest);
   const actorMandateDigest = digest(input.actorMandateDigest);
   if (typeof input.independenceGroupId !== "string" ||
-      !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.independenceGroupId) ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(input.independenceGroupId) ||
       !["approved", "rejected"].includes(input.disposition as string) ||
       !Number.isSafeInteger(input.expiresAtLogicalMs))
     throw new TypeError("collective strategy review payload is invalid");
@@ -218,7 +218,7 @@ function exactPayload(input: Readonly<Record<string, unknown>>): {
       throw new TypeError("collective Morphogenesis digest is invalid");
   if (
     typeof input.independenceGroupId !== "string" ||
-    !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(
+    !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(
       input.independenceGroupId,
     ) ||
     !["approved", "rejected"].includes(input.disposition as string) ||

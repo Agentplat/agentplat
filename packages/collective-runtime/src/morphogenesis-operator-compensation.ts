@@ -308,7 +308,7 @@ function createState(input: Omit<MorphogenesisOperatorCompensationStateV2, "sche
   const body = Object.freeze({ schemaVersion: 2 as const, ...input });
   return Object.freeze({ ...body, stateDigest: digest("morphogenesis-operator-compensation-state-v2", body) });
 }
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) fail("Morphogenesis compensation ID is invalid"); return value as AgentPlatID; }
 function sha(value: unknown): PlanningDigestV1 { if (typeof value !== "string" || !SHA.test(value)) fail("Morphogenesis compensation digest is invalid"); return value as PlanningDigestV1; }

@@ -23,7 +23,7 @@ export const DEFAULT_COLLECTIVE_PEER_HOST_LIMITS_V1: CollectivePeerHostLimitsV1 
     maximumConcurrentDispatches: 1,
   });
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 
 export function assertHostIdentifierV1(value: unknown, name: string): string {

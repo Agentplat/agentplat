@@ -198,7 +198,7 @@ function exactKeys(input: object, expected: readonly string[]) {
 }
 
 function identifier(value: unknown, label: string) {
-  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(value))
+  if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(value))
     throw new TypeError(`${label} is invalid`);
 }
 

@@ -429,7 +429,7 @@ export function cancelTeamV1(input: {
   if (!team) fail("team is not available for cancellation");
   if (input.logicalTimeMs < state.logicalTimeHighWaterMs)
     fail("team cancellation logical time rolled back");
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.reasonCode))
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(input.reasonCode))
     fail("team cancellation reason is invalid");
   if (team.status === "cancelled") return freeze({ state, team });
   if (team.status === "completed" || team.status === "failed")

@@ -219,7 +219,10 @@ function channelKey(prefix: string, instanceId: string): string {
 }
 
 function normalizePrefix(value: string): string {
-  const normalized = value.trim().replace(/:+$/g, '');
+  const trimmed = value.trim();
+  let end = trimmed.length;
+  while (end > 0 && trimmed.charCodeAt(end - 1) === 58) end -= 1;
+  const normalized = trimmed.slice(0, end);
   if (!normalized || /\s/.test(normalized)) {
     throw new TypeError('prefix must be non-empty and contain no whitespace');
   }

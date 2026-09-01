@@ -12,7 +12,7 @@ import {
   validateTeamFormationRequestV1,
 } from "./team-formation-validation.js";
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 
 /** Public descriptor used to select and audit a formation strategy. */
 export interface TeamFormationStrategyDescriptorV1 {

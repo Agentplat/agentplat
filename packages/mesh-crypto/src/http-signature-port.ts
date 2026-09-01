@@ -33,7 +33,7 @@ export class HttpMeshExternalSignaturePortV1
     ) throw new TypeError('Mesh external signer endpoint must be credential-free HTTPS');
     if (
       typeof options.expectedKeyId !== 'string' ||
-      !/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(options.expectedKeyId)
+      !/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(options.expectedKeyId)
     ) throw new TypeError('Mesh external signer key ID is invalid');
     const timeoutMs = options.timeoutMs ?? 5_000;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 60_000)

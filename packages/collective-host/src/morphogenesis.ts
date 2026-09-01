@@ -265,7 +265,7 @@ export interface MorphogenesisAgentCreationMaterialBindingV2 {
 export function createMorphogenesisAgentCreationMaterialBindingV2(
   input: Omit<MorphogenesisAgentCreationMaterialBindingV2, "schemaVersion" | "bindingDigest">,
 ): MorphogenesisAgentCreationMaterialBindingV2 {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u.test(input.operationId))
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u.test(input.operationId))
     fail("agent creation material operation ID is invalid");
   const body = Object.freeze({
     schemaVersion: 2 as const,

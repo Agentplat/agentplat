@@ -39,7 +39,7 @@ import {
   type TargetMorphologyV1,
 } from "./morphogenesis-contracts.js";
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:@/+-= ]{0,511}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const CURRENCY = /^[A-Z][A-Z0-9]{2,11}$/u;

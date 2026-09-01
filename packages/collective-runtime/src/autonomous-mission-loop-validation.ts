@@ -14,7 +14,7 @@ import {
   type AutonomousMissionLoopStateV1,
 } from "./autonomous-mission-loop-contracts.js";
 
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 const ACTIONS = new Set(["transport", "plan", "execute", "wait"]);
 const STATUSES = new Set(["prepared", "applied", "deferred", "failed"]);

@@ -211,7 +211,7 @@ export function assertMorphogenesisControlWindowAllowsV1(input: {
 }
 
 function exact(input: unknown, keys: readonly string[], label: string): Record<string, unknown> { if (!input || typeof input !== "object" || Array.isArray(input)) fail(`${label} must be an object`); const prototype = Object.getPrototypeOf(input); if (prototype !== Object.prototype && prototype !== null) fail(`${label} must be a plain object`); const actual = Object.keys(input as object).sort(); const expected = [...keys].sort(); if (JSON.stringify(actual) !== JSON.stringify(expected)) fail(`${label} fields are invalid`); return input as Record<string, unknown>; }
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown, label: string): AgentPlatID { if (typeof value !== "string" || !IDENTIFIER.test(value)) fail(`${label} is invalid`); return value as AgentPlatID; }
 function sha(value: unknown, label: string): PlanningDigestV1 { if (typeof value !== "string" || !DIGEST.test(value)) fail(`${label} is invalid`); return value as PlanningDigestV1; }

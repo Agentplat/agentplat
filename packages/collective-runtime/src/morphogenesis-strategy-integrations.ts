@@ -248,7 +248,7 @@ export class InMemoryMorphogenesisStrategyMemoryPortV3
   }
 }
 
-const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+-=]{0,255}$/u;
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:@/+=-]{0,255}$/u;
 const SHA = /^sha256:[0-9a-f]{64}$/u;
 function id(value: unknown): AgentPlatID { if (typeof value !== "string" || !ID.test(value)) throw new TypeError("Morphogenesis strategy integration ID is invalid"); return value as AgentPlatID; }
 function sha(value: unknown): PlanningDigestV1 { if (typeof value !== "string" || !SHA.test(value)) throw new TypeError("Morphogenesis strategy integration digest is invalid"); return value as PlanningDigestV1; }
