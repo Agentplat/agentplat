@@ -36,7 +36,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:16-alpine
@@ -118,6 +118,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: node scripts/publish-packages.mjs
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
           NPM_PUBLISH_DRY_RUN: "0"
           NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
