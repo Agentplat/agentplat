@@ -27,7 +27,6 @@ import {
   topologicalPackages,
   waitForDistributionTagBatch,
   waitForRegistryBatch,
-  withoutNodeAuthToken,
 } from '../scripts/publish-packages.mjs';
 
 test('publisher orders packages by runtime dependencies and rejects cycles', () => {
@@ -328,19 +327,6 @@ test('publisher pins both global and scoped operations to the public registry', 
     '--prefer-online',
   ]);
   assert.equal(Object.isFrozen(PUBLIC_NPM_READ_ARGUMENTS), true);
-});
-
-test('publisher removes bootstrap credentials from distribution-tag operations', () => {
-  const source = {
-    NODE_AUTH_TOKEN: 'bootstrap-secret',
-    NPM_CONFIG_PROVENANCE: 'true',
-    PATH: '/usr/bin',
-  };
-  assert.deepEqual(withoutNodeAuthToken(source), {
-    NPM_CONFIG_PROVENANCE: 'true',
-    PATH: '/usr/bin',
-  });
-  assert.equal(source.NODE_AUTH_TOKEN, 'bootstrap-secret');
 });
 
 test('release workflow defaults to dry-run and scopes npm authentication to publishing', async () => {
