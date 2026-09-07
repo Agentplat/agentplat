@@ -59,10 +59,25 @@ jobs:
         run: |
           [[ "${RELEASE_RUN_ID}" =~ ^[1-9][0-9]{0,19}$ ]]
           [[ "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Load the trusted main-branch verification code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.source_commit }}
+          ref: main
           fetch-depth: 1
+          persist-credentials: false
+      - name: Bind requested source to the completed staged release
+        id: release
+        run: node scripts/verify-approved-release-source.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+      - name: Load the verified release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.release.outputs.source_commit }}
+          fetch-depth: 1
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24.20.0

@@ -48,7 +48,9 @@ The clean Beta 7 artifact set is built separately after all names are registered
 
 ## Preconditions observed during preparation
 
-- Local npm identity lookup returned E401: no authenticated publishing session.
+- The owner has multiple npm accounts. The isolated login must not be used for
+  publishing until the owner supplies the exact expected npm username and the
+  identity check matches it. GitHub identity does not establish npm identity.
 - Initial GitHub governance failed. The owner subsequently authorized a single
   self-reviewed Beta 7 release. Preparation configures the protected owner-review
   environment, SHA-pinned Actions and CODEOWNERS review, and replaces the permanent
@@ -77,3 +79,18 @@ Retain the read-only inventory, approved artifact manifest, source commit,
 workflow run ID and final registry consumer logs outside mutable source claims.
 See [RELEASING.md](../../RELEASING.md) and the
 [security boundary](../security/npm-release-security.md).
+
+## Bind the intended npm account
+
+Ask the owner for the exact npm username; never infer it from GitHub, a browser
+profile or an already-open npm session. Use a dedicated userconfig outside the
+repository and verify the identity immediately before any bootstrap operation:
+
+```sh
+node scripts/verify-npm-publisher-identity.mjs --expected-user "$EXPECTED_NPM_USER" --userconfig "$NPM_MAINTAINER_USERCONFIG"
+```
+
+The guard requires both explicit values and fails if `npm whoami` differs.
+Then separately verify access to `@agentplat` before publishing. Identity match
+alone is not proof of organization permissions or artifact approval. A login
+session by itself is not authorization to use that account.
