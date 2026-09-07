@@ -3,6 +3,19 @@
 Provider-neutral state, input and effect contracts for independently executing
 AgentPlat peers.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The additive `@agentplat/mesh/overlay` subpath supplies the sparse collective
 scale V2 runtime. It derives `O(log N)` active and reserve peer views on demand,
 refreshes a local view from caller-certified exclusions, and propagates

@@ -4,6 +4,19 @@ Bounded, Fetch-compatible HTTP transport for already signed Agentplat Mesh
 envelopes. Importing or constructing a client/handler starts no server, performs
 no discovery and opens no network connection.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-http@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```ts
 import {
   createMeshHttpClient,

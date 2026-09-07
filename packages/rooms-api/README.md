@@ -5,6 +5,19 @@ package contains no database, runtime, or web-server choice: applications
 inject a `RoomService` and mount the returned Hono app in their preferred
 server.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/rooms-api@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```ts
 import { createRoomsApp } from "@agentplat/rooms-api";
 

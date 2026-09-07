@@ -4,6 +4,19 @@ Optional Temporal transport for durable Agent Room coordination. Agent Room
 state, leases, operation IDs and recovery remain owned by `@agentplat/rooms`
 and its stores; Temporal supplies wakeups, activity retry and history rollover.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/rooms-temporal@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 Applications bind `runCoordinationCycle` to their
 `AgentRoomCoordinationRuntime`, bundle `agentRoomCoordinationWorkflow` in a
 Temporal worker and call `TemporalAgentRoomCoordinationAdapter.notify` after a

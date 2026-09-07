@@ -6,6 +6,19 @@ and transactional sequence allocators whose idempotency-key allocations survive
 process restarts. It also provides `PostgresCognitiveDurableOperationStoreV2`
 for effect-capable heterogeneous cognitive adapters.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/interop-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```ts
 import {
   PostgresGovernedInteropSessionStoreV1,
@@ -31,7 +44,10 @@ const outboundSequences = new PostgresInteropOutboundSequenceStoreV1(
 );
 const inboundIdempotency = new PostgresInteropIdempotencyStoreV1(pool, custody);
 const inboundSequences = new PostgresInteropSequenceStoreV1(pool, custody);
-const cognitiveStore = new PostgresCognitiveDurableOperationStoreV2(pool, custody);
+const cognitiveStore = new PostgresCognitiveDurableOperationStoreV2(
+  pool,
+  custody,
+);
 
 const governed = createReferenceGovernedInteropRuntimeV1({
   // client, lifecycle, capabilityProfile, roleProfile, router, ...

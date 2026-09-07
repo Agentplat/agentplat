@@ -2,6 +2,19 @@
 
 Infrastructure-neutral Agent Room domain contracts and lifecycle services.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/rooms@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 `RoomService` coordinates room state, participants, messages, tasks, artifacts,
 approvals, policy checks, bounded context and durable domain events. Storage,
 agent execution and event delivery are injected through public interfaces.

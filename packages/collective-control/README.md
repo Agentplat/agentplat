@@ -3,6 +3,19 @@
 Opt-in, provider-neutral contracts for locally governed delegation, work,
 budgets, revocation and protected effects.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-control@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```sh
 pnpm add @agentplat/collective-control@next
 ```

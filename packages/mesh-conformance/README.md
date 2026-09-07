@@ -4,6 +4,19 @@ Provider-neutral compatibility runners for Agentplat Mesh implementations and
 adapters. The package performs no work on import, reads no ambient credentials
 and never creates or destroys resources without a caller factory.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-conformance@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The root export owns the closed capability, case and report contracts.
 `./protocol`, `./transport`, `./durability`, `./rooms`, `./control` and
 `./planning` expose bounded runners. A passing report describes only the exact

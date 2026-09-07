@@ -2,6 +2,19 @@
 
 Transactional PostgreSQL persistence for `@agentplat/collective-sync`.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-sync-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The repository stores append-only causal records, exact point reads,
 compare-and-set stream heads, resumable session cursors, receipts, and catch-up
 certificates for one exact peer instance. Records and head advancement commit

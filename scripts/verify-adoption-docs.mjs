@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { loadPublicPackageCatalog } from "./public-package-catalog.mjs";
 import { readFile, access, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -82,3 +83,19 @@ for (const [directory, names] of Object.entries(exportsToCheck)) {
 console.log(
   `Adoption structure verified: ${documents.length} documents and public runtime exports. This is not a maturity certification.`,
 );
+
+if (manifest.version.includes("-")) {
+  const packageCatalog = await loadPublicPackageCatalog(root);
+  for (const entry of packageCatalog.packages.filter(
+    (entry) => entry.publish,
+  )) {
+    const readme = await read(`${entry.directory}/README.md`);
+    assert.ok(
+      readme.includes(`\nnpm install ${entry.name}@next\n`),
+      `${entry.name}: README must state the preview installation command explicitly`,
+    );
+  }
+  console.log(
+    "Verified explicit @next installation instructions for every public package.",
+  );
+}

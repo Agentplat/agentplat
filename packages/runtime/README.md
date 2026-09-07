@@ -2,6 +2,19 @@
 
 Provider-neutral agent runtime contracts and a small executable runtime.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/runtime@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 `DefaultAgentRuntime` registers provider adapters by platform, dispatches runs and streams provider events. Model-provider adapters are separate packages so applications can choose their own providers and credential strategy.
 
 `ChatAgentProvider` adapts the lower-level `@agentplat/model` contract to one

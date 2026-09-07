@@ -4,6 +4,19 @@ Signed, provider-neutral peer quorum protocols for `CollectivePeerNodeRuntimeV1`
 The package supplies the two production ports that the peer node deliberately
 leaves open:
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-quorum@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 - assignment confirmation requires a semantic attestation from the owner and
   a strict majority of configured witnesses over the same acceptance, lease,
   assignment epoch and fencing token;
