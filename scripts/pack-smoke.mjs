@@ -64,7 +64,10 @@ const blockedTerms = await loadExternalTerminologyDenylist({
   filePath: process.env.AGENTPLAT_PUBLIC_DENYLIST_FILE,
 });
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-pack-'));
-const tarballRoot = path.join(temporaryRoot, 'tarballs');
+const suppliedTarballRoot = process.env.AGENTPLAT_PREPACKED_TARBALL_DIRECTORY;
+const tarballRoot = suppliedTarballRoot
+  ? path.resolve(suppliedTarballRoot)
+  : path.join(temporaryRoot, 'tarballs');
 const extractionRoot = path.join(temporaryRoot, 'extracted');
 const alpha5ExtractionRoot = path.join(temporaryRoot, 'alpha5-source');
 const alpha5ArchivePath = path.join(temporaryRoot, 'alpha5-source.tar');
@@ -72,7 +75,7 @@ const consumerRoot = path.join(temporaryRoot, 'consumer');
 
 try {
   await Promise.all([
-    mkdir(tarballRoot, { recursive: true }),
+    ...(suppliedTarballRoot ? [] : [mkdir(tarballRoot, { recursive: true })]),
     mkdir(extractionRoot, { recursive: true }),
     mkdir(alpha5ExtractionRoot, { recursive: true }),
   ]);
@@ -90,18 +93,22 @@ try {
   );
   execFileSync('tar', ['-xf', alpha5ArchivePath, '-C', alpha5ExtractionRoot]);
 
-  for (const packageEntry of packageEntries) {
-    execFileSync(
-      'corepack',
-      ['pnpm', 'pack', '--pack-destination', tarballRoot],
-      {
-        cwd: path.join(root, packageEntry.directory),
-        stdio: 'pipe',
-      }
-    );
+  if (!suppliedTarballRoot) {
+    for (const packageEntry of packageEntries) {
+      execFileSync(
+        'corepack',
+        ['pnpm', 'pack', '--pack-destination', tarballRoot],
+        {
+          cwd: path.join(root, packageEntry.directory),
+          stdio: 'pipe',
+        }
+      );
+    }
   }
 
-  const tarballs = (await readdir(tarballRoot)).sort();
+  const tarballs = (await readdir(tarballRoot))
+    .filter((entry) => entry.endsWith('.tgz'))
+    .sort();
   assert.equal(tarballs.length, packageEntries.length);
 
   const overrides = {};
@@ -246,8 +253,8 @@ try {
         {
           name: 'agentplat-pack-smoke-workspace',
           private: true,
-          packageManager: 'pnpm@8.10.0',
-          pnpm: { overrides },
+          packageManager:
+            'pnpm@11.25.0+sha512.5cde925b4f075f725eb71fbae18a42ffe784524789f19b61c731cb8721ec28aaee160e01a8d5af4fedb2a42cdbf300efe23db356b0d4a17b4d63e11f8ab7c956',
         },
         null,
         2
@@ -281,6 +288,12 @@ try {
         "  - 'trust'",
         "  - 'mesh-adapters-alpha5'",
         "  - 'alpha5-contracts'",
+        '',
+        'overrides:',
+        ...Object.entries(overrides).map(
+          ([packageName, tarballReference]) =>
+            `  ${JSON.stringify(packageName)}: ${JSON.stringify(tarballReference)}`
+        ),
         '',
       ].join('\n')
     ),

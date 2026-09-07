@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added progressive adoption guides, a component maturity reference and a
+  guided proposal API demo with human revision, real process recovery and
+  explicit protected-action checks. Existing library defaults remain unchanged.
+- Added adoption documentation/integration verification and an external
+  developer pilot protocol; participant validation remains pending.
+
 - Added the opt-in `@agentplat/collective-runtime/morphogenesis` future-baseline
   surface for bounded morphology observation, exact proposals, policy-selected
   human/agent/collective decisions, catalog-backed lifecycle composition,

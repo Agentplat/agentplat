@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dist_tag:
-        description: npm distribution tag
+        description: npm distribution tag assigned after staged approval
         required: true
         default: next
         type: choice
@@ -12,7 +12,7 @@ on:
           - next
           - latest
       dry_run:
-        description: simulate publishing without changing npm registry state
+        description: prepare and verify immutable tarballs without staging them
         required: false
         default: true
         type: boolean
@@ -27,16 +27,17 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: release-packages
   cancel-in-progress: false
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:16-alpine
@@ -57,8 +58,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
+          node-version: 24.20.0
+          package-manager-cache: false
       - run: corepack enable
       - name: Install dependencies without registry credentials
         run: pnpm install --frozen-lockfile
@@ -80,14 +81,12 @@ jobs:
       - name: Run release audit and full verification
         run: |
           pnpm run audit:public:release
+          pnpm run audit:dependencies:production
           if [ "${{ inputs.scope }}" = "public-consumer" ]; then
             pnpm --filter @agentplat/collective-runtime... --filter @agentplat/audit... build
             pnpm --filter @agentplat/collective-runtime --filter @agentplat/audit type-check
-            pnpm run verify:public-consumer
           else
             pnpm run check
-          fi
-          if [ "${{ inputs.scope }}" = "all" ]; then
             pnpm run verify:mesh-postgres-faults
             pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
             pnpm run benchmark:mesh-adapters
@@ -100,63 +99,59 @@ jobs:
           PGDATABASE: agentplat_release
           PGUSER: agentplat_release
           PGPASSWORD: agentplat_release
-      - name: Dry-run package publication
-        if: ${{ inputs.dry_run }}
-        run: node scripts/publish-packages.mjs
+      - name: Prepare immutable npm release artifacts
+        run: node scripts/prepare-npm-release-artifacts.mjs
         env:
+          AGENTPLAT_RELEASE_ARTIFACT_DIRECTORY: release-artifacts
+          AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED: ${{ vars.AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED }}
           NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: "1"
           NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
-      - name: Publish packages
-        if: ${{ !inputs.dry_run }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-      - name: Publish packages with npm trusted publishing
-        if: ${{ !inputs.dry_run }}
-        run: node scripts/publish-packages.mjs
+      - name: Verify the exact release artifacts
+        run: |
+          if [ "${{ inputs.scope }}" = "public-consumer" ]; then
+            pnpm run verify:public-consumer
+          else
+            pnpm run verify:pack
+          fi
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_DIST_TAG: ${{ inputs.dist_tag }}
-          NPM_PUBLISH_DRY_RUN: "0"
-          NPM_PACKAGE_SCOPE: ${{ inputs.scope }}
-          NPM_CONFIG_PROVENANCE: "true"
-      - name: Use Node 20 for pnpm registry consumer
-        if: ${{ !inputs.dry_run }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
-      - name: Verify exact packages from a Node 20 pnpm registry consumer
-        if: ${{ !inputs.dry_run }}
-        run: pnpm run verify:registry-consumer
-        env:
-          AGENTPLAT_REGISTRY_CONSUMER_PM: pnpm
-          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: portable
+          AGENTPLAT_PREPACKED_TARBALL_DIRECTORY: ${{ github.workspace }}/release-artifacts
           NPM_CONFIG_USERCONFIG: /dev/null
-      - name: Verify exact packages from a PostgreSQL durable registry consumer
-        if: ${{ !inputs.dry_run }}
-        run: pnpm run verify:registry-consumer
-        env:
-          AGENTPLAT_REGISTRY_CONSUMER_PM: pnpm
-          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: postgres
-          NPM_CONFIG_USERCONFIG: /dev/null
-          PGHOST: 127.0.0.1
-          PGPORT: "5432"
-          PGDATABASE: agentplat_release
-          PGUSER: agentplat_release
-          PGPASSWORD: agentplat_release
+      - name: Upload immutable npm release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-release-${{ github.sha }}-${{ inputs.scope }}-${{ inputs.dist_tag }}
+          path: release-artifacts/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+          include-hidden-files: false
+
+  stage:
+    if: ${{ !inputs.dry_run }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        if: ${{ !inputs.dry_run }}
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-      - name: Verify exact packages from a Node 22 npm registry consumer
-        if: ${{ !inputs.dry_run }}
-        run: node scripts/verify-registry-consumer.mjs
+          node-version: 24.20.0
+          package-manager-cache: false
+      - name: Download immutable npm release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-release-${{ github.sha }}-${{ inputs.scope }}-${{ inputs.dist_tag }}
+          path: release-artifacts
+      - name: Stage exact packages with npm trusted publishing
+        run: node scripts/stage-npm-release-artifacts.mjs
         env:
-          AGENTPLAT_REGISTRY_CONSUMER_PM: npm
-          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: portable
+          AGENTPLAT_RELEASE_ARTIFACT_DIRECTORY: release-artifacts
           NPM_CONFIG_USERCONFIG: /dev/null
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
