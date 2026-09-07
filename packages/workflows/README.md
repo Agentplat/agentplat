@@ -51,8 +51,10 @@ const definition = createProcessDefinitionV1({
 `InMemoryProcessRunnerV1` is browser-safe and intentionally makes no restart,
 multi-process, durable timer or exactly-once external-effect claim. Effectful
 executors must honor the stable task idempotency identity and protected effects
-still require the existing AgentPlat action boundary. PostgreSQL, Agent Room
-and Temporal adapters remain specified future increments.
+still require the existing AgentPlat action boundary. Durable integrations are available in `@agentplat/workflows-postgres`,
+`@agentplat/workflows-rooms` and `@agentplat/workflows-temporal`. See the
+[component maturity matrix](../../docs/component-maturity.md) for evidence and
+integration obligations; the in-memory runner itself remains non-durable.
 
 `@agentplat/workflows/outcomes` adds delayed outcome attribution, version-bound
 distribution summaries and a coverage monitor that distinguishes healthy,
