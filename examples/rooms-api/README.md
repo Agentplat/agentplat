@@ -11,6 +11,14 @@ injected in [`src/index.mjs`](./src/index.mjs), so applications can replace the
 database, runtime, event publisher, or HTTP authentication without changing
 the Room domain.
 
+## Guided proposal and adoption checks
+
+Start with the [persistent collaboration guide](../../docs/getting-started/persistent-collaboration.md)
+for two agents, human revision, artifact versions and inspection. `demo:proposal`
+uses the existing HTTP API; `demo:recover` interrupts a real worker and checks
+successor recovery; `demo:controls` checks explicit action controls against PostgreSQL.
+See [component maturity](../../docs/component-maturity.md) for evidence boundaries.
+
 ## Start with Docker
 
 Requirements: Docker Engine with Compose v2.
@@ -73,7 +81,8 @@ docker compose down --volumes
 
 ## Run directly on Node.js
 
-Requirements: Node.js 20+, pnpm 8+, and a reachable PostgreSQL instance.
+Requirements: Node.js 22.13+, the repository-pinned pnpm through Corepack,
+and a reachable PostgreSQL instance.
 From the repository root:
 
 ```sh

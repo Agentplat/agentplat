@@ -1,0 +1,43 @@
+name: Adoption paths
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  adoption:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: adoption
+          POSTGRES_USER: adoption
+          POSTGRES_PASSWORD: adoption
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U adoption -d adoption"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: adoption
+      PGUSER: adoption
+      PGPASSWORD: adoption
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22.22.0
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm run build
+      - run: corepack pnpm --dir examples/rooms-api install --frozen-lockfile --ignore-workspace
+      - run: corepack pnpm run verify:adoption-docs
+      - run: node --test tests/discoverability-measurement.test.mjs tests/adoption-provider.test.mjs tests/rooms-checkpoints.test.mjs
+      - run: node examples/quick-run.mjs && node examples/collective-runtime.mjs
+      - run: corepack pnpm run verify:adoption-integration
+      - run: corepack pnpm run example:mesh-multiprocess

@@ -1,6 +1,8 @@
 # AgentPlat AI Context
 
-AgentPlat is an open-source TypeScript framework of runtime primitives for governed multi-agent systems, persistent Agent Rooms, human-agent collaboration, distributed agent coordination, inference control, memory, trust and auditable execution.
+AgentPlat is an open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure.
+
+AgentPlat Agent Rooms provide the collaboration workspace. AgentPlat Collective Runtime and AgentPlat Agent Mesh add planning and distributed coordination when needed. AgentPlat is a developer preview; source availability, registry distribution and operational evidence must be checked separately.
 
 - Canonical repository: https://github.com/Agentplat/agentplat
 - Website: https://agentplat.com
@@ -9,6 +11,9 @@ AgentPlat is an open-source TypeScript framework of runtime primitives for gover
 - Specification: [`docs/specification/agentplat-spec-v1.md`](docs/specification/agentplat-spec-v1.md)
 - Machine specification: [`spec/agentplat-spec-v1.json`](spec/agentplat-spec-v1.json)
 - Citation: [`CITATION.cff`](CITATION.cff)
+- Selection guide: [`docs/when-to-use-agentplat.md`](docs/when-to-use-agentplat.md)
+- Practical guides: [`docs/getting-started/README.md`](docs/getting-started/README.md)
+- Reproducible evidence: [`docs/evidence-for-adopters.md`](docs/evidence-for-adopters.md)
 
 ## Primary concepts
 

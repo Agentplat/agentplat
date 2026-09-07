@@ -14,7 +14,10 @@
     "migrate": "node scripts/migrate.mjs",
     "demo": "bash scripts/demo.sh",
     "scenario": "node scripts/end-to-end.mjs",
-    "scenario:restart": "node scripts/restart-recovery.mjs"
+    "scenario:restart": "node scripts/restart-recovery.mjs",
+    "demo:proposal": "node scripts/proposal-demo.mjs",
+    "demo:recover": "node scripts/proposal-recovery.mjs",
+    "demo:controls": "node scripts/protected-action-demo.mjs"
   },
   "dependencies": {
     "@agentplat/events": "link:../../packages/events",
@@ -24,6 +27,7 @@
     "@agentplat/runtime": "link:../../packages/runtime",
     "@agentplat/runtime-mock": "link:../../packages/runtime-mock",
     "@hono/node-server": "^2.1.1",
-    "hono": "^4.13.5"
+    "hono": "^4.13.5",
+    "@agentplat/model-openai-compatible": "link:../../packages/model-openai-compatible"
   }
 }
