@@ -4,6 +4,7 @@ import { validateApprovedReleaseSource } from "../scripts/verify-approved-releas
 const fixture = () => ({
   expectedCommit: "a".repeat(40),
   expectedRunId: "123",
+  trustedMainCommit: "a".repeat(40),
   run: {
     id: 123,
     repository: { full_name: "Agentplat/agentplat" },
@@ -24,6 +25,7 @@ test("approved verifier accepts only a completed staged release from main", () =
 test("approved verifier rejects foreign commits, forks, workflows and unstaged runs", () => {
   for (const mutate of [
     (x) => (x.run.head_sha = "b".repeat(40)),
+    (x) => (x.trustedMainCommit = "b".repeat(40)),
     (x) => (x.run.head_branch = "attacker"),
     (x) => (x.run.head_repository.full_name = "someone/agentplat"),
     (x) => (x.run.repository.full_name = "someone/agentplat"),

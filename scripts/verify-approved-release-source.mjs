@@ -10,6 +10,7 @@ export function validateApprovedReleaseSource({
   jobs,
   expectedCommit,
   expectedRunId,
+  trustedMainCommit,
 }) {
   assert.match(expectedCommit, /^[0-9a-f]{40}$/);
   assert.match(String(expectedRunId), /^[1-9][0-9]{0,19}$/);
@@ -19,6 +20,11 @@ export function validateApprovedReleaseSource({
   assert.equal(run.event, "workflow_dispatch");
   assert.equal(run.head_branch, "main");
   assert.equal(run.head_sha, expectedCommit);
+  assert.equal(
+    trustedMainCommit,
+    expectedCommit,
+    "Release verification requires the reviewed source to remain at main HEAD",
+  );
   assert.equal(run.status, "completed");
   assert.equal(run.conclusion, "success");
   assert.equal(workflow.path, ".github/workflows/release.yml");
@@ -54,12 +60,18 @@ if (
     return JSON.parse(result.stdout);
   };
   const prefix = "repos/Agentplat/agentplat/actions";
+  const head = spawnSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  assert.equal(head.status, 0, "Unable to identify trusted main checkout");
   const sourceCommit = validateApprovedReleaseSource({
     run: api(`${prefix}/runs/${expectedRunId}`),
     workflow: api(`${prefix}/workflows/release.yml`),
     jobs: api(`${prefix}/runs/${expectedRunId}/jobs?per_page=100`).jobs,
     expectedCommit: process.env.SOURCE_COMMIT,
     expectedRunId,
+    trustedMainCommit: head.stdout.trim(),
   });
   assert.ok(process.env.GITHUB_OUTPUT);
   await appendFile(

@@ -104,7 +104,10 @@ GitHub artifact, downloads staged bytes and compares hashes before approving
 with 2FA. Independent review is the default; the owner-authorized Beta 7
 exception in the security boundary permits `douglas-grishen` to approve this
 specific release of his own code. Then run **Verify approved npm release** with the originating run ID,
-exact source commit, `scope=all` and `dist_tag=next`.
+exact source commit, `scope=all` and `dist_tag=next`. Keep that reviewed release
+commit at `main` HEAD until verification finishes. The verifier executes only
+the trusted `main` checkout and rejects a supplied commit that differs; it never
+checks out code selected by workflow input.
 
 ```sh
 corepack pnpm run verify:npm-distribution -- --require-complete
