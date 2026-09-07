@@ -4,7 +4,7 @@
 
 **Build applications where humans and agents work together, with persistent state, approvals, and controlled execution on your own infrastructure.**
 
-AgentPlat is an Apache-2.0 TypeScript framework. AgentPlat Agent Rooms give your application participants, messages, tasks, versioned artifacts, human contributions and approvals. Public adapters let you choose models, storage and execution infrastructure.
+AgentPlat is an open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure. AgentPlat Agent Rooms give your application participants, messages, tasks, versioned artifacts and human contributions. Apache-2.0 licensed public adapters let you choose models, storage and execution infrastructure.
 
 [Website](https://agentplat.com) · [Documentation](https://doc.agentplat.com) · [GitHub](https://github.com/Agentplat/agentplat)
 
@@ -32,6 +32,8 @@ Expected output: `Hello from the deterministic AgentPlat quick run.` This execut
 [Connect a real model](docs/getting-started/first-execution.md) when you are ready to make explicit provider calls.
 
 ## Choose your next step
+
+[When to use AgentPlat and alternatives](docs/when-to-use-agentplat.md) · [Evidence for adopters](docs/evidence-for-adopters.md)
 
 | Need                                                  | Start here                                                                                   | Infrastructure                      |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- |

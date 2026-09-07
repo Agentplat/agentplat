@@ -59,7 +59,10 @@ test("npm release governance reports every missing external control", () => {
   state.actionsPermissions.sha_pinning_required = false;
   state.mainBranchRules[0].parameters.require_code_owner_review = false;
   state.mainBranchRules[1].parameters.required_status_checks = [];
-  state.mainBranchRules.push({ type: "ruleset_bypass_actor", bypass_mode: "always" });
+  state.mainBranchRules.push({
+    type: "ruleset_bypass_actor",
+    bypass_mode: "always",
+  });
   assert.deepEqual(analyzeNpmReleaseGovernance(state).findings, [
     "npm_environment_admin_bypass_enabled",
     "npm_environment_independent_review_missing",
@@ -72,4 +75,31 @@ test("npm release governance reports every missing external control", () => {
     "main_release_check_not_required",
     "main_ruleset_permanent_bypass_present",
   ]);
+});
+
+test("owner self-review is limited to Beta 7 and the authorized single reviewer", () => {
+  const state = secureState();
+  state.releaseVersion = "0.3.0-beta.7";
+  state.environment.protection_rules[0].prevent_self_review = false;
+  state.environment.protection_rules[0].reviewers = [
+    { type: "User", reviewer: { login: "douglas-grishen" } },
+  ];
+  state.environmentVariables.variables.push(
+    { name: "AGENTPLAT_NPM_OWNER_REVIEW_VERSION", value: "0.3.0-beta.7" },
+    { name: "AGENTPLAT_NPM_OWNER_REVIEW_LOGIN", value: "douglas-grishen" },
+  );
+  assert.equal(analyzeNpmReleaseGovernance(state).status, "passed");
+  state.releaseVersion = "0.3.0-beta.8";
+  assert.ok(
+    analyzeNpmReleaseGovernance(state).findings.includes(
+      "npm_owner_review_exception_scope_mismatch",
+    ),
+  );
+  state.releaseVersion = "0.3.0-beta.7";
+  state.environment.protection_rules[0].reviewers[0].reviewer.login = "other";
+  assert.ok(
+    analyzeNpmReleaseGovernance(state).findings.includes(
+      "npm_environment_independent_review_missing",
+    ),
+  );
 });

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Prepared the coordinated 62-package `0.3.0-beta.7` release candidate because
+  the partially published Beta 6 cohort cannot replace immutable npm contents.
+  Added a read-only distribution readiness check and aligned the main CI build
+  toolchain with the release workflow. Publication remains gated by the exact
+  artifact review, first-package registration and staged 2FA approval.
+
 - Added progressive adoption guides, a component maturity reference and a
   guided proposal API demo with human revision, real process recovery and
   explicit protected-action checks. Existing library defaults remain unchanged.

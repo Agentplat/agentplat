@@ -1,151 +1,134 @@
 # Releasing AgentPlat packages
 
-AgentPlat uses a fixed version: every public package is released with the same
-semantic version. Prereleases use the same fixed version and an npm distribution
-tag other than `latest`.
+AgentPlat uses one exact version for every publishable package in
+`config/public-packages.json`. The current recovery candidate is
+`0.3.0-beta.7` across 62 packages, targeting **`next`**. It is not a stable
+release, and the tooling rejects preparing a prerelease for `latest`.
 
-`config/public-packages.json` is the intentional publication allowlist.
-Versioning, release verification, tarball smoke tests and publishing consume
-that catalog. A package directory that is absent from the catalog fails release
-verification rather than becoming publishable implicitly.
+The [npm release security boundary](docs/security/npm-release-security.md) is
+mandatory. Public staging tags from the legacy publisher are not private
+staging. The supported path prepares immutable tarballs, stages those exact
+bytes through OIDC, and requires separate maintainer review with 2FA.
 
-## Prepare a version
+## Check public distribution first
 
 ```sh
-corepack pnpm version:set 0.3.0-alpha.4
-corepack pnpm install
+corepack pnpm run verify:npm-distribution -- --output /tmp/agentplat-distribution.json
+```
+
+The read-only report distinguishes unregistered names, missing versions,
+misaligned tags, unresolved internal dependencies and unavailable registry
+reads. Use `--require-complete` after approval. This checks metadata; the clean
+registry consumers must also execute successfully.
+
+Beta 6 was only partially published. Comparing the current workflows tarball
+with published `0.3.0-beta.6` found different README contents; published versions
+cannot be replaced. Beta 7 preserves a fresh version for a coordinated release.
+See the [recovery runbook](docs/releases/npm-distribution-recovery.md).
+
+## Prepare reviewed source
+
+Requirements: Node.js 24.20.0 in CI, Corepack with the repository-pinned pnpm,
+and npm >=11.15.0 for staged publishing. Local source development requires
+Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
+
+Use a clean source commit. Preserve unrelated work and review the release diff
+before merging it into protected `main`. The release-line guard retains the
+historical Beta 6 cohort and explicitly admits the 62-package Beta 7 cohort.
+
+```sh
+corepack pnpm install --frozen-lockfile
 corepack pnpm run check
+corepack pnpm run verify:adoption-docs
 ```
 
-Commit the version and release notes before publishing. `verify:release` rejects
-mixed package versions and `verify:pack` installs the exact tarballs in clean,
-isolated, non-hoisted package consumers. Pack verification audits the extracted
-contents of every tarball, requires internal SemVer ranges that include the
-coordinated packed version, imports every declared package export independently,
-compiles TypeScript consumers against the packed declarations and runs the
-signed three-peer Mesh scenario, the dedicated inference-control scenario over
-all five public entrypoints, a Trust policy/profile/eligibility scenario across
-the Trust root and explicit Mesh/Inference Control Trust subpaths, and the
-unchanged aggregate functional consumer smoke test.
-
-## Source-development attestation assets
-
-For a release that represents the frozen collective capability baseline, create
-the source snapshot and signed bundle from the final clean release commit, then
-export the KMS public key. Attach all three external files to the GitHub release:
-
-1. `source-snapshot.json`;
-2. `source-attestation.json`; and
-3. `agentplat-release-ed25519-public.pem`.
-
-Use the commands in the [source capability attestation
-runbook](./docs/collective-runtime/source-attestation-runbook-v1.md). Include
-the canonical KMS key ID, public-key fingerprint and bundle digest in the
-release notes. These assets establish source-development closure only; they do
-not assert empirical validation or deployment approval.
-
-`pnpm check` also verifies the versioned 27-scenario Alpha 4 adversarial
-catalog. Every record binds its seed, bounded configuration, fault plan, trace,
-test evidence and first controlled divergence where applicable.
-
-Every release also requires a non-empty terminology denylist stored outside the
-checkout:
+Provide `AGENTPLAT_PUBLIC_DENYLIST_FILE` as the path to the real, non-empty
+terminology denylist outside the checkout. Never invent a placeholder list or
+copy its terms into the repository. In GitHub, the prepare job obtains it from
+the `AGENTPLAT_PUBLIC_DENYLIST` secret without exposing its contents.
 
 ```sh
-export AGENTPLAT_PUBLIC_DENYLIST_FILE=/absolute/path/to/terms.txt
 corepack pnpm run audit:public:release
+NPM_PACKAGE_SCOPE=all NPM_DIST_TAG=next corepack pnpm run release:prepare
 ```
 
-The GitHub release workflow reads the same content from the
-`AGENTPLAT_PUBLIC_DENYLIST` repository secret and writes it only to the runner's
-temporary directory.
-
-Evidence and Trust Alpha 4 is coordinated across exactly 30 packages. Its
-contracts and additional compatibility gates are documented in
-`docs/trust/alpha-4-implementation-plan.md` and
-`docs/trust/alpha-4-acceptance-checklist.md`.
-
-## Publish
-
-The `@agentplat` npm organization must exist and the publisher must have access
-to it. Authenticate with npm, then publish from a clean `main` checkout:
+`release-artifacts` must start empty. The resulting
+`npm-release-artifacts-v1.json` binds source commit, cohort, tag, tarball sizes
+and SHA-512 digests. Verify that exact set without repacking:
 
 ```sh
-npm whoami
-corepack pnpm run release:publish:next
+AGENTPLAT_PREPACKED_TARBALL_DIRECTORY=release-artifacts corepack pnpm run verify:pack
+```
+
+The full consumer audits extracted files, imports package exports independently,
+compiles public declarations and exercises the existing functional scenarios.
+A tarball built from a dirty working tree is not an approved release artifact.
+
+## Register missing names before staging
+
+npm cannot stage a brand-new package. The six missing names require a separate,
+interactive initial publication with 2FA, using reviewed bootstrap tarballs.
+Use the preceding Beta 6 version for that bootstrap; reserve Beta 7 for the
+complete staged cohort. Do not publish a bootstrap tarball as Beta 7 and then
+attempt to stage that same immutable version again.
+
+Bootstrap artifacts must come from a clean Beta 6 source commit and pass the
+same artifact audits. Their exact manifests must be reviewed before publishing.
+They do not satisfy Beta 7 provenance or distribution acceptance. Immediately
+configure stage-only trusted publishing and disallow publishing tokens for the
+new names. No bootstrap exception belongs in CI.
+
+## Stage the complete candidate
+
+Before a non-dry run, validate repository governance and complete the npm
+settings listed in the security boundary:
+
+```sh
+corepack pnpm run release:verify:governance
+```
+
+Run the GitHub **Release packages** workflow from protected `main`, choosing:
+
+- `scope=all` (the partial `public-consumer` scope cannot complete this release);
+- `dist_tag=next`;
+- `dry_run=true` first, then `false` only once all required configuration passes.
+
+The protected stage job requires OIDC and the confirmed stage-only publisher;
+it rejects npm write tokens. Local `release:publish` is not a shortcut around
+that boundary. Neither staging nor workflow success means the release is public.
+
+## Approve, verify and announce
+
+A maintainer reviews the whole staged cohort against the originating
+GitHub artifact, downloads staged bytes and compares hashes before approving
+with 2FA. Independent review is the default; the owner-authorized Beta 7
+exception in the security boundary permits `douglas-grishen` to approve this
+specific release of his own code. Then run **Verify approved npm release** with the originating run ID,
+exact source commit, `scope=all` and `dist_tag=next`.
+
+```sh
+corepack pnpm run verify:npm-distribution -- --require-complete
 corepack pnpm run verify:registry-consumer
-git tag -a v0.3.0-alpha.4 -m "Release 0.3.0-alpha.4"
-git push public v0.3.0-alpha.4
 ```
 
-The current `0.3.0-beta.5` cohort is a prerelease and must be promoted under
-`next`, never `latest`. External consumers pin exact versions, for example:
+The approval verifier checks integrity, registry signatures, provenance and tag
+state before running exact-version registry consumers. Announce only when all
+62 packages and checks pass. Update the maturity matrix with dated observations
+and preserve historical evidence. Do not equate publication with production
+readiness or external developer validation.
 
-```sh
-npm install @agentplat/collective-runtime@0.3.0-beta.5 @agentplat/audit@0.3.0-beta.5
-```
+A Git release tag and any stable `latest` promotion are separate release-owner
+steps after verification. Do not announce an incomplete cohort or repair byte
+mismatches by changing a tag.
 
-Do not create the Git tag if the exact-version registry consumer fails. The
-consumer pins the installer to the public registry, uses a fresh package store,
-ignores install scripts, and exposes neither credentials nor host npm
-configuration to downloaded code. It compiles the declarations, replays the
-signed three-peer scenario and exercises the inference-control exact-version
-and Trust exact-version consumers before the release commit is tagged.
+## Evidence and historical references
 
-Stable releases use `release:publish`, whose default distribution tag is
-`latest`. The release script rejects publishing a prerelease under `latest` and
-publishes only packages declared by the public catalog.
+For a release claiming frozen collective source-development closure, follow
+the [source attestation runbook](docs/collective-runtime/source-attestation-runbook-v1.md)
+and attach its source snapshot, signed attestation and public key. These are
+separate from npm provenance and do not establish empirical validation.
 
-Before the first registry mutation, the publisher:
-
-1. audits the complete checkout;
-2. packs every package in dependency order;
-3. computes each tarball's SHA-512 integrity;
-4. checks every version already present in the registry.
-
-Missing versions are uploaded under a commit-specific staging tag. A retry
-pins both global and `@agentplat` scope operations to the public npm registry,
-then compares registry and local tarball SHA-512 integrity. If archive bytes
-differ, the publisher downloads the registry artifact, verifies it against
-npm's advertised SHA-512, audits its extracted contents and compares the full
-package tree, with every file other than `package.json` checked byte-for-byte.
-JSON object key order in `package.json` is canonicalized with strict duplicate
-key and exact numeric-token handling; extra files, links, permission modes or
-any other content difference fail closed. The requested distribution tag is
-applied only after every cataloged package is present and verified. A failed
-final tag promotion or staging cleanup is safe to retry. All staging tags that
-point at the promoted version are removed afterward, and cleanup failure keeps
-the release workflow red.
-
-Missing packages are uploaded in dependency order without waiting for each
-individual name to propagate. The final verification polls the public registry
-with online-preferred reads and one shared ten-minute deadline for the batch,
-allowing independent package visibility to converge in parallel before any
-final tag is promoted.
-
-Exercise the same packing, ordering and registry-integrity preflight without
-uploading or changing tags:
-
-```sh
-NPM_PUBLISH_DRY_RUN=1 NPM_DIST_TAG=next \
-  corepack pnpm run release:publish
-```
-
-npm may assign `latest` automatically when a package name is published for the
-first time, even when an explicit staging tag is supplied. Treat a first
-publication as a coordinated maintenance window; subsequent releases do not
-move their final tag until the full set is verified.
-
-Alpha 4 introduces `@agentplat/trust`, so its first publication may receive
-`latest` even though the coordinated target is `next`. Record the observed tags
-as release evidence; do not treat that npm bootstrap behavior as a stable
-promotion of the 30-package cohort.
-
-Alternatively, configure the npm organization and run the manual `Release
-packages` GitHub Actions workflow with the intended distribution tag. After the
-first publication, configure npm Trusted Publishing for the workflow and remove
-long-lived publishing tokens. Never commit a token or place it in package
-metadata.
-
-The Alpha 4 promotion state, evidence and rollback baseline are recorded in the
-[Alpha 4 acceptance checklist](./docs/trust/alpha-4-acceptance-checklist.md).
+[Release channels](docs/release-channels.md),
+[historical Alpha 4 acceptance](docs/trust/alpha-4-acceptance-checklist.md), and
+[legacy staging-tag cleanup](docs/security/npm-release-security.md#legacy-staging-tag-cleanup)
+remain available. Preserve `latest`, `next` and package versions during cleanup.

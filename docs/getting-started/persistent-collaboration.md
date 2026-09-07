@@ -1,4 +1,4 @@
-# Persistent human-agent collaboration
+# Build persistent human-agent collaboration in TypeScript
 
 Recommended for TypeScript teams building internal platforms. The guided
 proposal uses two agents, research dependencies, a human revision request,

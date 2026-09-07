@@ -19,7 +19,7 @@ on:
       scope:
         description: Publication cohort
         required: true
-        default: public-consumer
+        default: all
         type: choice
         options:
           - public-consumer
@@ -152,6 +152,9 @@ jobs:
       - name: Stage exact packages with npm trusted publishing
         run: node scripts/stage-npm-release-artifacts.mjs
         env:
+          AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED: ${{ vars.AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED }}
+          AGENTPLAT_NPM_OWNER_REVIEW_VERSION: ${{ vars.AGENTPLAT_NPM_OWNER_REVIEW_VERSION }}
+          AGENTPLAT_NPM_OWNER_REVIEW_LOGIN: ${{ vars.AGENTPLAT_NPM_OWNER_REVIEW_LOGIN }}
           AGENTPLAT_RELEASE_ARTIFACT_DIRECTORY: release-artifacts
           NPM_CONFIG_USERCONFIG: /dev/null
           NPM_DIST_TAG: ${{ inputs.dist_tag }}

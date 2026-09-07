@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  matchesOwnerReviewException,
+  NPM_OWNER_REVIEW_EXCEPTION,
+} from "./npm-owner-review-exception.mjs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,8 +16,25 @@ export function analyzeNpmReleaseGovernance({
   repositorySecrets,
   actionsPermissions,
   mainBranchRules,
+  releaseVersion,
+  scope = "all",
+  distTag = "next",
 }) {
   const findings = [];
+  const variable = (name) =>
+    environmentVariables?.variables?.find((entry) => entry.name === name)
+      ?.value;
+  const ownerReviewVersion = variable("AGENTPLAT_NPM_OWNER_REVIEW_VERSION");
+  const ownerReviewLogin = variable("AGENTPLAT_NPM_OWNER_REVIEW_LOGIN");
+  const ownerException = matchesOwnerReviewException({
+    releaseVersion,
+    scope,
+    distTag,
+    ownerReviewVersion,
+    ownerReviewLogin,
+  });
+  if ((ownerReviewVersion || ownerReviewLogin) && !ownerException)
+    findings.push("npm_owner_review_exception_scope_mismatch");
   if (environment?.name !== "npm-production") {
     findings.push("npm_production_environment_missing");
   } else {
@@ -22,10 +44,22 @@ export function analyzeNpmReleaseGovernance({
     const reviewerRule = environment.protection_rules?.find(
       (rule) => rule.type === "required_reviewers",
     );
-    if (!reviewerRule || reviewerRule.prevent_self_review !== true) {
+    const ownerReviewer =
+      ownerException &&
+      reviewerRule?.reviewers?.length === 1 &&
+      reviewerRule.reviewers[0].type === "User" &&
+      reviewerRule.reviewers[0].reviewer?.login ===
+        NPM_OWNER_REVIEW_EXCEPTION.ownerLogin;
+    if (
+      !reviewerRule ||
+      (reviewerRule.prevent_self_review !== true && !ownerReviewer)
+    ) {
       findings.push("npm_environment_independent_review_missing");
     }
-    if (!Array.isArray(reviewerRule?.reviewers) || reviewerRule.reviewers.length === 0) {
+    if (
+      !Array.isArray(reviewerRule?.reviewers) ||
+      reviewerRule.reviewers.length === 0
+    ) {
       findings.push("npm_environment_reviewer_missing");
     }
     if (
@@ -45,14 +79,21 @@ export function analyzeNpmReleaseGovernance({
     }
   }
 
-  const secretNames = new Set(repositorySecrets?.secrets?.map((secret) => secret.name));
+  const secretNames = new Set(
+    repositorySecrets?.secrets?.map((secret) => secret.name),
+  );
   if (secretNames.has("NPM_TOKEN")) findings.push("legacy_npm_token_present");
   if (actionsPermissions?.sha_pinning_required !== true) {
     findings.push("github_actions_sha_pinning_not_required");
   }
 
-  const pullRequestRule = mainBranchRules?.find((rule) => rule.type === "pull_request");
-  if (!pullRequestRule || pullRequestRule.parameters?.require_code_owner_review !== true) {
+  const pullRequestRule = mainBranchRules?.find(
+    (rule) => rule.type === "pull_request",
+  );
+  if (
+    !pullRequestRule ||
+    pullRequestRule.parameters?.require_code_owner_review !== true
+  ) {
     findings.push("main_code_owner_review_not_required");
   }
   const statusRule = mainBranchRules?.find(
@@ -69,6 +110,20 @@ export function analyzeNpmReleaseGovernance({
     findings.push("main_ruleset_permanent_bypass_present");
   }
 
+  if (
+    mainBranchRules?.some(
+      (rule) =>
+        rule.bypass_mode === "pull_request" &&
+        !(
+          ownerException &&
+          rule.actor_type === "User" &&
+          rule.actor_id === 207043696
+        ),
+    )
+  ) {
+    findings.push("main_ruleset_unapproved_review_bypass");
+  }
+
   return Object.freeze({
     schemaVersion: 1,
     kind: "agentplat-npm-release-governance-v1",
@@ -78,10 +133,9 @@ export function analyzeNpmReleaseGovernance({
 }
 
 export function verifyNpmReleaseGovernance() {
-  const environment = ghApi(
-    `repos/${REPOSITORY}/environments/npm-production`,
-    { allow404: true },
-  );
+  const environment = ghApi(`repos/${REPOSITORY}/environments/npm-production`, {
+    allow404: true,
+  });
   const environmentVariables = ghApi(
     `repos/${REPOSITORY}/environments/npm-production/variables`,
     { allow404: true },
@@ -97,6 +151,8 @@ export function verifyNpmReleaseGovernance() {
       ...(detail.bypass_actors ?? []).map((actor) => ({
         type: "ruleset_bypass_actor",
         bypass_mode: actor.bypass_mode,
+        actor_id: actor.actor_id,
+        actor_type: actor.actor_type,
       })),
     ];
   });
@@ -106,6 +162,11 @@ export function verifyNpmReleaseGovernance() {
     repositorySecrets,
     actionsPermissions,
     mainBranchRules: [...mainBranchRules, ...detailedRules],
+    releaseVersion: JSON.parse(
+      readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+    ).version,
+    scope: process.env.NPM_PACKAGE_SCOPE ?? "all",
+    distTag: process.env.NPM_DIST_TAG ?? "next",
   });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   assert.equal(
@@ -122,7 +183,11 @@ function ghApi(endpoint, { allow404 = false } = {}) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (allow404 && result.status === 1 && /HTTP 404|Not Found/iu.test(result.stderr)) {
+  if (
+    allow404 &&
+    result.status === 1 &&
+    /HTTP 404|Not Found/iu.test(result.stderr)
+  ) {
     return undefined;
   }
   if (result.error) throw result.error;

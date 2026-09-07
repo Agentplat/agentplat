@@ -12,9 +12,10 @@ unrelated release/CI work, was preserved. No model-provider spending occurred.
 
 The source install initially failed under Node 20 because the pinned pnpm 11
 requires Node 22.13+. The new source-adoption guides now state that requirement.
-The existing general CI configuration still selects Node 20 for its main job;
-that pre-existing release/CI work was not rewritten. The separate adoption job
-uses Node 22.22.0. Runtime package compatibility has not been changed.
+The initial adoption pass preserved the existing Node 20 general CI job.
+Release recovery subsequently aligned that job with the Node 24.20.0 release
+toolchain so pnpm 11 can start. The separate adoption job uses Node 22.22.0.
+Runtime package compatibility has not been changed.
 
 Docker was unavailable locally, so execution used the documented direct Node
 and PostgreSQL path. Compose configuration was not executed in this validation.

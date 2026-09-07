@@ -8,7 +8,9 @@ external configuration.
 
 No CI job may make an AgentPlat package publicly installable. CI may only place
 the exact reviewed tarballs into npm staged publishing. A maintainer who did not
-initiate the release must review those staged bytes and approve them with 2FA.
+initiate the release must normally review those staged bytes and approve them
+with 2FA. The owner-approved Beta 7 exception below is the sole exception to
+independent review; it does not waive byte review or 2FA.
 
 The release uses one artifact set:
 
@@ -116,3 +118,23 @@ node scripts/npm-staging-tag-hygiene.mjs \
 
 The tool targets only the fixed `agentplat-stage-` prefix and verifies that each
 removed tag is absent. Never provide an automation token for cleanup.
+
+## Owner-authorized Beta 7 review exception
+
+On 2026-09-07, the owner explicitly authorized approving this release of his
+own code. The exception is limited to `douglas-grishen`, `0.3.0-beta.7`, scope
+`all` and tag `next`. It is not a standing self-review policy.
+
+For this release only, `npm-production` has that single required reviewer,
+`prevent_self_review=false`, protected-branch deployment and no administrator
+bypass. The environment variables `AGENTPLAT_NPM_OWNER_REVIEW_VERSION` and
+`AGENTPLAT_NPM_OWNER_REVIEW_LOGIN` bind the exception to that version and owner.
+The stage script rejects any other version, scope, tag, initiator or rerun actor
+while these flags are present. npm approval still requires the owner's 2FA.
+
+The release PR may use a temporary owner-only `pull_request` review bypass;
+the separate `Protect main` ruleset retains the required `check` status with
+no bypass. Remove the temporary review bypass immediately after the release PR
+merges. After the release completes, restore independent environment review and
+remove both owner-exception variables before any subsequent release. Do not
+clear the variables while leaving self-review enabled.

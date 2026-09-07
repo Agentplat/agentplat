@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertStageReviewPolicy } from "./npm-owner-review-exception.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
@@ -83,6 +84,8 @@ export async function stageNpmReleaseArtifacts({
       .map((entry) => entry.name)
       .sort(compareAscii),
   });
+
+  assertStageReviewPolicy({ manifest, environment });
 
   const expectedFiles = [
     RELEASE_ARTIFACT_MANIFEST,

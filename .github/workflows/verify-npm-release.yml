@@ -22,7 +22,7 @@ on:
       scope:
         description: Approved publication cohort
         required: true
-        default: public-consumer
+        default: all
         type: choice
         options:
           - public-consumer
@@ -91,6 +91,9 @@ jobs:
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
           NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify complete coordinated public distribution
+        if: ${{ inputs.scope == 'all' }}
+        run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "${{ inputs.dist_tag }}"
       - name: Verify full registry cohort with pnpm
         if: ${{ inputs.scope == 'all' }}
         run: pnpm run verify:registry-consumer
