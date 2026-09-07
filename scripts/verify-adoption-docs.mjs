@@ -11,6 +11,14 @@ const guides = (await readdir(path.join(root, "docs/getting-started")))
   .map((f) => `docs/getting-started/${f}`);
 const documents = [
   "README.md",
+  "AI.md",
+  "docs/ai/context.md",
+  "docs/when-to-use-agentplat.md",
+  "docs/evidence-for-adopters.md",
+  "docs/discoverability/README.md",
+  "docs/discoverability/measurement.md",
+  "docs/discoverability/customer-case-template.md",
+  "docs/discoverability/validation.md",
   "CONTRIBUTING.md",
   "docs/component-maturity.md",
   "docs/capability-catalog.md",
