@@ -9,7 +9,7 @@ import {
   TRUST_PACKAGE_NAME,
 } from "../scripts/release-line.mjs";
 
-const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_5, BETA_6] =
+const [ALPHA_3, ALPHA_4, ALPHA_5, BETA_1, BETA_2, BETA_5, BETA_6, BETA_7] =
   RELEASE_LINES;
 
 test("release-line guard accepts the historical 29-package Alpha 3 cohort before Trust is cataloged", async (t) => {
@@ -263,3 +263,21 @@ async function createReleaseLineFixture({
   ]);
   return root;
 }
+
+test("release-line guard accepts Beta 7 without removing historical Beta 6", async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_7 });
+  t.after(() => rm(root, { force: true, recursive: true }));
+  assert.equal(await assertReleaseLine({ root }), true);
+});
+
+test("Beta 7 rejects an unknown 62-package release version", async (t) => {
+  const root = await createReleaseLineFixture({
+    line: BETA_7,
+    version: "0.3.0-beta.99",
+  });
+  t.after(() => rm(root, { force: true, recursive: true }));
+  await assert.rejects(
+    () => assertReleaseLine({ root }),
+    /requires root version/,
+  );
+});

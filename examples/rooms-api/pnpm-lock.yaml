@@ -1,52 +1,57 @@
-lockfileVersion: "6.0"
+lockfileVersion: '9.0'
 
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-dependencies:
-  "@agentplat/events":
-    specifier: link:../../packages/events
-    version: link:../../packages/events
-  "@agentplat/rooms":
-    specifier: link:../../packages/rooms
-    version: link:../../packages/rooms
-  "@agentplat/rooms-api":
-    specifier: link:../../packages/rooms-api
-    version: link:../../packages/rooms-api
-  "@agentplat/rooms-postgres":
-    specifier: link:../../packages/rooms-postgres
-    version: link:../../packages/rooms-postgres
-  "@agentplat/runtime":
-    specifier: link:../../packages/runtime
-    version: link:../../packages/runtime
-  "@agentplat/runtime-mock":
-    specifier: link:../../packages/runtime-mock
-    version: link:../../packages/runtime-mock
-  "@hono/node-server":
-    specifier: ^2.1.1
-    version: 2.1.1(hono@4.13.5)
-  hono:
-    specifier: ^4.13.5
-    version: 4.13.5
+importers:
+
+  .:
+    dependencies:
+      '@agentplat/events':
+        specifier: link:../../packages/events
+        version: link:../../packages/events
+      '@agentplat/model-openai-compatible':
+        specifier: link:../../packages/model-openai-compatible
+        version: link:../../packages/model-openai-compatible
+      '@agentplat/rooms':
+        specifier: link:../../packages/rooms
+        version: link:../../packages/rooms
+      '@agentplat/rooms-api':
+        specifier: link:../../packages/rooms-api
+        version: link:../../packages/rooms-api
+      '@agentplat/rooms-postgres':
+        specifier: link:../../packages/rooms-postgres
+        version: link:../../packages/rooms-postgres
+      '@agentplat/runtime':
+        specifier: link:../../packages/runtime
+        version: link:../../packages/runtime
+      '@agentplat/runtime-mock':
+        specifier: link:../../packages/runtime-mock
+        version: link:../../packages/runtime-mock
+      '@hono/node-server':
+        specifier: ^2.1.1
+        version: 2.1.1(hono@4.13.5)
+      hono:
+        specifier: ^4.13.5
+        version: 4.13.5
 
 packages:
-  /@hono/node-server@2.1.1(hono@4.13.5):
-    resolution:
-      {
-        integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==,
-      }
-    engines: { node: ">=20" }
+
+  '@hono/node-server@2.1.1':
+    resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
+    engines: {node: '>=20'}
     peerDependencies:
       hono: ^4
+
+  hono@4.13.5:
+    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
+    engines: {node: '>=16.9.0'}
+
+snapshots:
+
+  '@hono/node-server@2.1.1(hono@4.13.5)':
     dependencies:
       hono: 4.13.5
-    dev: false
 
-  /hono@4.13.5:
-    resolution:
-      {
-        integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==,
-      }
-    engines: { node: ">=16.9.0" }
-    dev: false
+  hono@4.13.5: {}

@@ -329,7 +329,7 @@ test('publisher pins both global and scoped operations to the public registry', 
   assert.equal(Object.isFrozen(PUBLIC_NPM_READ_ARGUMENTS), true);
 });
 
-test('release workflow defaults to dry-run and scopes npm authentication to publishing', async () => {
+test('release workflow verifies one artifact set before OIDC-only staged publishing', async () => {
   const workflow = await readFile(
     new URL('../.github/workflows/release.yml', import.meta.url),
     'utf8'
@@ -338,10 +338,16 @@ test('release workflow defaults to dry-run and scopes npm authentication to publ
     workflow,
     /dry_run:\n(?: {8}.+\n)* {8}default: true\n {8}type: boolean/
   );
-  assert.match(workflow, /name: Dry-run package publication/);
-  assert.match(workflow, /name: Publish packages/);
-  assert.equal(workflow.match(/NODE_AUTH_TOKEN:/g)?.length ?? 0, 1);
-  assert.match(workflow, /permissions:\n  contents: read\n  id-token: write/);
+  assert.equal(workflow.match(/NODE_AUTH_TOKEN:/g)?.length ?? 0, 0);
+  assert.equal(workflow.match(/NPM_TOKEN:/g)?.length ?? 0, 0);
+  assert.match(workflow, /prepare:\n {4}runs-on: ubuntu-latest/);
+  assert.match(workflow, /stage:\n {4}if: \$\{\{ !inputs\.dry_run \}\}\n {4}needs: prepare/);
+  assert.match(workflow, /environment: npm-production/);
+  assert.match(
+    workflow,
+    /AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED: \$\{\{ vars\.AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED \}\}/
+  );
+  assert.match(workflow, /permissions:\n {6}contents: read\n {6}id-token: write/);
   assert.match(
     workflow,
     /actions\/checkout@[0-9a-f]{40} # v7[\s\S]+actions\/setup-node@[0-9a-f]{40} # v7/
@@ -351,37 +357,35 @@ test('release workflow defaults to dry-run and scopes npm authentication to publ
     /concurrency:\n {2}group: release-packages\n {2}cancel-in-progress: false/
   );
 
-  const verificationStep = workflow.slice(
-    workflow.indexOf('name: Run release audit and full verification'),
-    workflow.indexOf('name: Dry-run package publication')
+  assert.match(workflow, /node-version: 24\.20\.0/g);
+  assert.doesNotMatch(workflow, /npm install --global/);
+  assert.match(workflow, /name: Prepare immutable npm release artifacts/);
+  assert.match(workflow, /name: Verify the exact release artifacts/);
+  assert.match(workflow, /AGENTPLAT_PREPACKED_TARBALL_DIRECTORY:/);
+  assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40} # v7\.0\.1/);
+  assert.match(workflow, /actions\/download-artifact@[0-9a-f]{40} # v8\.0\.1/);
+  assert.match(workflow, /node scripts\/stage-npm-release-artifacts\.mjs/);
+  assert.doesNotMatch(workflow, /npm publish|npm dist-tag/);
+  assert.ok((workflow.match(/NPM_CONFIG_USERCONFIG: \/dev\/null/g)?.length ?? 0) >= 5);
+});
+
+test('approved-release verification is read-only and binds the originating artifact', async () => {
+  const workflow = await readFile(
+    new URL('../.github/workflows/verify-npm-release.yml', import.meta.url),
+    'utf8'
   );
-  const dryRunStep = workflow.slice(
-    workflow.indexOf('name: Dry-run package publication'),
-    workflow.indexOf('name: Publish packages')
-  );
-  const publishStep = workflow.slice(
-    workflow.indexOf('name: Publish packages'),
-    workflow.indexOf('name: Verify exact packages')
-  );
-  assert.doesNotMatch(verificationStep, /NODE_AUTH_TOKEN/);
-  assert.doesNotMatch(dryRunStep, /NODE_AUTH_TOKEN/);
-  assert.match(verificationStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
-  assert.match(dryRunStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
-  assert.match(publishStep, /NPM_CONFIG_PROVENANCE: "true"/);
-  assert.match(
-    publishStep,
-    /NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/
-  );
-  assert.match(publishStep, /node-version: 24/);
-  assert.doesNotMatch(publishStep, /NPM_CONFIG_USERCONFIG: \/dev\/null/);
+  assert.match(workflow, /permissions:\n {2}actions: read\n {2}contents: read/);
+  assert.match(workflow, /run-id: \$\{\{ inputs\.release_run_id \}\}/);
   assert.match(
     workflow,
-    /name: Verify exact packages from a PostgreSQL durable registry consumer[\s\S]+AGENTPLAT_REGISTRY_CONSUMER_PROFILE: postgres/
+    /name: npm-release-\$\{\{ inputs\.source_commit \}\}-\$\{\{ inputs\.scope \}\}-\$\{\{ inputs\.dist_tag \}\}/
   );
-  assert.equal(
-    workflow.match(/NPM_CONFIG_USERCONFIG: \/dev\/null/g)?.length,
-    6
-  );
+  assert.match(workflow, /node scripts\/verify-npm-release-provenance\.mjs/);
+  assert.match(workflow, /AGENTPLAT_SOURCE_COMMIT: \$\{\{ inputs\.source_commit \}\}/);
+  assert.doesNotMatch(workflow, /id-token: write|NODE_AUTH_TOKEN|NPM_TOKEN|npm publish|npm stage publish/);
+  for (const reference of workflow.matchAll(/uses: [^@\n]+@([^\s]+)/g)) {
+    assert.match(reference[1], /^[0-9a-f]{40}$/u);
+  }
 });
 
 test('publisher preserves tarball permission modes independently of the process umask', async () => {

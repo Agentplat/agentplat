@@ -1,2 +1,20 @@
 packages:
-  - 'packages/*'
+  - "packages/*"
+
+overrides:
+  fast-uri: 3.1.6
+  hono: 4.12.34
+  ip-address: 10.4.0
+  "@hono/node-server": ">=1.19.15"
+  qs: 6.16.0
+
+# Registry packages may not introduce git, URL, tarball, file, or directory
+# dependencies transitively. Workspace links remain explicit in package manifests.
+blockExoticSubdeps: true
+
+# Unreviewed dependency lifecycle scripts are a release-supply-chain boundary.
+# Populate this map only for packages whose exact version and build behavior have
+# been reviewed. pnpm 11 fails the install when an undeclared build is observed.
+allowBuilds:
+  "@swc/core": true
+  protobufjs: true

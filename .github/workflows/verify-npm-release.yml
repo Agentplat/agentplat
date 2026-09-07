@@ -1,0 +1,136 @@
+name: Verify approved npm release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Workflow run ID that prepared and staged the artifact
+        required: true
+        type: string
+      source_commit:
+        description: Exact 40-character release commit
+        required: true
+        type: string
+      dist_tag:
+        description: Approved npm distribution tag
+        required: true
+        default: next
+        type: choice
+        options:
+          - next
+          - latest
+      scope:
+        description: Approved publication cohort
+        required: true
+        default: all
+        type: choice
+        options:
+          - public-consumer
+          - all
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agentplat_release_verify
+          POSTGRES_USER: agentplat_release_verify
+          POSTGRES_PASSWORD: agentplat_release_verify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentplat_release_verify -d agentplat_release_verify"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Validate immutable release inputs
+        shell: bash
+        env:
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          [[ "${RELEASE_RUN_ID}" =~ ^[1-9][0-9]{0,19}$ ]]
+          [[ "${SOURCE_COMMIT}" =~ ^[0-9a-f]{40}$ ]]
+      - name: Load the trusted main-branch verification code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Bind requested source to the completed staged release
+        id: release
+        run: node scripts/verify-approved-release-source.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.20.0
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        env:
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Download the exact staged artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release_run_id }}
+          name: npm-release-${{ inputs.source_commit }}-${{ inputs.scope }}-${{ inputs.dist_tag }}
+          path: release-artifacts
+      - name: Verify registry bytes, signatures, tag and provenance
+        run: node scripts/verify-npm-release-provenance.mjs
+        env:
+          AGENTPLAT_RELEASE_ARTIFACT_DIRECTORY: release-artifacts
+          AGENTPLAT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+          NPM_CONFIG_USERCONFIG: /dev/null
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
+      - name: Verify public-consumer registry cohort
+        if: ${{ inputs.scope == 'public-consumer' }}
+        run: pnpm run verify:public-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify complete coordinated public distribution
+        if: ${{ inputs.scope == 'all' }}
+        run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "${{ inputs.dist_tag }}"
+      - name: Verify full registry cohort with pnpm
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:registry-consumer
+        env:
+          AGENTPLAT_REGISTRY_CONSUMER_PM: pnpm
+          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: portable
+          NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify full durable registry cohort
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:registry-consumer
+        env:
+          AGENTPLAT_REGISTRY_CONSUMER_PM: pnpm
+          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: postgres
+          NPM_CONFIG_USERCONFIG: /dev/null
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_release_verify
+          PGUSER: agentplat_release_verify
+          PGPASSWORD: agentplat_release_verify
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: ${{ inputs.scope == 'all' }}
+        with:
+          node-version: 22.22.0
+          package-manager-cache: false
+      - name: Verify full registry cohort with npm
+        if: ${{ inputs.scope == 'all' }}
+        run: node scripts/verify-registry-consumer.mjs
+        env:
+          AGENTPLAT_REGISTRY_CONSUMER_PM: npm
+          AGENTPLAT_REGISTRY_CONSUMER_PROFILE: portable
+          NPM_CONFIG_USERCONFIG: /dev/null

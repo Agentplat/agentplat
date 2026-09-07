@@ -51,6 +51,12 @@ export const RELEASE_LINES = Object.freeze([
     releaseVersion: "0.3.0-beta.6",
     trustPackageCount: 1,
   }),
+  Object.freeze({
+    catalogPackageCount: 62,
+    id: "beta7",
+    releaseVersion: "0.3.0-beta.7",
+    trustPackageCount: 1,
+  }),
 ]);
 
 /**
@@ -68,20 +74,24 @@ export async function assertReleaseLine({
   const trustPackageCount = resolvedCatalog.packages.filter(
     (entry) => entry.name === TRUST_PACKAGE_NAME,
   ).length;
-  const line = RELEASE_LINES.find(
+  const resolvedRootManifest =
+    rootManifest ??
+    JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  const matchingLines = RELEASE_LINES.filter(
     (candidate) =>
       candidate.catalogPackageCount === resolvedCatalog.packages.length &&
       candidate.trustPackageCount === trustPackageCount,
   );
 
+  const line =
+    matchingLines.find(
+      (candidate) => candidate.releaseVersion === resolvedRootManifest.version,
+    ) ?? matchingLines[0];
   assert.ok(
     line,
-    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, or 62 Beta 6 packages with it exactly once`,
+    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, or 62 Beta 6/Beta 7 packages with it exactly once`,
   );
 
-  const resolvedRootManifest =
-    rootManifest ??
-    JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
   assert.equal(
     resolvedRootManifest.version,
     line.releaseVersion,

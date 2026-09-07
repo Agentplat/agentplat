@@ -37,6 +37,7 @@ import {
 } from '@agentplat/rooms-postgres';
 import { DefaultAgentRuntime } from '@agentplat/runtime';
 import { MockAgentProvider } from '@agentplat/runtime-mock';
+import { createProposalProvider } from './proposal-provider.mjs';
 
 function parsePort(value) {
   const port = Number(value ?? 3000);
@@ -59,6 +60,7 @@ const repository = new PostgresRoomRepository(pool);
 const eventBus = new InMemoryEventBus();
 const runtime = new DefaultAgentRuntime();
 runtime.registerProvider('mock', new MockAgentProvider());
+runtime.registerProvider('proposal', await createProposalProvider());
 
 const service = new RoomService({
   repository,

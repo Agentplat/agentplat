@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { assertPackedInternalDependencyRanges } from './packed-manifest.mjs';
@@ -19,23 +19,36 @@ const dependencyFields = Object.freeze([
 const records = await discoverWorkspacePackageManifests(root);
 const recordsByName = new Map(records.map((record) => [record.manifest.name, record]));
 const required = collectInternalClosure(targets, recordsByName);
+const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
+const registryVersion = JSON.parse(
+  await readFile(path.join(root, 'package.json'), 'utf8'),
+).version;
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-public-consumer-'));
-const tarballRoot = path.join(temporaryRoot, 'tarballs');
+const suppliedTarballRoot = process.env.AGENTPLAT_PREPACKED_TARBALL_DIRECTORY;
+const tarballRoot = suppliedTarballRoot
+  ? path.resolve(suppliedTarballRoot)
+  : path.join(temporaryRoot, 'tarballs');
 const consumerRoot = path.join(temporaryRoot, 'consumer');
 
 try {
   await Promise.all([
-    mkdir(tarballRoot, { recursive: true }),
+    ...(suppliedTarballRoot ? [] : [mkdir(tarballRoot, { recursive: true })]),
     mkdir(consumerRoot, { recursive: true }),
   ]);
 
   const tarballs = new Map();
   for (const name of [...required].sort()) {
     const record = recordsByName.get(name);
-    execFileSync('corepack', ['pnpm', 'pack', '--pack-destination', tarballRoot], {
-      cwd: path.join(root, record.directory),
-      stdio: 'pipe',
-    });
+    if (registryRelease) {
+      tarballs.set(name, registryVersion);
+      continue;
+    }
+    if (!suppliedTarballRoot) {
+      execFileSync('corepack', ['pnpm', 'pack', '--pack-destination', tarballRoot], {
+        cwd: path.join(root, record.directory),
+        stdio: 'pipe',
+      });
+    }
     const tarball = expectedTarballName(record.manifest);
     const tarballPath = path.join(tarballRoot, tarball);
     assert.ok((await readdir(tarballRoot)).includes(tarball), `Missing ${tarball}`);
@@ -123,7 +136,9 @@ try {
     [path.join(root, 'node_modules/typescript/bin/tsc'), '--project', 'tsconfig.json'],
     { cwd: consumerRoot, stdio: 'inherit' },
   );
-  console.log(`Verified packed TypeScript consumer for ${targets.join(', ')}.`);
+  console.log(
+    `Verified ${registryRelease ? 'registry' : 'packed'} TypeScript consumer for ${targets.join(', ')} at ${registryVersion}.`,
+  );
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

@@ -15,13 +15,16 @@ but may change between prereleases. A preview is promoted to `latest` only after
 the public checks, package smoke test, reference examples and downstream
 integration validation are green.
 
-`0.3.0-alpha.4` is the coordinated Evidence and Trust preview. It adds scoped
+`0.3.0-alpha.4` was the coordinated Evidence and Trust preview.
+This paragraph describes that historical release, not the current npm tag.
+Consult the [component maturity matrix](component-maturity.md) for dated
+distribution observations and verify tags before installing. That release added scoped
 Evidence lifecycle, deterministic multidimensional Trust Profiles,
 policy-exact eligibility, contradiction, quarantine and recovery, while
 retaining Alpha 1/2 Mesh and Alpha 3 Inference Control defaults and contracts.
-Repository examples carry the same version as the coordinated package release;
-install packages from npm with `@next` when running an example outside this
-repository.
+Source examples use local package links and can be ahead of the registry.
+Outside the repository, verify availability and select the coordinated `next`
+channel explicitly.
 
 ```sh
 pnpm add @agentplat/trust@next
