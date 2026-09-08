@@ -224,7 +224,25 @@ test("public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedPublicNames,
   );
-  assert.equal(expectedPublicPackageCount, 62);
+  assert.equal(expectedPublicPackageCount, 65);
+  for (const [name, layer, browserEntrypoints] of [
+    ["@agentplat/a2a", "adapter", []],
+    ["@agentplat/agent-registry", "collaboration", ["."]],
+    ["@agentplat/agent-registry-postgres", "adapter", []],
+  ]) {
+    assert.deepEqual(
+      catalog.packages.find((entry) => entry.name === name),
+      {
+        name,
+        directory: `packages/${name.slice("@agentplat/".length)}`,
+        layer,
+        browserEntrypoints,
+        publish: true,
+        packSmoke: true,
+        providerNeutral: true,
+      },
+    );
+  }
   assert.equal(catalog.packages.length, expectedPublicPackageCount);
   assert.deepEqual(
     packed.map((entry) => entry.name),
