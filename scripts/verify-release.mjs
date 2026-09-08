@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import semver from 'semver';
 import ts from 'typescript';
 import { assertReleaseLine } from './release-line.mjs';
 import {
@@ -16,6 +17,37 @@ export const INTERNAL_DEPENDENCY_FIELDS = Object.freeze([
   'dependencies',
   'optionalDependencies',
   'peerDependencies',
+]);
+export const PROHIBITED_PUBLISH_LIFECYCLE_SCRIPTS = Object.freeze([
+  'dependencies',
+  'install',
+  'postinstall',
+  'postpack',
+  'postpublish',
+  'postversion',
+  'preinstall',
+  'prepack',
+  'prepare',
+  'prepublish',
+  'prepublishOnly',
+  'preversion',
+  'publish',
+  'version',
+]);
+const ALLOWED_PACKAGE_FILES = new Set([
+  'README.md',
+  'dist',
+  'fixtures',
+  'migrations',
+]);
+const ALLOWED_PACKAGE_BINS = Object.freeze({
+  '@agentplat/mcp-docs': Object.freeze({
+    'agentplat-mcp-docs': './dist/cli.js',
+  }),
+});
+const ALL_DEPENDENCY_FIELDS = Object.freeze([
+  ...INTERNAL_DEPENDENCY_FIELDS,
+  'devDependencies',
 ]);
 const NODE_BUILTINS = new Set(
   builtinModules.map((specifier) => specifier.replace(/^node:/, ''))
@@ -132,6 +164,7 @@ export async function verifyRelease(root = process.cwd()) {
       'public',
       `${manifest.name} must publish with public access`
     );
+    assertSecurePublishManifest(manifest.name, manifest);
     assert.equal(
       manifest.repository?.directory,
       `packages/${packageName}`,
@@ -168,6 +201,76 @@ export async function verifyRelease(root = process.cwd()) {
   console.log(
     `Verified ${expectedPackages.length} publishable package manifests at ${rootManifest.version}, internal dependency publication, browser entrypoints and build outputs.`
   );
+}
+
+export function assertSecurePublishManifest(packageName, manifest) {
+  assert.deepEqual(
+    Object.keys(manifest.publishConfig ?? {}).sort(compareAscii),
+    ['access'],
+    `${packageName}.publishConfig must contain only the fixed public access policy`
+  );
+
+  for (const scriptName of PROHIBITED_PUBLISH_LIFECYCLE_SCRIPTS) {
+    assert.equal(
+      Object.hasOwn(manifest.scripts ?? {}, scriptName),
+      false,
+      `${packageName} must not declare lifecycle script ${scriptName}`
+    );
+  }
+
+  assert.ok(
+    Array.isArray(manifest.files) && manifest.files.length > 0,
+    `${packageName}.files must be an explicit non-empty allowlist`
+  );
+  assert.equal(
+    new Set(manifest.files).size,
+    manifest.files.length,
+    `${packageName}.files must not contain duplicates`
+  );
+  assert.ok(manifest.files.includes('dist'), `${packageName}.files must include dist`);
+  assert.ok(
+    manifest.files.includes('README.md'),
+    `${packageName}.files must include README.md`
+  );
+  for (const entry of manifest.files) {
+    assert.ok(
+      ALLOWED_PACKAGE_FILES.has(entry),
+      `${packageName}.files contains unapproved entry ${entry}`
+    );
+  }
+
+  assert.equal(
+    manifest.bundledDependencies ?? manifest.bundleDependencies,
+    undefined,
+    `${packageName} must not bundle dependencies`
+  );
+  assert.deepEqual(
+    manifest.bin,
+    ALLOWED_PACKAGE_BINS[packageName],
+    `${packageName}.bin does not match the reviewed executable allowlist`
+  );
+
+  for (const field of ALL_DEPENDENCY_FIELDS) {
+    for (const [dependency, specifier] of Object.entries(manifest[field] ?? {})) {
+      assert.equal(
+        typeof specifier,
+        'string',
+        `${packageName}.${field}.${dependency} must be a string`
+      );
+      if (dependency.startsWith('@agentplat/')) {
+        assert.match(
+          specifier,
+          /^workspace:(?:\*|\^|~)$/u,
+          `${packageName}.${field}.${dependency} must use a workspace protocol range`
+        );
+        continue;
+      }
+      assert.ok(
+        semver.validRange(specifier) !== null,
+        `${packageName}.${field}.${dependency} must use a registry semver range`
+      );
+    }
+  }
 }
 
 export function assertInternalDependenciesArePublishable(
@@ -552,4 +655,3 @@ const isMain =
 if (isMain) {
   await verifyRelease();
 }
-

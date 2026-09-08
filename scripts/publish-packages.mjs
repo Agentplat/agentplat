@@ -1281,6 +1281,11 @@ const isMain =
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   try {
+    if (process.env.NPM_PUBLISH_DRY_RUN !== '1') {
+      throw new Error(
+        'Direct npm publication is disabled. Use the protected release workflow and npm staged publishing.'
+      );
+    }
     await publishPackages();
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

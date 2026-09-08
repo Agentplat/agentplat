@@ -1,0 +1,199 @@
+If by “persistent collaboration” you mean a system where multiple humans and multiple AI agents can work on the same durable workspace over days/weeks, I would not pick a single framework. The strongest architecture is usually a collaboration/state layer + agent orchestration layer.
+
+My shortlist for a TypeScript stack would be:
+
+Yjs + Hocuspocus — best foundation for shared state
+LangGraph.js — best agent orchestration/persistence
+Mastra — best TypeScript-native all-in-one agent framework
+Liveblocks — best higher-level multiplayer product layer, especially if managed infrastructure is acceptable
+Vercel AI SDK — excellent application/UI layer, but not sufficient by itself as the collaboration runtime
+
+1. Yjs + Hocuspocus — strongest collaboration foundation
+
+Yjs is a CRDT framework whose shared Map, Array, text, etc. can be modified concurrently and automatically merged. It supports offline editing, snapshots, undo/redo and shared cursors.
+
+Hocuspocus provides the server-side WebSocket infrastructure around Yjs, including persistence extensions such as SQLite. It's TypeScript and can run across Node, Bun, Deno and Cloudflare Workers.
+
+Why I would seriously consider it: model humans and agents as peers that manipulate a shared durable document/state model.
+
+For example:
+
+Workspace
+ ├── document
+ ├── tasks
+ ├── decisions
+ ├── messages
+ ├── artifacts
+ ├── agent states
+ └── activity log
+
+A human editing a task and an AI agent changing its status become ordinary concurrent mutations to shared state.
+
+Tradeoffs
+
++ Excellent semantics for concurrent human/agent writes.
++ Offline-first and conflict resolution come naturally.
++ Vendor-neutral and relatively low-level.
++ Excellent fit for collaborative editors, canvases, structured workspaces.
+− You must build the agent execution model yourself.
+− CRDT persistence is not the same thing as durable workflow execution.
+− You need to think carefully about authorization, audit trails, semantic conflicts and database projections.
+
+Best use: make Yjs the shared world model, then put an agent framework on top.
+
+2. LangGraph.js — strongest agent runtime
+
+LangGraph.js is probably my first choice for the agent side of this architecture.
+
+Its core abstraction is a stateful graph, and its persistence system checkpoints graph state at each super-step. A thread_id lets you resume a particular execution/conversation. It explicitly supports human-in-the-loop interruption, memory, time travel and fault recovery.
+
+Importantly, LangGraph distinguishes:
+
+checkpointers → durable state for a particular thread/execution
+stores → longer-lived information shared across threads
+
+The latter can contain user preferences, facts and shared knowledge.
+
+That maps unusually well to your problem:
+
+                    Shared Workspace
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+          Humans                 Agent runtimes
+                                      │
+                              ┌───────┼───────┐
+                              │       │       │
+                            Agent A Agent B Agent C
+                              │       │       │
+                         LangGraph threads/checkpoints
+
+Tradeoffs
+
++ Excellent durable execution model.
++ First-class human-in-the-loop.
++ Strong model for long-running agents.
++ Multiple agents can be represented as graph nodes/subgraphs.
++ Postgres checkpointer support makes production persistence straightforward.
+− It isn't fundamentally a multiplayer collaboration framework.
+− You still need a shared-state/event model for simultaneous humans and agents.
+− The graph/state abstraction can become fairly opinionated for applications that aren't naturally workflows.
+
+Best use: LangGraph owns what agents are doing and whether/how their work resumes; Yjs or another collaboration system owns what everyone sees and edits.
+
+3. Mastra — most interesting TypeScript-native alternative
+
+Mastra is worth evaluating if you want something more explicitly designed around the modern TypeScript ecosystem.
+
+It provides agents, graph-like workflows, model routing, human-in-the-loop and storage-backed execution state. Its workflows support sequential, branching and parallel execution, while agents can be composed into multi-agent systems.
+
+One particularly relevant feature is that Mastra can suspend an agent/workflow, persist its execution state, and resume after human input or approval.
+
+Tradeoffs
+
++ Very natural TypeScript developer experience.
++ Agents + workflows + memory + HITL in one ecosystem.
++ Less “assemble five libraries yourself” than Yjs + LangGraph.
++ Good fit for applications rather than merely agent experiments.
+− Younger ecosystem than the LangChain/LangGraph family.
+− Collaboration between people is still not its core primitive.
+− I'd want to test its persistence semantics carefully for extremely long-lived, highly concurrent workspaces.
+
+Best use: if you want a TypeScript-first agent application framework and are willing to build the multiplayer layer separately.
+
+4. Liveblocks — strongest product-oriented collaboration option
+
+Liveblocks is especially interesting because its collaboration model explicitly treats people and AI agents as participants. Its primitives include Presence, Broadcast, Storage, Feeds and Threads, and its documentation specifically describes collaboration between people and AI.
+
+Its Storage layer provides conflict-free LiveList, LiveMap and LiveObject structures, while its platform handles persistent room storage and multiplayer infrastructure.
+
+It even documents server-side agent presence, e.g. an AI assistant appearing in a room with a presence state.
+
+Tradeoffs
+
++ Very high-level collaboration primitives.
++ Presence, comments, threads, notifications and multiplayer are already productized.
++ Explicit AI-collaboration support.
++ Much less infrastructure to build yourself.
+− More platform/vendor dependence than raw Yjs.
+− You aren't just choosing a library; you're adopting a collaboration service architecture.
+− Agent execution/persistence still needs an agent runtime such as LangGraph, Mastra, or your own workers.
+
+Best use: if the product's differentiator is the collaborative workspace UX, rather than inventing your own realtime infrastructure.
+
+5. Vercel AI SDK — excellent glue, not the persistence layer
+
+Vercel AI SDK is a provider-agnostic TypeScript toolkit for AI applications and agents, with integrations for React, Next.js, Svelte, Vue, Angular and Node.
+
+I'd evaluate it almost regardless of which runtime you select because it is particularly good at the application/UI boundary:
+
+                 React / Next.js UI
+                         │
+                    AI SDK
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+       Agent runtime          Collaboration
+     LangGraph/Mastra         Yjs/Liveblocks
+
+But I wouldn't make AI SDK the fundamental persistence/collaboration abstraction. It gives you the model/provider/tooling layer; it doesn't solve the durable shared-world problem by itself.
+
+How I'd rank them
+Framework	Human ↔ human	Human ↔ AI	Multi-agent	Durable agent execution	Shared mutable state	TS fit
+Yjs + Hocuspocus	★★★★★	★★★★★	★★★★	★★	★★★★★	★★★★★
+LangGraph.js	★★	★★★★★	★★★★★	★★★★★	★★★	★★★★★
+Mastra	★★	★★★★★	★★★★	★★★★	★★★	★★★★★
+Liveblocks	★★★★★	★★★★★	★★★★	★★	★★★★★	★★★★★
+AI SDK	★	★★★★	★★★	★★	★	★★★★★
+
+These ratings are architectural judgments rather than benchmark scores.
+
+The architecture I'd prototype
+
+For your particular requirement, my first experiment would be:
+
+Yjs/Hocuspocus + LangGraph.js + AI SDK
+
+with a shared domain model something like:
+
+Workspace
+│
+├── shared CRDT state
+│   ├── documents
+│   ├── tasks
+│   ├── decisions
+│   ├── comments
+│   └── agent activity
+│
+├── event/history store
+│
+└── agent runtimes
+    ├── researcher
+    ├── planner
+    ├── implementer
+    └── reviewer
+         │
+         └── LangGraph checkpoint/state
+
+The key architectural distinction is:
+
+Collaboration state ≠ agent execution state.
+
+Yjs answers “What is the shared world right now?”
+
+LangGraph answers “Where was this agent in its reasoning/workflow, and how do I safely resume it?”
+
+That separation is valuable. An agent can crash and resume without making its private execution checkpoint the canonical representation of the collaborative workspace. Conversely, humans can edit the workspace without having to mutate an agent's internal graph state.
+
+If you want a more managed/product-oriented implementation, I'd swap Yjs + Hocuspocus for Liveblocks.
+
+My evaluation order
+
+I'd run a small proof-of-concept with:
+
+Yjs + Hocuspocus + LangGraph.js — best control / strongest architectural fit.
+Liveblocks + LangGraph.js — best test of whether managed collaboration dramatically reduces engineering cost.
+Mastra + Yjs/Hocuspocus — best test of the TypeScript-native alternative.
+AI SDK as the UI/model integration layer in whichever prototype wins.
+
+The most important POC test isn't “can three agents chat?” It's “Can two humans and three agents concurrently modify the same durable workspace, disconnect for several hours, reconnect, resolve conflicts, interrupt agents, approve actions, and resume them without losing or duplicating work?” That's where the differences between these approaches become substantial.

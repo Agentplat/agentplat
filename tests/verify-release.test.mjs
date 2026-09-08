@@ -6,10 +6,69 @@ import test from 'node:test';
 import {
   assertBrowserEntrypointGraph,
   assertInternalDependenciesArePublishable,
+  assertSecurePublishManifest,
   extractRuntimeModuleSpecifiers,
   INTERNAL_DEPENDENCY_FIELDS,
   isNodeBuiltinSpecifier,
 } from '../scripts/verify-release.mjs';
+
+const secureManifest = () => ({
+  bin: undefined,
+  dependencies: { external: '^1.2.3' },
+  devDependencies: { '@agentplat/dev': 'workspace:*' },
+  files: ['dist', 'README.md'],
+  publishConfig: { access: 'public' },
+  scripts: { build: 'tsc -p tsconfig.json' },
+});
+
+test('secure publish manifests reject executable lifecycle hooks', () => {
+  for (const scriptName of ['preinstall', 'postinstall', 'prepare', 'prepack', 'publish']) {
+    const manifest = secureManifest();
+    manifest.scripts[scriptName] = 'node payload.mjs';
+    assert.throws(
+      () => assertSecurePublishManifest('@agentplat/example', manifest),
+      new RegExp(`lifecycle script ${scriptName}`)
+    );
+  }
+});
+
+test('secure publish manifests reject broad files, bundled dependencies and unknown bins', () => {
+  assert.throws(
+    () => assertSecurePublishManifest('@agentplat/example', { ...secureManifest(), files: ['dist', 'README.md', 'src'] }),
+    /unapproved entry src/
+  );
+  assert.throws(
+    () => assertSecurePublishManifest('@agentplat/example', { ...secureManifest(), bundledDependencies: ['external'] }),
+    /must not bundle dependencies/
+  );
+  assert.throws(
+    () => assertSecurePublishManifest('@agentplat/example', { ...secureManifest(), bin: { surprise: './dist/cli.js' } }),
+    /executable allowlist/
+  );
+});
+
+test('secure publish manifests reject exotic and mutable dependency sources', () => {
+  for (const specifier of [
+    'https://example.invalid/package.tgz',
+    'git+https://example.invalid/repository.git',
+    'file:../dependency',
+    'npm:other@1.0.0',
+    'latest',
+  ]) {
+    const manifest = secureManifest();
+    manifest.dependencies.external = specifier;
+    assert.throws(
+      () => assertSecurePublishManifest('@agentplat/example', manifest),
+      /registry semver range/
+    );
+  }
+});
+
+test('secure publish manifests allow only the reviewed MCP documentation executable', () => {
+  const manifest = secureManifest();
+  manifest.bin = { 'agentplat-mcp-docs': './dist/cli.js' };
+  assert.doesNotThrow(() => assertSecurePublishManifest('@agentplat/mcp-docs', manifest));
+});
 
 test('module analysis sees side-effect, bare, dynamic and require imports', () => {
   const specifiers = extractRuntimeModuleSpecifiers(`

@@ -1,7 +1,14 @@
 # @agentplat/framework
 
-High-level composition for applications that want a short path to AgentPlat
-without hiding the replaceable runtime and Room contracts.
+AgentPlat is an open-source TypeScript framework for persistent human-agent
+collaboration, with shared artifacts, human approvals and controlled execution
+on your infrastructure. This package provides high-level composition over the
+replaceable runtime and Room contracts.
+
+Start with [persistent collaboration](../../docs/getting-started/persistent-collaboration.md),
+[when to use AgentPlat](../../docs/when-to-use-agentplat.md) and
+[component maturity](../../docs/component-maturity.md). This is a developer
+preview; source availability does not establish registry version parity.
 
 For the shortest path, send one prompt and receive plain text:
 

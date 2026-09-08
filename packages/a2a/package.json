@@ -1,0 +1,67 @@
+{
+  "name": "@agentplat/a2a",
+  "version": "0.3.0-beta.7",
+  "description": "Governed A2A 1.0 interoperability for AgentPlat agents and Room services.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./rooms": {
+      "types": "./dist/rooms.d.ts",
+      "import": "./dist/rooms.js"
+    },
+    "./mesh": {
+      "types": "./dist/mesh.d.ts",
+      "import": "./dist/mesh.js"
+    },
+    "./morphogenesis": {
+      "types": "./dist/morphogenesis.d.ts",
+      "import": "./dist/morphogenesis.js"
+    },
+    "./postgres": {
+      "types": "./dist/postgres.d.ts",
+      "import": "./dist/postgres.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "pnpm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@agentplat/agent-registry": "workspace:^",
+    "@agentplat/rooms": "workspace:^",
+    "@agentplat/collective-runtime": "workspace:^",
+    "@agentplat/collective-planning": "workspace:^",
+    "@a2a-js/sdk": "1.1.0",
+    "@agentplat/postgres": "workspace:^",
+    "pg": "^8.13.1",
+    "@agentplat/mesh": "workspace:^"
+  },
+  "engines": {
+    "node": ">=20.19.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/a2a"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.10"
+  }
+}

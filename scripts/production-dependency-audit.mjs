@@ -52,13 +52,18 @@ export function analyzeProductionDependencyAuditV1(report, allowlist, today) {
 }
 
 async function main() {
-  exactOptions(options, ["allowlist", "mode", "output-directory"]);
-  if (options.mode !== "run") fail("dependency_audit_mode_invalid");
+  if (options.mode === "check") {
+    exactOptions(options, ["allowlist", "mode"]);
+  } else if (options.mode === "run") {
+    exactOptions(options, ["allowlist", "mode", "output-directory"]);
+  } else {
+    fail("dependency_audit_mode_invalid");
+  }
   const allowlistPath = absolutePath(options.allowlist, "allowlist");
-  const outputDirectory = absolutePath(
-    options["output-directory"],
-    "output_directory",
-  );
+  const outputDirectory =
+    options.mode === "run"
+      ? absolutePath(options["output-directory"], "output_directory")
+      : undefined;
   const allowlist = parseJson(await readFile(allowlistPath, "utf8"));
   let stdout;
   try {
@@ -78,11 +83,13 @@ async function main() {
     allowlist,
     new Date().toISOString().slice(0, 10),
   );
-  await mkdir(outputDirectory, { recursive: true });
-  await writeJsonImmutable(
-    path.join(outputDirectory, "production-dependency-audit.json"),
-    report,
-  );
+  if (outputDirectory !== undefined) {
+    await mkdir(outputDirectory, { recursive: true });
+    await writeJsonImmutable(
+      path.join(outputDirectory, "production-dependency-audit.json"),
+      report,
+    );
+  }
   process.stdout.write(`${JSON.stringify(report)}\n`);
   if (report.status !== "passed") process.exitCode = 2;
 }

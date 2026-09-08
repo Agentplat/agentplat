@@ -4,7 +4,11 @@
 
 ## What AgentPlat is
 
-AgentPlat is an open-source TypeScript monorepo providing composable runtime primitives for governed agentic platforms. It supports persistent human-agent collaboration, multi-agent sessions, planning artifacts, portable execution, inference control, collective coordination, trust/evidence boundaries and distributed Agent Mesh protocols.
+AgentPlat is an open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure. Its monorepo provides composable runtime primitives, including multi-agent sessions, planning artifacts, portable execution, inference control, collective coordination, trust/evidence boundaries and distributed Agent Mesh protocols.
+
+Start with [when to use AgentPlat](../when-to-use-agentplat.md), the
+[practical guides](../getting-started/README.md) and
+[evidence for adopters](../evidence-for-adopters.md).
 
 ## Architecture map
 
