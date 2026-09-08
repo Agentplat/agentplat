@@ -2,7 +2,7 @@
 
 AgentPlat uses one exact version for every publishable package in
 `config/public-packages.json`. The current recovery candidate is
-`0.3.0-beta.7` across 62 packages, targeting **`next`**. It is not a stable
+`0.3.0-beta.7` across 65 packages, targeting **`next`**. It is not a stable
 release, and the tooling rejects preparing a prerelease for `latest`.
 
 The [npm release security boundary](docs/security/npm-release-security.md) is
@@ -34,7 +34,7 @@ Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
 
 Use a clean source commit. Preserve unrelated work and review the release diff
 before merging it into protected `main`. The release-line guard retains the
-historical Beta 6 cohort and explicitly admits the 62-package Beta 7 cohort.
+historical Beta 6 cohort and explicitly admits the 65-package Beta 7 cohort, including the complete A2A/Registry group.
 
 ```sh
 corepack pnpm install --frozen-lockfile
@@ -66,7 +66,7 @@ A tarball built from a dirty working tree is not an approved release artifact.
 
 ## Register missing names before staging
 
-npm cannot stage a brand-new package. The six missing names require a separate,
+npm cannot stage a brand-new package. The eight missing names require a separate,
 interactive initial publication with 2FA, using reviewed bootstrap tarballs.
 Use the preceding Beta 6 version for that bootstrap; reserve Beta 7 for the
 complete staged cohort. Do not publish a bootstrap tarball as Beta 7 and then
@@ -116,7 +116,7 @@ corepack pnpm run verify:registry-consumer
 
 The approval verifier checks integrity, registry signatures, provenance and tag
 state before running exact-version registry consumers. Announce only when all
-62 packages and checks pass. Update the maturity matrix with dated observations
+65 packages and checks pass. Update the maturity matrix with dated observations
 and preserve historical evidence. Do not equate publication with production
 readiness or external developer validation.
 

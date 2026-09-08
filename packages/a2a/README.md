@@ -20,3 +20,11 @@ supply AgentPlat checkpoint, restore or inference intervention.
 See `docs/interop/a2a-agent-registry.md`, ADR 0053 and
 `examples/a2a-registry/demo.mjs`. Run repository commands `pnpm test:a2a`,
 `pnpm example:a2a` and `pnpm verify:a2a-consumer`.
+
+## Installation (developer preview)
+
+```sh
+npm install @agentplat/a2a@next
+```
+
+Keep all `@agentplat/*` dependencies on the same coordinated preview version.

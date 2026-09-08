@@ -11,3 +11,11 @@ migration for operator-controlled rollback.
 
 See `docs/interop/a2a-agent-registry.md`. Run `pnpm test` here; the real PostgreSQL
 cross-package test runs through repository command `pnpm test:a2a`.
+
+## Installation (developer preview)
+
+```sh
+npm install @agentplat/agent-registry-postgres@next
+```
+
+Keep all `@agentplat/*` dependencies on the same coordinated preview version.

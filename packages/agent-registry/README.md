@@ -13,3 +13,11 @@ eligibility is advisory and never admission into a Room, Mesh or mission.
 `@agentplat/agent-registry-postgres` for durable multi-process deployments.
 See the repository's `docs/interop/a2a-agent-registry.md` and
 `examples/a2a-registry/demo.mjs`. Run `pnpm test` in this package.
+
+## Installation (developer preview)
+
+```sh
+npm install @agentplat/agent-registry@next
+```
+
+Keep all `@agentplat/*` dependencies on the same coordinated preview version.
