@@ -163,7 +163,8 @@ Mesh fences and canonical Morphogenesis proposals.
 The PostgreSQL suite uses an isolated temporary cluster when local PostgreSQL
 binaries are available. Set `AGENTPLAT_TEST_PG_BIN` to their directory, or
 `AGENTPLAT_A2A_TEST_DATABASE_URL` to a test database where a temporary schema can
-be created and dropped. Without either, that integration test is explicitly
+be created and dropped. CI can also set `AGENTPLAT_POSTGRES_TEST=1` and the
+standard `PG*` connection variables. Without a configured database or local binaries, that integration test is explicitly
 skipped; SQL contract tests still run.
 
 This evidence is integration/conformance evidence, not a production-scale

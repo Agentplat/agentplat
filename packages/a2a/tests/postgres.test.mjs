@@ -21,9 +21,11 @@ import { fixture, input, principal } from "./helpers.mjs";
 const bin =
   process.env.AGENTPLAT_TEST_PG_BIN ?? "/opt/homebrew/opt/postgresql@16/bin";
 const url = process.env.AGENTPLAT_A2A_TEST_DATABASE_URL;
+const configuredPostgres =
+  Boolean(url) || process.env.AGENTPLAT_POSTGRES_TEST === "1";
 test(
   "real PostgreSQL migrations, concurrent CAS, tenant isolation and server/client restart",
-  { skip: !url && !existsSync(path.join(bin, "initdb")) },
+  { skip: !configuredPostgres && !existsSync(path.join(bin, "initdb")) },
   async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "ap-a2a-"));
     const socket = path.join(directory, "socket");
@@ -31,7 +33,7 @@ test(
     let started = false,
       pool;
     try {
-      if (!url) {
+      if (!configuredPostgres) {
         execFileSync(
           path.join(bin, "initdb"),
           [
@@ -64,12 +66,14 @@ test(
       pool = new Pool(
         url
           ? { connectionString: url }
-          : {
-              host: socket,
-              port: 55439,
-              user: "agentplat_test",
-              database: "postgres",
-            },
+          : configuredPostgres
+            ? {}
+            : {
+                host: socket,
+                port: 55439,
+                user: "agentplat_test",
+                database: "postgres",
+              },
       );
       const schema = "a2a_test_" + Date.now();
       try {
