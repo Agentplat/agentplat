@@ -4,6 +4,8 @@
 
 **Build applications where humans and agents work together, with persistent state, approvals, and controlled execution on your own infrastructure.**
 
+[![AgentPlat on StartupScores](https://startupscores.com/badge/agentplat.svg?style=shield&v=combo&theme=dark)](https://startupscores.com/open-source/agentplat)
+
 AgentPlat is an open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure. AgentPlat Agent Rooms give your application participants, messages, tasks, versioned artifacts and human contributions. Apache-2.0 licensed public adapters let you choose models, storage and execution infrastructure.
 
 [Website](https://agentplat.com) · [Documentation](https://doc.agentplat.com) · [GitHub](https://github.com/Agentplat/agentplat)
