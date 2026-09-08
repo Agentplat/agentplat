@@ -6,6 +6,19 @@ publishing a membership-bound Ed25519 proof. Receivers use an already
 authenticated work offer to request only the named causal record, replay it
 through the normal immutable repository, and then re-run normal admission.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/planning-artifacts@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 V1 resolves from the producer. The opt-in V2 composition adds deterministic
 proactive replicas, signed durable-storage receipts, threshold replication
 certificates, and certified fallback when the producer is permanently

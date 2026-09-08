@@ -4,20 +4,33 @@ Server-Sent Events helpers for normalized `AgentStreamEvent` streams. The
 package depends on Web Standards and small structural Node response types; it
 does not depend on Next.js, Express or Hono.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/streaming@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ## Next.js App Router
 
 ```ts
-import { toNextSseResponse } from '@agentplat/streaming';
+import { toNextSseResponse } from "@agentplat/streaming";
 
 return toNextSseResponse(request, (signal) =>
-  session.stream({ input: scenario, signal })
+  session.stream({ input: scenario, signal }),
 );
 ```
 
 ## Web `Response` (Hono and other Fetch-compatible frameworks)
 
 ```ts
-import { streamToSSE } from '@agentplat/streaming';
+import { streamToSSE } from "@agentplat/streaming";
 
 return streamToSSE(runtime.stream(agent, input, context), {
   signal: request.signal,
@@ -27,7 +40,7 @@ return streamToSSE(runtime.stream(agent, input, context), {
 ## Express-style response
 
 ```ts
-import { pipeSSE } from '@agentplat/streaming';
+import { pipeSSE } from "@agentplat/streaming";
 
 await pipeSSE(runtime.stream(agent, input, context), response);
 ```
@@ -35,12 +48,12 @@ await pipeSSE(runtime.stream(agent, input, context), response);
 ## Browser parser
 
 ```ts
-import type { MultiAgentSessionEvent } from '@agentplat/framework';
-import { parseAgentSseStream } from '@agentplat/streaming';
+import type { MultiAgentSessionEvent } from "@agentplat/framework";
+import { parseAgentSseStream } from "@agentplat/streaming";
 
 for await (const envelope of parseAgentSseStream<MultiAgentSessionEvent>(
   response.body,
-  { signal }
+  { signal },
 )) {
   // Envelope v1 is parsed and its sequence is validated.
 }

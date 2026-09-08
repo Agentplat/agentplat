@@ -2,6 +2,19 @@
 
 Agent Room approval gates for Governed Durable Workflows V1.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/workflows-rooms@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The gate provider creates deterministic, version-bound Room approvals and maps
 only persisted Room dispositions to generic workflow gate outcomes. Human
 `needs_revision` decisions preserve the reviewed artifact version; after a new

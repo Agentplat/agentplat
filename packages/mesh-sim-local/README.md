@@ -4,6 +4,19 @@ Node.js local storage adapter for statistical campaign evidence. It stores bytes
 in an immutable SHA-256 content-addressed store, publishes slot commits without
 overwrite, and exposes campaign locks that are never broken automatically.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-sim-local@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The caller supplies an explicit absolute root. Logical artifact paths are never
 used as filesystem paths. `readBundleV1` and `readCurrentBundleV1` require a
 caller-provided verifier; use the campaign bundle verifier from `mesh-sim` for

@@ -2,6 +2,35 @@
   "schemaVersion": 2,
   "packages": [
     {
+      "name": "@agentplat/a2a",
+      "directory": "packages/a2a",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/agent-registry",
+      "directory": "packages/agent-registry",
+      "layer": "collaboration",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        "."
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/agent-registry-postgres",
+      "directory": "packages/agent-registry-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/audit",
       "directory": "packages/audit",
       "layer": "observability",

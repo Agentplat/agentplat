@@ -64,7 +64,7 @@ human work    coordination         peer coordination
 
 Use only the layers your application needs. PostgreSQL, model runtimes, event delivery, tools and authentication are public integration boundaries.
 
-[Architecture](docs/architecture.md) · [Advanced capability catalog](docs/capability-catalog.md) · [Specification](docs/specification/agentplat-spec-v1.md) · [Package facade](packages/framework/README.md)
+[A2A and Agent Registry integration](docs/interop/a2a-agent-registry.md) · [Architecture](docs/architecture.md) · [Advanced capability catalog](docs/capability-catalog.md) · [Specification](docs/specification/agentplat-spec-v1.md) · [Package facade](packages/framework/README.md)
 
 ## Maturity and integration guarantees
 

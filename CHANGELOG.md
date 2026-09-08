@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added opt-in A2A 1.0 JSON-RPC interoperability and a shared, tenant-scoped
+  Agent Registry with PostgreSQL CAS persistence. Agent Room, Agent Mesh and
+  Agent Morphogenesis bridges preserve their existing execution owners.
+  Added bidirectional agent/team examples, official SDK interoperability tests,
+  real PostgreSQL recovery tests and an isolated packed-package consumer check.
+  The source catalog includes the complete three-package additive A2A group
+  (65 packages); no npm publication or operational qualification is implied.
+
 - Prepared the coordinated 62-package `0.3.0-beta.7` release candidate because
   the partially published Beta 6 cohort cannot replace immutable npm contents.
   Added a read-only distribution readiness check and aligned the main CI build

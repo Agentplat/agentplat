@@ -4,11 +4,24 @@ Shared PostgreSQL primitives for AgentPlat adapters. The package intentionally
 depends only on `pg`: applications opt into AWS SDKs, secret sources and
 deployment tooling themselves.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```ts
-import { checkPostgresPool, createPostgresPool } from '@agentplat/postgres';
+import { checkPostgresPool, createPostgresPool } from "@agentplat/postgres";
 
 const pool = createPostgresPool({
-  application_name: 'agentplat-orders',
+  application_name: "agentplat-orders",
   max: 10,
   ssl: { rejectUnauthorized: true, ca: rdsCaBundle },
   password: () => currentRdsIamToken(),

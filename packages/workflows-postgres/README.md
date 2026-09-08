@@ -4,6 +4,19 @@ PostgreSQL durability for Governed Durable Workflows V1. The package persists
 immutable task/process definitions, revisioned process and task runs,
 idempotent operations, signals, transition events and delayed outcomes.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/workflows-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 `PostgresWorkflowStoreV1` implements the same `WorkflowStoreV1` contract as the
 in-memory reference. `PostgresTaskOutcomeStoreV1` implements the browser-safe
 outcome port from `@agentplat/workflows/outcomes`.

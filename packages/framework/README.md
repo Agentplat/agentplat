@@ -1,18 +1,38 @@
 # @agentplat/framework
 
-High-level composition for applications that want a short path to AgentPlat
-without hiding the replaceable runtime and Room contracts.
+AgentPlat is an open-source TypeScript framework for persistent human-agent
+collaboration, with shared artifacts, human approvals and controlled execution
+on your infrastructure. This package provides high-level composition over the
+replaceable runtime and Room contracts.
+
+Start with [persistent collaboration](../../docs/getting-started/persistent-collaboration.md),
+[when to use AgentPlat](../../docs/when-to-use-agentplat.md) and
+[component maturity](../../docs/component-maturity.md). This is a developer
+preview; source availability does not establish registry version parity.
+
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/framework@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
 
 For the shortest path, send one prompt and receive plain text:
 
 ```ts
-import { AgentPlat } from '@agentplat/framework';
+import { AgentPlat } from "@agentplat/framework";
 
 const answer = await AgentPlat.ask({
-  provider: 'openai',
+  provider: "openai",
   apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4.1-mini',
-  prompt: 'Draft a friendly release note.',
+  model: "gpt-4.1-mini",
+  prompt: "Draft a friendly release note.",
 });
 ```
 
@@ -26,15 +46,15 @@ use the same object for a normal run, streaming, or a multi-agent session:
 
 ```ts
 const researcher = AgentPlat.configure({
-  provider: 'openai',
+  provider: "openai",
   apiKey: process.env.OPENAI_API_KEY,
-  model: 'gpt-4.1-mini',
-  instructions: 'Research carefully and cite uncertainty.',
-  tenantId: 'acme',
+  model: "gpt-4.1-mini",
+  instructions: "Research carefully and cite uncertainty.",
+  tenantId: "acme",
 });
 
-const answer = await researcher.ask('Compare two options.');
-for await (const event of researcher.stream('Give a live update.')) {
+const answer = await researcher.ask("Compare two options.");
+for await (const event of researcher.stream("Give a live update.")) {
   // normalized AgentStreamEvent
 }
 
@@ -45,16 +65,16 @@ const discussion = researcher.createSession({
 ```
 
 ```ts
-import { AgentPlat } from '@agentplat/framework';
-import { openAICompatible } from '@agentplat/model-openai-compatible';
+import { AgentPlat } from "@agentplat/framework";
+import { openAICompatible } from "@agentplat/model-openai-compatible";
 
 const result = await AgentPlat.quickRun({
   adapter: openAICompatible({
     apiKey: process.env.OPENAI_API_KEY,
     defaultModel: process.env.OPENAI_MODEL,
   }),
-  instructions: 'Be concise.',
-  input: 'Draft a launch message.',
+  instructions: "Be concise.",
+  input: "Draft a launch message.",
 });
 ```
 
@@ -69,7 +89,7 @@ bounded multi-agent session over the same runtime:
 const session = agentplat.createSession({
   speakers: [buyer, seller],
   maxRounds: 4,
-  stopMarkers: ['DEAL AGREED'],
+  stopMarkers: ["DEAL AGREED"],
 });
 
 for await (const event of session.stream({ input: scenario, signal })) {
@@ -90,30 +110,30 @@ credentials.
 
 ```ts
 const collective = agentplat.createCollective({
-  collectiveId: 'release-team',
+  collectiveId: "release-team",
   objective: {
-    objectiveId: 'release-brief',
-    summary: 'Research and write the release brief.',
+    objectiveId: "release-brief",
+    summary: "Research and write the release brief.",
   },
   plan: {
     workItems: [
       {
-        workItemId: 'research',
-        summary: 'Collect verified release facts.',
-        requiredCapabilityKeys: ['research'],
+        workItemId: "research",
+        summary: "Collect verified release facts.",
+        requiredCapabilityKeys: ["research"],
       },
       {
-        workItemId: 'write',
-        summary: 'Write the brief from the research result.',
-        requiredCapabilityKeys: ['writing'],
-        dependsOn: ['research'],
+        workItemId: "write",
+        summary: "Write the brief from the research result.",
+        requiredCapabilityKeys: ["writing"],
+        dependsOn: ["research"],
       },
     ],
   },
 });
 
-collective.register({ agent: researcher, capabilityKeys: ['research'] });
-collective.register({ agent: writer, capabilityKeys: ['writing'] });
+collective.register({ agent: researcher, capabilityKeys: ["research"] });
+collective.register({ agent: writer, capabilityKeys: ["writing"] });
 const execution = await collective.run();
 ```
 
@@ -127,7 +147,7 @@ exports session reducer/controller and SSE client utilities; it does not load
 Room services, PostgreSQL adapters, model credentials or server composition.
 
 ```ts
-import { createSessionStreamController } from '@agentplat/framework/browser';
+import { createSessionStreamController } from "@agentplat/framework/browser";
 ```
 
 Use the package root (`@agentplat/framework`) only in server code or shared

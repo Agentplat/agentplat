@@ -3,6 +3,19 @@
 Opt-in, provider-neutral control boundaries for inference, released output,
 external actions and outbound messages. Alpha 4 is a developer preview.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/inference-control@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```sh
 pnpm add @agentplat/inference-control@next
 ```

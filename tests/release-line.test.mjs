@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -280,4 +280,35 @@ test("Beta 7 rejects an unknown 62-package release version", async (t) => {
     () => assertReleaseLine({ root }),
     /requires root version/,
   );
+});
+
+test("release-line guard accepts only the complete additive A2A registry group", async (t) => {
+  const root = await createReleaseLineFixture({ line: BETA_7 });
+  t.after(() => rm(root, { force: true, recursive: true }));
+  const catalogPath = path.join(root, "config/public-packages.json");
+  const catalog = JSON.parse(await readFile(catalogPath, "utf8"));
+  for (const name of ["a2a", "agent-registry", "agent-registry-postgres"]) {
+    const directory = `packages/${name}`;
+    await mkdir(path.join(root, directory), { recursive: true });
+    await writeFile(
+      path.join(root, directory, "package.json"),
+      JSON.stringify({
+        name: `@agentplat/${name}`,
+        version: BETA_7.releaseVersion,
+      }),
+    );
+    catalog.packages.push({
+      ...catalog.packages[0],
+      name: `@agentplat/${name}`,
+      directory,
+    });
+  }
+  catalog.packages.sort((a, b) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+  );
+  await writeFile(catalogPath, JSON.stringify(catalog));
+  assert.equal(await assertReleaseLine({ root }), true);
+  catalog.packages.find((entry) => entry.name === "@agentplat/a2a").name =
+    "@agentplat/unrelated";
+  await assert.rejects(assertReleaseLine({ root, catalog }), /complete A2A/);
 });

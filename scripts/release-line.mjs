@@ -8,6 +8,12 @@ import {
 
 export const TRUST_PACKAGE_NAME = "@agentplat/trust";
 
+export const A2A_PACKAGE_NAMES = Object.freeze([
+  "@agentplat/a2a",
+  "@agentplat/agent-registry",
+  "@agentplat/agent-registry-postgres",
+]);
+
 export const RELEASE_LINES = Object.freeze([
   Object.freeze({
     catalogPackageCount: 29,
@@ -57,6 +63,13 @@ export const RELEASE_LINES = Object.freeze([
     releaseVersion: "0.3.0-beta.7",
     trustPackageCount: 1,
   }),
+  Object.freeze({
+    catalogPackageCount: 65,
+    id: "beta7-a2a",
+    releaseVersion: "0.3.0-beta.7",
+    trustPackageCount: 1,
+    requiredPackageNames: A2A_PACKAGE_NAMES,
+  }),
 ]);
 
 /**
@@ -80,7 +93,13 @@ export async function assertReleaseLine({
   const matchingLines = RELEASE_LINES.filter(
     (candidate) =>
       candidate.catalogPackageCount === resolvedCatalog.packages.length &&
-      candidate.trustPackageCount === trustPackageCount,
+      candidate.trustPackageCount === trustPackageCount &&
+      (!candidate.requiredPackageNames ||
+        candidate.requiredPackageNames.every(
+          (name) =>
+            resolvedCatalog.packages.filter((entry) => entry.name === name)
+              .length === 1,
+        )),
   );
 
   const line =
@@ -89,7 +108,7 @@ export async function assertReleaseLine({
     ) ?? matchingLines[0];
   assert.ok(
     line,
-    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, or 62 Beta 6/Beta 7 packages with it exactly once`,
+    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, 62 Beta 6/Beta 7 packages, or 65 Beta 7 packages with the complete A2A/Registry group and Trust exactly once`,
   );
 
   assert.equal(

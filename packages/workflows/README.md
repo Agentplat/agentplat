@@ -3,6 +3,19 @@
 Workflow contracts and a deterministic V1 runner for long-running agentic
 processes.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/workflows@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 This package defines tasks, task runs, process definitions, stages, artifacts and workflow stores. It gives agentic products a durable vocabulary for orchestration, retries, handoffs, status tracking and output capture.
 
 The existing contracts and `InMemoryWorkflowStore` remain available. The

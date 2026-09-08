@@ -3,6 +3,19 @@
 Provider-neutral authenticated causal anti-entropy for independently hosted
 Agentplat collective peers.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-sync@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The package exposes signed, membership-bound frontier discovery, bounded chunk
 transfer, receipts, threshold catch-up certificates, resumable repository
 contracts, a readiness gate, an in-memory reference repository, and WHATWG

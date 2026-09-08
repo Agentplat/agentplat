@@ -2,6 +2,19 @@
 
 Closed, bounded and transport-neutral wire contracts for AgentPlat Mesh peers.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-protocol@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 Beta 1 writes `wireVersion: 1` and reads both the frozen current version and
 the preceding `wireVersion: 0` compatibility profile. The general parser
 accepts both; `parseSignedMeshEnvelopeV0` and `parseSignedMeshEnvelopeV1`

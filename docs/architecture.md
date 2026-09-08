@@ -58,3 +58,14 @@ not consolidate authority.
 Morphogenesis Constitutional Continuity V8 preserves mission and authority
 invariants across organizational generations. Proofs and meta-review authorize
 only successor constitutional epochs; local subsystem owners remain unchanged.
+
+
+A2A interoperability is opt-in through `@agentplat/a2a`. The shared
+`@agentplat/agent-registry` indexes published local references, external Agent
+Cards and explicit Room services without owning their definitions or execution.
+Its PostgreSQL adapter and A2A task/correlation store use the existing migration
+ledger. Room results remain drafts; Mesh keeps admission/assignment/lease
+ownership; Morphogenesis uses Capability State Fusion and its existing Candidate
+Discovery port to produce advisory recruitment proposals. See
+[ADR 0053](adr/0053-a2a-agent-registry.md) and the
+[integration guide](interop/a2a-agent-registry.md).

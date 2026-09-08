@@ -2,6 +2,23 @@
   "schemaVersion": 1,
   "sourceRules": [
     {
+      "id": "agent-registry-portable",
+      "paths": [
+        "packages/agent-registry/src"
+      ],
+      "exclude": [],
+      "forbiddenImports": [
+        "@a2a-js/sdk",
+        "@agentplat/rooms",
+        "@agentplat/mesh",
+        "@agentplat/postgres",
+        "pg",
+        "node:",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
       "id": "workflows-portable-root",
       "paths": ["packages/workflows/src"],
       "exclude": [],

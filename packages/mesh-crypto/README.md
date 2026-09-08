@@ -3,6 +3,19 @@
 Provider-neutral Web Crypto contracts for hashing, signing and verifying
 AgentPlat Mesh envelopes.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-crypto@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The Alpha 1 implementation provides:
 
 - canonical SHA-256 payload digests;
