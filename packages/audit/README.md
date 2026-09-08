@@ -2,6 +2,19 @@
 
 Audit contracts and redaction helpers for AgentPlat.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/audit@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ## Installation
 
 Requires Node.js `>=20.19.3` when used alongside the collective runtime. The

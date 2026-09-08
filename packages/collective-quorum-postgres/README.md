@@ -2,6 +2,19 @@
 
 PostgreSQL durability for `@agentplat/collective-quorum`.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-quorum-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 Migration V2 also provides transactional vote, lock, observed-vote and commit
 storage for the opt-in `@agentplat/collective-quorum/agreement` protocol. Import
 `PostgresCollectiveAgreementRepositoryV1` from

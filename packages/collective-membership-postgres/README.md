@@ -2,6 +2,19 @@
 
 PostgreSQL durability for `@agentplat/collective-membership`.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-membership-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The repository stores one peer's independent membership state:
 
 - the current configuration head and complete epoch history;

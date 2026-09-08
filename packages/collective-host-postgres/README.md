@@ -9,6 +9,19 @@ stopped process while completed receipts remain replayable. All records are
 scoped so several tenants or meshes can share one database without sharing
 runtime state.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/collective-host-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 Migration 005 adds the bounded causal telemetry outbox. Migration 006 adds
 CAS-backed semantic horizon budgets and their separately persisted monotonic
 rollback anchors. Migration 007 adds the monotonic assurance protected-effect

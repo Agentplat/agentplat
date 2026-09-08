@@ -4,15 +4,28 @@ Typed, ephemeral multi-agent turn orchestration over an `AgentRuntime`. Sessions
 coordinate speakers, bounded history, stopping rules, usage and one unified
 event stream. They do not persist Rooms or grant tool permissions.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/sessions@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 ```ts
-import { createMultiAgentSession } from '@agentplat/sessions';
+import { createMultiAgentSession } from "@agentplat/sessions";
 
 const session = createMultiAgentSession({
   runtime,
-  tenant: { tenantId: 'local' },
+  tenant: { tenantId: "local" },
   speakers: [buyer, seller],
   maxRounds: 4,
-  stopMarkers: ['DEAL AGREED'],
+  stopMarkers: ["DEAL AGREED"],
 });
 
 for await (const event of session.stream({ input: scenario, signal })) {

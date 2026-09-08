@@ -5,6 +5,19 @@ hosts. The adapter provides revision compare-and-swap, immutable slot commits,
 content-addressed artifacts, atomic lease-fence validation and a restart-durable
 head store for scalable team-vs-team evaluation.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/mesh-sim-postgres@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The caller supplies a scoped namespace and owns the `pg` pool lifecycle. Apply
 the packaged migration before opening the store:
 

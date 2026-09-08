@@ -5,6 +5,19 @@ Custom External Data to persist the stable AgentPlat idempotency key, allowing
 lookup and reconciliation after a process crash. External Asana completion is
 only a projection and never completes an AgentPlat contribution automatically.
 
+## Installation (developer preview)
+
+Install the coordinated preview explicitly:
+
+```sh
+npm install @agentplat/work-management-asana@next
+```
+
+Keep all `@agentplat/*` packages on the same release version. npm's default
+`latest` tag can point to an older preview. See the
+[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
+for distribution status and version selection.
+
 The adapter follows the official Asana
 [Create a task](https://developers.asana.com/reference/createtask) and
 [Custom External Data](https://developers.asana.com/docs/custom-external-data)
