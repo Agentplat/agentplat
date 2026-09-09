@@ -21,7 +21,6 @@ import {
   selectPublishablePackages,
 } from "./publish-packages.mjs";
 import { loadExternalTerminologyDenylist } from "./public-audit-terminology.mjs";
-import { assertSecurePublishManifest } from "./verify-release.mjs";
 
 export const RELEASE_ARTIFACT_MANIFEST = "npm-release-artifacts-v1.json";
 
@@ -29,6 +28,9 @@ export async function prepareNpmReleaseArtifacts({
   root = process.cwd(),
   environment = process.env,
 } = {}) {
+  // Build-time validators require installed dependencies; staging only imports
+  // the manifest filename from this module in a clean, credentialed job.
+  const { assertSecurePublishManifest } = await import("./verify-release.mjs");
   const outputDirectory = path.resolve(
     root,
     environment.AGENTPLAT_RELEASE_ARTIFACT_DIRECTORY ?? "release-artifacts",
