@@ -26,6 +26,17 @@ export or every combination of adapters.
 
 ## Distribution
 
+On 2026-09-09, all 65 catalog packages were publicly available at
+`0.3.0-beta.7` with `next` aligned. Registry integrity, signatures, provenance
+and tags passed the release verification job. Independent clean pnpm portable,
+pnpm PostgreSQL and npm Node 22.22.0 consumers passed for all 65 packages and
+216 export subpaths using the corrected registry-consumer cohort. See the
+[Beta 7 distribution record](releases/beta7-distribution-20260909.md) for source,
+artifact and verification boundaries. This does not establish production-scale
+operational validation.
+
+### Historical observation
+
 Read-only public npm checks on 2026-09-07 returned:
 
 | Package                         | Observed distribution                            | Interpretation                                                |
