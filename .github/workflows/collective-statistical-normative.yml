@@ -97,7 +97,7 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --output-directory normative-plan
           node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("normative-plan/registration.json","utf8")); const p=JSON.parse(fs.readFileSync("normative-plan/operation-plan.json","utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`registration_digest=${r.registrationDigest}\nplan_digest=${p.planDigest}\nadapter_registered=false\n`);'
-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-plan
@@ -153,7 +153,7 @@ jobs:
           --registration-directory normative-receipts
       - name: Upload fail-closed adapter gate receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-receipts
@@ -263,7 +263,7 @@ jobs:
           --shard "$SHARD_INDEX"
       - name: Upload shard receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-shard-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
           path: normative-receipts
@@ -316,7 +316,7 @@ jobs:
           --registration-directory normative-receipts
       - name: Upload collection receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-collection-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-receipts
@@ -369,7 +369,7 @@ jobs:
           --registration-directory normative-receipts
       - name: Upload analysis receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-analysis-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-receipts
@@ -422,7 +422,7 @@ jobs:
           --registration-directory normative-receipts
       - name: Upload verification receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-verification-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-receipts
@@ -475,7 +475,7 @@ jobs:
           --registration-directory normative-receipts
       - name: Upload attestation receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: collective-statistical-normative-attestation-${{ github.run_id }}-${{ github.run_attempt }}
           path: normative-receipts
