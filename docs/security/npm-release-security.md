@@ -10,7 +10,7 @@ No CI job may make an AgentPlat package publicly installable. CI may only place
 the exact reviewed tarballs into npm staged publishing. A maintainer who did not
 initiate the release must normally review those staged bytes and approve them
 with 2FA. The owner-approved Beta 7 exception below is the sole exception to
-independent review; it does not waive byte review or 2FA.
+independent npm deployment review; it does not waive byte review or 2FA.
 
 The release uses one artifact set:
 
@@ -35,8 +35,9 @@ non-dry run, repository administrators must configure all of the following:
 - Allow deployments only from the protected `main` branch.
 - Require a reviewer other than the release initiator and prevent self-review.
 - Store no npm write token in the environment, repository or organization.
-- Require the `check` status and CODEOWNERS review for `main`; do not permit
-  administrators or repository roles to bypass the release-boundary review.
+- Require the `check` status and CODEOWNERS review for `main`. The standing
+  owner exception below permits only `douglas-grishen` to bypass PR review.
+  Other administrators and repository roles receive no blanket exception.
 - Enable secret scanning and push protection.
 
 If any requirement cannot be enforced, releases remain dry-run only.
@@ -132,9 +133,23 @@ bypass. The environment variables `AGENTPLAT_NPM_OWNER_REVIEW_VERSION` and
 The stage script rejects any other version, scope, tag, initiator or rerun actor
 while these flags are present. npm approval still requires the owner's 2FA.
 
-The release PR may use a temporary owner-only `pull_request` review bypass;
-the separate `Protect main` ruleset retains the required `check` status with
-no bypass. Remove the temporary review bypass immediately after the release PR
-merges. After the release completes, restore independent environment review and
-remove both owner-exception variables before any subsequent release. Do not
-clear the variables while leaving self-review enabled.
+The temporary Beta 7 PR-review exception was superseded by the standing owner
+PR exception below. The Beta 7 npm environment exception remains release-specific:
+after that release, restore independent environment review and remove both
+owner-exception variables. Do not clear the variables while leaving self-review
+enabled.
+
+## Standing owner PR-review exception — 2026-09-11
+
+The owner explicitly requested a permanent exception for his account.
+`douglas-grishen` (GitHub user ID `207043696`) may use a `pull_request` bypass
+on **Require review for contributors** (ruleset `20820479`). This permits
+administrator integration through a PR without a separate approval; GitHub
+still does not permit authors to submit an approval on their own PR.
+
+The exception remains configured after integration. It is not limited to Beta 7
+or Beta 8. The separate **Protect main** ruleset (`20819947`) has no bypass
+actors and continues to require `check`. No direct-push/`always` bypass,
+repository-role exception, npm environment self-review exception or npm 2FA
+waiver is authorized by this PR policy. The governance verifier binds the
+allowance to the exact user, mode and review ruleset.

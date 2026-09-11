@@ -103,3 +103,34 @@ test("owner self-review is limited to Beta 7 and the authorized single reviewer"
     ),
   );
 });
+
+
+test("standing owner PR review exception is independent of the npm release version", () => {
+  const state = secureState();
+  state.mainBranchRules.push({
+    type: "ruleset_bypass_actor", ruleset_id: 20820479,
+    bypass_mode: "pull_request", actor_type: "User", actor_id: 207043696,
+  });
+  for (const releaseVersion of ["0.3.0-beta.8", "0.3.0-beta.9"]) {
+    state.releaseVersion = releaseVersion;
+    assert.equal(analyzeNpmReleaseGovernance(state).status, "passed");
+  }
+  state.environment.protection_rules[0].prevent_self_review = false;
+  assert.ok(analyzeNpmReleaseGovernance(state).findings.includes("npm_environment_independent_review_missing"));
+});
+
+test("owner PR exception rejects other actors, rulesets and always bypass", () => {
+  const allowed = {
+    type: "ruleset_bypass_actor", ruleset_id: 20820479,
+    bypass_mode: "pull_request", actor_type: "User", actor_id: 207043696,
+  };
+  for (const change of [
+    { actor_id: 1 }, { actor_type: "RepositoryRole" },
+    { ruleset_id: 20819947 }, { ruleset_id: undefined },
+    { bypass_mode: "always" },
+  ]) {
+    const state = secureState();
+    state.mainBranchRules.push({ ...allowed, ...change });
+    assert.equal(analyzeNpmReleaseGovernance(state).status, "failed");
+  }
+});
