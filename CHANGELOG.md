@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added trace-derived convergence metrics and an explicit diagnostic role-decision
+  horizon. Ordinary closed-loop execution defaults are unchanged; repeated
+  observations do not establish independent executions or empirical convergence.
+
 - Added opt-in A2A 1.0 JSON-RPC interoperability and a shared, tenant-scoped
   Agent Registry with PostgreSQL CAS persistence. Agent Room, Agent Mesh and
   Agent Morphogenesis bridges preserve their existing execution owners.
