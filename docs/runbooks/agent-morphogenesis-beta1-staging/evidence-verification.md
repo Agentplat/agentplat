@@ -8,7 +8,7 @@ independent rollback-witness domain against the inspection receipt.
 
 Require the exact 22 canonical scenario IDs with no missing, duplicate or
 unexpected entries; require their post-upgrade repetition and partition-time
-authority subset. Verify at least 24 hours and 1,000 runs, tenant/mission
+authority subset. Verify actual elapsed time and at least 1,000 runs, tenant/mission
 isolation, fault counts, deployments, schema upgrades, backup/restores, key
 rotations, alert receipts and resource samples. Recompute receipt roots,
 hash-chain continuity, SLO percentiles and all signatures using public keys.

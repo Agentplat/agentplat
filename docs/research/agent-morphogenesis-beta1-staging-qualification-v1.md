@@ -4,6 +4,13 @@
 operational-readiness result. **Status:** execution pending; this document is a
 test plan, not staging or production evidence.
 
+## Current execution priority
+
+As of 2026-09-09, development validation uses the [zero-external-spend local
+strategy](agent-morphogenesis-local-validation-2026-09-09.md). Distributed staging
+is deferred; this contract remains a separate future qualification plan. Its
+USD 250 ceiling is not the budget or spending authorization for local checks.
+
 ## Objective
 
 Establish whether AgentPlat Agent Morphogenesis preserves authority,
@@ -35,8 +42,10 @@ failure domains. Only this stage may establish
 
 Qualification requires all of the following:
 
-1. Run for at least 24 continuous hours, targeting 72 hours, with at least
-   1,000 completed Morphogenesis runs and eight concurrent missions.
+1. Complete at least 1,000 Morphogenesis runs with eight concurrent missions.
+   Finish as soon as all coverage, repetition and SLO gates pass; there is no
+   minimum elapsed-time gate. Fifteen minutes is a planning reference only,
+   not a minimum wait, deadline or guaranteed runtime.
 2. Exercise at least three tenants and two missions per tenant. Cross-tenant
    reads, writes and effects, cross-mission authority use, and cross-scope
    receipt acceptance must remain zero.
@@ -67,7 +76,7 @@ Implementation proceeds through these gates:
 3. Run a short non-qualifying rehearsal and validate evidence collection.
 4. Bind the deployment to real staging failure domains and external key
    custody.
-5. Run the 24–72 hour campaign, sign the evidence and issue the qualification
+5. Run the coverage-driven campaign, sign the evidence and issue the qualification
    report.
 
 Every gate is fail-closed. A partial campaign may diagnose the system but may
@@ -96,3 +105,23 @@ explicitly authorized objective and acceptance contract.
 
 The frozen collective capability V1 denominator and the excluded future
 capabilities remain unchanged.
+
+## Strategy revision — 2026-09-09
+
+Before distributed execution, the acceptance strategy was revised from a
+24-hour minimum / 72-hour target to coverage and repetition. The existing V1
+wire shapes and `soak` command names remain compatible; the profile digest
+binds the revised thresholds, so existing signed configurations must not be
+rewritten or reused as authorizations for the revised profile. Historical
+local-readiness bundles are unchanged.
+
+The collector defaults to `minimumDurationMs: 0`; `--duration-ms` optionally
+requests a longer observation window. The 15-minute target is informational
+and does not reject slower valid campaigns. All scenario, fault, concurrency,
+isolation, repetition and recovery gates remain mandatory. Expiry and rotation
+are explicitly induced; recovery latency is measured with real elapsed time.
+Completion requires observed execution receipts, never simulated passage of time.
+
+Long-duration stability remains not established by this campaign. A prolonged
+soak is optional follow-up evidence for resource accumulation and sustained
+operation, and is not a prerequisite for this bounded qualification.

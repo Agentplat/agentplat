@@ -16,6 +16,7 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
+import { localCoverageProfile, requireLocalCoverageEndpoints } from "./lib/morphogenesis-local-coverage.mjs";
 
 import { createPostgresPool } from "../packages/postgres/dist/index.js";
 
@@ -33,7 +34,10 @@ if (options.mode === "contract-smoke") {
   assert.equal(profile.executionGeometry.minimumCompletedIterations, 120);
   assert.equal(profile.executionGeometry.soakDurationMs, 1_800_000);
   console.log(JSON.stringify({ status: "passed", executionPermitted: false }));
-} else if (options.mode === "plan") {
+} else if (options.mode === "plan" || options.mode === "plan-local") {
+  const localCoverage = options.mode === "plan-local";
+  const selectedProfile = localCoverage ? localCoverageProfile(profile) : profile;
+  if (localCoverage) requireLocalCoverageEndpoints(process.env);
   exact(options, [
     "authorization-directory",
     "confirm",
@@ -63,12 +67,13 @@ if (options.mode === "contract-smoke") {
     schemaVersion: 1,
     kind: "agentplat-agent-morphogenesis-beta1-readiness-supervisor-config-v1",
     sourceCommit,
-    profileId: profile.profileId,
-    profileDigest: digest("morphogenesis-readiness-profile-v1", profile),
+    profileId: selectedProfile.profileId,
+    profileDigest: digest("morphogenesis-readiness-profile-v1", selectedProfile),
+    ...(localCoverage ? { validationScope: "local-coverage" } : {}),
     authorizationDirectory,
     expectedPublicKeySha256,
     temporalDbFile: path.resolve(required(options, "temporal-db-file")),
-    soakDurationMs: profile.executionGeometry.soakDurationMs,
+    soakDurationMs: selectedProfile.executionGeometry.soakDurationMs,
     minimumCompletedIterations:
       profile.executionGeometry.minimumCompletedIterations,
     roundsRequired: 20,
@@ -129,6 +134,7 @@ if (options.mode === "contract-smoke") {
 async function runSupervisor(directory, resume) {
   const config = await json(path.join(directory, "supervisor-config.json"));
   let state = await json(path.join(directory, "supervisor-state.json"));
+  if (config.validationScope === "local-coverage") requireLocalCoverageEndpoints(process.env);
   if (config.sourceCommit !== git("rev-parse", "HEAD"))
     fail("readiness_supervisor_source_changed");
   cleanTrackedTree();
@@ -355,6 +361,11 @@ async function runSupervisor(directory, resume) {
         morphologyHeadForks: 0,
         missionContinuityRatio: 1,
         externalSpendUsd: 0,
+        ...(config.validationScope === "local-coverage" ? {
+          validationScope: "local-coverage",
+          longDurationStability: "not-established",
+          operationalReadinessEstablished: false,
+        } : {}),
         experimentalEvidence: "not-collected",
         productionReadiness: "not-established",
         productionClaimPermitted: false,

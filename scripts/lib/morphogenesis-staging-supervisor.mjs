@@ -239,6 +239,7 @@ function validateReceipt(config, input) {
 }
 
 function validateSoak(config, input) {
+  assert.ok(Number.isSafeInteger(input.durationMs) && input.durationMs > 0);
   assert.ok(input.durationMs >= config.executionGeometry.minimumSoakDurationMs);
   assert.ok(input.completedMorphogenesisRuns >= config.executionGeometry.minimumCompletedMorphogenesisRuns);
   assert.ok(input.minimumRunsPerTenant >= config.executionGeometry.minimumRunsPerTenant);

@@ -33,7 +33,7 @@ if (mode === "contract-smoke") {
     json(path.join(root, "config/agent-morphogenesis-beta1-staging-qualification-v1.json")),
     json(path.join(root, "config/agent-morphogenesis-beta1-operational-readiness-v1.json")),
   ]);
-  assert.equal(profile.executionGeometry.minimumSoakDurationMs, 86_400_000);
+  assert.equal(profile.executionGeometry.minimumSoakDurationMs, 0);
   assert.equal(profile.executionGeometry.minimumCompletedMorphogenesisRuns, 1_000);
   assert.equal(readiness.operationalScenarioIds.length, 22);
   console.log(JSON.stringify({
