@@ -1,8 +1,8 @@
 # Releasing AgentPlat packages
 
 AgentPlat uses one exact version for every publishable package in
-`config/public-packages.json`. The current recovery candidate is
-`0.3.0-beta.7` across 65 packages, targeting **`next`**. It is not a stable
+`config/public-packages.json`. The current candidate is
+`0.3.0-beta.8` across 65 packages, targeting **`next`**. It is not a stable
 release, and the tooling rejects preparing a prerelease for `latest`.
 
 The [npm release security boundary](docs/security/npm-release-security.md) is
@@ -21,10 +21,11 @@ misaligned tags, unresolved internal dependencies and unavailable registry
 reads. Use `--require-complete` after approval. This checks metadata; the clean
 registry consumers must also execute successfully.
 
-Beta 6 was only partially published. Comparing the current workflows tarball
-with published `0.3.0-beta.6` found different README contents; published versions
-cannot be replaced. Beta 7 preserves a fresh version for a coordinated release.
-See the [recovery runbook](docs/releases/npm-distribution-recovery.md).
+Beta 7 was published as the complete 65-package cohort on 2026-09-09.
+Beta 8 requires a fresh immutable version for the reconciliation changes.
+The [Beta 7 distribution record](docs/releases/beta7-distribution-20260909.md)
+and [historical recovery runbook](docs/releases/npm-distribution-recovery.md)
+preserve the earlier partial Beta 6 publication and its resolution.
 
 ## Prepare reviewed source
 
@@ -33,8 +34,10 @@ and npm >=11.15.0 for staged publishing. Local source development requires
 Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
 
 Use a clean source commit. Preserve unrelated work and review the release diff
-before merging it into protected `main`. The release-line guard retains the
-historical Beta 6 cohort and explicitly admits the 65-package Beta 7 cohort, including the complete A2A/Registry group.
+before merging it into protected `main`. The release-line guard retains historical cohorts and admits the complete
+65-package Beta 8 cohort, including A2A and Agent Registry. Beta 7 is already
+published. The owner-review exception in the security boundary is historical
+and limited to Beta 7; it does not authorize self-review for Beta 8.
 
 ```sh
 corepack pnpm install --frozen-lockfile
@@ -64,19 +67,12 @@ The full consumer audits extracted files, imports package exports independently,
 compiles public declarations and exercises the existing functional scenarios.
 A tarball built from a dirty working tree is not an approved release artifact.
 
-## Register missing names before staging
+## Existing package cohort
 
-npm cannot stage a brand-new package. The eight missing names require a separate,
-interactive initial publication with 2FA, using reviewed bootstrap tarballs.
-Use the preceding Beta 6 version for that bootstrap; reserve Beta 7 for the
-complete staged cohort. Do not publish a bootstrap tarball as Beta 7 and then
-attempt to stage that same immutable version again.
-
-Bootstrap artifacts must come from a clean Beta 6 source commit and pass the
-same artifact audits. Their exact manifests must be reviewed before publishing.
-They do not satisfy Beta 7 provenance or distribution acceptance. Immediately
-configure stage-only trusted publishing and disallow publishing tokens for the
-new names. No bootstrap exception belongs in CI.
+All 65 package names already exist from the verified Beta 7 publication.
+Beta 8 does not need a bootstrap publication. If the distribution check reports
+an unregistered name, investigate the catalog or registry access before staging.
+Do not reuse the historical Beta 6 bootstrap instructions for this candidate.
 
 ## Stage the complete candidate
 
@@ -101,9 +97,8 @@ that boundary. Neither staging nor workflow success means the release is public.
 
 A maintainer reviews the whole staged cohort against the originating
 GitHub artifact, downloads staged bytes and compares hashes before approving
-with 2FA. Independent review is the default; the owner-authorized Beta 7
-exception in the security boundary permits `douglas-grishen` to approve this
-specific release of his own code. Then run **Verify approved npm release** with the originating run ID,
+with 2FA. Independent review applies to Beta 8. Then run **Verify approved npm
+release** with the originating run ID,
 exact source commit, `scope=all` and `dist_tag=next`. Keep that reviewed release
 commit at `main` HEAD until verification finishes. The verifier executes only
 the trusted `main` checkout and rejects a supplied commit that differs; it never

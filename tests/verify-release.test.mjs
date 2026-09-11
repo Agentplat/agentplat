@@ -243,3 +243,17 @@ async function createBrowserFixture({
     rootSourcePath,
   };
 }
+
+test('syntax audit distinguishes type-only edges, re-exports, assignments and JSX', () => {
+  assert.deepEqual(extractRuntimeModuleSpecifiers(`
+    import type { PathLike } from 'node:fs';
+    import { type Stats } from 'node:fs';
+    export type { PathLike } from 'node:fs';
+    export { type Stats } from 'node:fs';
+    export * as fs from 'node:fs';
+    export { readFile } from 'node:fs/promises';
+    import os = require('node:os');
+    const view = <span>{import(\`node:path\`)}</span>;
+  `, 'fixture.tsx'), ['node:fs', 'node:fs/promises', 'node:os', 'node:path']);
+  assert.throws(() => extractRuntimeModuleSpecifiers('import(`node:${name}`)'), /non-literal dynamic import/);
+});

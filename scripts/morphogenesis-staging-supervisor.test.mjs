@@ -93,7 +93,7 @@ test("staging supervisor completes only after every frozen gate", () => {
   accept("alert-delivery", { externalReceiptDigest: sha("e") });
   assert.equal(completionSatisfied(config, state), false);
   accept("soak-summary", {
-    durationMs: config.executionGeometry.minimumSoakDurationMs,
+    durationMs: 300_000,
     completedMorphogenesisRuns: config.executionGeometry.minimumCompletedMorphogenesisRuns,
     minimumRunsPerTenant: config.executionGeometry.minimumRunsPerTenant,
     tenantCount: config.executionGeometry.minimumTenants,
@@ -113,6 +113,8 @@ test("staging supervisor completes only after every frozen gate", () => {
     resourceSampleRoot: sha("1"),
     operationReceiptRoot: sha("2"),
   });
+  assert.equal(completionSatisfied(config, { ...state, baselineScenarioIds: state.baselineScenarioIds.slice(1) }), false);
+  assert.equal(completionSatisfied(config, { ...state, faultCycles: { ...state.faultCycles, "host-loss": 0 } }), false);
   assert.equal(state.status, "completed");
   assert.equal(state.stagingQualification, "beta1-distributed-staging-profile-established");
   assert.equal(state.productionReadiness, "not-established");

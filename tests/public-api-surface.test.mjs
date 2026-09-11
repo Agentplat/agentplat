@@ -124,3 +124,20 @@ test("source surface maps declaration exports and compatibility rejects breaking
     /introduced import side effects/u,
   );
 });
+
+test('declaration audit retains namespace, alias and default exports without re-exporting nested defaults', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agentplat-api-names-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'dist'));
+  await writeFile(path.join(root, 'dist/index.d.ts'), [
+    'export * from "./nested.js";',
+    'export * as namespace from "./nested.js";',
+    'export { Value as Alias } from "./nested.js";',
+    'export default class PublicClass {}',
+  ].join('\n'));
+  await writeFile(path.join(root, 'dist/nested.d.ts'), 'export default class Hidden {}\nexport interface Value {}');
+  const manifest = { name: '@agentplat/fixture', types: './dist/index.d.ts' };
+  assert.deepEqual(inspectPackedTypeSurface(root, manifest, '.').typeExports, ['Alias', 'Value', 'default', 'namespace']);
+  await writeFile(path.join(root, 'dist/index.d.ts'), 'export * from "./nested.js";');
+  assert.deepEqual(inspectPackedTypeSurface(root, manifest, '.').typeExports, ['Value']);
+});

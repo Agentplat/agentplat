@@ -118,6 +118,8 @@ export interface CollectiveClosedLoopExecutionInputV1 {
   readonly actionClass: string;
   readonly resultDigest: PlanningDigestV1;
   readonly resultSummary: string;
+  /** Optional diagnostic decision horizon; does not authorize additional effects. */
+  readonly roleObservationHorizon?: number;
   prepareAction(
     context: CollectiveClosedLoopActionPreparationContextV1,
   ):
@@ -329,6 +331,8 @@ export interface CollectiveClosedLoopResilienceExecutionInputV1 {
   readonly actionClass: string;
   readonly resultDigest: PlanningDigestV1;
   readonly resultSummary: string;
+  /** Optional diagnostic decision horizon; does not authorize additional effects. */
+  readonly roleObservationHorizon?: number;
   prepareAction(
     context: CollectiveClosedLoopActionPreparationContextV1,
   ):
@@ -533,6 +537,9 @@ async function runResilientClosedLoop(
     actionClass: input.actionClass,
     resultDigest: input.resultDigest,
     resultSummary: input.resultSummary,
+    ...(input.roleObservationHorizon === undefined
+      ? {}
+      : { roleObservationHorizon: input.roleObservationHorizon }),
     prepareAction: input.prepareAction,
   };
   const initialObservationBatch = collectObservations(nominalInput, 0);
@@ -947,6 +954,15 @@ async function runResilientClosedLoop(
       definition,
       resilience,
     );
+  await collectRegisteredRoleCoherenceRounds(
+    nominalInput,
+    observations,
+    journal,
+    journal.events.at(-1)?.logicalTimeMs ?? 0,
+    runner === "adaptive_collective"
+      ? activePlanningPeers(nominalInput).length
+      : 0,
+  );
   const evaluation = input.evaluator.finalize(publicArtifacts);
   assertResilienceTerminalEvidence(evaluation, run, finalized, faultMatrix);
   return Object.freeze({
@@ -971,6 +987,7 @@ async function runClosedLoop(
 ): Promise<CollectiveClosedLoopExecutionResultV1> {
   const input = validateExecutionInput(rawInput, runner);
   const definition = validateCollectiveClosedLoopDefinitionV1(input.definition);
+  validateRoleObservationHorizon(input.roleObservationHorizon, definition);
   const registration = definition.registration;
   const journal = journalFor(input.evaluator.environment);
   const initialization = input.evaluator.environment.initialize(
@@ -1176,6 +1193,13 @@ async function runClosedLoop(
     ]),
     publicArtifacts,
   });
+  await collectRegisteredRoleCoherenceRounds(
+    input,
+    observations,
+    journal,
+    journal.events.at(-1)?.logicalTimeMs ?? 0,
+    runner === "adaptive_collective" ? activePlanningPeers(input).length : 0,
+  );
   const evaluation = input.evaluator.finalize(publicArtifacts);
   assertTerminalEvidence(evaluation, run, finalized);
   return Object.freeze({
@@ -1188,6 +1212,25 @@ async function runClosedLoop(
     action,
     finalized,
   });
+}
+
+function validateRoleObservationHorizon(
+  horizon: number | undefined,
+  definition: CollectiveClosedLoopDefinitionV1,
+): void {
+  if (horizon === undefined) return;
+  const owner = definition.peers[0];
+  if (!owner) throw new TypeError("closed_loop_owner_missing");
+  const ids = new Set([owner.peerId, ...owner.neighborPeerIds]);
+  const activeCount = definition.peers.filter((peer) =>
+    ids.has(peer.peerId),
+  ).length;
+  if (
+    !Number.isSafeInteger(horizon) ||
+    horizon < activeCount ||
+    horizon > 1_000
+  )
+    throw new TypeError("closed_loop_role_horizon_invalid");
 }
 
 function validateExecutionInput(
@@ -1206,6 +1249,9 @@ function validateExecutionInput(
       "resultDigest",
       "resultSummary",
       "prepareAction",
+      ...(Object.hasOwn(input, "roleObservationHorizon")
+        ? ["roleObservationHorizon"]
+        : []),
     ],
     "closed-loop execution input",
   );
@@ -1226,6 +1272,7 @@ function validateExecutionInput(
   )
     throw new TypeError("closed_loop_execution_input_invalid");
   const definition = validateCollectiveClosedLoopDefinitionV1(input.definition);
+  validateRoleObservationHorizon(input.roleObservationHorizon, definition);
   if (
     definition.registration.runner !== runner ||
     definition.registration.stratum !== "nominal" ||
@@ -1257,6 +1304,9 @@ function validateResilienceExecutionInput(
       "resultDigest",
       "resultSummary",
       "prepareAction",
+      ...(Object.hasOwn(input, "roleObservationHorizon")
+        ? ["roleObservationHorizon"]
+        : []),
     ],
     "closed-loop resilience execution input",
   );
@@ -1283,6 +1333,10 @@ function validateResilienceExecutionInput(
     throw new TypeError("closed_loop_resilience_execution_input_invalid");
   const definition = validateCollectiveClosedLoopResilienceDefinitionV1(
     input.definition,
+  );
+  validateRoleObservationHorizon(
+    input.roleObservationHorizon,
+    definition.nominalDefinition,
   );
   if (
     definition.nominalDefinition.registration.runner !== runner ||
@@ -1601,9 +1655,11 @@ async function collectDecisions(
   observations: readonly MissionObservationV1[],
   journal: CollectiveTraceJournalV2,
   logicalTimeMs: number,
+  peerLimit = Number.MAX_SAFE_INTEGER,
+  roleObservationOnly = false,
 ): Promise<ReadonlyMap<string, CollectivePlanningDecisionV1>> {
   const decisions = new Map<string, CollectivePlanningDecisionV1>();
-  for (const peer of activePlanningPeers(input)) {
+  for (const peer of activePlanningPeers(input).slice(0, peerLimit)) {
     const localObservations = observations.filter(
       (observation) =>
         observation.observerPeerId === peer.peerId &&
@@ -1638,12 +1694,14 @@ async function collectDecisions(
       logicalTimeMs,
       peerId: peer.peerId,
       component: "runner",
-      kind: "peer.decision.accepted",
+      kind: roleObservationOnly
+        ? "role.decision.observed"
+        : "peer.decision.accepted",
       recordDigest: digestValue(decision),
       stateDigestBefore: state.planView.stateDigest,
       stateDigestAfter: state.planView.stateDigest,
     });
-    if (decision.kind === "proposal")
+    if (!roleObservationOnly && decision.kind === "proposal")
       append(journal, {
         logicalTimeMs,
         peerId: peer.peerId,
@@ -1657,14 +1715,80 @@ async function collectDecisions(
   return decisions;
 }
 
+/**
+ * Fills an explicitly requested diagnostic role-decision horizon with repeated
+ * local planning rounds over the same observations. These are not independent
+ * mission executions or proof of organizational convergence. The first round's owner proposal remains the only
+ * proposal admitted to execution; subsequent rounds are evaluator-visible
+ * evidence of sustained role decisions and do not mutate the mission action.
+ * The final round is full-width so convergence is measured over all active
+ * participants rather than over a truncated remainder.
+ */
+async function collectRegisteredRoleCoherenceRounds(
+  input: CollectiveClosedLoopExecutionInputV1,
+  observations: readonly MissionObservationV1[],
+  journal: CollectiveTraceJournalV2,
+  initialLogicalTimeMs: number,
+  initialDecisionCount: number,
+): Promise<void> {
+  const horizon = input.roleObservationHorizon;
+  if (horizon === undefined) return;
+  if (!Number.isSafeInteger(horizon) || horizon < 1 || horizon > 1_000)
+    throw new Error("closed_loop_role_horizon_invalid");
+  const activePeerCount = activePlanningPeers(input).length;
+  if (activePeerCount < 1 || horizon < activePeerCount)
+    throw new Error("closed_loop_role_horizon_participant_count_invalid");
+  let remaining = horizon - initialDecisionCount;
+  if (remaining < 0) throw new Error("closed_loop_role_horizon_overflow");
+  let round = 1;
+  const fullRoundsBeforeFinal = Math.max(
+    0,
+    Math.floor((remaining - activePeerCount) / activePeerCount),
+  );
+  for (let index = 0; index < fullRoundsBeforeFinal; index += 1) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      activePeerCount,
+      true,
+    );
+    remaining -= activePeerCount;
+    round += 1;
+  }
+  if (remaining > activePeerCount) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      remaining - activePeerCount,
+      true,
+    );
+    remaining -= remaining - activePeerCount;
+    round += 1;
+  }
+  if (remaining > 0) {
+    await collectDecisions(
+      input,
+      observations,
+      journal,
+      initialLogicalTimeMs + round,
+      remaining,
+      true,
+    );
+  }
+}
+
 /** The sparse reference mesh admits only the owner and its direct neighbors
  * to a planning round. Other registered peers remain in the scale model but
  * cannot observe or influence that round without an ingress path. */
 function activePlanningPeers(
   input: CollectiveClosedLoopExecutionInputV1,
-): readonly CollectiveClosedLoopDefinitionV1['peers'][number][] {
+): readonly CollectiveClosedLoopDefinitionV1["peers"][number][] {
   const owner = input.definition.peers[0];
-  if (owner === undefined) throw new Error('closed_loop_owner_missing');
+  if (owner === undefined) throw new Error("closed_loop_owner_missing");
   const activeIds = new Set([owner.peerId, ...owner.neighborPeerIds]);
   return input.definition.peers.filter((peer) => activeIds.has(peer.peerId));
 }

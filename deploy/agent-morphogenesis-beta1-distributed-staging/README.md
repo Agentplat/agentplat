@@ -95,12 +95,13 @@ The durable supervisor is planned only after deployment. Planning binds the
 clean commit, inventory digest, deployment receipt and campaign KMS public key.
 It does not permit execution. A policy-eligible agent, person or quorum must
 then authorize the exact config digest with KMS for a validity window covering
-the target 72-hour soak plus recovery margin.
+the 15-minute planning reference plus recovery margin. This authorization
+window does not impose a minimum execution duration.
 
 Drivers submit sequential KMS-signed operation receipts. The supervisor rejects
 unsigned, expired, replayed, out-of-order or unsafe receipts. It completes only
 after both exact 22-scenario sets, every frozen fault/upgrade/restore/rotation
-count, isolation and alert delivery, and a ≥24-hour/1,000-run soak. Completion
+count, isolation and alert delivery, and 1,000 completed runs. Completion
 still leaves production readiness and production claims disabled.
 
 Run the observability gateway preflight after deployment. It sends only a
@@ -126,8 +127,8 @@ carry domain/Mesh/workflow evidence digests and report zero safety violations.
 The supervisor requires 22 exact baseline receipts, 22 exact post-upgrade
 receipts and six frozen authority scenarios while a partition is active.
 
-The soak collector accepts no projected estimate: gateway timestamps must span
-at least 24 hours and the response must contain at least 1,000 completed runs,
+The soak collector accepts no projected estimate: gateway timestamps must record
+the actual positive duration and the response must contain at least 1,000 completed runs,
 three tenants with 200 runs each, eight concurrent missions, six cumulative
 Mesh starts, resource/operation roots, bounded latency and resource SLOs, empty
 final queues and zero safety violations. Its `operation-detail.json` is the
@@ -145,3 +146,8 @@ must complete six executions across three failure domains and actively attempt
 at least 24 cross-tenant and six cross-mission reads. Accepted reads, writes,
 authority use or receipts must remain zero, with durable Morphogenesis and
 Workflow roots bound to the external witness.
+
+Collection defaults to no minimum elapsed-time gate; omit `--duration-ms` to
+finish on coverage and repetition. An explicit positive `--duration-ms` adds
+an optional observation window. Fifteen minutes is a planning reference, not
+a deadline. Fast qualification does not establish long-duration stability.

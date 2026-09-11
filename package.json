@@ -1,6 +1,6 @@
 {
   "name": "agentplat",
-  "version": "0.3.0-beta.7",
+  "version": "0.3.0-beta.8",
   "private": true,
   "description": "Open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure.",
   "keywords": [
@@ -145,7 +145,8 @@
     "preflight:agent-morphogenesis-beta1-staging:status": "node scripts/agent-morphogenesis-beta1-staging-preflight.mjs --mode status",
     "preflight:agent-morphogenesis-beta1-staging:run": "node scripts/agent-morphogenesis-beta1-staging-preflight.mjs --mode run --confirm RUN_SINGLE_HOST_STAGING_PREFLIGHT",
     "preflight:agent-morphogenesis-beta1-staging:down": "node scripts/agent-morphogenesis-beta1-staging-preflight.mjs --mode down --confirm STOP_SINGLE_HOST_STAGING_PREFLIGHT",
-    "verify:agent-morphogenesis-beta1-readiness-supervisor": "node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode contract-smoke",
+    "verify:agent-morphogenesis-beta1-readiness-supervisor": "node --test scripts/morphogenesis-local-coverage.test.mjs && node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode contract-smoke",
+    "plan:agent-morphogenesis-beta1-local-coverage": "node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode plan-local",
     "plan:agent-morphogenesis-beta1-readiness-soak": "node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode plan",
     "run:agent-morphogenesis-beta1-readiness-soak": "node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode run",
     "resume:agent-morphogenesis-beta1-readiness-soak": "node scripts/agent-morphogenesis-beta1-readiness-supervisor.mjs --mode resume",
@@ -253,8 +254,8 @@
     "@agentplat/model-openai-compatible": "workspace:*",
     "@agentplat/planning-artifacts": "workspace:*",
     "@agentplat/planning-artifacts-postgres": "workspace:*",
-    "@agentplat/provider-openai": "workspace:*",
     "@agentplat/postgres": "workspace:*",
+    "@agentplat/provider-openai": "workspace:*",
     "@agentplat/rooms": "workspace:*",
     "@agentplat/rooms-api": "workspace:*",
     "@agentplat/rooms-mesh": "workspace:*",
@@ -271,10 +272,11 @@
     "@agentplat/workflows-postgres": "workspace:*",
     "@agentplat/workflows-rooms": "workspace:*",
     "@agentplat/workflows-temporal": "workspace:*",
-    "prettier": "^3.1.0",
-    "pg": "^8.13.1",
+    "@babel/parser": "7.29.8",
+    "pg": "^8.23.0",
+    "prettier": "^3.9.6",
     "semver": "^7.7.2",
-    "typescript": "^5.3.0"
+    "typescript": "^7.0.2"
   },
   "main": "index.js",
   "directories": {

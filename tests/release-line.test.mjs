@@ -201,8 +201,20 @@ test("release-line guard rejects duplicate Trust catalog entries", async (t) => 
   await assert.rejects(() => assertReleaseLine({ root }));
 });
 
+test("Beta 8 requires all 65 packages, the A2A group, and exact versions", async (t) => {
+  const line = RELEASE_LINES.find((line) => line.id === "beta8");
+  const good = await createReleaseLineFixture({ line });
+  const missing = await createReleaseLineFixture({ line, includeRequired: false });
+  const mixed = await createReleaseLineFixture({ line, packageVersion: "0.3.0-beta.7" });
+  t.after(() => Promise.all([good, missing, mixed].map((root) => rm(root, { force: true, recursive: true }))));
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(() => assertReleaseLine({ root: missing }));
+  await assert.rejects(() => assertReleaseLine({ root: mixed }), /must use 0\.3\.0-beta\.8/);
+});
+
 async function createReleaseLineFixture({
   duplicateTrust = false,
+  includeRequired = true,
   line,
   includeTrust = line.trustPackageCount === 1,
   manifestDirectoryOffset = 0,
@@ -217,6 +229,7 @@ async function createReleaseLineFixture({
   );
   if (includeTrust) names[0] = TRUST_PACKAGE_NAME.slice("@agentplat/".length);
   if (duplicateTrust) names[1] = TRUST_PACKAGE_NAME.slice("@agentplat/".length);
+  if (includeRequired) for (const [index, name] of (line.requiredPackageNames ?? []).entries()) names[index + 1] = name.slice("@agentplat/".length);
   const sortedNames = names.sort();
   const catalog = {
     schemaVersion: 2,

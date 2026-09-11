@@ -12,7 +12,7 @@ export class MorphogenesisStagingSoakGatewayV1 {
   }
   async collect(input) {
     assert.match(input.sourceCommit, /^[0-9a-f]{40}$/u); sha(input.inventoryDigest); sha(input.deploymentReceiptDigest);
-    assert.ok(Number.isSafeInteger(input.minimumDurationMs) && input.minimumDurationMs >= 86_400_000);
+    assert.ok(Number.isSafeInteger(input.minimumDurationMs) && input.minimumDurationMs >= 0);
     assert.ok(Number.isSafeInteger(input.minimumRuns) && input.minimumRuns >= 1_000);
     assert.match(input.challenge, /^[A-Za-z0-9_-]{22,128}$/u);
     const body = { schemaVersion: 1, kind: "agentplat-agent-morphogenesis-beta1-staging-soak-collection-request-v1", sourceCommit: input.sourceCommit, inventoryDigest: input.inventoryDigest, deploymentReceiptDigest: input.deploymentReceiptDigest, minimumDurationMs: input.minimumDurationMs, minimumRuns: input.minimumRuns, challenge: input.challenge, contentPolicy: "content-free-only" };
@@ -25,7 +25,7 @@ export class MorphogenesisStagingSoakGatewayV1 {
 }
 function validateResponse(value, requestDigest, request) {
   assert.equal(value.schemaVersion, 1); assert.equal(value.kind, "agentplat-agent-morphogenesis-beta1-staging-soak-collection-response-v1"); assert.equal(value.requestDigest, requestDigest); assert.equal(value.status, "passed");
-  const startedAt = Date.parse(value.startedAt); const completedAt = Date.parse(value.completedAt); assert.equal(new Date(value.startedAt).toISOString(), value.startedAt); assert.equal(new Date(value.completedAt).toISOString(), value.completedAt); assert.equal(value.durationMs, completedAt - startedAt); assert.ok(value.durationMs >= request.minimumDurationMs);
+  const startedAt = Date.parse(value.startedAt); const completedAt = Date.parse(value.completedAt); assert.equal(new Date(value.startedAt).toISOString(), value.startedAt); assert.equal(new Date(value.completedAt).toISOString(), value.completedAt); assert.ok(Number.isSafeInteger(value.durationMs) && value.durationMs > 0); assert.equal(value.durationMs, completedAt - startedAt); assert.ok(value.durationMs >= request.minimumDurationMs);
   assert.ok(value.completedMorphogenesisRuns >= request.minimumRuns); assert.ok(Object.keys(value.runsByTenant).length >= 3); for (const runs of Object.values(value.runsByTenant)) assert.ok(runs >= 200); assert.ok(value.maximumConcurrentMissions >= 8); assert.ok(value.cumulativeMeshProcessStarts >= 6); assert.ok(value.resourceSampleCount > 0);
   for (const key of ["resourceSampleRoot", "operationReceiptRoot", "evidenceDigest"]) sha(value[key]); assert.equal(value.invariants.missionContinuityRatio, 1); for (const key of ["duplicateMaterialEffects", "unauthorizedActivations", "lostCommittedReceipts", "morphologyHeadForks", "crossTenantEffects", "crossMissionEffects"]) assert.equal(value.invariants[key], 0);
   assert.equal(value.finalPendingMeshInboxRows, 0); assert.equal(value.finalPendingMeshOutboxRows, 0); assert.equal(value.contentCaptured, false); const { responseDigest, ...body } = value; assert.equal(responseDigest, digest("staging-soak-response-v1", body)); return Object.freeze(value);

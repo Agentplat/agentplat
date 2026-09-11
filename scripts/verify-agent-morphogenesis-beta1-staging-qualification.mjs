@@ -21,8 +21,10 @@ assert.equal(profile.qualificationStages.distributedStaging.mayEstablishStagingQ
 assert.ok(profile.requiredInfrastructure.minimumFailureDomains >= 3);
 assert.ok(profile.requiredInfrastructure.minimumAgentMeshPeerIdentities >= 4);
 assert.match(profile.requiredInfrastructure.keyCustody, /kms|hsm/iu);
-assert.equal(profile.executionGeometry.minimumSoakDurationMs, 24 * 60 * 60 * 1000);
-assert.equal(profile.executionGeometry.targetSoakDurationMs, 72 * 60 * 60 * 1000);
+assert.equal(profile.executionGeometry.completionPolicy, "coverage-and-repetition");
+assert.equal(profile.claimBoundary.longDurationStability, "not-established");
+assert.equal(profile.executionGeometry.minimumSoakDurationMs, 0);
+assert.equal(profile.executionGeometry.targetSoakDurationMs, 15 * 60 * 1000);
 assert.ok(profile.executionGeometry.minimumCompletedMorphogenesisRuns >= 1000);
 assert.ok(profile.executionGeometry.minimumTenants >= 3);
 assert.ok(profile.executionGeometry.minimumConcurrentMissions >= 8);

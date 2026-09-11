@@ -192,7 +192,7 @@ async function completeSupervisor(directory, privateKey) {
     externalIsolationReceiptDigest: sha("b"),
   }]);
   operations.push(["soak-summary", {
-    durationMs: config.executionGeometry.minimumSoakDurationMs,
+    durationMs: 300_000,
     completedMorphogenesisRuns: config.executionGeometry.minimumCompletedMorphogenesisRuns,
     minimumRunsPerTenant: config.executionGeometry.minimumRunsPerTenant,
     tenantCount: config.executionGeometry.minimumTenants,

@@ -1,0 +1,79 @@
+# Development reconciliation — 2026-09-11
+
+This is a dated reconciliation record, not a production-readiness attestation.
+
+## Integration candidate
+
+The reconciliation branch preserves the local Morphogenesis work from PR #169,
+integrates the dependency groups from #162 and #151, the workflow artifact
+updates from #160, and the Next.js/React and example toolchain updates from
+#142 and #161. Lockfile conflicts retain the existing security overrides;
+the workspace Hono override advances with the reviewed Hono update.
+TypeScript 7 requires explicit Node types in the Redis sessions and local
+simulation adapters. The coordinated release candidate is `0.3.0-beta.8`.
+Publication is pending artifact preparation, governance, review and npm 2FA.
+
+PR #123 was closed in favor of #170. Its diagnostic horizon and convergence projection are retained with
+corrections: ordinary execution remains opt-in, actual planning-state digests
+are preserved, peers are counted distinctly and recovery boundaries follow the
+latest disruption. The hardcoded historical-source preflight was removed in
+favor of the existing source-bound registered preflight. The former draft's
+convergence claim is not adopted. See the convergence validation document.
+
+PRs #143, #144, #145, #146, #147 and #168 were closed as superseded by
+reconciliation PR #170 and the newer dependency groups. They must not be merged
+again and downgrade versions or recreate old lockfiles.
+
+PR #3 was closed as an obsolete alternative to the governed A2A/Registry
+implementation already shipped in Beta 7; this does not assert API equivalence
+with the abandoned draft. PR #164 was closed by editorial decision without
+adopting the optional third-party shipping badge.
+
+## Branch disposition
+
+The historical local branches associated with closed PRs #97, #98, #100,
+#102–#108 remain preserved. Their original commits are not all ancestors of
+main; the collective baseline was subsequently consolidated in #109. They
+are historical references, not merge candidates. The control-plane branch
+belongs to merged PR #125. Preserve these branches until their historical
+reference value has been reviewed; do not delete unmerged commit objects as
+part of cosmetic cleanup. Active reconciliation worktrees are temporary and
+must be cleaned up after their commits reach main.
+
+## Explicit remaining validation obligations
+
+| Work | Closure evidence | Current disposition |
+| --- | --- | --- |
+| Distributed Morphogenesis staging | Authorized execution across the specified failure domains, exact baseline/post-upgrade scenarios, signed receipts, repetitions, fault and recovery gates | Deferred; local checks do not qualify staging |
+| Long-duration stability and host-loss recovery | A separately specified prolonged run and real crash/host-loss recovery evidence | Not established |
+| Full registered empirical campaign | Current clean-source registration and authorization; verified artifacts for every required shard; analysis against unchanged registered thresholds | Pending; no full-campaign or convergence claim |
+| Six Mesh reducer test placeholders | Executable negative cases for execution records, release/cancellation, lease renewal, takeover proposals, votes and certificates, or an exact mapping to equivalent existing tests | Test debt retained in `tests/mesh-reducer.test.mjs`; not silently counted as passing |
+| Isolated runner container test | Execute the opt-in read-only/no-network container test with its pinned image | Passed separately on the candidate; ordinary unit runs still omit it |
+| Promotion to npm latest | Complete promotion criteria and release-owner decision | No automatic promotion; use coordinated next explicitly |
+
+## Verification boundaries
+
+The local Morphogenesis commit `db13385` passed the complete `pnpm run check`
+in a clean worktree with Node 24.20.0. The initial original-checkout audit
+rejected historical ignored release tarballs; those artifacts were preserved.
+The corrected convergence branch passed 1,361 unit tests, with one skipped
+container test and six pre-existing TODO cases. The combined candidate builds and the Next.js production example builds.
+The opt-in container isolation test passed separately on Node 20.19.3 with
+read-only filesystem and no network. TypeScript 7 removed its legacy parser
+API; the release syntax audits now use the pinned Babel 7 parser (development
+dependency only), with 18 focused tests covering import and declaration edges.
+The combined code at `fda648f` passed the complete `pnpm run check`: 1,364 unit
+cases passed, six historical TODO cases remained, and the ordinary container
+case was skipped (passed separately as noted above). Package smoke verified
+all 65 tarballs and 216 API surfaces through pnpm and independent npm consumers;
+the final public TypeScript consumer passed at Beta 8. Production dependency
+audit reported zero advisories. npm governance verification passed with no
+findings. Registry inspection found all 65 names but no published Beta 8
+versions, as expected before publication.
+
+PR #170 still requires the current CI checks and an independent approval under
+the active GitHub ruleset. The PR author is also the sole CODEOWNER for release
+boundaries, so the account cannot approve its own PR. No ruleset bypass or
+reviewer-permission change was applied. Main integration and staged npm
+publication remain pending; this record does not mark the overall objective
+complete.

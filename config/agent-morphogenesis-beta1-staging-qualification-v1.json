@@ -28,8 +28,9 @@
     "maximumExternalSpendUsd": 250
   },
   "executionGeometry": {
-    "minimumSoakDurationMs": 86400000,
-    "targetSoakDurationMs": 259200000,
+    "completionPolicy": "coverage-and-repetition",
+    "minimumSoakDurationMs": 0,
+    "targetSoakDurationMs": 900000,
     "minimumCompletedMorphogenesisRuns": 1000,
     "minimumRunsPerTenant": 200,
     "minimumTenants": 3,
@@ -129,6 +130,7 @@
     "stagingQualificationTarget": "beta1-distributed-staging-profile-established",
     "operationalReadinessTarget": "staging-profile-established",
     "experimentalEvidence": "not-collected",
+    "longDurationStability": "not-established",
     "productionReadiness": "not-established",
     "productionClaimPermitted": false,
     "securityCertificationClaimPermitted": false
