@@ -143,8 +143,14 @@ async function executeRegisteredClosedLoopV1(
       });
     const result =
       context.runner === 'adaptive_collective'
-        ? await runAdaptiveCollectiveClosedLoopResilienceV1(scenario)
-        : await runCentralizedPlannerClosedLoopResilienceV1(scenario);
+        ? await runAdaptiveCollectiveClosedLoopResilienceV1({
+            ...scenario,
+            roleObservationHorizon: 1_000,
+          })
+        : await runCentralizedPlannerClosedLoopResilienceV1({
+            ...scenario,
+            roleObservationHorizon: 1_000,
+          });
     const run = result.resilience.run;
     const passed =
       run.stopReason === 'plan_completed' &&
@@ -191,8 +197,14 @@ async function executeRegisteredClosedLoopV1(
   });
   const result =
     context.runner === 'adaptive_collective'
-      ? await runAdaptiveCollectiveClosedLoopV1(scenario)
-      : await runCentralizedPlannerClosedLoopV1(scenario);
+      ? await runAdaptiveCollectiveClosedLoopV1({
+          ...scenario,
+          roleObservationHorizon: 1_000,
+        })
+      : await runCentralizedPlannerClosedLoopV1({
+          ...scenario,
+          roleObservationHorizon: 1_000,
+        });
   const run = result.run;
   const passed =
     run.stopReason === 'plan_completed' &&
@@ -275,8 +287,7 @@ function projectRegisteredExecutionV1(
     replayed.registration.runner !== execution.runner ||
     replayed.registration.stratum !== 'nominal' ||
     string(outcome.stratum, 'outcome_stratum_invalid') !== cell.stratum ||
-    tracedPeerCount !==
-      Math.min(cell.peerCount, MAXIMUM_ACTIVE_PLANNING_PEERS)
+    tracedPeerCount !== Math.min(cell.peerCount, MAXIMUM_ACTIVE_PLANNING_PEERS)
   )
     fail('evaluation_registration_cell_binding_mismatch');
   const ledger = normalizeLedger(execution.ledger.records);
@@ -308,7 +319,8 @@ function projectRegisteredExecutionV1(
   const convergence = deriveConvergenceMetricsV1(trace, cell.stratum);
   const decisions = trace.filter(
     (event) =>
-      event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed',
+      event.kind === 'peer.decision.accepted' ||
+      event.kind === 'role.decision.observed',
   );
   const unsafeExecutableCount =
     safety.authorizationViolations +
@@ -416,9 +428,9 @@ function projectRegisteredExecutionV1(
 
 /**
  * Derives convergence only from evaluator-owned trace facts. A participant is
- * healthy when it emits an accepted planning decision after the last observed
+ * counted when it emits an accepted planning decision after the last observed
  * disruption (or from the start for nominal cells). Agreement is the largest
- * same-state cohort at the latest decision round; the interaction count is the
+ * same-state cohort of distinct peers at the latest decision round; the interaction count is the
  * ledger-accounted prefix through the event that established that cohort.
  * Missing or non-agreeing evidence remains explicit in the projection and is
  * rejected by the normative gate rather than being filled with a placeholder.
@@ -427,80 +439,80 @@ export function deriveConvergenceMetricsV1(
   trace: readonly TraceRecord[],
   stratum: 'nominal' | 'benign' | 'adversarial' | 'mixed',
 ) {
-  const disruptions = trace.filter(
-    (event) =>
-      event.kind === 'fault.observed' &&
-      event.faultBinding !== null &&
-      event.faultBinding.faultFamily !== 'network.heal',
-  );
-  const lastDisruptionIndex =
-    stratum === 'nominal'
-      ? -1
-      : Math.max(
-          -1,
-          ...disruptions.map((event) => trace.indexOf(event)),
-        );
-  const healOrQuiescence =
-    stratum === 'nominal'
-      ? (trace.at(-1) ?? null)
-      : (trace.find(
-          (event) =>
-            event.kind === 'fault.observed' &&
-            event.faultBinding?.faultFamily === 'network.heal',
-        ) ?? trace.at(-1) ?? null);
+  let lastDisruptionIndex = -1;
+  if (stratum !== 'nominal') {
+    for (let index = 0; index < trace.length; index += 1) {
+      const event = trace[index]!;
+      if (
+        event.kind === 'fault.observed' &&
+        event.faultBinding !== null &&
+        event.faultBinding.faultFamily !== 'network.heal'
+      )
+        lastDisruptionIndex = index;
+    }
+  }
   const decisions = trace
     .map((event, index) => ({ event, index }))
     .filter(
       ({ event, index }) =>
         index > lastDisruptionIndex &&
-        (event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed') &&
+        (event.kind === 'peer.decision.accepted' ||
+          event.kind === 'role.decision.observed') &&
+        event.status === 'accepted' &&
         event.peerId !== null &&
         event.stateDigestAfter !== null,
     );
-  const latestLogicalTime = decisions.at(-1)?.event.logicalTimeMs;
-  const latestRound = decisions.filter(
-    ({ event }) => event.logicalTimeMs === latestLogicalTime,
+  const latestLogicalTime = decisions.reduce(
+    (latest, { event }) => Math.max(latest, event.logicalTimeMs),
+    -1,
   );
-  const byState = new Map<string, { count: number; lastIndex: number }>();
-  for (const { event, index } of latestRound) {
-    const state = event.stateDigestAfter!;
-    const current = byState.get(state) ?? { count: 0, lastIndex: index };
-    byState.set(state, { count: current.count + 1, lastIndex: index });
+  const latestByPeer = new Map<string, { event: TraceRecord; index: number }>();
+  for (const decision of decisions) {
+    if (decision.event.logicalTimeMs === latestLogicalTime)
+      latestByPeer.set(decision.event.peerId!, decision);
   }
-  const cohorts = [...byState.values()].sort(
-    (left, right) => right.count - left.count || right.lastIndex - left.lastIndex,
-  );
-  const winning = cohorts[0] ?? null;
-  const winningState =
-    winning === null
-      ? null
-      : [...byState.entries()].find(
-          ([, value]) => value.lastIndex === winning.lastIndex,
-        )?.[0] ?? null;
+  const cohorts = new Map<string, { count: number; lastIndex: number }>();
+  for (const { event, index } of latestByPeer.values()) {
+    const state = event.stateDigestAfter!;
+    const cohort = cohorts.get(state) ?? { count: 0, lastIndex: index };
+    cohorts.set(state, {
+      count: cohort.count + 1,
+      lastIndex: Math.max(cohort.lastIndex, index),
+    });
+  }
+  const winning = [...cohorts.values()].sort(
+    (left, right) =>
+      right.count - left.count || right.lastIndex - left.lastIndex,
+  )[0];
+  // Do not count repeated records as participants or silently omit peers that
+  // stopped deciding before the final round.
+  const healthyParticipantCount = new Set(
+    decisions.map(({ event }) => event.peerId),
+  ).size;
   const agreementEvent =
-    winning === null
-      ? null
+    winning === undefined ? null : trace[winning.lastIndex]!;
+  const heal =
+    stratum === 'nominal'
+      ? undefined
       : trace
-          .slice(0, winning.lastIndex + 1)
-          .reverse()
+          .slice(lastDisruptionIndex + 1)
           .find(
-            (event: TraceRecord) =>
-              (event.kind === 'peer.decision.accepted' || event.kind === 'role.decision.observed') &&
-              event.stateDigestAfter === winningState,
-          ) ?? null;
-  const interactionsToAgreement =
-    agreementEvent === null
-      ? null
-      : trace
-          .slice(0, trace.indexOf(agreementEvent) + 1)
-          .reduce((sum, event) => sum + event.accountingUnits, 0);
+            (event) =>
+              event.kind === 'fault.observed' &&
+              event.faultBinding?.faultFamily === 'network.heal',
+          );
   return Object.freeze({
     schemaVersion: 1 as const,
-    healOrQuiescenceEventId: healOrQuiescence?.eventId ?? null,
+    healOrQuiescenceEventId: (heal ?? trace.at(-1))?.eventId ?? null,
     agreementEventId: agreementEvent?.eventId ?? null,
-    healthyParticipantCount: latestRound.length,
+    healthyParticipantCount,
     agreeingParticipantCount: winning?.count ?? 0,
-    interactionsToAgreement,
+    interactionsToAgreement:
+      winning === undefined
+        ? null
+        : trace
+            .slice(0, winning.lastIndex + 1)
+            .reduce((sum, event) => sum + event.accountingUnits, 0),
   });
 }
 

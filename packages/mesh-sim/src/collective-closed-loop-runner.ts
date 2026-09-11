@@ -118,6 +118,8 @@ export interface CollectiveClosedLoopExecutionInputV1 {
   readonly actionClass: string;
   readonly resultDigest: PlanningDigestV1;
   readonly resultSummary: string;
+  /** Optional diagnostic decision horizon; does not authorize additional effects. */
+  readonly roleObservationHorizon?: number;
   prepareAction(
     context: CollectiveClosedLoopActionPreparationContextV1,
   ):
@@ -329,6 +331,8 @@ export interface CollectiveClosedLoopResilienceExecutionInputV1 {
   readonly actionClass: string;
   readonly resultDigest: PlanningDigestV1;
   readonly resultSummary: string;
+  /** Optional diagnostic decision horizon; does not authorize additional effects. */
+  readonly roleObservationHorizon?: number;
   prepareAction(
     context: CollectiveClosedLoopActionPreparationContextV1,
   ):
@@ -533,6 +537,9 @@ async function runResilientClosedLoop(
     actionClass: input.actionClass,
     resultDigest: input.resultDigest,
     resultSummary: input.resultSummary,
+    ...(input.roleObservationHorizon === undefined
+      ? {}
+      : { roleObservationHorizon: input.roleObservationHorizon }),
     prepareAction: input.prepareAction,
   };
   const initialObservationBatch = collectObservations(nominalInput, 0);
@@ -980,6 +987,7 @@ async function runClosedLoop(
 ): Promise<CollectiveClosedLoopExecutionResultV1> {
   const input = validateExecutionInput(rawInput, runner);
   const definition = validateCollectiveClosedLoopDefinitionV1(input.definition);
+  validateRoleObservationHorizon(input.roleObservationHorizon, definition);
   const registration = definition.registration;
   const journal = journalFor(input.evaluator.environment);
   const initialization = input.evaluator.environment.initialize(
@@ -1206,6 +1214,25 @@ async function runClosedLoop(
   });
 }
 
+function validateRoleObservationHorizon(
+  horizon: number | undefined,
+  definition: CollectiveClosedLoopDefinitionV1,
+): void {
+  if (horizon === undefined) return;
+  const owner = definition.peers[0];
+  if (!owner) throw new TypeError("closed_loop_owner_missing");
+  const ids = new Set([owner.peerId, ...owner.neighborPeerIds]);
+  const activeCount = definition.peers.filter((peer) =>
+    ids.has(peer.peerId),
+  ).length;
+  if (
+    !Number.isSafeInteger(horizon) ||
+    horizon < activeCount ||
+    horizon > 1_000
+  )
+    throw new TypeError("closed_loop_role_horizon_invalid");
+}
+
 function validateExecutionInput(
   input: CollectiveClosedLoopExecutionInputV1,
   runner: CollectiveEvaluationRunnerV2,
@@ -1222,6 +1249,9 @@ function validateExecutionInput(
       "resultDigest",
       "resultSummary",
       "prepareAction",
+      ...(Object.hasOwn(input, "roleObservationHorizon")
+        ? ["roleObservationHorizon"]
+        : []),
     ],
     "closed-loop execution input",
   );
@@ -1242,6 +1272,7 @@ function validateExecutionInput(
   )
     throw new TypeError("closed_loop_execution_input_invalid");
   const definition = validateCollectiveClosedLoopDefinitionV1(input.definition);
+  validateRoleObservationHorizon(input.roleObservationHorizon, definition);
   if (
     definition.registration.runner !== runner ||
     definition.registration.stratum !== "nominal" ||
@@ -1273,6 +1304,9 @@ function validateResilienceExecutionInput(
       "resultDigest",
       "resultSummary",
       "prepareAction",
+      ...(Object.hasOwn(input, "roleObservationHorizon")
+        ? ["roleObservationHorizon"]
+        : []),
     ],
     "closed-loop resilience execution input",
   );
@@ -1299,6 +1333,10 @@ function validateResilienceExecutionInput(
     throw new TypeError("closed_loop_resilience_execution_input_invalid");
   const definition = validateCollectiveClosedLoopResilienceDefinitionV1(
     input.definition,
+  );
+  validateRoleObservationHorizon(
+    input.roleObservationHorizon,
+    definition.nominalDefinition,
   );
   if (
     definition.nominalDefinition.registration.runner !== runner ||
@@ -1652,21 +1690,6 @@ async function collectDecisions(
       input.definition,
     );
     decisions.set(peer.peerId, decision);
-    const convergenceStateDigest = roleObservationOnly
-      ? digestValue({
-          missionIntentId: input.definition.missionIntent.missionIntentId,
-          intentDigest: input.definition.missionIntent.intentDigest,
-          observations: localObservations
-            .map((observation) => ({
-              observationKind: observation.observationKind,
-              publicValue: observation.publicValue,
-              contentReferenceDigest: observation.contentReferenceDigest,
-            }))
-            .sort((left, right) =>
-              JSON.stringify(left).localeCompare(JSON.stringify(right)),
-            ),
-        })
-      : state.planView.stateDigest;
     append(journal, {
       logicalTimeMs,
       peerId: peer.peerId,
@@ -1676,7 +1699,7 @@ async function collectDecisions(
         : "peer.decision.accepted",
       recordDigest: digestValue(decision),
       stateDigestBefore: state.planView.stateDigest,
-      stateDigestAfter: convergenceStateDigest,
+      stateDigestAfter: state.planView.stateDigest,
     });
     if (!roleObservationOnly && decision.kind === "proposal")
       append(journal, {
@@ -1693,8 +1716,9 @@ async function collectDecisions(
 }
 
 /**
- * Fills the registered 1,000-decision role-coherence horizon with independent
- * local planning rounds. The first round's owner proposal remains the only
+ * Fills an explicitly requested diagnostic role-decision horizon with repeated
+ * local planning rounds over the same observations. These are not independent
+ * mission executions or proof of organizational convergence. The first round's owner proposal remains the only
  * proposal admitted to execution; subsequent rounds are evaluator-visible
  * evidence of sustained role decisions and do not mutate the mission action.
  * The final round is full-width so convergence is measured over all active
@@ -1707,8 +1731,14 @@ async function collectRegisteredRoleCoherenceRounds(
   initialLogicalTimeMs: number,
   initialDecisionCount: number,
 ): Promise<void> {
+  const horizon = input.roleObservationHorizon;
+  if (horizon === undefined) return;
+  if (!Number.isSafeInteger(horizon) || horizon < 1 || horizon > 1_000)
+    throw new Error("closed_loop_role_horizon_invalid");
   const activePeerCount = activePlanningPeers(input).length;
-  let remaining = 1_000 - initialDecisionCount;
+  if (activePeerCount < 1 || horizon < activePeerCount)
+    throw new Error("closed_loop_role_horizon_participant_count_invalid");
+  let remaining = horizon - initialDecisionCount;
   if (remaining < 0) throw new Error("closed_loop_role_horizon_overflow");
   let round = 1;
   const fullRoundsBeforeFinal = Math.max(
@@ -1756,9 +1786,9 @@ async function collectRegisteredRoleCoherenceRounds(
  * cannot observe or influence that round without an ingress path. */
 function activePlanningPeers(
   input: CollectiveClosedLoopExecutionInputV1,
-): readonly CollectiveClosedLoopDefinitionV1['peers'][number][] {
+): readonly CollectiveClosedLoopDefinitionV1["peers"][number][] {
   const owner = input.definition.peers[0];
-  if (owner === undefined) throw new Error('closed_loop_owner_missing');
+  if (owner === undefined) throw new Error("closed_loop_owner_missing");
   const activeIds = new Set([owner.peerId, ...owner.neighborPeerIds]);
   return input.definition.peers.filter((peer) => activeIds.has(peer.peerId));
 }
