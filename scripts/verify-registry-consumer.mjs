@@ -54,6 +54,9 @@ export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   "@agentplat/rooms-mesh",
 ]);
 export const REGISTRY_PACKAGES = Object.freeze([
+  "@agentplat/a2a",
+  "@agentplat/agent-registry",
+  "@agentplat/agent-registry-postgres",
   "@agentplat/audit",
   "@agentplat/audit-postgres",
   "@agentplat/auth",

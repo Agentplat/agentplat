@@ -1,7 +1,38 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { cp, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { validateReleaseArtifactManifest } from "../scripts/stage-npm-release-artifacts.mjs";
+
+test("staging loads without installed workspace dependencies", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "agentplat-stage-clean-"));
+  try {
+    await cp(
+      new URL("../scripts/", import.meta.url),
+      path.join(root, "scripts"),
+      { recursive: true },
+    );
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "await import('./scripts/stage-npm-release-artifacts.mjs')",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, NODE_PATH: "" },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 function canonical(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
