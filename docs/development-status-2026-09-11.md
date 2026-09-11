@@ -62,5 +62,18 @@ The opt-in container isolation test passed separately on Node 20.19.3 with
 read-only filesystem and no network. TypeScript 7 removed its legacy parser
 API; the release syntax audits now use the pinned Babel 7 parser (development
 dependency only), with 18 focused tests covering import and declaration edges.
-The combined candidate must pass its own clean check, CI and consumers before
-integration/publication.
+The combined code at `fda648f` passed the complete `pnpm run check`: 1,364 unit
+cases passed, six historical TODO cases remained, and the ordinary container
+case was skipped (passed separately as noted above). Package smoke verified
+all 65 tarballs and 216 API surfaces through pnpm and independent npm consumers;
+the final public TypeScript consumer passed at Beta 8. Production dependency
+audit reported zero advisories. npm governance verification passed with no
+findings. Registry inspection found all 65 names but no published Beta 8
+versions, as expected before publication.
+
+PR #170 still requires the current CI checks and an independent approval under
+the active GitHub ruleset. The PR author is also the sole CODEOWNER for release
+boundaries, so the account cannot approve its own PR. No ruleset bypass or
+reviewer-permission change was applied. Main integration and staged npm
+publication remain pending; this record does not mark the overall objective
+complete.
