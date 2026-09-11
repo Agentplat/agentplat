@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 
 import {
   registryConsumerEnvironments,
@@ -18,7 +19,7 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from "../scripts/verify-registry-consumer.mjs";
 
-test("registry consumer pins all 62 public packages to the exact release version", () => {
+test("registry consumer pins all 65 public packages to the exact release version", async () => {
   const manifest = registryConsumerManifest("0.3.0-alpha.1");
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -26,7 +27,17 @@ test("registry consumer pins all 62 public packages to the exact release version
     new Set(["0.3.0-alpha.1"]),
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 62);
+  assert.equal(REGISTRY_PACKAGES.length, 65);
+  const catalog = JSON.parse(
+    await readFile(
+      new URL("../config/public-packages.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    REGISTRY_PACKAGES,
+    catalog.packages.map((entry) => entry.name),
+  );
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(
     () => registryConsumerManifest("workspace:^"),
