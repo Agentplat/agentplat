@@ -1,8 +1,8 @@
 # Releasing AgentPlat packages
 
 AgentPlat uses one exact version for every publishable package in
-`config/public-packages.json`. The current recovery candidate is
-`0.3.0-beta.7` across 65 packages, targeting **`next`**. It is not a stable
+`config/public-packages.json`. The current candidate is
+`0.3.0-beta.8` across 65 packages, targeting **`next`**. It is not a stable
 release, and the tooling rejects preparing a prerelease for `latest`.
 
 The [npm release security boundary](docs/security/npm-release-security.md) is
@@ -33,8 +33,11 @@ and npm >=11.15.0 for staged publishing. Local source development requires
 Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
 
 Use a clean source commit. Preserve unrelated work and review the release diff
-before merging it into protected `main`. The release-line guard retains the
-historical Beta 6 cohort and explicitly admits the 65-package Beta 7 cohort, including the complete A2A/Registry group.
+before merging it into protected `main`. The release-line guard retains historical cohorts and admits the complete
+65-package Beta 8 cohort, including A2A and Agent Registry. Beta 7 is already
+published; see `docs/releases/beta7-distribution-20260909.md`. The bootstrap
+and owner-review exception below are historical Beta 7 recovery instructions,
+not permission to reuse that exception for Beta 8.
 
 ```sh
 corepack pnpm install --frozen-lockfile

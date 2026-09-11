@@ -2,9 +2,24 @@
 
 ## Unreleased
 
+## 0.3.0-beta.8 — candidate
+
+- Reconciled pending dependency updates, including TypeScript 7, PostgreSQL,
+  MCP, OpenAI Agents, Temporal and the Next.js reference example. Explicit Node
+  type inclusion preserves server-adapter compilation with TypeScript 7.
+- Added a distinct local Morphogenesis coverage profile and documented the
+  deferred distributed staging and long-duration validation obligations.
+
+
 - Added trace-derived convergence metrics and an explicit diagnostic role-decision
   horizon. Ordinary closed-loop execution defaults are unchanged; repeated
   observations do not establish independent executions or empirical convergence.
+
+## 0.3.0-beta.7 — published 2026-09-09
+
+All 65 public packages are available under `next`; `latest` was not promoted.
+See [the distribution record](docs/releases/beta7-distribution-20260909.md).
+The entries below retain the preparation history and its original evidence boundaries.
 
 - Added opt-in A2A 1.0 JSON-RPC interoperability and a shared, tenant-scoped
   Agent Registry with PostgreSQL CAS persistence. Agent Room, Agent Mesh and
