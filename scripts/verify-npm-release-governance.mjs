@@ -10,6 +10,13 @@ import { fileURLToPath } from "node:url";
 
 const REPOSITORY = "Agentplat/agentplat";
 
+// Standing owner authorization, 2026-09-11: review bypass on this ruleset only.
+// Protect main and npm deployment/2FA approvals remain separate controls.
+const OWNER_PR_REVIEW_EXCEPTION = Object.freeze({
+  userId: 207043696,
+  reviewRulesetId: 20820479,
+});
+
 export function analyzeNpmReleaseGovernance({
   environment,
   environmentVariables,
@@ -115,9 +122,9 @@ export function analyzeNpmReleaseGovernance({
       (rule) =>
         rule.bypass_mode === "pull_request" &&
         !(
-          ownerException &&
           rule.actor_type === "User" &&
-          rule.actor_id === 207043696
+          rule.actor_id === OWNER_PR_REVIEW_EXCEPTION.userId &&
+          rule.ruleset_id === OWNER_PR_REVIEW_EXCEPTION.reviewRulesetId
         ),
     )
   ) {
@@ -150,6 +157,7 @@ export function verifyNpmReleaseGovernance() {
       ...(detail.rules ?? []),
       ...(detail.bypass_actors ?? []).map((actor) => ({
         type: "ruleset_bypass_actor",
+        ruleset_id: detail.id,
         bypass_mode: actor.bypass_mode,
         actor_id: actor.actor_id,
         actor_type: actor.actor_type,
