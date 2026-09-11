@@ -13,15 +13,15 @@ TypeScript 7 requires explicit Node types in the Redis sessions and local
 simulation adapters. The coordinated release candidate is `0.3.0-beta.8`.
 Publication is pending artifact preparation, governance, review and npm 2FA.
 
-PR #123's diagnostic horizon and convergence projection are retained with
+PR #123 was closed in favor of #170. Its diagnostic horizon and convergence projection are retained with
 corrections: ordinary execution remains opt-in, actual planning-state digests
 are preserved, peers are counted distinctly and recovery boundaries follow the
 latest disruption. The hardcoded historical-source preflight was removed in
 favor of the existing source-bound registered preflight. The former draft's
 convergence claim is not adopted. See the convergence validation document.
 
-After integration is verified, #143, #144, #145, #146, #147 and #168 can be
-closed as superseded by the newer dependency groups. They must not be merged
+PRs #143, #144, #145, #146, #147 and #168 were closed as superseded by
+reconciliation PR #170 and the newer dependency groups. They must not be merged
 again and downgrade versions or recreate old lockfiles.
 
 PR #3 was closed as an obsolete alternative to the governed A2A/Registry
@@ -48,7 +48,7 @@ must be cleaned up after their commits reach main.
 | Long-duration stability and host-loss recovery | A separately specified prolonged run and real crash/host-loss recovery evidence | Not established |
 | Full registered empirical campaign | Current clean-source registration and authorization; verified artifacts for every required shard; analysis against unchanged registered thresholds | Pending; no full-campaign or convergence claim |
 | Six Mesh reducer test placeholders | Executable negative cases for execution records, release/cancellation, lease renewal, takeover proposals, votes and certificates, or an exact mapping to equivalent existing tests | Test debt retained in `tests/mesh-reducer.test.mjs`; not silently counted as passing |
-| Isolated runner container test | Execute the opt-in read-only/no-network container test with its pinned image | Environment-dependent; local unit runs omit it |
+| Isolated runner container test | Execute the opt-in read-only/no-network container test with its pinned image | Passed separately on the candidate; ordinary unit runs still omit it |
 | Promotion to npm latest | Complete promotion criteria and release-owner decision | No automatic promotion; use coordinated next explicitly |
 
 ## Verification boundaries
@@ -57,5 +57,10 @@ The local Morphogenesis commit `db13385` passed the complete `pnpm run check`
 in a clean worktree with Node 24.20.0. The initial original-checkout audit
 rejected historical ignored release tarballs; those artifacts were preserved.
 The corrected convergence branch passed 1,361 unit tests, with one skipped
-container test and six pre-existing TODO cases. The combined candidate must
-pass its own clean check, CI and consumers before integration/publication.
+container test and six pre-existing TODO cases. The combined candidate builds and the Next.js production example builds.
+The opt-in container isolation test passed separately on Node 20.19.3 with
+read-only filesystem and no network. TypeScript 7 removed its legacy parser
+API; the release syntax audits now use the pinned Babel 7 parser (development
+dependency only), with 18 focused tests covering import and declaration edges.
+The combined candidate must pass its own clean check, CI and consumers before
+integration/publication.

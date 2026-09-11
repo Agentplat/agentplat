@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import ts from "typescript";
+import { parse } from "@babel/parser";
 
 export function inspectPackedTypeSurface(packageRoot, manifest, subpath) {
   const target = declarationTarget(manifest, subpath);
@@ -107,61 +107,37 @@ function collectDeclarationExports(entrypoint, visited = new Set()) {
   if (visited.has(resolved)) return new Set();
   visited.add(resolved);
   const source = readFileSync(resolved, "utf8");
-  const file = ts.createSourceFile(
-    resolved,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  );
+  const file = parse(source, {
+    sourceType: "module",
+    plugins: [["typescript", { dts: resolved.endsWith(".d.ts") }]],
+    allowUndeclaredExports: true,
+  });
   const names = new Set();
-  for (const statement of file.statements) {
-    if (ts.isExportDeclaration(statement)) {
-      const moduleName = statement.moduleSpecifier?.text;
-      if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-        for (const element of statement.exportClause.elements) {
-          names.add(element.name.text);
-        }
-      } else if (
-        statement.exportClause &&
-        ts.isNamespaceExport(statement.exportClause)
-      ) {
-        names.add(statement.exportClause.name.text);
-      } else if (typeof moduleName === "string" && moduleName.startsWith(".")) {
-        for (const name of collectDeclarationExports(
-          path.resolve(path.dirname(resolved), moduleName),
-          visited,
-        )) {
-          names.add(name);
+  for (const statement of file.program.body) {
+    if (statement.type === "ExportDefaultDeclaration" || statement.type === "TSExportAssignment") {
+      names.add("default");
+      continue;
+    }
+    if (statement.type === "ExportAllDeclaration") {
+      const moduleName = statement.source.value;
+      if (moduleName.startsWith(".")) {
+        for (const name of collectDeclarationExports(path.resolve(path.dirname(resolved), moduleName), visited)) {
+          if (name !== "default") names.add(name);
         }
       }
       continue;
     }
-    if (ts.isExportAssignment(statement)) {
-      names.add("default");
-      continue;
+    if (statement.type !== "ExportNamedDeclaration") continue;
+    for (const specifier of statement.specifiers) {
+      names.add(specifier.exported.name ?? specifier.exported.value);
     }
-    if (!hasModifier(statement, ts.SyntaxKind.ExportKeyword)) continue;
-    if (hasModifier(statement, ts.SyntaxKind.DefaultKeyword)) {
-      names.add("default");
-      continue;
-    }
-    if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+    const declaration = statement.declaration;
+    if (declaration?.type === "VariableDeclaration") {
+      for (const item of declaration.declarations) {
+        if (item.id.type === "Identifier") names.add(item.id.name);
       }
-      continue;
-    }
-    if (
-      (ts.isFunctionDeclaration(statement) ||
-        ts.isClassDeclaration(statement) ||
-        ts.isInterfaceDeclaration(statement) ||
-        ts.isTypeAliasDeclaration(statement) ||
-        ts.isEnumDeclaration(statement) ||
-        ts.isModuleDeclaration(statement)) &&
-      statement.name
-    ) {
-      names.add(statement.name.text);
+    } else if (declaration?.id) {
+      names.add(declaration.id.name ?? declaration.id.value);
     }
   }
   return names;
@@ -196,10 +172,6 @@ function surfaceKey(record) {
   assert.equal(typeof record.subpath, "string", "API subpath is invalid");
   assert.ok(Array.isArray(record.typeExports), "API exports are invalid");
   return `${record.package}${record.subpath === "." ? "" : `/${record.subpath.slice(2)}`}`;
-}
-
-function hasModifier(node, kind) {
-  return node.modifiers?.some((modifier) => modifier.kind === kind) ?? false;
 }
 
 function compareAscii(left, right) {

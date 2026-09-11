@@ -7,6 +7,8 @@
 - Reconciled pending dependency updates, including TypeScript 7, PostgreSQL,
   MCP, OpenAI Agents, Temporal and the Next.js reference example. Explicit Node
   type inclusion preserves server-adapter compilation with TypeScript 7.
+  Release syntax audits use the Babel parser instead of the removed TypeScript
+  compiler API, retaining fail-closed import and declaration checks.
 - Added a distinct local Morphogenesis coverage profile and documented the
   deferred distributed staging and long-duration validation obligations.
 

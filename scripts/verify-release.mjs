@@ -4,7 +4,7 @@ import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import semver from 'semver';
-import ts from 'typescript';
+import { parse } from '@babel/parser';
 import { assertReleaseLine } from './release-line.mjs';
 import {
   compareAscii,
@@ -419,56 +419,47 @@ export async function assertBrowserEntrypointGraph({
 }
 
 export function extractRuntimeModuleSpecifiers(source, fileName = 'source.ts') {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindForFile(fileName)
-  );
+  const sourceFile = parse(source, {
+    sourceType: 'unambiguous',
+    createImportExpressions: true,
+    plugins: [
+      ['typescript', { dts: fileName.endsWith('.d.ts') }],
+      ...( /\.[jt]sx$/.test(fileName) ? ['jsx'] : []),
+    ],
+    allowUndeclaredExports: true,
+  });
   const specifiers = new Set();
-
   const addLiteral = (literal, importKind) => {
-    assert.ok(
-      literal && ts.isStringLiteralLike(literal),
-      `${fileName} uses a non-literal ${importKind}; browser entrypoints require statically analyzable imports`
-    );
-    specifiers.add(literal.text);
+    const value = literal?.type === 'StringLiteral' ? literal.value :
+      literal?.type === 'TemplateLiteral' && literal.expressions.length === 0
+        ? literal.quasis[0].value.cooked : undefined;
+    assert.equal(typeof value, 'string',
+      `${fileName} uses a non-literal ${importKind}; browser entrypoints require statically analyzable imports`);
+    specifiers.add(value);
   };
-
   const visit = (node) => {
-    if (
-      ts.isImportDeclaration(node) &&
-      importDeclarationHasRuntimeEffect(node)
-    ) {
-      addLiteral(node.moduleSpecifier, 'import');
-    } else if (
-      ts.isExportDeclaration(node) &&
-      exportDeclarationHasRuntimeEffect(node)
-    ) {
-      addLiteral(node.moduleSpecifier, 'export');
-    } else if (
-      ts.isImportEqualsDeclaration(node) &&
-      !node.isTypeOnly &&
-      ts.isExternalModuleReference(node.moduleReference)
-    ) {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'ImportDeclaration' && node.importKind !== 'type' &&
+        (node.specifiers.length === 0 || node.specifiers.some(item => item.importKind !== 'type'))) {
+      addLiteral(node.source, 'import');
+    } else if (node.type === 'ExportAllDeclaration' && node.exportKind !== 'type') {
+      addLiteral(node.source, 'export');
+    } else if (node.type === 'ExportNamedDeclaration' && node.source && node.exportKind !== 'type' &&
+        node.specifiers.some(item => item.exportKind !== 'type')) {
+      addLiteral(node.source, 'export');
+    } else if (node.type === 'TSImportEqualsDeclaration' && node.importKind !== 'type' &&
+        node.moduleReference.type === 'TSExternalModuleReference') {
       addLiteral(node.moduleReference.expression, 'import assignment');
-    } else if (
-      ts.isCallExpression(node) &&
-      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) &&
-          node.expression.text === 'require'))
-    ) {
-      addLiteral(
-        node.arguments[0],
-        node.expression.kind === ts.SyntaxKind.ImportKeyword
-          ? 'dynamic import'
-          : 'require'
-      );
+    } else if (node.type === 'ImportExpression') {
+      addLiteral(node.source, 'dynamic import');
+    } else if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && node.callee.name === 'require') {
+      addLiteral(node.arguments[0], 'require');
     }
-    ts.forEachChild(node, visit);
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) for (const child of value) visit(child);
+      else if (value && typeof value === 'object' && typeof value.type === 'string') visit(value);
+    }
   };
-
   visit(sourceFile);
   return Object.freeze([...specifiers].sort(compareAscii));
 }
@@ -478,36 +469,6 @@ export function isNodeBuiltinSpecifier(specifier) {
   if (NODE_BUILTINS.has(specifier)) return true;
   const rootSpecifier = specifier.split('/')[0];
   return NODE_BUILTINS.has(rootSpecifier);
-}
-
-function importDeclarationHasRuntimeEffect(node) {
-  const clause = node.importClause;
-  if (!clause) return true;
-  if (clause.isTypeOnly) return false;
-  if (clause.name) return true;
-  if (!clause.namedBindings) return true;
-  if (ts.isNamespaceImport(clause.namedBindings)) return true;
-  if (ts.isNamedImports(clause.namedBindings)) {
-    return clause.namedBindings.elements.some((element) => !element.isTypeOnly);
-  }
-  return true;
-}
-
-function exportDeclarationHasRuntimeEffect(node) {
-  if (!node.moduleSpecifier || node.isTypeOnly) return false;
-  if (node.exportClause && ts.isNamedExports(node.exportClause)) {
-    return node.exportClause.elements.some((element) => !element.isTypeOnly);
-  }
-  return true;
-}
-
-function scriptKindForFile(fileName) {
-  if (fileName.endsWith('.tsx')) return ts.ScriptKind.TSX;
-  if (fileName.endsWith('.jsx')) return ts.ScriptKind.JSX;
-  if (fileName.endsWith('.js') || fileName.endsWith('.mjs')) {
-    return ts.ScriptKind.JS;
-  }
-  return ts.ScriptKind.TS;
 }
 
 async function resolvePackageSourceEntrypoint(
