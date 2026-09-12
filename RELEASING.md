@@ -36,8 +36,8 @@ Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
 Use a clean source commit. Preserve unrelated work and review the release diff
 before merging it into protected `main`. The release-line guard retains historical cohorts and admits the complete
 65-package Beta 8 cohort, including A2A and Agent Registry. Beta 7 is already
-published. The owner-review exception in the security boundary is historical
-and limited to Beta 7; it does not authorize self-review for Beta 8.
+published. The security boundary records the owner-authorized Beta 8 exception, limited
+to this version, scope all and tag next. It retains tarball review and npm 2FA.
 
 ```sh
 corepack pnpm install --frozen-lockfile
@@ -97,7 +97,9 @@ that boundary. Neither staging nor workflow success means the release is public.
 
 A maintainer reviews the whole staged cohort against the originating
 GitHub artifact, downloads staged bytes and compares hashes before approving
-with 2FA. Independent review applies to Beta 8. Then run **Verify approved npm
+with 2FA. The owner-authorized Beta 8 exception permits douglas-grishen to
+review this release, with the exact environment flags documented in the security
+boundary. Then run **Verify approved npm
 release** with the originating run ID,
 exact source commit, `scope=all` and `dist_tag=next`. Keep that reviewed release
 commit at `main` HEAD until verification finishes. The verifier executes only
