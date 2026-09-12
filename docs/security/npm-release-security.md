@@ -9,7 +9,7 @@ external configuration.
 No CI job may make an AgentPlat package publicly installable. CI may only place
 the exact reviewed tarballs into npm staged publishing. A maintainer who did not
 initiate the release must normally review those staged bytes and approve them
-with 2FA. The owner-approved Beta 7 exception below is the sole exception to
+with 2FA. The version-bound owner-approved exceptions below are the only exceptions to
 independent npm deployment review; it does not waive byte review or 2FA.
 
 The release uses one artifact set:
@@ -153,3 +153,21 @@ actors and continues to require `check`. No direct-push/`always` bypass,
 repository-role exception, npm environment self-review exception or npm 2FA
 waiver is authorized by this PR policy. The governance verifier binds the
 allowance to the exact user, mode and review ruleset.
+
+## Owner-authorized Beta 8 review exception — 2026-09-12
+
+The owner explicitly authorized self-review for `douglas-grishen`, version
+`0.3.0-beta.8`, scope `all` (65 packages), and tag `next`. The existing helper
+now binds the active exception to Beta 8, rejecting Beta 7 and other versions,
+actors, scopes and tags. Historical Beta 7 evidence is unchanged.
+
+For this release, `npm-production` retains the owner as its single required
+reviewer with `prevent_self_review=false`, no administrator environment bypass,
+and protected-main deployments. Set `AGENTPLAT_NPM_OWNER_REVIEW_VERSION` to
+`0.3.0-beta.8` and `AGENTPLAT_NPM_OWNER_REVIEW_LOGIN` to `douglas-grishen`.
+OIDC stage-only publishing, byte-for-byte review and npm 2FA remain required.
+After publication, restore independent npm deployment review and remove both
+exception variables. The standing owner PR-review exception remains configured.
+
+Prepare a fresh artifact cohort from this approved source. Earlier Beta 8 dry
+runs remain historical checks and must not be relabeled with the new commit.

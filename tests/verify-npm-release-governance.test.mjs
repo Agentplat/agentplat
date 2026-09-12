@@ -77,25 +77,25 @@ test("npm release governance reports every missing external control", () => {
   ]);
 });
 
-test("owner self-review is limited to Beta 7 and the authorized single reviewer", () => {
+test("owner self-review is limited to Beta 8 and the authorized single reviewer", () => {
   const state = secureState();
-  state.releaseVersion = "0.3.0-beta.7";
+  state.releaseVersion = "0.3.0-beta.8";
   state.environment.protection_rules[0].prevent_self_review = false;
   state.environment.protection_rules[0].reviewers = [
     { type: "User", reviewer: { login: "douglas-grishen" } },
   ];
   state.environmentVariables.variables.push(
-    { name: "AGENTPLAT_NPM_OWNER_REVIEW_VERSION", value: "0.3.0-beta.7" },
+    { name: "AGENTPLAT_NPM_OWNER_REVIEW_VERSION", value: "0.3.0-beta.8" },
     { name: "AGENTPLAT_NPM_OWNER_REVIEW_LOGIN", value: "douglas-grishen" },
   );
   assert.equal(analyzeNpmReleaseGovernance(state).status, "passed");
-  state.releaseVersion = "0.3.0-beta.8";
+  state.releaseVersion = "0.3.0-beta.9";
   assert.ok(
     analyzeNpmReleaseGovernance(state).findings.includes(
       "npm_owner_review_exception_scope_mismatch",
     ),
   );
-  state.releaseVersion = "0.3.0-beta.7";
+  state.releaseVersion = "0.3.0-beta.8";
   state.environment.protection_rules[0].reviewers[0].reviewer.login = "other";
   assert.ok(
     analyzeNpmReleaseGovernance(state).findings.includes(

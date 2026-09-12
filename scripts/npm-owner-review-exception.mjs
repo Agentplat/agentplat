@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 
-// Explicit owner authorization for this recovery release only. A future release
+// Explicit owner authorization for Beta 8 on 2026-09-12. A future release
 // must restore independent review and remove the environment exception flags.
 export const NPM_OWNER_REVIEW_EXCEPTION = Object.freeze({
-  releaseVersion: "0.3.0-beta.7",
+  releaseVersion: "0.3.0-beta.8",
   ownerLogin: "douglas-grishen",
   scope: "all",
   distTag: "next",
@@ -41,7 +41,7 @@ export function assertStageReviewPolicy({ manifest, environment }) {
       ownerReviewVersion,
       ownerReviewLogin,
     }),
-    "Owner review exception applies only to the approved Beta 7 all/next release",
+    "Owner review exception applies only to the approved Beta 8 all/next release",
   );
   assert.equal(
     environment.GITHUB_ACTOR,
