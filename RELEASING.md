@@ -67,6 +67,13 @@ The full consumer audits extracted files, imports package exports independently,
 compiles public declarations and exercises the existing functional scenarios.
 A tarball built from a dirty working tree is not an approved release artifact.
 
+Release artifacts are retained in GitHub Actions for 30 days so that human
+approval and registry verification can use the same immutable cohort. Complete
+approval and verification before that expiration. If the originating artifact
+has expired, preserve any local copies as historical evidence and prepare a
+fresh staged cohort before publishing; a local archive does not replace the
+artifact required by the approved-release verification workflow.
+
 ## Existing package cohort
 
 All 65 package names already exist from the verified Beta 7 publication.
