@@ -18,6 +18,10 @@ rerun or freshly attest their results. See each entry before comparing numbers.
 
 ## Related evidence and planned studies
 
+- [AgentPlat versus native multiagent coordination](native-multiagent-comparison/README.md):
+  proposed Terminal-Bench 2.0 data-processing comparison for Federico's study;
+  36 planned runs across individual Claude Code, Agent Teams and AgentPlat.
+  Design only: adapters, technical pilots, model budget and evaluation remain pending.
 - [Morphogenesis Beta 1 release evidence](../docs/research/agent-morphogenesis-beta1-release-v1/README.md):
   signed 18-scenario local release profile. Experimental evidence is explicitly
   uncollected; this is release evidence.
