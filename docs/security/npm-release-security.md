@@ -171,3 +171,11 @@ exception variables. The standing owner PR-review exception remains configured.
 
 Prepare a fresh artifact cohort from this approved source. Earlier Beta 8 dry
 runs remain historical checks and must not be relabeled with the new commit.
+
+Beta 8 closure on 2026-09-14 (UTC): all 65 packages were approved with npm
+2FA after exact artifact comparison. `npm-production` was restored to
+`prevent_self_review=true`, with `can_admins_bypass=false`; both
+`AGENTPLAT_NPM_OWNER_REVIEW_VERSION` and `AGENTPLAT_NPM_OWNER_REVIEW_LOGIN`
+were removed. Governance verification passed with no findings. The standing
+owner PR-review exception remains. See the
+[distribution record](../releases/beta8-distribution-20260914.md).

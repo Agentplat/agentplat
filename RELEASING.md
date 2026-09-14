@@ -1,8 +1,8 @@
 # Releasing AgentPlat packages
 
 AgentPlat uses one exact version for every publishable package in
-`config/public-packages.json`. The current candidate is
-`0.3.0-beta.8` across 65 packages, targeting **`next`**. It is not a stable
+`config/public-packages.json`. The current published preview is
+`0.3.0-beta.8` across 65 packages, available on **`next`**. It is not a stable
 release, and the tooling rejects preparing a prerelease for `latest`.
 
 The [npm release security boundary](docs/security/npm-release-security.md) is
@@ -22,7 +22,9 @@ reads. Use `--require-complete` after approval. This checks metadata; the clean
 registry consumers must also execute successfully.
 
 Beta 7 was published as the complete 65-package cohort on 2026-09-09.
-Beta 8 requires a fresh immutable version for the reconciliation changes.
+Beta 8 was published and verified on 2026-09-14 (UTC); see the
+[Beta 8 distribution record](docs/releases/beta8-distribution-20260914.md).
+Any subsequent package changes require a fresh immutable version.
 The [Beta 7 distribution record](docs/releases/beta7-distribution-20260909.md)
 and [historical recovery runbook](docs/releases/npm-distribution-recovery.md)
 preserve the earlier partial Beta 6 publication and its resolution.
@@ -36,8 +38,10 @@ Node.js 22.13+; npm staged publishing additionally requires Node.js 22.14+.
 Use a clean source commit. Preserve unrelated work and review the release diff
 before merging it into protected `main`. The release-line guard retains historical cohorts and admits the complete
 65-package Beta 8 cohort, including A2A and Agent Registry. Beta 7 is already
-published. The security boundary records the owner-authorized Beta 8 exception, limited
-to this version, scope all and tag next. It retains tarball review and npm 2FA.
+published. The security boundary records the historical owner-authorized Beta 8
+exception, limited to that version, scope all and tag next. It retained tarball
+review and npm 2FA; the temporary environment settings have now been restored.
+Future releases require independent review unless separately authorized.
 
 ```sh
 corepack pnpm install --frozen-lockfile
@@ -76,10 +80,10 @@ artifact required by the approved-release verification workflow.
 
 ## Existing package cohort
 
-All 65 package names already exist from the verified Beta 7 publication.
-Beta 8 does not need a bootstrap publication. If the distribution check reports
+All 65 package names already exist from the verified Beta 7 and Beta 8 publications.
+An unchanged catalog does not need a bootstrap publication. If the distribution check reports
 an unregistered name, investigate the catalog or registry access before staging.
-Do not reuse the historical Beta 6 bootstrap instructions for this candidate.
+Do not reuse the historical Beta 6 bootstrap instructions for an existing package cohort.
 
 ## Stage the complete candidate
 
@@ -104,9 +108,9 @@ that boundary. Neither staging nor workflow success means the release is public.
 
 A maintainer reviews the whole staged cohort against the originating
 GitHub artifact, downloads staged bytes and compares hashes before approving
-with 2FA. The owner-authorized Beta 8 exception permits douglas-grishen to
-review this release, with the exact environment flags documented in the security
-boundary. Then run **Verify approved npm
+with 2FA. The historical Beta 8 exception permitted douglas-grishen to
+review that release; its temporary environment flags have been removed.
+Then run **Verify approved npm
 release** with the originating run ID,
 exact source commit, `scope=all` and `dist_tag=next`. Keep that reviewed release
 commit at `main` HEAD until verification finishes. The verifier executes only

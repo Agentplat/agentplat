@@ -26,6 +26,16 @@ export or every combination of adapters.
 
 ## Distribution
 
+On 2026-09-14 (UTC), all 65 catalog packages were publicly available at
+`0.3.0-beta.8` with `next` aligned. The complete approved-release workflow
+passed registry byte comparison, signatures, provenance and tags, plus clean
+pnpm portable, pnpm PostgreSQL and npm Node 22.22.0 consumers. See the
+[Beta 8 distribution record](releases/beta8-distribution-20260914.md) for the
+exact source and workflow. `latest` was not promoted. This updates distribution
+evidence without expanding the operational evidence or frozen baseline.
+
+### Beta 7 observation
+
 On 2026-09-09, all 65 catalog packages were publicly available at
 `0.3.0-beta.7` with `next` aligned. Registry integrity, signatures, provenance
 and tags passed the release verification job. Independent clean pnpm portable,

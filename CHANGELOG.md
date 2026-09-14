@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 0.3.0-beta.8 — candidate
+## 0.3.0-beta.8 — published 2026-09-14 (UTC)
+
+All 65 public packages are available under `next`; `latest` was not promoted.
+Registry integrity, signatures, provenance and all three clean consumers passed.
+See [the distribution record](docs/releases/beta8-distribution-20260914.md).
 
 - Reconciled pending dependency updates, including TypeScript 7, PostgreSQL,
   MCP, OpenAI Agents, Temporal and the Next.js reference example. Explicit Node
@@ -11,7 +15,6 @@
   compiler API, retaining fail-closed import and declaration checks.
 - Added a distinct local Morphogenesis coverage profile and documented the
   deferred distributed staging and long-duration validation obligations.
-
 
 - Added trace-derived convergence metrics and an explicit diagnostic role-decision
   horizon. Ordinary closed-loop execution defaults are unchanged; repeated
