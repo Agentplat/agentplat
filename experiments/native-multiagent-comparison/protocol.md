@@ -250,6 +250,58 @@ effective cost where it can be reconciled; explain discounts. Do not invent an
 effective cost when only an estimate exists. Missing usage is incomplete
 measurement and prevents cost conclusions; it is not zero.
 
+### Provisional spending estimate, distinct from the budget ceiling
+
+For planning, allow approximately **USD 80 in model calls for the complete
+36-run evaluation plus three technical pilots**, with a provisional range of
+**USD 50–120**. This is a judgment-based planning range, not a measured forecast,
+confidence interval, or guarantee. Infrastructure, integration labor, and taxes
+are excluded. No pilot or evaluated run has been performed.
+
+The calculation uses Claude Sonnet 4.6 as a pricing reference, not as a frozen
+model selection. Its published base rates are USD 3 per million input tokens and
+USD 15 per million output tokens, checked on 2026-09-14:
+[official model pricing](https://platform.claude.com/docs/en/models/sonnet-4-6/overview).
+Recheck applicable rates and the exact model before freezing the study.
+
+| Run type                           | Assumed aggregate input tokens | Assumed aggregate output tokens | Illustrative cost per run |
+| ---------------------------------- | -----------------------------: | ------------------------------: | ------------------------: |
+| Individual session (A)             |                        100,000 |                          20,000 |                  USD 0.60 |
+| Complete three-agent team (B or C) |                        400,000 |                          60,000 |                  USD 2.10 |
+
+Tokens above are summed across every call in a run and, for teams, across all
+three participants. They are not context-window sizes, per-call allowances, or
+observed consumption. The estimate applies the same assumptions to B and C; it
+does not presume an AgentPlat cost advantage. Chargeable reasoning/output usage
+must be included in the output total under the selected provider's accounting.
+
+The simplified formula is
+`cost_usd = input_tokens / 1_000_000 * 3 + output_tokens / 1_000_000 * 15`.
+It prices all input at the base rate and does not model cache reads, cache-write
+premiums, discounts, or additional charges. Actual consumption and caching can
+move spending in either direction.
+
+| Scope                                              | Calculation                  | Illustrative subtotal |
+| -------------------------------------------------- | ---------------------------- | --------------------: |
+| Full evaluation: 12 individual + 24 team runs      | `12 * 0.60 + 24 * 2.10`      |             USD 57.60 |
+| Three technical pilots: 1 individual + 2 team runs | `0.60 + 2 * 2.10`            |              USD 4.80 |
+| Full evaluation plus technical pilots              | `57.60 + 4.80`               |             USD 62.40 |
+| Smaller 12-run evaluation plus technical pilots    | `4 * 0.60 + 8 * 2.10 + 4.80` |             USD 24.00 |
+
+Rounding the full-study subtotal upward for greater consumption and incidents
+gives the approximately USD 80 planning figure. For a smaller 12-run evaluation
+plus three technical pilots, the corresponding provisional allowance is
+**USD 25–40**. That smaller scope has only one repetition per task/system and
+would require an explicit protocol amendment; this cost illustration does not
+replace the planned 36-run study or introduce outcome-dependent stopping.
+
+These numbers do not establish likely token use on the selected tasks. Long
+debugging loops or repeated coordination can drive spending toward the existing
+USD 195 ceiling, or USD 210 with the optional external-incident reserve. The
+ceilings and aggregate enforcement requirements remain unchanged. Refine the
+estimate using measured technical-pilot usage before freezing, without tuning
+configuration against results from the four evaluated tasks.
+
 ## 8. Data for Federico's analysis
 
 Publish tables with stable keys and traces of tools, messages, and state changes.

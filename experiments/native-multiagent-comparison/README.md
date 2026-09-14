@@ -27,6 +27,15 @@ Claude Code Agent Teams and individual Claude Code?
 - [Readiness checklist](readiness.md): conditions required before any evaluated run.
 - [Proposed prompts](prompts.md): shared instructions and system-specific appendices.
 
+**Provisional model-call spending estimate:** approximately **USD 80** for the
+full evaluation and three technical pilots, with a judgment-based **USD 50–120**
+planning range. This is not measured consumption or a guarantee, and excludes
+infrastructure, integration labor, and taxes. The USD 195–210 figures above are
+budget ceilings rather than expected spending. See the
+[token assumptions and calculation](protocol.md#provisional-spending-estimate-distinct-from-the-budget-ceiling).
+A smaller 12-run evaluation plus technical pilots is illustrated at USD 25–40;
+adopting that scope would require a protocol amendment.
+
 The AgentPlat arm would reuse Claude Code as its task execution engine and use
 Agent Rooms to coordinate tasks and messages. That bridge still requires
 implementation design and readiness checks. Replacing it with a custom loop
