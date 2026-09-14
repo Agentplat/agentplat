@@ -2,6 +2,11 @@
 
 Status: living index for paper preparation. No empirical result is claimed.
 
+For runnable prototypes, benchmarks and local diagnostics, start with
+[Experiments and evaluations](../../experiments/README.md). Historical evidence
+stays at its canonical location; that index distinguishes exploratory work from
+registered studies and release/readiness records.
+
 This directory preserves the decisions and reporting structure needed to turn
 the collective-control evaluation into a reproducible paper. The normative
 contracts remain in the runtime and adaptive-mission documentation; these files

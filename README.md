@@ -76,6 +76,9 @@ No source-completion or simulator result implies general production readiness. T
 
 ## Contributing
 
+Explore [experiments and evaluations](experiments/README.md) for reproducible
+prototypes, benchmarks and local validation records, with explicit evidence limits.
+
 Start with [CONTRIBUTING.md](CONTRIBUTING.md) for a first contribution, adapter example and focused checks.
 
 ```sh
