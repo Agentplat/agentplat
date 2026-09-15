@@ -1,6 +1,5 @@
 """Credential-free, hash-verified bundles. Export only allowlisted operational data."""
 import csv
-import json
 import os
 import shutil
 import stat
@@ -129,19 +128,19 @@ def import_zip(archive, destination, expected_sha256):
 
 
 def reports(bundle):
-    """Execute all three notebooks against the supplied bundle, with no credentials."""
+    """Execute the study notebook against the supplied bundle, with no credentials."""
     import nbformat
     from nbclient import NotebookClient
     from nbconvert import HTMLExporter
     bundle = Path(bundle).resolve()
     target = bundle / 'reports'
     target.mkdir(exist_ok=True)
-    for source in sorted((ROOT / 'notebooks').glob('*.ipynb')):
-        notebook = nbformat.read(source, as_version=4)
-        notebook.cells.insert(0, nbformat.v4.new_code_cell(f'BUNDLE = {str(bundle)!r}'))
-        NotebookClient(notebook, timeout=180, kernel_name='python3').execute(cwd=str(ROOT))
-        html, _ = HTMLExporter(exclude_input=True).from_notebook_node(notebook)
-        (target / f'{source.stem}.html').write_text(html)
+    source = ROOT / 'notebooks/study.ipynb'
+    notebook = nbformat.read(source, as_version=4)
+    notebook.cells.insert(0, nbformat.v4.new_code_cell(f'BUNDLE = {str(bundle)!r}'))
+    NotebookClient(notebook, timeout=180, kernel_name='python3').execute(cwd=str(ROOT))
+    html, _ = HTMLExporter(exclude_input=True).from_notebook_node(notebook)
+    (target / f'{source.stem}.html').write_text(html)
 
 
 def comparison(runs):

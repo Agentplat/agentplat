@@ -14,12 +14,6 @@ TASKS = ('financial-document-processor', 'multi-source-data-merger')
 PILOT = 'log-summary-date-ranges'
 ARMS = ('agentplat', 'agent-teams')
 SEED = 20260910
-IMAGES = {
-    TASKS[0]: ('alexgshaw/financial-document-processor:20251031',
-               'sha256:ef6c9cfaaf14cdd200163008a188d5baa9f626f3bfb8d3e7d6f30c08518e6251'),
-    TASKS[1]: ('alexgshaw/multi-source-data-merger:20251031',
-               'sha256:8b32782078ff7383a1b4e5d3cecca8ce287e30f50bb4c0e5db009a18064e666e'),
-}
 
 
 def digest(data):

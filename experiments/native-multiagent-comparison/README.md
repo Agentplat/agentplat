@@ -2,7 +2,7 @@
 
 Integración experimental dentro de AgentPlat: tareas oficiales, dos equipos de Claude Code y medición reconciliable.
 El experimento propone 12 intentos y conserva todos los fallos.
-La entrega incluye comandos y tres notebooks; no contiene resultados de modelos.
+La entrega incluye comandos y un notebook con tres secciones; no contiene resultados de modelos.
 La campaña permanece cerrada hasta aprobar los controles y los dos pilotos técnicos pagos.
 
 ## Estado y alcance
@@ -32,7 +32,7 @@ uv run python -m native_eval plan .runs/study
 uv run python -m native_eval export .runs/study .runs/empty-study.zip
 ```
 
-`prepare` descarga solamente los archivos oficiales fijados y el runtime; no ejecuta agentes. `export` ejecuta los tres notebooks y muestra el SHA-256 del ZIP. Con cero intentos, los reportes dicen **sin resultados**. Docker y las descargas necesitan red, aunque estas operaciones no usan APIs de modelos.
+`prepare` descarga solamente los archivos oficiales fijados y el runtime; no ejecuta agentes. `export` ejecuta el notebook y muestra el SHA-256 del ZIP. Con cero intentos, los reportes dicen **sin resultados**. Docker y las descargas necesitan red, aunque estas operaciones no usan APIs de modelos.
 
 Para repetir los controles originales en entornos descartables:
 
@@ -75,10 +75,10 @@ Los pilotos usan `log-summary-date-ranges`, fuera del conjunto evaluado. La auto
 ```sh
 uv run python -m native_eval export .runs/study .runs/study.zip
 uv run python -m native_eval import /ruta/study.zip .runs/imported --sha256 "$ZIP_SHA256"
-NATIVE_EVAL_BUNDLE=.runs/imported uv run jupyter nbconvert --to notebook --execute notebooks/01_integrity.ipynb --output-dir .runs/notebook-output
+NATIVE_EVAL_BUNDLE=.runs/imported uv run jupyter nbconvert --to notebook --execute notebooks/study.ipynb --output-dir .runs/notebook-output
 ```
 
-El receptor necesita el repo y sus dependencias, **ninguna credencial del ejecutor**. Los tres notebooks también se abren en Jupyter con `NATIVE_EVAL_BUNDLE` apuntando al directorio importado. El ZIP contiene manifiestos, `runs.csv`, llamadas, eventos, incidentes, ATIF operativo sin contenido y HTML; los registros originales y el ATIF conversacional quedan locales. El SHA del ZIP debe enviarse por un canal confiable; los hashes prueban integridad, no autoría. No se publica automáticamente en Hugging Face.
+El receptor necesita el repo y sus dependencias, **ninguna credencial del ejecutor**. El notebook también se abre en Jupyter con `NATIVE_EVAL_BUNDLE` apuntando al directorio importado. El ZIP contiene manifiestos, `runs.csv`, llamadas, eventos, incidentes, ATIF operativo sin contenido y HTML; los registros originales quedan locales. El SHA del ZIP debe enviarse por un canal confiable; los hashes prueban integridad, no autoría. No se publica automáticamente en Hugging Face.
 
 ## Mapa mínimo
 

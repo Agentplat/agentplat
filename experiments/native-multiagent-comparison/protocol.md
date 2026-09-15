@@ -44,7 +44,7 @@ El ledger usa enteros nano-USD y exclusión mutua. Luego liquida el consumo real
 
 Los JSON/SSE originales se conservan localmente. Se reúnen fragmentos por ID de respuesta, herramientas por ID de invocación, sesiones por identidad. Los tokens de entrada, caché leída/escrita y salida se mantienen separados. El costo suma fallos y coordinación. Ausente significa desconocido; ningún conteo sale de caracteres.
 
-Los pasos del modelo son IDs de respuestas únicos. `ATIF.total_steps` depende del documento: el ATIF conversacional de Harbor incluye mensajes/observaciones; el operativo depurado contiene un paso por respuesta observada. No se usan las estimaciones de costo del conversor de Harbor para la tabla reconciliada.
+Los pasos del modelo son IDs de respuestas únicos. El ATIF operativo depurado contiene un paso por respuesta observada; los registros conversacionales originales quedan locales. La tabla reconciliada usa el consumo del proveedor, sin estimaciones del conversor de Harbor.
 
 `reward` es el valor original del verificador. `protocol_ok` requiere trazas completas, tres participantes, versión/modelo/esfuerzo, finalización y controles. `success` requiere reward 1 y protocolo válido. Los fallos de instalación/verificador mantienen su reward original y el incidente correspondiente.
 

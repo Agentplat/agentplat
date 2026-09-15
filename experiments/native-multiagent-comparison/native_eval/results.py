@@ -3,7 +3,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from harbor.agents.installed.claude_code import ClaudeCode
 from harbor.models.trajectories.trajectory import Trajectory
 
 from .gateway import usage_cost
@@ -164,19 +163,8 @@ def reconcile(logs, arm):
     if steps:
         trajectory = Trajectory.model_validate(dict(schema_version='ATIF-v1.7', session_id=logs.parent.name,
             agent={'name': arm, 'version': CLAUDE_VERSION, 'model_name': MODEL}, steps=steps,
-            notes='Content-free operational trajectory. Model steps are distinct provider response IDs. Raw converter trajectories retain conversation steps locally.',
+            notes='Content-free operational trajectory. Model steps are distinct provider response IDs. Original conversation logs remain local.',
             final_metrics={'total_steps': len(steps), 'total_cost_usd': result['cost_usd']},
             extra={'accounting_complete': accounting_complete}))
         write_json(public / 'trajectory.json', trajectory.to_json_dict())
-    # Reuse Harbor's conversation converter separately; never use its estimated costs.
-    converter = ClaudeCode(logs_dir=logs, model_name=MODEL, version=CLAUDE_VERSION)
-    for index, project in enumerate(sorted(native.glob('*/config/projects/*'))):
-        if not project.is_dir(): continue
-        try:
-            trajectory = converter._convert_events_to_trajectory(project)
-            if trajectory: write_json(logs / 'atif-private' / f'{index}.json', trajectory.to_json_dict())
-        except (ValueError, KeyError, TypeError) as error:
-            result['protocol_ok'] = False
-            result['incidents'].append({'reason': 'harbor_atif_conversion_failed', 'error': type(error).__name__})
-            write_json(public / 'summary.json', result)
     return result

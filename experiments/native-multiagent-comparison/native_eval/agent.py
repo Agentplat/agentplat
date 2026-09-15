@@ -4,7 +4,6 @@ import json
 import os
 import shlex
 import shutil
-from pathlib import Path
 
 from harbor.agents.installed.claude_code import ClaudeCode
 
@@ -120,7 +119,6 @@ class NativeTeam(ClaudeCode):
                 await asyncio.shield(cleanup())
         from .results import reconcile
         self.summary = reconcile(self.logs_dir, self.arm)
-        write_json(self.logs_dir / 'study-summary.json', self.summary)
         self.populate_context_post_run(context)
 
     def populate_context_post_run(self, context):

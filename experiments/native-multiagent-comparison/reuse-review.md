@@ -23,8 +23,8 @@ Se aplicó [ponytail full](https://github.com/DietrichGebert/ponytail/blob/e3ba2
 | Instalar Claude | Harbor ClaudeCode.setup/install | Versión fijada y runtime común | Compilación/importación; instalación completa pendiente por APT |
 | Tareas y estados | RoomService / DefaultAgentRuntime / InMemoryRoomRepository | AgentProvider para sesiones PTY, destinatarios | Un contrato integrado de Rooms |
 | MCP | SDK y Zod, mismas versiones que @agentplat/mcp-runtime | Cinco operaciones pequeñas | TypeScript y handshake SDK |
-| Trazas | Conversor ClaudeCode de Harbor + Pydantic ATIF | Reconciliar IDs y consumo completo; depurar contenido | Contratos de duplicados y ausencias |
-| Análisis | pandas, matplotlib, nbclient/nbconvert | Tres notebooks descriptivos | Ejecución vacía e importación independiente |
+| Trazas | Pydantic ATIF de Harbor | Reconciliar IDs y consumo completo; depurar contenido | Contratos de duplicados y ausencias |
+| Análisis | pandas, matplotlib, nbclient/nbconvert | Un notebook descriptivo con tres secciones | Ejecución vacía e importación independiente |
 | ZIP y hashes | zipfile, tempfile, hashlib | Allowlist de datos operativos y manifiesto | Roundtrip y rechazo de ruta insegura |
 | Presupuesto | httpx / stdlib ThreadingHTTPServer | Ledger común con reservas atómicas | Contrato concurrente y consumo desconocido |
 

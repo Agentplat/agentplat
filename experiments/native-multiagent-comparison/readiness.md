@@ -6,10 +6,11 @@
 - Terminal-Bench 2.0 fijado al commit del registro: 40 archivos oficiales para dos tareas y el piloto técnico; hashes completos y orden de 12 slots publicados.
 - Dependencias Python bloqueadas en `uv.lock`; SDK MCP y tipos en `runtime/package-lock.json`; paquetes AgentPlat compilados desde esta rama.
 - Pruebas focalizadas de presupuesto concurrente, ausencia de datos, fragmentos duplicados, aislamiento de configuración, participantes, cancelación y ZIP. Un contrato integrado recorre RoomService y AgentProvider sin modelo.
-- ZIP importado y tres notebooks ejecutados con HOME aislado y sin variables de credenciales del ejecutor.
-- Gateway HTTP/SSE comprobado con upstream local de prueba (`tests/test_gateway.py`): reserva y liquidación, rechazos y errores del proveedor sin cerrar la admisión, y cierre de admisión ante precios fuera de contrato; cero llamadas al proveedor.
+- ZIP importado y notebook `notebooks/study.ipynb` ejecutado con HOME aislado y sin variables de credenciales del ejecutor. Conserva las celdas originales de integridad, comparación y coordinación con una sola inicialización.
+- Gateway HTTP/JSON comprobado con upstream local de prueba (`tests/test_gateway.py`): reserva y liquidación, rechazos y errores del proveedor sin cerrar la admisión, y cierre de admisión ante precios fuera de contrato; cero llamadas al proveedor. Este test no comprueba streaming SSE.
 - Cancelación del grupo de procesos comprobada en un contenedor descartable de la imagen oficial de merger, sin instalar paquetes ni ejecutar un modelo.
-- Tres notebooks ejecutados con cero intentos: muestran “sin resultados”. Ningún dataset o resultado científico inventado.
+- Notebook unificado ejecutado con cero intentos: muestra “sin resultados” y las tres secciones. Ningún dataset o resultado científico inventado.
+- Tras la simplificación KISS: 12 pruebas Python host y el contrato de Rooms pasan; las tres pruebas Linux se omiten en el host. Eliminados imports/constantes sin uso, el resumen duplicado y la conversión ATIF privada; se conservan el ATIF operativo y los registros originales.
 
 ## Correcciones de la revisión del 14 de septiembre de 2026
 
