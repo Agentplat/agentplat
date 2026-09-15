@@ -42,6 +42,20 @@ uv run python -m native_eval controls .runs/controls-01
 
 Oracle ejecuta la solución oficial escrita; `nop` no realiza acciones. Ambos invocan el verificador original. Un reward cero sin tests ejecutados no es un control negativo válido. No se arreglan imágenes ni verificadores para hacer pasar estos controles.
 
+### Comprobación de procesos Linux sin inferencia
+
+Desde el directorio del experimento, con la imagen oficial disponible localmente:
+
+```sh
+docker run --rm --platform linux/amd64 --network none --cpus 1 --memory 2g \
+  --mount "type=bind,source=$PWD,target=/review,readonly" -w /review \
+  -e PYTHONDONTWRITEBYTECODE=1 \
+  alexgshaw/multi-source-data-merger@sha256:8b32782078ff7383a1b4e5d3cecca8ce287e30f50bb4c0e5db009a18064e666e \
+  python3 -m unittest discover -s tests -p test_processes.py -v
+```
+
+Comprueba cierre normal/cancelación, descendientes separados y huérfanos, rechazo de limpieza sin evidencia y lanzamiento por ruta absoluta con HOME aislado. Usa un ejecutable de prueba, sin instalar Claude ni modificar tareas. En macOS estas tres pruebas se omiten en la suite host y se ejecutan mediante este comando Linux.
+
 ## Operación paga posterior
 
 El ejecutor usa **su propia cuenta Anthropic**, con `ANTHROPIC_API_KEY` en su entorno. No introducir la clave en argumentos, archivos del repo ni mensajes. Los siguientes comandos son instrucciones de uso; no se ejecutaron para la contribución. Los presupuestos son variables explícitas elegidas por el ejecutor, sin valor predeterminado.

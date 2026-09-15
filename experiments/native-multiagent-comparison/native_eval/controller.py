@@ -4,6 +4,7 @@ All processes live in the same Harbor container/cgroup. There is no model here.
 """
 import argparse
 import concurrent.futures
+import ctypes
 import http.server
 import json
 import os
@@ -20,6 +21,63 @@ from pathlib import Path
 
 ACTORS = ('coordinator', 'worker-1', 'worker-2')
 MODEL = 'claude-sonnet-4-6'
+
+
+def become_subreaper():
+    # Linux retains orphaned descendants here, even after setsid/double-fork.
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
+        raise OSError(ctypes.get_errno(), 'Cannot supervise orphaned team processes')
+
+
+def process_tree(root, include_root=True):
+    if not Path('/proc/self/stat').is_file(): raise RuntimeError('Linux procfs is required to verify cleanup')
+    parents, states = {}, {}
+    for path in Path('/proc').glob('[0-9]*/stat'):
+        try: fields = path.read_text().rsplit(')', 1)[1].split()
+        except FileNotFoundError: continue
+        if fields[0] != 'Z':
+            pid = int(path.parent.name)
+            parents[pid], states[pid] = int(fields[1]), fields[0]
+    found = {root}
+    while children := {pid for pid, parent in parents.items() if parent in found} - found:
+        found.update(children)
+    return {pid: states[pid] for pid in found & parents.keys() if include_root or pid != root}
+
+
+def stop_tree(root, include_root=True):
+    # Freeze parents before killing: descendants cannot escape by forking during shutdown.
+    frozen = set()
+    deadline = time.monotonic() + 5
+    while current := process_tree(root, include_root):
+        if time.monotonic() >= deadline: raise RuntimeError('Could not freeze team processes')
+        if set(current) <= frozen and all(state in ('T', 't') for state in current.values()): break
+        for pid in current.keys() - frozen:
+            try: os.kill(pid, signal.SIGSTOP)
+            except ProcessLookupError: pass
+        frozen.update(current)
+        time.sleep(.01)
+    for pid in frozen:
+        try: os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError: pass
+    while any(process_tree(pid) for pid in frozen):
+        if time.monotonic() >= deadline: raise RuntimeError('Team processes still running')
+        time.sleep(.05)
+
+
+def cleanup(root):
+    root = Path(root)
+    pid = int((root / 'controller.pid').read_text())
+    if process_tree(pid):
+        try: os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError: pass
+    deadline = time.monotonic() + 30
+    while process_tree(pid):
+        if time.monotonic() >= deadline: raise RuntimeError('Controller did not stop; discard environment')
+        time.sleep(.1)
+    proof = json.loads((root / 'cleanup.json').read_text())
+    if proof != dict(controller_pid=pid, forced=False, remaining=[]):
+        raise RuntimeError('Missing clean shutdown proof; discard environment')
 
 
 def post(url, body, timeout=30):
@@ -57,16 +115,8 @@ class Session:
             os.write(self.fd, b'\r')
 
     def stop(self):
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                os.killpg(self.process.pid, sig)
-            except ProcessLookupError:
-                break
-            try:
-                self.process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                continue
-            # Kill descendants even when their parent has already exited.
+        stop_tree(self.process.pid)
+        self.process.wait(timeout=3)
         self.thread.join(timeout=2)
         os.close(self.fd)
 
@@ -116,6 +166,7 @@ class Controller:
                 future.set_result(result['result'])
 
     def start_session(self, actor, instruction):
+        if self.finished.is_set(): raise ValueError('Trial cancelled')
         home = self.root / actor
         home.mkdir(mode=0o700)
         session_id = str(uuid.uuid4())
@@ -147,7 +198,7 @@ class Controller:
         if self.config['arm'] == 'agent-teams':
             env['CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS'] = '1'
             env['CLAUDE_CODE_TEAMMATE_MODE'] = 'in-process'
-        command = ['claude', '--model', MODEL, '--effort', 'high', '--session-id', session_id,
+        command = [self.config['claude_binary'], '--model', MODEL, '--effort', 'high', '--session-id', session_id,
                    '--setting-sources', '', '--settings', str(home / 'settings.json'),
                    '--strict-mcp-config', '--mcp-config', str(home / 'mcp.json'),
                    '--disable-slash-commands', '--no-chrome', '--dangerously-skip-permissions',
@@ -158,7 +209,6 @@ class Controller:
             command += ['--disallowed-tools', 'WebSearch']
         session = Session(command, env, home)
         self.sessions[actor] = session
-        (self.root / 'processes.json').write_text(json.dumps([s.process.pid for s in self.sessions.values()]))
         self.event('participant_started', actor=actor, session_id=session.id, pid=session.process.pid)
         return session
 
@@ -189,10 +239,11 @@ class Controller:
             self.pending[actor] = done
             self.reports.pop(actor, None)
         assignment = json.dumps({'assignment': body['task']})
-        if actor not in self.sessions:
-            self.start_session(actor, self.config['instruction'] + '\n\n' + assignment)
-        else:
-            self.deliver(actor, assignment)
+        with self.lock:
+            if actor not in self.sessions:
+                self.start_session(actor, self.config['instruction'] + '\n\n' + assignment)
+            else:
+                self.deliver(actor, assignment)
         while not done.wait(0.2):
             if self.finished.is_set():
                 raise ValueError('Trial cancelled')
@@ -203,29 +254,31 @@ class Controller:
     def hook(self, body):
         hook, actor = body['hook'], body['actor']
         session_id = hook.get('session_id')
-        # Native teammates inherit the coordinator env. Session identity takes precedence.
-        native_child = (self.config['arm'] == 'agent-teams' and self.coordinator_id
-                        and session_id != self.coordinator_id)
-        if native_child:
-            actor = hook.get('teammate_name') or hook.get('agent_id') or session_id
-        self.event('hook', actor=actor, hook=hook)
         event = hook.get('hook_event_name')
-        if self.config['arm'] == 'agent-teams' and event == 'PostToolUse':
-            members = {}
+        if self.config['arm'] == 'agent-teams':
+            target = self.root / 'native-members.json'
+            members = json.loads(target.read_text()) if target.exists() else {}
             for path in self.root.glob('coordinator/config/teams/*/config.json'):
                 for member in json.loads(path.read_text()).get('members', []):
                     if member.get('name') in ACTORS[1:]:
                         for key in ('agentId', 'sessionId'):
                             if member.get(key): members[member[key]] = member['name']
             if members:
-                target = self.root / 'native-members.json'
-                previous = json.loads(target.read_text()) if target.exists() else {}
-                target.write_text(json.dumps({**previous, **members}))
+                target.write_text(json.dumps(members))
+            # Teammates can share the parent's session/env; explicit child identity wins.
+            agent_id, name = hook.get('agent_id'), hook.get('teammate_name')
+            actor = members.get(agent_id) if agent_id else (
+                members.get(session_id) if session_id != self.coordinator_id else None)
+            if name:
+                actor = name if name in self.native_names and actor in (None, name) else None
+            if not agent_id and not name and not actor and session_id == self.coordinator_id and session_id:
+                actor = 'coordinator'
+        self.event('hook', actor=actor, hook=hook)
         if event == 'PreToolUse':
             tool, args = hook['tool_name'], hook.get('tool_input', {})
             reason = None
             if tool in ('Agent', 'Task'):
-                if self.config['arm'] != 'agent-teams' or native_child:
+                if self.config['arm'] != 'agent-teams' or actor != 'coordinator':
                     reason = 'Subdelegation is disabled'
                 elif not args.get('team_name') or args.get('name') not in ACTORS[1:]:
                     reason = 'Create named native teammates worker-1 and worker-2 in one team'
@@ -235,12 +288,12 @@ class Controller:
                     reason = 'Model is frozen'
                 else:
                     self.native_names.add(args['name'])
-            if tool == 'mcp__study__finish' and (native_child or actor != 'coordinator'):
+            if tool == 'mcp__study__finish' and actor != 'coordinator':
                 reason = 'Only the coordinator can finish the trial'
             if reason:
                 return {'hookSpecificOutput': {'hookEventName': 'PreToolUse',
                         'permissionDecision': 'deny', 'permissionDecisionReason': reason}}
-        if event == 'Stop' and actor in ACTORS and not native_child:
+        if event == 'Stop' and actor in ACTORS:
             if actor == 'coordinator' and self.finish_requested:
                 self.finished.set()
             with self.lock:
@@ -274,6 +327,7 @@ class Controller:
         return self.room(op=op, actor=actor, **args)
 
     def run(self):
+        become_subreaper()
         owner = self
         class Handler(http.server.BaseHTTPRequestHandler):
             def log_message(self, *args): pass
@@ -281,7 +335,9 @@ class Controller:
                 try:
                     body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                     handler = {'/provider': owner.provider, '/hook': owner.hook, '/tool': owner.tool}[self.path]
-                    result = handler(body)
+                    if self.path == '/hook':
+                        with owner.lock: result = handler(body)
+                    else: result = handler(body)
                     self.send_response(200)
                 except Exception as error:
                     result = {'error': str(error)}
@@ -303,7 +359,6 @@ class Controller:
                     stderr=(self.root / 'rooms.stderr').open('w'), text=True,
                     env={**os.environ, 'STUDY_CONTROLLER': self.url,
                          'STUDY_TIMEOUT_MS': str(self.config['timeout_sec'] * 1000)})
-                (self.root / 'bridge.pid').write_text(str(self.bridge.pid))
                 threading.Thread(target=self.read_bridge, daemon=True).start()
                 self.room(op='init', goal=self.config['instruction'])
             self.start_session('coordinator', self.config['instruction'])
@@ -319,11 +374,10 @@ class Controller:
             if self.bridge:
                 try: (self.root / 'room.json').write_text(json.dumps(self.room(op='snapshot', timeout=2)))
                 except Exception: self.incidents.append({'reason': 'room_snapshot_missing'})
-            for session in list(self.sessions.values()): session.stop()
-            if self.bridge:
-                self.bridge.terminate()
-                try: self.bridge.wait(timeout=3)
-                except subprocess.TimeoutExpired: self.bridge.kill(); self.bridge.wait()
+            with self.lock:
+                stop_tree(os.getpid(), include_root=False)
+                for session in list(self.sessions.values()): session.stop()
+                if self.bridge: self.bridge.wait(timeout=3)
             self.event('team_stopped')
             (self.root / 'completion.json').write_text(json.dumps(dict(
                 started=self.started, stopped=time.time(), timeout_sec=self.config['timeout_sec'], incidents=self.incidents,
@@ -332,14 +386,17 @@ class Controller:
                 native_names=sorted(self.native_names))))
             server.shutdown()
             server.server_close()
+            (self.root / 'cleanup.json').write_text(json.dumps(dict(
+                controller_pid=os.getpid(), forced=False, remaining=[])))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['run', 'hook'])
+    parser.add_argument('mode', choices=['run', 'hook', 'cleanup'])
     parser.add_argument('config', nargs='?')
     args = parser.parse_args()
     if args.mode == 'run': Controller(json.loads(Path(args.config).read_text())).run()
+    elif args.mode == 'cleanup': cleanup(args.config)
     else:
         try:
             print(json.dumps(post(os.environ['STUDY_CONTROLLER'] + '/hook',

@@ -42,10 +42,21 @@ Aplicado el [alcance de ponytail-review](https://github.com/DietrichGebert/ponyt
 
 Las líneas finales y dependencias pueden verificarse en el diff del PR. No se afirma un porcentaje de ahorro ni una ventaja experimental derivada de usar Ponytail.
 
-## Tamaño y cierre de revisión
+## Tamaño y cierre de revisión inicial (63d8fc3)
 
 Diff frente a la rama de diseño: **+5902/-593 líneas**, incluidos documentación y locks. Medición del árbol final: 10 archivos Python/TypeScript de runtime, **1462 líneas**; tres archivos de pruebas, **224 líneas / 12 contratos**; dos lockfiles generados, **3329 líneas**. Ocho dependencias Python directas y dos dependencias Node directas, más tipos de desarrollo. No se cambian dependencias de la raíz.
 
 Revisión final de complejidad: **Lean already. Ship.** No se proponen más recortes que comprometan los contratos aprobados. Esto se limita a complejidad; no habilita las corridas pagas.
 
 La revisión local de corrección corrigió permisos `task.run`, reserva de trabajadores antes del await, identidad del coordinador antes de iniciar hooks, acceso a reportes desde el estado, cierre de llamadas en vuelo y confirmación de procesos detenidos. Se comprobaron por separado aislamiento, importación ZIP y evidencia faltante. La compatibilidad real con compañeros nativos queda sujeta al piloto indicado en `readiness.md`.
+
+## Revisión correctiva del 14 de septiembre de 2026
+
+- **Aceptado:** reemplazar el script de limpieza embebido en `agent.py` por una llamada al controlador; reutilizar una sola función de detención del árbol. Eliminar los archivos de PID/grupos que quedaron sin lectores.
+- **Aceptado:** Linux `PR_SET_CHILD_SUBREAPER`, `ctypes` y procfs, sin dependencias nuevas. Un marcador de entorno no cubre descendientes lanzados con `env={}`; la prueba Linux conserva ese caso.
+- **Aceptado:** extender los contratos existentes de identidad, entorno y datos ausentes; separar únicamente las tres comprobaciones Linux para ejecutarlas en la imagen oficial sin instalar Harbor ni paquetes extra.
+- **Conservado:** presupuesto y PTY; no se adoptan los umbrales arbitrarios ni el cambio de tareas sugeridos por el provocador. El protocolo explicita la decisión que informa esta etapa descriptiva.
+
+Las comprobaciones y límites de la revisión de corrección están en `readiness.md`. La revisión Ponytail del diff correctivo no encuentra otra capa que eliminar: no agrega servicios, dependencias, configuración de desarrollo ni cambios a APIs de AgentPlat. La contribución sigue como borrador hasta la validación técnica pendiente.
+
+Medición frente a `63d8fc3`: los tres archivos de runtime modificados suman **+106/-72 líneas (neto +34)**; cero archivos de runtime y dependencias nuevos. Las pruebas Python pasan de 11 a 13 contratos (10 host y 3 Linux), reutilizando los existentes y sin otro framework.

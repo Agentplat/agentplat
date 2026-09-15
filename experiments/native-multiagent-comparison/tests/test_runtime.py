@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from native_eval.bundle import seal, export_zip, import_zip, verify_bundle, comparison
-from native_eval.controller import Controller, Session
+from native_eval.controller import Controller
 from native_eval.results import messages_from_transcripts, reconcile
 from native_eval.study import digest, write_json
 
@@ -35,19 +35,31 @@ class RuntimeContracts(unittest.TestCase):
             result = reconcile(Path(tmp), 'agentplat')
             self.assertIsNone(result['cost_usd'])
             self.assertIsNone(result['input_tokens'])
+            for key in ('model_steps', 'provider_calls', 'tool_calls', 'task_tools', 'coordination_tools'):
+                self.assertIsNone(result[key])
             self.assertFalse(result['accounting_complete'])
             self.assertFalse(result['protocol_ok'])
+            write_json(Path(tmp) / 'provider-private/calls.json', [dict(call_id='fixture',
+                response_id=None, usage=None, status='failed', reservation_nano_usd=1)])
+            partial = reconcile(Path(tmp), 'agentplat')
+            self.assertIsNone(partial['provider_calls'])
+            self.assertIsNone(partial['model_steps'])
 
     def test_native_children_cannot_delegate_or_finish(self):
         with tempfile.TemporaryDirectory() as tmp:
             c = Controller(dict(directory=tmp, arm='agent-teams'))
             c.coordinator_id = 'root'
-            def hook(tool, session, args):
+            def hook(tool, session, args, **identity):
                 return c.hook({'actor':'coordinator', 'hook':dict(session_id=session,
-                    hook_event_name='PreToolUse', tool_name=tool, tool_input=args)})
-            for tool in ['Agent','Task','mcp__study__finish']:
-                result = hook(tool, 'child', {'team_name':'team','name':'worker-1'})
-                self.assertEqual(result['hookSpecificOutput']['permissionDecision'], 'deny')
+                    hook_event_name='PreToolUse', tool_name=tool, tool_input=args, **identity)})
+            for identity in ({'session':'child'}, {'session':'root', 'agent_id':'child'},
+                             {'session':None}, {'session':'root', 'teammate_name':'worker-1'}):
+                for tool in ['Agent','Task','mcp__study__finish']:
+                    result = hook(tool, args={'team_name':'team','name':'worker-1'}, **identity)
+                    self.assertEqual(result['hookSpecificOutput']['permissionDecision'], 'deny')
+            write_json(Path(tmp) / 'native-members.json', {'child':'worker-1', 'root':'worker-1'})
+            hook('Read', 'root', {}, agent_id='child')
+            self.assertEqual(c.events[-1]['actor'], 'worker-1')
             self.assertEqual(hook('Agent','root', {'team_name':'team','name':'worker-1'}), {})
             self.assertIn('hookSpecificOutput', hook('Agent','root', {'team_name':'team','name':'worker-1'}))
             self.assertIn('hookSpecificOutput', hook('Agent','root', {'name':'worker-2'}))
@@ -61,21 +73,16 @@ class RuntimeContracts(unittest.TestCase):
             {'PONYTAIL_DEFAULT_MODE':'full', 'ANTHROPIC_API_KEY':'fixture-host-key', 'CLAUDE_CONFIG_DIR':'fixture-global'}), \
                 patch('native_eval.controller.Session', side_effect=session):
             c = Controller(dict(directory=tmp, arm='agentplat', gateway_token='fixture-trial-token',
-                           gateway_url='http://fixture', system_prompt='fixture'))
+                           gateway_url='http://fixture', system_prompt='fixture',
+                           claude_binary='/root/.local/bin/claude'))
             c.url = 'http://127.0.0.1:1'
             c.start_session('coordinator', 'fixture instruction')
             self.assertNotIn('PONYTAIL_DEFAULT_MODE', captured['env'])
             self.assertEqual(captured['env']['ANTHROPIC_API_KEY'], 'fixture-trial-token')
             self.assertNotIn('--print', captured['command'])
+            self.assertEqual(captured['command'][0], '/root/.local/bin/claude')
+            self.assertNotEqual(captured['env']['HOME'], '/root')
             self.assertNotIn('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS', captured['env'])
-
-    def test_cancellation_reaps_the_process_group(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            session = Session(['/bin/sh', '-c', 'sleep 60'],
-                              {'PATH':os.environ['PATH'], 'STUDY_SESSION_ID':'fixture'}, Path(tmp))
-            session.stop()
-            self.assertIsNotNone(session.process.poll())
-            with self.assertRaises(ProcessLookupError): os.killpg(session.process.pid, 0)
 
     def test_bundle_roundtrip_hashes_and_path_traversal(self):
         with tempfile.TemporaryDirectory() as tmp:

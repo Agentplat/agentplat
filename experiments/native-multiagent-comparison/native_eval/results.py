@@ -140,6 +140,9 @@ def reconcile(logs, arm):
         cache_write_tokens=totals['cache_creation_input_tokens'] if accounting_complete else None,
         total_input_tokens=sum(totals[k] for k in USAGE[:3]) if accounting_complete else None,
         output_tokens=totals['output_tokens'] if accounting_complete else None)
+    if not accounting_complete:
+        for key in ('model_steps', 'provider_calls', 'tool_calls', 'coordination_tools', 'task_tools'):
+            result[key] = None
     public = logs / 'operational'
     write_json(public / 'environment.json', dict(
         runtime_versions=(logs / 'runtime-versions.txt').read_text() if (logs / 'runtime-versions.txt').is_file() else None,

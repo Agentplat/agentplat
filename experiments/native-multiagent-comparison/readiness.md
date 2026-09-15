@@ -11,6 +11,17 @@
 - Cancelación del grupo de procesos comprobada en un contenedor descartable de la imagen oficial de merger, sin instalar paquetes ni ejecutar un modelo.
 - Tres notebooks ejecutados con cero intentos: muestran “sin resultados”. Ningún dataset o resultado científico inventado.
 
+## Correcciones de la revisión del 14 de septiembre de 2026
+
+- Se conserva la ruta absoluta del Claude instalado por Harbor al cambiar HOME/PATH.
+- El controlador Linux usa `PR_SET_CHILD_SUBREAPER` y congela/detiene el árbol antes de terminar, incluyendo procesos con otro grupo y huérfanos. El adaptador exige una prueba de cierre; si falta o falla, descarta el entorno antes del verificador. Referencia: [contrato Linux](https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html).
+- Los hooks usan `agent_id`/miembros nativos antes de la sesión heredada. Una identidad ambigua no puede finalizar ni subdelegar. Las reservas de participantes se serializan. Referencia: [campos de hooks](https://code.claude.com/docs/en/hooks#common-input-fields).
+- Pasos, llamadas y herramientas quedan en `null` cuando la contabilización es incompleta, incluidos logs ausentes y llamadas fallidas sin respuesta.
+- Validación: 10 pruebas host pasan; las 3 pruebas específicas de Linux pasan por separado en la imagen oficial de merger, sin red, con 1 CPU y 2 GiB, sobre Docker AMD64 emulado. El ejecutable de prueba valida el controlador, no la compatibilidad real de Claude Code.
+- No se repitieron los controles oficiales ni se ejecutaron pilotos pagos. Al cambiar el fingerprint, los planes y pruebas de habilitación anteriores no autorizan una campaña nueva.
+
+El [prompt de revisión final](final-review-prompt.md) pide verificar el HEAD actual y las limitaciones pendientes sin gasto de modelos.
+
 ## Controles oficiales: bloqueo externo conservado
 
 Cuatro intentos en Docker Linux AMD64 emulado sobre macOS ARM64, sin modelos:

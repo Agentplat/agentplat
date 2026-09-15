@@ -51,6 +51,8 @@ El protocolo no es una defensa contra un agente hostil con acceso root al entorn
 
 ## 4. Análisis y evidencia
 
+La decisión de esta etapa es si la integración permite una comparación auditable y merece un estudio posterior más amplio. Primero se exige funcionamiento de ambos equipos y consumo reconciliado; después se describen resultados y variabilidad por tarea para formular la siguiente pregunta. No se elige una arquitectura para producción ni se fija un ganador a partir de estas 12 observaciones. No se agregan umbrales de ahorro ni se cambia la selección de tareas después de ver resultados.
+
 Mostrar todos los intentos por tarea, incluyendo consumo de fallos y timeouts. Costo por éxito es indefinido si no hay éxitos o falta costo de algún intento. Comparar tiempo pareado solamente cuando ambos equipos tienen éxito, acompañándolo con la distribución completa. No probar superioridad general, equivalencia ni mecanismos causales con seis pares.
 
 Los cuatro controles locales de esta contribución no son corridas del estudio ni resultados de modelos. Fallaron parcialmente por descargas APT con hashes inconsistentes. La campaña exige controles válidos y dos pilotos reales sobre `log-summary-date-ranges`, fuera de las tareas seleccionadas. Estos pilotos y cualquier publicación son posteriores a este PR.

@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import shlex
 import shutil
 from pathlib import Path
 
@@ -59,13 +60,17 @@ class NativeTeam(ClaudeCode):
 
     async def setup(self, environment):
         await super().setup(environment)
+        result = await environment.exec(command='export PATH="$HOME/.local/bin:$PATH"; command -v claude')
+        self.claude_binary = (result.stdout or '').strip()
+        if result.return_code or not self.claude_binary.startswith('/'):
+            raise RuntimeError('Cannot resolve the installed Claude executable')
         result = await environment.exec(command='apt-get update && apt-get install -y python3 xz-utils', user='root')
         if result.return_code:
             raise RuntimeError('Common controller setup failed; inspect APT, do not change task files')
         await environment.upload_dir(source_dir=stage_runtime(), target_dir='/opt/native-eval')
         result = await environment.exec(command=(
             f'tar -xJf /opt/native-eval/{NODE_ARCHIVE} -C /usr/local --strip-components=1 && '
-            'claude --version && node --version && python3 --version'), user='root')
+            f'{shlex.quote(self.claude_binary)} --version && node --version && python3 --version'), user='root')
         if result.return_code or CLAUDE_VERSION not in result.stdout or 'v24.18.0' not in result.stdout:
             raise RuntimeError('Installed runtimes differ from protocol')
         (self.logs_dir / 'runtime-versions.txt').write_text(result.stdout)
@@ -92,7 +97,7 @@ class NativeTeam(ClaudeCode):
         with gateway(self.budget, api_key, private) as proxy:
             config = dict(arm=self.arm, directory='/logs/agent/native', timeout_sec=self.timeout,
                 gateway_url=f'http://{self.gateway_host}:{proxy["port"]}', gateway_token=proxy['token'],
-                instruction=instruction, system_prompt=system_prompt)
+                instruction=instruction, system_prompt=system_prompt, claude_binary=self.claude_binary)
             config_path = self.logs_dir / 'controller.private.json'
             write_json(config_path, config)
             config_path.chmod(0o600)
@@ -103,38 +108,7 @@ class NativeTeam(ClaudeCode):
             finally:
                 # Stop synchronously before Harbor starts its verifier, including cancellation.
                 async def cleanup():
-                    command = """python3 - <<'PY'
-import json, os, signal, time
-from pathlib import Path
-root=Path('/logs/agent/native')
-def live(pid):
- path=Path(f'/proc/{pid}/stat')
- try: return path.read_text().rsplit(')', 1)[1].split()[0] != 'Z'
- except FileNotFoundError: return False
-def stop(pid, sig):
- try: os.kill(pid, sig)
- except ProcessLookupError: pass
-pids=[int(p.read_text()) for p in (root/'controller.pid', root/'bridge.pid') if p.exists()]
-if pids: stop(pids[0], signal.SIGTERM)
-deadline=time.monotonic()+30
-while any(live(pid) for pid in pids) and time.monotonic()<deadline: time.sleep(.1)
-forced=any(live(pid) for pid in pids)
-groups=root/'processes.json'
-if groups.exists():
- for group in json.loads(groups.read_text()):
-  try: os.killpg(group, signal.SIGKILL)
-  except ProcessLookupError: pass
-for pid in pids: stop(pid, signal.SIGKILL)
-time.sleep(.1)
-remaining=[pid for pid in pids if live(pid)]
-if groups.exists():
- for path in Path('/proc').glob('[0-9]*/stat'):
-  try: fields=path.read_text().rsplit(')', 1)[1].split()
-  except FileNotFoundError: continue
-  if fields[0] != 'Z' and int(fields[2]) in json.loads(groups.read_text()): remaining.append(int(path.parent.name))
-(root/'cleanup.json').write_text(json.dumps(dict(forced=forced, remaining=remaining)))
-if remaining: raise RuntimeError('Team processes still running')
-PY"""
+                    command = 'python3 /opt/native-eval/controller.py cleanup /logs/agent/native'
                     try:
                         result = await environment.exec(command=command, user='root', timeout_sec=35)
                         if result.return_code:
