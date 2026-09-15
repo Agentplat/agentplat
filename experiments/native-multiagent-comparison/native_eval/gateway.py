@@ -2,7 +2,6 @@
 from decimal import Decimal
 from threading import RLock
 import contextlib
-import hashlib
 import json
 import secrets
 import threading
@@ -13,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-from .study import MODEL, write_json
+from .study import MODEL, digest, write_json
 
 
 def integer(value):
@@ -126,7 +125,7 @@ def gateway(budget_usd, api_key, directory, upstream='https://api.anthropic.com'
                 if (body.get('speed') == 'fast' or body.get('inference_geo') not in (None, 'global')
                         or body.get('service_tier') not in (None, 'auto', 'standard_only')):
                     raise ValueError('Unsupported pricing tier')
-                record['request_sha256'] = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+                record['request_sha256'] = digest(json.dumps(body, sort_keys=True).encode())
                 record['client_retry_count'] = int(self.headers.get('x-stainless-retry-count', '0'))
                 with calls_lock:
                     record['retry_of'] = requests_seen.get(record['request_sha256'])

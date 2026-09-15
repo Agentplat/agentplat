@@ -50,16 +50,12 @@ def collect(campaign, output):
         for filename, target in [('calls.json', calls), ('events.json', events)]:
             target.extend(dict(slot_id=slot['slot_id'], **r) for r in read_json(operational / filename, []))
         incidents.extend(dict(slot_id=slot['slot_id'], **fault) for fault in faults)
-        trajectory = operational / 'trajectory.json'
-        if trajectory.is_file():
-            target = output / 'traces' / f'{slot["slot_id"]}.json'
-            target.parent.mkdir(exist_ok=True)
-            shutil.copy2(trajectory, target)
-        environment = operational / 'environment.json'
-        if environment.is_file():
-            target = output / 'environments' / f'{slot["slot_id"]}.json'
-            target.parent.mkdir(exist_ok=True)
-            shutil.copy2(environment, target)
+        for filename, folder in [('trajectory.json', 'traces'), ('environment.json', 'environments')]:
+            source = operational / filename
+            if source.is_file():
+                target = output / folder / f'{slot["slot_id"]}.json'
+                target.parent.mkdir(exist_ok=True)
+                shutil.copy2(source, target)
     with (output / 'runs.csv').open('w') as stream:
         writer = csv.DictWriter(stream, fieldnames=COLUMNS)
         writer.writeheader()

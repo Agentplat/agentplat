@@ -5,6 +5,7 @@ import json
 import platform
 import subprocess
 import time
+import tomllib
 import fcntl
 from pathlib import Path
 
@@ -48,7 +49,7 @@ def check_images(task_names):
     lock = read_json(ROOT / 'benchmark.lock.json')
     evidence = {}
     for name in task_names:
-        config = TaskConfig.model_validate(__import__('tomllib').loads((ROOT / '.cache/tasks' / name / 'task.toml').read_text()))
+        config = TaskConfig.model_validate(tomllib.loads((ROOT / '.cache/tasks' / name / 'task.toml').read_text()))
         image = config.environment.docker_image
         if not image: raise ValueError('Official task must declare a prebuilt image')
         subprocess.run(['docker', 'pull', '--platform', 'linux/amd64', image], check=True, capture_output=True)
@@ -104,7 +105,7 @@ async def attempt(campaign, slot, budget, gateway_host):
     marker.parent.mkdir(parents=True, exist_ok=True)
     info = dict(slot=slot, started=time.time(), incidents=[])
     write_json(marker, info)
-    timeout = TaskConfig.model_validate(__import__('tomllib').loads((ROOT / '.cache/tasks' / slot['task'] / 'task.toml').read_text())).agent.timeout_sec
+    timeout = TaskConfig.model_validate(tomllib.loads((ROOT / '.cache/tasks' / slot['task'] / 'task.toml').read_text())).agent.timeout_sec
     agent = dict(import_path='native_eval.agent:NativeTeam', model_name=MODEL,
                  kwargs=dict(arm=slot['arm'], budget_usd=budget, timeout_sec=timeout, gateway_host=gateway_host))
     try:
