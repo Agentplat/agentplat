@@ -112,7 +112,8 @@ async def attempt(campaign, slot, budget, gateway_host):
         trial = result.trial_results[0]
         summary = read_json(campaign / 'jobs' / slot['slot_id'] / trial.trial_name / 'agent/operational/summary.json', {})
         ctrf = read_json(campaign / 'jobs' / slot['slot_id'] / trial.trial_name / 'verifier/ctrf.json', {})
-        if trial.exception_info or not summary.get('protocol_ok') or not ctrf.get('results', {}).get('tests'):
+        # Timeouts and rejected calls with complete accounting are recorded observations, not stops.
+        if trial.exception_info or not summary.get('accounting_complete') or not ctrf.get('results', {}).get('tests'):
             raise ValueError('Trial has an incident; campaign stopped for inspection')
     except Exception as error:
         info['incidents'].append({'reason': type(error).__name__})
@@ -180,7 +181,11 @@ async def main():
         paid_preflight()
         write_json(args.directory / 'images.json', check_images(TASKS))
         write_json(args.directory / 'authorization.json', dict(budget_usd=args.budget_usd, trial_budget_usd=args.trial_budget_usd))
-        for slot in schedule(): await attempt(args.directory, slot, args.trial_budget_usd, args.gateway_host)
+        for slot in schedule():
+            marker = read_json(args.directory / 'attempts' / f'{slot["slot_id"]}.json', {})
+            if marker.get('ended') and not marker.get('incidents'): continue
+            if marker: raise ValueError('Slot has an unresolved incident; inspect before resuming')
+            await attempt(args.directory, slot, args.trial_budget_usd, args.gateway_host)
     elif args.command == 'export':
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:

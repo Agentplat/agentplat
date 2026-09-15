@@ -82,13 +82,15 @@ class Ledger:
 
 
 @contextlib.contextmanager
-def gateway(budget_usd, api_key, directory):
+def gateway(budget_usd, api_key, directory, upstream='https://api.anthropic.com'):
     """A trial-scoped Anthropic gateway; the real credential never enters Docker.
 
     Reserve the full model context at the highest standard cache-write rate,
     plus maximum output. Count Tokens is approximate, so cannot bound spending.
-    Unknown/partial responses keep their reservation and close
-    admission. SDK retries cannot generate additional paid requests after failure.
+    Unknown/partial responses keep their reservation and close admission.
+    Rejections and provider error responses cost zero, answer 400 (which SDKs
+    never auto-retry) and leave admission open; only unknown in-flight spend,
+    a settled overrun or an off-contract price closes it.
     """
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -138,13 +140,15 @@ def gateway(budget_usd, api_key, directory):
                 headers = {'x-api-key': api_key, 'anthropic-version': '2023-06-01',
                            'content-type': 'application/json'}
                 if self.headers.get('anthropic-beta'):
+                    if 'context-1m' in self.headers['anthropic-beta']:
+                        raise ValueError('Long-context beta pricing is outside the frozen contract')
                     headers['anthropic-beta'] = self.headers['anthropic-beta']
                 with httpx.Client(timeout=180, transport=httpx.HTTPTransport(retries=0)) as client:
                     if route.endswith('count_tokens'):
-                        response = client.post('https://api.anthropic.com' + route, headers=headers, json=body)
-                        response.raise_for_status()
-                        self.send_response(200)
-                        self.send_header('Content-Type', 'application/json')
+                        # Pure transport: no inference, no ledger; the provider status passes through.
+                        response = client.post(upstream + route, headers=headers, json=body)
+                        self.send_response(response.status_code)
+                        self.send_header('Content-Type', response.headers.get('content-type', 'application/json'))
                         self.end_headers()
                         self.wfile.write(response.content)
                         return
@@ -157,11 +161,15 @@ def gateway(budget_usd, api_key, directory):
                     record['status'] = 'sent'
                     write_json(directory / f'{call_id}.request.json', body)
                     usage, model, response_id, stopped = {}, None, None, False
-                    with client.stream('POST', 'https://api.anthropic.com/v1/messages', headers=headers, json=body) as response:
+                    with client.stream('POST', upstream + '/v1/messages', headers=headers, json=body) as response:
                         record['http_status'] = response.status_code
                         if response.is_error:
+                            # Error responses are not billed; settle zero and answer a non-retried 400.
                             (directory / f'{call_id}.error.body').write_bytes(response.read())
-                        response.raise_for_status()
+                            ledger.settle(call_id, 0)
+                            record.update(status='provider_error', cost_nano_usd=0)
+                            self.send_error(400, 'Provider error; raw body retained locally')
+                            return
                         self.send_response(response.status_code)
                         self.send_header('Content-Type', response.headers.get('content-type', 'application/json'))
                         self.end_headers()
@@ -194,6 +202,11 @@ def gateway(budget_usd, api_key, directory):
                     if not stopped or not response_id:
                         raise ValueError('Incomplete provider response')
                     actual = usage_cost(usage)
+                    if usage.get('service_tier') not in (None, 'standard'):
+                        raise ValueError('Effective service tier differs from the frozen standard pricing')
+                    if sum(usage[k] for k in ('input_tokens', 'cache_read_input_tokens',
+                                              'cache_creation_input_tokens')) > 200_000:
+                        raise ValueError('Long-context premium pricing; standard settlement would undercount')
                     ledger.settle(call_id, actual)
                     record.update(cost_nano_usd=actual, status='completed')
                     if model != MODEL:
@@ -201,12 +214,13 @@ def gateway(budget_usd, api_key, directory):
                         raise ValueError('Effective model differs from protocol')
             except Exception as error:
                 if call_id in ledger.pending:
-                    ledger.uncertain(call_id)
-                else:
-                    ledger.complete = False
-                record.update(status='incident', error=type(error).__name__, detail=str(error))
+                    ledger.uncertain(call_id)  # unknown in-flight spend keeps its reservation and closes admission
+                status = 'incident' if not ledger.complete or record['cost_nano_usd'] else 'rejected'
+                if status == 'rejected':
+                    record['cost_nano_usd'] = 0
+                record.update(status=status, error=type(error).__name__, detail=str(error))
                 if not sent_headers:
-                    self.send_error(409, 'Study admission closed; inspect local incident')
+                    self.send_error(400, 'Call not admitted; inspect the local incident record')
             finally:
                 if route == '/v1/messages':
                     record['ended'] = time.time()

@@ -4,6 +4,7 @@ Se conserva el benchmark oficial y se compara únicamente la coordinación de do
 La selección y el orden se fijan antes de observar resultados de modelos.
 La calidad del resultado, el consumo y la validez del protocolo se reportan por separado.
 Un incidente deja evidencia y detiene la campaña; no se reemplaza una corrida selectivamente.
+Un timeout o una llamada rechazada, con contabilidad completa y verificador ejecutado, es una observación registrada, no una detención. `run` reanuda saltando los slots ya completados sin incidente; un slot detenido exige inspección humana y nunca se reemplaza ni se reintenta automáticamente.
 
 ## 1. Enmienda y selección
 
@@ -39,7 +40,7 @@ Las diferencias de contextos, prompts y herramientas son parte observable del tr
 
 El gateway común mantiene la clave real fuera del contenedor. Antes de cada llamada reserva el costo máximo de la ventana completa de Sonnet 4.6 (1.000.000 tokens al precio mayor de caché, USD 6/millón), más la salida máxima solicitada (hasta 8192 tokens a USD 15/millón). [Count Tokens es aproximado](https://platform.claude.com/docs/en/build-with-claude/token-counting), por eso se evita usarlo como cota dura. Una llamada con máximo 8192 requiere USD 6,12288 disponibles para reserva; tres concurrentes requieren USD 18,36864, además del consumo ya liquidado. Son reservas temporales, no gasto previsto ni autorización predeterminada.
 
-El ledger usa enteros nano-USD y exclusión mutua. Luego liquida el consumo real y libera el resto; una respuesta parcial conserva su reserva y cierra la admisión. Esta política conservadora puede detener un equipo con saldo positivo y se aplica por igual a ambos sistemas. Los límites y precios oficiales fijados son supuestos de la garantía; una discrepancia del proveedor invalida la corrida. Las consultas Count Tokens que realice Claude Code se transportan sin inferencia y no cuentan como pasos del modelo.
+El ledger usa enteros nano-USD y exclusión mutua. Luego liquida el consumo real y libera el resto; una respuesta parcial conserva su reserva y cierra la admisión. Un rechazo de validación o de reserva, o una respuesta de error del proveedor, se liquida en cero, responde 400 (que los SDK no reintentan) y no cierra la admisión: queda como observación `call_not_admitted`. El gateway rechaza betas de contexto largo y cierra la admisión si la respuesta reporta un tier distinto de `standard` o más de 200.000 tokens de entrada, donde regiría el precio premium que la liquidación estándar subcontaría. Esta política conservadora puede detener un equipo con saldo positivo y se aplica por igual a ambos sistemas. Los límites y precios oficiales fijados son supuestos de la garantía; una discrepancia del proveedor invalida la corrida. Las consultas Count Tokens que realice Claude Code se transportan sin inferencia y no cuentan como pasos del modelo.
 
 Los JSON/SSE originales se conservan localmente. Se reúnen fragmentos por ID de respuesta, herramientas por ID de invocación, sesiones por identidad. Los tokens de entrada, caché leída/escrita y salida se mantienen separados. El costo suma fallos y coordinación. Ausente significa desconocido; ningún conteo sale de caracteres.
 

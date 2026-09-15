@@ -7,7 +7,7 @@
 - Dependencias Python bloqueadas en `uv.lock`; SDK MCP y tipos en `runtime/package-lock.json`; paquetes AgentPlat compilados desde esta rama.
 - Pruebas focalizadas de presupuesto concurrente, ausencia de datos, fragmentos duplicados, aislamiento de configuración, participantes, cancelación y ZIP. Un contrato integrado recorre RoomService y AgentProvider sin modelo.
 - ZIP importado y tres notebooks ejecutados con HOME aislado y sin variables de credenciales del ejecutor.
-- Gateway HTTP/SSE comprobado con transporte upstream local de prueba: reserva máxima y liquidación; cero llamadas al proveedor.
+- Gateway HTTP/SSE comprobado con upstream local de prueba (`tests/test_gateway.py`): reserva y liquidación, rechazos y errores del proveedor sin cerrar la admisión, y cierre de admisión ante precios fuera de contrato; cero llamadas al proveedor.
 - Cancelación del grupo de procesos comprobada en un contenedor descartable de la imagen oficial de merger, sin instalar paquetes ni ejecutar un modelo.
 - Tres notebooks ejecutados con cero intentos: muestran “sin resultados”. Ningún dataset o resultado científico inventado.
 
@@ -21,6 +21,13 @@
 - No se repitieron los controles oficiales ni se ejecutaron pilotos pagos. Al cambiar el fingerprint, los planes y pruebas de habilitación anteriores no autorizan una campaña nueva.
 
 El [prompt de revisión final](final-review-prompt.md) pide verificar el HEAD actual y las limitaciones pendientes sin gasto de modelos.
+
+## Correcciones de la revisión del 15 de septiembre de 2026
+
+- El gateway ya no cierra la admisión por errores previos a la reserva: los rechazos de validación/reserva y las respuestas de error del proveedor se liquidan en cero y responden 400 (los SDK no reintentan 400, eliminando la cascada de reintentos del 409 anterior). Count Tokens es transporte puro del status del proveedor, sin tocar el ledger. Solo el gasto en vuelo desconocido, un exceso liquidado o un precio fuera de contrato cierran la admisión.
+- Guardas de precio: se rechaza la beta de contexto largo y se cierra la admisión si la respuesta reporta `service_tier` distinto de `standard` o más de 200.000 tokens de entrada (precio premium que la liquidación estándar subcontaría). Confirmar los precios vigentes en el piloto.
+- La campaña es reanudable: `run` salta slots completados sin incidente; un timeout o llamada rechazada con contabilidad completa y verificador ejecutado es observación registrada, no detención. Un slot con incidente real sigue deteniendo la campaña y exige inspección humana.
+- Nota: `validation/local-controls.json` conserva el esquema de una versión anterior de los controles (sin `implementation`); las puertas lo detectan y obligan a repetir controles con el fingerprint vigente.
 
 ## Controles oficiales: bloqueo externo conservado
 

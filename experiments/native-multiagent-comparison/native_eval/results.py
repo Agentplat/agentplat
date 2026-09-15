@@ -80,6 +80,9 @@ def reconcile(logs, arm):
         row.update(actor=transcript.get('actor'), usage=usage)
         public_calls.append(row)
         if call.get('cost_nano_usd') is not None: known_cost += call['cost_nano_usd']
+        if call.get('status') in ('rejected', 'provider_error') and call.get('cost_nano_usd') == 0:
+            incidents.append({'reason': 'call_not_admitted', 'call_id': call['call_id']})
+            continue
         if not response_id or response_id in seen or call['status'] != 'completed':
             incidents.append({'reason': 'incomplete_or_duplicate_call', 'call_id': call['call_id']})
             continue
@@ -123,7 +126,8 @@ def reconcile(logs, arm):
     if completion.get('stopped') and completion['stopped'] - completion['started'] > completion['timeout_sec']:
         incidents.append({'reason': 'official_deadline_exceeded'})
     protocol_only = {'three_participants_not_proven', 'two_native_teammates_not_proven',
-                     'official_deadline_exceeded', 'timeout', 'participant_exited', 'forced_cleanup'}
+                     'official_deadline_exceeded', 'timeout', 'participant_exited', 'forced_cleanup',
+                     'call_not_admitted'}
     accounting_complete = not any(i.get('reason') not in protocol_only for i in incidents)
     stopped = bool(completion.get('stopped'))
     protocol_ok = accounting_complete and not incidents and stopped and completion.get('coordinator_finished', False)
