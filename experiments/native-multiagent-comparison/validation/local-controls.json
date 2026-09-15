@@ -1,0 +1,65 @@
+{
+  "attempts": [
+    {
+      "control": "nop",
+      "incident": null,
+      "result_sha256": "4108bd077c127bf6d5c3607fee83c6606d3f67585406f1e972bca4c17058050b",
+      "reward": 0.0,
+      "task": "financial-document-processor",
+      "tests": {
+        "failed": 7,
+        "other": 0,
+        "passed": 0,
+        "pending": 0,
+        "skipped": 0,
+        "start": 1789428166.9108615,
+        "stop": 1789428168.5782542,
+        "tests": 7
+      },
+      "verifier_executed": true,
+      "verifier_log_sha256": "d3343b5d9dda24c60409410dc5e35d801e45a9adb6440015edb1fe4a1ceb20fb"
+    },
+    {
+      "control": "oracle",
+      "incident": "APT Hash Sum mismatch",
+      "result_sha256": "6d9e5dde998b1280c3f4f4c554329dd88276cb35e8e06aa711f812445f607c06",
+      "reward": 0.0,
+      "task": "financial-document-processor",
+      "tests": {
+        "failed": 4,
+        "other": 0,
+        "passed": 3,
+        "pending": 0,
+        "skipped": 0,
+        "start": 1789428110.205306,
+        "stop": 1789428111.8240712,
+        "tests": 7
+      },
+      "verifier_executed": true,
+      "verifier_log_sha256": "d6aaca5daf7e807d9b4ebeb19cd50e728eca7801529f64fcf813485df62c9dce"
+    },
+    {
+      "control": "nop",
+      "incident": "APT Hash Sum mismatch",
+      "result_sha256": "87eaa4b5ba5e19cc69e54d57166fad4e787735784a38c3434003e9b0642cf3ce",
+      "reward": 0.0,
+      "task": "multi-source-data-merger",
+      "verifier_executed": false,
+      "verifier_log_sha256": "e5dda0c61bdccaf2d98a57aff4edd7190056eb1a1b898af5bee5e6092ffab82c"
+    },
+    {
+      "control": "oracle",
+      "incident": "APT Hash Sum mismatch",
+      "result_sha256": "fbb436ab10bfa11c92c71ea2065e7dd3ce3fac811d10e7b591cdd3772a52767a",
+      "reward": 0.0,
+      "task": "multi-source-data-merger",
+      "verifier_executed": false,
+      "verifier_log_sha256": "1bb890ec38893521df4ff976e6fa5e6995e568f18b1472d74c9d4c41ce9cf7e2"
+    }
+  ],
+  "date": "2026-09-14",
+  "harbor": "0.20.0",
+  "host": "macOS ARM64; Docker linux/amd64 emulation",
+  "model_api_calls": 0,
+  "passed": false
+}

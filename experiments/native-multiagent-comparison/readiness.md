@@ -1,44 +1,33 @@
-# Readiness pending — do not execute yet
+# Estado de verificación
 
-Every item below is a future requirement. Reviewing documentation and metadata
-for the design does not satisfy these checks. No campaign results exist.
+## Comprobado localmente
 
-## Design review
+- Rama de contribución basada en `codex/native-multiagent-study-design`, cambios limitados a este experimento.
+- Terminal-Bench 2.0 fijado al commit del registro: 40 archivos oficiales para dos tareas y el piloto técnico; hashes completos y orden de 12 slots publicados.
+- Dependencias Python bloqueadas en `uv.lock`; SDK MCP y tipos en `runtime/package-lock.json`; paquetes AgentPlat compilados desde esta rama.
+- Pruebas focalizadas de presupuesto concurrente, ausencia de datos, fragmentos duplicados, aislamiento de configuración, participantes, cancelación y ZIP. Un contrato integrado recorre RoomService y AgentProvider sin modelo.
+- ZIP importado y tres notebooks ejecutados con HOME aislado y sin variables de credenciales del ejecutor.
+- Gateway HTTP/SSE comprobado con transporte upstream local de prueba: reserva máxima y liquidación; cero llamadas al proveedor.
+- Cancelación del grupo de procesos comprobada en un contenedor descartable de la imagen oficial de merger, sin instalar paquetes ni ejecutar un modelo.
+- Tres notebooks ejecutados con cero intentos: muestran “sin resultados”. Ningún dataset o resultado científico inventado.
 
-- [ ] Federico confirms that the question and deliverables suit his presentation.
-- [ ] Reviewers accept that C is Claude Code coordinated through Agent Rooms and
-      does not measure specific Mesh, Morphogenesis, or human-approval mechanisms.
-- [ ] Cost rules, replacements, mode deviations, and incomplete results are reviewed.
-- [ ] Separate budgets are selected and authorized before incurring expenses.
+## Controles oficiales: bloqueo externo conservado
 
-## Future technical preparation
+Cuatro intentos en Docker Linux AMD64 emulado sobre macOS ARM64, sin modelos:
 
-- [ ] The Terminal-Bench 2.0 distribution is identified; category and four tasks are verified.
-- [ ] Complete file hashes and image digests are recorded; tool versions are pinned.
-- [ ] Original verifiers work with official solutions in separate environments.
-- [ ] Isolation prevents agents from accessing verifiers and reference solutions.
-- [ ] A creates no subagents; B creates exactly two active native teammates.
-- [ ] C actually uses AgentPlat for tasks/messages; the bridge does not solve the task.
-- [ ] Every arm uses the same Claude Code version and effective model in every session.
-- [ ] No nested agents, model fallbacks, or auxiliary calls outside policy occur.
-- [ ] CPU/memory limits are aggregate limits including coordination, not per-worker limits.
-- [ ] The controller needs neither a person nor an auxiliary model to drive the session.
-- [ ] Completion signaling and team shutdown are verified; deliverables are frozen.
-- [ ] Accounting covers all sessions, caching, retries, and in-flight requests.
-- [ ] The aggregate monetary limit is tested; missing usage stops admission of new calls.
-- [ ] Native logs and ATIF reconcile without counting streaming fragments as extra usage.
-- [ ] All three technical pilots outside the evaluation set are completed and retained.
+| Tarea | Control | Reward oficial | Evidencia |
+|---|---|---:|---|
+| financial-document-processor | oracle | 0 | 3/7 tests pasan; Tesseract no se instala por APT Hash Sum mismatch |
+| financial-document-processor | nop | 0 | 0/7 tests pasan; control negativo ejecutado |
+| multi-source-data-merger | oracle | 0 | Solución termina, pero el verificador no arranca por APT Hash Sum mismatch |
+| multi-source-data-merger | nop | 0 | Verificador no arranca por APT Hash Sum mismatch |
 
-## Protocol freeze, before evaluation
+[Registro verificable](validation/local-controls.json). Las tareas, límites y hashes no se alteraron para resolver el fallo. Conservar estos intentos; repetir controles en un host con descargas íntegras mediante un directorio nuevo, sin sustituir esta evidencia.
 
-- [ ] Every variable in protocol section 12 has been resolved.
-- [ ] Prompts, the 36-slot schedule, network/cache policy, and analysis rules are saved.
-- [ ] The manifest binds clean source, the protocol version, and adapter hashes.
-- [ ] The final budget and availability or absence of a replacement reserve are recorded.
-- [ ] Results on the four evaluation tasks have not been used to select configuration.
-- [ ] Storage and retention of failures, attempts, and incidents are ready.
+## Pendiente antes de habilitar la campaña
 
-If any essential requirement remains unresolved, the study stays in preparation.
-Treatment names must match the systems' actual behavior when evaluation begins.
+1. Controles válidos en Linux AMD64 nativo y comprobación de los recursos efectivos del entorno.
+2. Piloto pago de cada brazo sobre `log-summary-date-ranges`, con presupuesto explícito. Debe observar las sesiones reales de los tres participantes, contexto inicial, mensajes, todas las llamadas y finalización automática.
+3. Revisar que Claude Code 2.1.236 entregue hooks y transcript IDs compatibles: no basta con haber compilado el controlador. Si falta una identidad o consumo, el CLI rechaza la campaña.
 
-[Back to protocol](protocol.md)
+No hay evidencia de rendimiento, ahorro de tokens o superioridad. No se usó ninguna API de modelos para probar el experimento. Los originales de las futuras corridas quedan locales y la publicación se decide después.
