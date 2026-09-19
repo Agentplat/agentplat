@@ -72,8 +72,10 @@ assert.deepEqual(profile.publicAuditPolicy, {
 });
 assert.equal(auditLedger.kind, "agentplat-public-audit-evidence-exceptions-v1");
 assert.equal(auditLedger.status, "frozen-exact-files");
-assert.equal(auditLedger.entries.length, 22);
-assert.equal(new Set(auditLedger.entries.map(({ path: file }) => file)).size, 22);
+// The 22 historical artifacts plus five exact Morphogenesis paper artifacts.
+// This ledger count is independent of the frozen readiness scenario count.
+assert.equal(auditLedger.entries.length, 27);
+assert.equal(new Set(auditLedger.entries.map(({ path: file }) => file)).size, 27);
 for (const entry of auditLedger.entries) {
   assert.doesNotMatch(entry.path, /[*?{}[\]]/u);
   assert.ok(entry.reason.length > 20);
