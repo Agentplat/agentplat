@@ -1,0 +1,150 @@
+{
+  "caseCount": 11,
+  "outcomes": [
+    {
+      "condition": "morphogenesis",
+      "scenario": "nominal",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94688
+      }
+    },
+    {
+      "condition": "morphogenesis",
+      "scenario": "lost-ack",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94692
+      }
+    },
+    {
+      "condition": "fresh-id",
+      "scenario": "nominal",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:4cbf1b1a78f953608daba36a36e97af3473ea19b28e02992b4f6d422c9d66f30",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94696
+      }
+    },
+    {
+      "condition": "fresh-id",
+      "scenario": "lost-ack",
+      "effectCount": 2,
+      "duplicateSemanticEffects": 1,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:de1377ce2b82f9ac7bc9b6a6f3986cef5ccec752a5ed94c78db31694d08d3261",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94701
+      }
+    },
+    {
+      "condition": "durable-pattern",
+      "scenario": "nominal",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "team-receipted",
+        "receiptDigest": "sha256:9bf255d63b2ca89db4128dfd00298da3588a4427271620e0713cbd075b9a7069",
+        "pid": 94702
+      }
+    },
+    {
+      "condition": "durable-pattern",
+      "scenario": "lost-ack",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "team-receipted",
+        "receiptDigest": "sha256:9bf255d63b2ca89db4128dfd00298da3588a4427271620e0713cbd075b9a7069",
+        "pid": 94718
+      }
+    },
+    {
+      "condition": "morphogenesis",
+      "scenario": "owner-unavailable",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94721
+      }
+    },
+    {
+      "condition": "morphogenesis",
+      "scenario": "stale-owner",
+      "effectCount": 0,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "owner-rejected",
+        "phase": "activating_team",
+        "pid": 94723
+      }
+    },
+    {
+      "condition": "morphogenesis",
+      "scenario": "premature-detach",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": null,
+        "pid": 94724
+      }
+    },
+    {
+      "condition": "morphogenesis",
+      "scenario": "room",
+      "effectCount": 1,
+      "duplicateSemanticEffects": 0,
+      "lastWorker": {
+        "status": "completed",
+        "phase": "completed",
+        "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5",
+        "headEpochBeforeCommit": 1,
+        "roomObservation": {
+          "roomId": "room:incident-response",
+          "artifactId": "pilot-2",
+          "receiptArtifactId": "morphogenesis-receipt:execution:stable:receipt",
+          "retainedWorkArtifacts": 1,
+          "semanticValidityEvaluated": false,
+          "receiptDigest": "sha256:49a931529d73e4e05c1d423ac232bdc78afdd93e8d99501e228b9e3bc7c659a5"
+        },
+        "pid": 94725
+      }
+    }
+  ],
+  "losingEffects": {
+    "effectCount": 2,
+    "acceptedSuccessors": 1,
+    "losingProposalEffects": 1,
+    "automaticallyCompensated": false
+  },
+  "interpretation": "Both stable-ID implementations recover one effect. Head CAS alone leaves a losing effect. No organizational utility or cross-framework superiority evaluated."
+}

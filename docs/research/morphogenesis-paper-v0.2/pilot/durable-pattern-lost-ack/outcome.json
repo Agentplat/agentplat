@@ -1,0 +1,27 @@
+{
+  "condition": "durable-pattern",
+  "scenario": "lost-ack",
+  "effectCount": 1,
+  "duplicateSemanticEffects": 0,
+  "workers": [
+    {
+      "leg": "first",
+      "exitCode": null,
+      "signal": "SIGKILL",
+      "expectedKill": true,
+      "error": null
+    },
+    {
+      "leg": "second",
+      "exitCode": 0,
+      "signal": null,
+      "expectedKill": false,
+      "error": null
+    }
+  ],
+  "lastWorker": {
+    "status": "team-receipted",
+    "receiptDigest": "sha256:9bf255d63b2ca89db4128dfd00298da3588a4427271620e0713cbd075b9a7069",
+    "pid": 96260
+  }
+}

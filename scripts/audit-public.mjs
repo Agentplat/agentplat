@@ -299,7 +299,13 @@ async function* walkAuditTree(root, excludedDirectories, excludedFiles) {
 
 function isBinary(contents) {
   const inspected = contents.subarray(0, Math.min(contents.byteLength, 8192));
-  return inspected.includes(0);
+  // ASCII85-compressed PDFs can contain no NUL while their binary header is
+  // deliberately not UTF-8. Recognize the format, not merely its extension.
+  const pdfHeader = /^%PDF-(?:1\.[0-7]|2\.0)[\r\n]/.test(
+    contents.subarray(0, 16).toString('latin1'),
+  );
+  const pdfTrailer = /%%EOF\s*$/.test(contents.subarray(-1024).toString('latin1'));
+  return inspected.includes(0) || (pdfHeader && pdfTrailer);
 }
 
 function normalizeRelativePath(value) {

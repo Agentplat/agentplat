@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "phase": "engineering-pilot",
+  "seeds": [9001, 9002],
+  "horizon": 8,
+  "rolePhaseBudget": 16,
+  "databaseQueryBudget": 512,
+  "faults": ["none", "lost_ack", "reconciliation_outage"],
+  "conditions": ["fixed", "minimal", "durable", "morphogenesis"],
+  "exclusions": "No failed case excluded; unexpected errors fail the attempt. Pilot data is excluded from held-out evaluation.",
+  "claims": "Controlled deterministic workload and role-reservation economics only; no model-quality, monetary-savings or production claims."
+}

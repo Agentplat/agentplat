@@ -1,0 +1,23 @@
+✔ V1 definition validation freezes a canonical DAG and rejects cycles (1.793291ms)
+✔ definition limits reject excessive fan-out and gate duration (0.137708ms)
+✔ protected external task definitions require an action binding (0.541125ms)
+✔ protected tasks require the separately composed protected executor (4.865792ms)
+✔ runner waits for a signal, resumes once and preserves stable task identities (3.248791ms)
+✔ idempotent start replays exact input and rejects conflicting reuse (1.166041ms)
+✔ wait stage advances only after its deadline (1.059792ms)
+✔ bounded local worker discovers and advances runnable processes (1.164917ms)
+✔ gate rejection selects only its matching DAG branch (1.941209ms)
+✔ gate expiry performs one final provider check and then fails closed (1.17625ms)
+✔ cancellation prevents pending work and compensates succeeded tasks once (1.847333ms)
+✔ inactive compensation stages do not fail a successful normal run (1.324833ms)
+✔ expired task lease takeover fences the old worker and preserves one settlement (1.486042ms)
+✔ task heartbeat renews the current lease before fenced settlement (0.866292ms)
+✔ run duration and retained-operation ceilings fail closed (0.65525ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.013959
