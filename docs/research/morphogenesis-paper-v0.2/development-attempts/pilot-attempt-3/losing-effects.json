@@ -1,0 +1,130 @@
+{
+  "scenario": "losing-effects",
+  "effectCount": 2,
+  "acceptedSuccessors": 1,
+  "losingProposalEffects": 1,
+  "automaticallyCompensated": false,
+  "inputs": [
+    {
+      "operationId": "commit:a",
+      "morphologyHeadStateKey": "head:competing",
+      "scope": {
+        "schemaVersion": 1,
+        "tenantId": "tenant:example",
+        "morphologyId": "morphology:recruit",
+        "policyDomainId": "policy-domain:example",
+        "missionId": "mission:incident-response",
+        "missionIntentId": "mission-intent:incident-response",
+        "objectiveId": "objective:database-forensics",
+        "meshId": "mesh:example",
+        "roomId": "room:incident-response",
+        "workItemId": "work:database-forensics",
+        "workItemRevision": 1,
+        "scopeDigest": "sha256:934f6ae822f9fc04e3823705e4ef8e8990f90db3493235861dbd614c59f17ece"
+      },
+      "expectedMorphologyEpoch": 1,
+      "proposalDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decisionDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "resultingSnapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "team": {
+        "schemaVersion": 1,
+        "operationId": "team:a",
+        "agentDigest": "sha256:22f2144c6c9e3538b15c544cb90301211b37e773d25fa04f942a23e1c80d47ad",
+        "teamId": "team:recruit",
+        "teamEpoch": 2,
+        "teamProposalDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "jointWorkContractDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "individualWorkContractDigests": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "executionStateDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "retainedArtifactDigests": [
+          "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        ],
+        "invalidatedCausalClosureDigests": [],
+        "activatedAtLogicalMs": 200,
+        "receiptDigest": "sha256:c1eab0cc7f1b18e99072a41d5802d57c1e3607771ec40ecca385725e14d8a27f"
+      },
+      "logicalTimeMs": 210
+    },
+    {
+      "operationId": "commit:b",
+      "morphologyHeadStateKey": "head:competing",
+      "scope": {
+        "schemaVersion": 1,
+        "tenantId": "tenant:example",
+        "morphologyId": "morphology:recruit",
+        "policyDomainId": "policy-domain:example",
+        "missionId": "mission:incident-response",
+        "missionIntentId": "mission-intent:incident-response",
+        "objectiveId": "objective:database-forensics",
+        "meshId": "mesh:example",
+        "roomId": "room:incident-response",
+        "workItemId": "work:database-forensics",
+        "workItemRevision": 1,
+        "scopeDigest": "sha256:934f6ae822f9fc04e3823705e4ef8e8990f90db3493235861dbd614c59f17ece"
+      },
+      "expectedMorphologyEpoch": 1,
+      "proposalDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "decisionDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "resultingSnapshotDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "team": {
+        "schemaVersion": 1,
+        "operationId": "team:b",
+        "agentDigest": "sha256:22f2144c6c9e3538b15c544cb90301211b37e773d25fa04f942a23e1c80d47ad",
+        "teamId": "team:recruit",
+        "teamEpoch": 2,
+        "teamProposalDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "jointWorkContractDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "individualWorkContractDigests": [
+          "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        ],
+        "executionStateDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "retainedArtifactDigests": [
+          "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        ],
+        "invalidatedCausalClosureDigests": [],
+        "activatedAtLogicalMs": 200,
+        "receiptDigest": "sha256:521af7014aa790d7571ee9f10eff317073d852ed0bd6b48089373374b8f52706"
+      },
+      "logicalTimeMs": 210
+    }
+  ],
+  "results": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "schemaVersion": 1,
+        "operationId": "commit:a",
+        "proposalDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "decisionDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "teamReceiptDigest": "sha256:c1eab0cc7f1b18e99072a41d5802d57c1e3607771ec40ecca385725e14d8a27f",
+        "resultingSnapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "morphologyEpoch": 2,
+        "morphologyHeadDigest": "sha256:bccad501e35db24ddb5d08a78b9caeb42e68d85bd6be9179233e0e83f8bc1d36",
+        "activatedAtLogicalMs": 210,
+        "activationReceiptDigest": "sha256:18f83a291b641d9173c0adb793ce8baddd48a501e10ae14684b6d6a0f193706b"
+      }
+    },
+    {
+      "status": "rejected",
+      "reason": "morphology head commit is stale or cross-scoped"
+    }
+  ],
+  "head": {
+    "format": "application/vnd.agentplat.morphology-head.v1+json",
+    "schemaVersion": 1,
+    "stateKey": "head:competing",
+    "scopeDigest": "sha256:934f6ae822f9fc04e3823705e4ef8e8990f90db3493235861dbd614c59f17ece",
+    "policyDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "revision": 1,
+    "morphologyEpoch": 2,
+    "snapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "acceptedProposalDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "decisionDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "receiptDigest": "sha256:0cf162439ab89f429434454102f8325143145869c12f04cce5c95e680975373f",
+    "logicalTimeHighWaterMs": 210,
+    "predecessorHeadDigest": "sha256:800ed711334219bdad7564de2001276b4aa7ebbbeb5e7541467c28a83d35857d",
+    "headDigest": "sha256:bccad501e35db24ddb5d08a78b9caeb42e68d85bd6be9179233e0e83f8bc1d36"
+  }
+}

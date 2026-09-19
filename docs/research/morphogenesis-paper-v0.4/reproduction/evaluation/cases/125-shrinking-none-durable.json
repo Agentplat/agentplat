@@ -1,0 +1,1290 @@
+{
+  "schemaVersion": 1,
+  "caseId": "125-shrinking-none-durable",
+  "condition": "durable",
+  "input": {
+    "schemaVersion": 1,
+    "seed": 125,
+    "shape": "shrinking",
+    "fault": "none",
+    "horizon": 8,
+    "rolePhaseBudget": 16,
+    "databaseQueryBudget": 512,
+    "maximumRoleReservations": 3,
+    "specialistStart": 1,
+    "specialistEnd": 2,
+    "fixedSpecialist": true,
+    "tasks": [
+      {
+        "id": "task:0",
+        "phase": 0,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          9,
+          -17,
+          81,
+          77,
+          86,
+          19,
+          81,
+          6,
+          48,
+          2,
+          10,
+          13,
+          83,
+          34,
+          19,
+          60,
+          6,
+          89,
+          72,
+          -11,
+          49,
+          62,
+          72,
+          15,
+          63,
+          65
+        ]
+      },
+      {
+        "id": "task:1",
+        "phase": 1,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          -10,
+          -19,
+          96,
+          56,
+          67,
+          99,
+          -13,
+          6,
+          95,
+          -11,
+          95,
+          -15,
+          66,
+          75,
+          87,
+          72,
+          46,
+          26,
+          -20,
+          -14,
+          17,
+          36,
+          63,
+          85,
+          -8,
+          4,
+          62,
+          -6,
+          81,
+          94,
+          75,
+          58,
+          35,
+          34,
+          94,
+          63,
+          10,
+          89,
+          34,
+          37
+        ]
+      },
+      {
+        "id": "task:2",
+        "phase": 2,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          11,
+          91,
+          100,
+          56,
+          73,
+          64,
+          16,
+          22,
+          15,
+          93,
+          25,
+          24,
+          20,
+          48,
+          0,
+          42,
+          12,
+          30,
+          9,
+          33,
+          -9
+        ]
+      },
+      {
+        "id": "task:3",
+        "phase": 3,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          3,
+          7,
+          38,
+          96,
+          85,
+          -11,
+          65,
+          50,
+          97,
+          76,
+          -5,
+          10,
+          75,
+          18,
+          6,
+          -19,
+          47,
+          42,
+          29,
+          -13,
+          25,
+          42,
+          -7,
+          12,
+          16,
+          7,
+          -3,
+          27,
+          51,
+          79,
+          74,
+          -5,
+          0,
+          91,
+          72,
+          56,
+          88,
+          40
+        ]
+      },
+      {
+        "id": "task:4",
+        "phase": 4,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          -16,
+          38,
+          95,
+          -10,
+          57,
+          68,
+          74,
+          90,
+          0,
+          74,
+          24,
+          61,
+          44,
+          -7,
+          79,
+          83,
+          -12,
+          29,
+          51,
+          15,
+          31,
+          64,
+          43,
+          48,
+          43,
+          42,
+          53,
+          74
+        ]
+      },
+      {
+        "id": "task:5",
+        "phase": 5,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          45,
+          47,
+          25,
+          -5,
+          90,
+          91,
+          34,
+          10,
+          28,
+          31,
+          93,
+          84,
+          5,
+          99,
+          9,
+          45,
+          88,
+          -19,
+          -3,
+          47,
+          20,
+          65,
+          29,
+          20,
+          64,
+          -6,
+          76
+        ]
+      },
+      {
+        "id": "task:6",
+        "phase": 6,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          7,
+          49,
+          94,
+          30,
+          -8,
+          45,
+          44,
+          7,
+          65,
+          46,
+          64,
+          97,
+          76,
+          29,
+          1,
+          7,
+          31,
+          91,
+          44,
+          66,
+          59,
+          -3,
+          -19,
+          21,
+          87,
+          28,
+          -12,
+          91,
+          69,
+          55,
+          89,
+          90,
+          18,
+          69,
+          -5,
+          10,
+          37,
+          58,
+          8,
+          52
+        ]
+      },
+      {
+        "id": "task:7",
+        "phase": 7,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          58,
+          -2,
+          57,
+          60,
+          -17,
+          45,
+          0,
+          -8,
+          16,
+          92,
+          -20,
+          94,
+          -10,
+          3,
+          57,
+          6,
+          6,
+          39,
+          65,
+          24,
+          49,
+          15,
+          -1,
+          89,
+          11,
+          99,
+          65,
+          32
+        ]
+      }
+    ],
+    "revision": {
+      "id": "task:0",
+      "phase": 6,
+      "version": 2,
+      "kind": "sum",
+      "data": [
+        10,
+        -17,
+        81,
+        78,
+        86,
+        19,
+        82,
+        6,
+        48,
+        3,
+        10,
+        13,
+        84,
+        34,
+        19,
+        61,
+        6,
+        89,
+        73,
+        -11,
+        49,
+        63,
+        72,
+        15,
+        64,
+        65
+      ]
+    }
+  },
+  "metrics": {
+    "queries": 94,
+    "queryEvents": [
+      {
+        "sequence": 1,
+        "kind": "INSERT",
+        "statementDigest": "sha256:84c2f631409dd892374aa3d884e5d13d2fc7c5238de061aa1def847b5054af2e"
+      },
+      {
+        "sequence": 2,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 3,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 4,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1263b750ae8b1a518e716d892d806bea9a022f07dbad215758ed2c60075f946d"
+      },
+      {
+        "sequence": 5,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1af5f8485bb51f68837c05af82566355108cce0a9fcdb3ed5af636c160d29a2e"
+      },
+      {
+        "sequence": 6,
+        "kind": "SELECT",
+        "statementDigest": "sha256:14f857f78836eb211936c01069e395ec9b366bf222a42ec27e10e137d794747c"
+      },
+      {
+        "sequence": 7,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 8,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 9,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 10,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 11,
+        "kind": "INSERT",
+        "statementDigest": "sha256:cab101760b4133305a197858f8f802af9963276a3914da04dd1a856c5163812b"
+      },
+      {
+        "sequence": 12,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f316995a5128b13e1e52eeb0c1b92b9e13dae84341e42339c7931f468a2834eb"
+      },
+      {
+        "sequence": 13,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 14,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 15,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 16,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 17,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 18,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 19,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 20,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 21,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 22,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 23,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 24,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 25,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 26,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:b685598129fd6f78af8b994f31e0ceb51add07078c00948d41d086eff761bc1e"
+      },
+      {
+        "sequence": 27,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 28,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 29,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 30,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 31,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 32,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 33,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 34,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 35,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 36,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:ee8050371063459b2ab30be05f395bf38252d51f97886edde2fcfb0d8cebdeca"
+      },
+      {
+        "sequence": 37,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f316995a5128b13e1e52eeb0c1b92b9e13dae84341e42339c7931f468a2834eb"
+      },
+      {
+        "sequence": 38,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 39,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f3f909a9866432da3c4e33c08d61b0bff75a427fe96bae0acf01daa0ac967489"
+      },
+      {
+        "sequence": 40,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 41,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 42,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 43,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 44,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 45,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 46,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1263b750ae8b1a518e716d892d806bea9a022f07dbad215758ed2c60075f946d"
+      },
+      {
+        "sequence": 47,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1af5f8485bb51f68837c05af82566355108cce0a9fcdb3ed5af636c160d29a2e"
+      },
+      {
+        "sequence": 48,
+        "kind": "SELECT",
+        "statementDigest": "sha256:14f857f78836eb211936c01069e395ec9b366bf222a42ec27e10e137d794747c"
+      },
+      {
+        "sequence": 49,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 50,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 51,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 52,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 53,
+        "kind": "INSERT",
+        "statementDigest": "sha256:cab101760b4133305a197858f8f802af9963276a3914da04dd1a856c5163812b"
+      },
+      {
+        "sequence": 54,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f316995a5128b13e1e52eeb0c1b92b9e13dae84341e42339c7931f468a2834eb"
+      },
+      {
+        "sequence": 55,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 56,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 57,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 58,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 59,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 60,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 61,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 62,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 63,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 64,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 65,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 66,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 67,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:b685598129fd6f78af8b994f31e0ceb51add07078c00948d41d086eff761bc1e"
+      },
+      {
+        "sequence": 68,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 69,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:b685598129fd6f78af8b994f31e0ceb51add07078c00948d41d086eff761bc1e"
+      },
+      {
+        "sequence": 70,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 71,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 72,
+        "kind": "SELECT",
+        "statementDigest": "sha256:016821c629d193a0b6e7663edbc0ff7d24bd2daa19e937a5eccddd23971a2b0e"
+      },
+      {
+        "sequence": 73,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 74,
+        "kind": "INSERT",
+        "statementDigest": "sha256:bd3bdf7f21a79b90e2557e29ba31f1ed7d4111fe1de19b596df48efe76985f0c"
+      },
+      {
+        "sequence": 75,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 76,
+        "kind": "SELECT",
+        "statementDigest": "sha256:15fe20a123f2a9be72b931fb62688a4339263b796b5e193500d7514b003bc136"
+      },
+      {
+        "sequence": 77,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:fdcbeca5a8adf2b395b4ab26d28e1d239b1811b57dd20749f87f649d11aabde1"
+      },
+      {
+        "sequence": 78,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 79,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:ee8050371063459b2ab30be05f395bf38252d51f97886edde2fcfb0d8cebdeca"
+      },
+      {
+        "sequence": 80,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f316995a5128b13e1e52eeb0c1b92b9e13dae84341e42339c7931f468a2834eb"
+      },
+      {
+        "sequence": 81,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 82,
+        "kind": "INSERT",
+        "statementDigest": "sha256:f3f909a9866432da3c4e33c08d61b0bff75a427fe96bae0acf01daa0ac967489"
+      },
+      {
+        "sequence": 83,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 84,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 85,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 86,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 87,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 88,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 89,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 90,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 91,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 92,
+        "kind": "SELECT",
+        "statementDigest": "sha256:05c34f0a23fc4b52fce69bc0e1bca03e35785997229b25317cd40d335315ca8a"
+      },
+      {
+        "sequence": 93,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      },
+      {
+        "sequence": 94,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8716d2df1ad304f5b93e307c0c20e67a24a3b3158658e79cd926f8d7fcf80e89"
+      }
+    ],
+    "wallTimeMs": 49.3057910000025
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 2,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:42907bf44a6f0334b17c07f709e962c31d44a72fb83da7635d26c7287bc57c9d"
+    },
+    {
+      "sequence": 3,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 4,
+      "phase": 1,
+      "kind": "owner-reconciliation",
+      "operationId": "125-shrinking-none-durable:durable-activate"
+    },
+    {
+      "sequence": 5,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 6,
+      "phase": 1,
+      "kind": "role-materialized",
+      "roleId": "role:99181169114fa0b5",
+      "operationId": "125-shrinking-none-durable:durable-activate",
+      "initial": false
+    },
+    {
+      "sequence": 7,
+      "phase": 1,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 8,
+      "phase": 1,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:19d09401ba5e2d0321e8ca472b065f0b5ef96ab968682fc107796e2f7893e71f"
+    },
+    {
+      "sequence": 9,
+      "phase": 2,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 10,
+      "phase": 2,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:4f1f5d3c0c334956994b00b7a3ac3d07219284cef70261d5d51378ddbcdcc89d"
+    },
+    {
+      "sequence": 11,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 12,
+      "phase": 3,
+      "kind": "role-fenced",
+      "roleId": "role:99181169114fa0b5"
+    },
+    {
+      "sequence": 13,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 14,
+      "phase": 3,
+      "kind": "role-retired",
+      "roleId": "role:99181169114fa0b5"
+    },
+    {
+      "sequence": 15,
+      "phase": 3,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 16,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:e04c2c7a14509fbed6abe56e7382eacd5f716ae68fd9d5c359dad9b468806192"
+    },
+    {
+      "sequence": 17,
+      "phase": 4,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 18,
+      "phase": 4,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:dacb8d636b3f3ec08555934fdb24b2e5ae264c9e0dc9e5a35a1d8010a9b79988"
+    },
+    {
+      "sequence": 19,
+      "phase": 5,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 20,
+      "phase": 5,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:d50e97e8da54b2a760bc85c8e0e8f8a60138698cc70c63b7af33247b452ff7e6"
+    },
+    {
+      "sequence": 21,
+      "phase": 6,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 22,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:fe7730239ff7582210dd5b8e2d2364037b506fc529bc11aa767eaf5ca9055011"
+    },
+    {
+      "sequence": 23,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:218f1b0a0ab898457e90fa183583141bbf0f4cf66c4b6209ae4877865a8b9afd"
+    },
+    {
+      "sequence": 24,
+      "phase": 7,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 25,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:f77fde79f913ca753f07cce3e379106dbd038070732fd539def0e82af61b832d"
+    },
+    {
+      "sequence": 26,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:896c707c7daa754f135420a018168a25a750130db61b3cf3eaa86ae76464073d"
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": false,
+      "fenced": true,
+      "roleId": "role:99181169114fa0b5",
+      "operationId": "125-shrinking-none-durable:durable-activate",
+      "createdPhase": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "report",
+      "value": {
+        "task:0": {
+          "numerator": 1102,
+          "denominator": 1
+        },
+        "task:1": {
+          "numerator": 2516239,
+          "denominator": 1600
+        },
+        "task:2": {
+          "numerator": 418736,
+          "denominator": 441
+        },
+        "task:3": {
+          "numerator": 1361,
+          "denominator": 1
+        },
+        "task:4": {
+          "numerator": 1235,
+          "denominator": 1
+        },
+        "task:5": {
+          "numerator": 1112,
+          "denominator": 1
+        },
+        "task:6": {
+          "numerator": 1687,
+          "denominator": 1
+        },
+        "task:7": {
+          "numerator": 924,
+          "denominator": 1
+        }
+      },
+      "digest": "sha256:896c707c7daa754f135420a018168a25a750130db61b3cf3eaa86ae76464073d",
+      "version": 1,
+      "inputDigest": "sha256:30dcbca39ad044bfcc6f3f8b71a6244be6d3422a844b5629f11cee00c8707acb",
+      "dependencies": [
+        {
+          "id": "task:0",
+          "digest": "sha256:fe7730239ff7582210dd5b8e2d2364037b506fc529bc11aa767eaf5ca9055011",
+          "version": 2
+        },
+        {
+          "id": "task:1",
+          "digest": "sha256:19d09401ba5e2d0321e8ca472b065f0b5ef96ab968682fc107796e2f7893e71f",
+          "version": 1
+        },
+        {
+          "id": "task:2",
+          "digest": "sha256:4f1f5d3c0c334956994b00b7a3ac3d07219284cef70261d5d51378ddbcdcc89d",
+          "version": 1
+        },
+        {
+          "id": "task:3",
+          "digest": "sha256:e04c2c7a14509fbed6abe56e7382eacd5f716ae68fd9d5c359dad9b468806192",
+          "version": 1
+        },
+        {
+          "id": "task:4",
+          "digest": "sha256:dacb8d636b3f3ec08555934fdb24b2e5ae264c9e0dc9e5a35a1d8010a9b79988",
+          "version": 1
+        },
+        {
+          "id": "task:5",
+          "digest": "sha256:d50e97e8da54b2a760bc85c8e0e8f8a60138698cc70c63b7af33247b452ff7e6",
+          "version": 1
+        },
+        {
+          "id": "task:6",
+          "digest": "sha256:218f1b0a0ab898457e90fa183583141bbf0f4cf66c4b6209ae4877865a8b9afd",
+          "version": 1
+        },
+        {
+          "id": "task:7",
+          "digest": "sha256:f77fde79f913ca753f07cce3e379106dbd038070732fd539def0e82af61b832d",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1093,
+        "denominator": 1
+      },
+      "digest": "sha256:42907bf44a6f0334b17c07f709e962c31d44a72fb83da7635d26c7287bc57c9d",
+      "version": 1,
+      "inputDigest": "sha256:092a3617f6ce5885611b4bf53db779c3d2230e5adda21dcae91661500d3430c3",
+      "dependencies": []
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1102,
+        "denominator": 1
+      },
+      "digest": "sha256:fe7730239ff7582210dd5b8e2d2364037b506fc529bc11aa767eaf5ca9055011",
+      "version": 2,
+      "inputDigest": "sha256:bc88f6ccd59e716061d1ee80bf3991f811e2052599e9c5e7b0a7d40d1f1ef582",
+      "dependencies": []
+    },
+    {
+      "id": "task:1",
+      "value": {
+        "numerator": 2516239,
+        "denominator": 1600
+      },
+      "digest": "sha256:19d09401ba5e2d0321e8ca472b065f0b5ef96ab968682fc107796e2f7893e71f",
+      "version": 1,
+      "inputDigest": "sha256:93f7fc34cfe98a4c19ea077e26a38fc0dab8a58dd44089de7f87a599f9e89717",
+      "dependencies": []
+    },
+    {
+      "id": "task:2",
+      "value": {
+        "numerator": 418736,
+        "denominator": 441
+      },
+      "digest": "sha256:4f1f5d3c0c334956994b00b7a3ac3d07219284cef70261d5d51378ddbcdcc89d",
+      "version": 1,
+      "inputDigest": "sha256:c8959b02e86f30d9f8e016c722e240aac65518505bd03ae05f95898ce21b0ef3",
+      "dependencies": []
+    },
+    {
+      "id": "task:3",
+      "value": {
+        "numerator": 1361,
+        "denominator": 1
+      },
+      "digest": "sha256:e04c2c7a14509fbed6abe56e7382eacd5f716ae68fd9d5c359dad9b468806192",
+      "version": 1,
+      "inputDigest": "sha256:e42ca5cf686a82212950f309c6ec116f664915afcf586f07215f4773afff8045",
+      "dependencies": []
+    },
+    {
+      "id": "task:4",
+      "value": {
+        "numerator": 1235,
+        "denominator": 1
+      },
+      "digest": "sha256:dacb8d636b3f3ec08555934fdb24b2e5ae264c9e0dc9e5a35a1d8010a9b79988",
+      "version": 1,
+      "inputDigest": "sha256:e32bd927f93a1c4647e0a122ecb43f724c5e57e953ca1b4921b8e710293b54e6",
+      "dependencies": []
+    },
+    {
+      "id": "task:5",
+      "value": {
+        "numerator": 1112,
+        "denominator": 1
+      },
+      "digest": "sha256:d50e97e8da54b2a760bc85c8e0e8f8a60138698cc70c63b7af33247b452ff7e6",
+      "version": 1,
+      "inputDigest": "sha256:28cfc3a81e7eba05fdc90af8e0792ee2936067a8db5d54f97c62337a68eef5d6",
+      "dependencies": []
+    },
+    {
+      "id": "task:6",
+      "value": {
+        "numerator": 1687,
+        "denominator": 1
+      },
+      "digest": "sha256:218f1b0a0ab898457e90fa183583141bbf0f4cf66c4b6209ae4877865a8b9afd",
+      "version": 1,
+      "inputDigest": "sha256:e540dca34425058f56e157a7070678b8098cd3069b8626a8385134cbed307d62",
+      "dependencies": []
+    },
+    {
+      "id": "task:7",
+      "value": {
+        "numerator": 924,
+        "denominator": 1
+      },
+      "digest": "sha256:f77fde79f913ca753f07cce3e379106dbd038070732fd539def0e82af61b832d",
+      "version": 1,
+      "inputDigest": "sha256:235cbb024c693696da36ae0272b2580200cf87bcee242f27483b79009e4ec82a",
+      "dependencies": []
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": true,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "125-shrinking-none-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "125-shrinking-none-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "125-shrinking-none-durable:activate:apply:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "125-shrinking-none-durable:activate:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "125-shrinking-none-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:10.000Z",
+        "updatedAt": "2026-09-19T12:00:10.000Z",
+        "stateDigest": "sha256:bb807d90143dcbb9d88a25ae0b7fd537892c164e90437ea09d4493cfc98f4aea"
+      },
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "125-shrinking-none-durable:retire",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "125-shrinking-none-durable:retire:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "125-shrinking-none-durable:retire:apply:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "125-shrinking-none-durable:retire:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "125-shrinking-none-durable",
+          "action": "retire"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:1139b3b5c06405fd3e75248e6650d212c8eb6231a115d85b588c874795cfdcea"
+      }
+    ]
+  }
+}

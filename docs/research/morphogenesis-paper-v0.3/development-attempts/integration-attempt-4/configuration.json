@@ -1,0 +1,50 @@
+{
+  "teamPolicy": {
+    "schemaVersion": 1,
+    "policy": {
+      "schemaVersion": 1,
+      "policyId": "team-policy:paper",
+      "policyVersion": 1,
+      "parentPolicyDigest": null,
+      "minimumDistinctPeers": 1,
+      "minimumIndependenceGroups": 1,
+      "maximumTotalBudgetUnits": 20,
+      "requireDistinctPeerPerPosition": true,
+      "limits": {
+        "maximumPositions": 4,
+        "maximumBidsPerPosition": 8,
+        "maximumMembers": 4,
+        "maximumSearchNodes": 100,
+        "maximumReasonCodesPerDecision": 8,
+        "maximumHistoryEntries": 8,
+        "maximumRequestInvalidations": 8,
+        "maximumRequestTtlMs": 1000,
+        "maximumTeamDurationMs": 1000,
+        "maximumCommitAttempts": 8
+      }
+    },
+    "policyDigest": "sha256:b2d1676572f55a9a3878acdc0d41f4fa3564d96345c2dd9154d47996d37f85e2"
+  },
+  "position": {
+    "schemaVersion": 1,
+    "positionId": "position:forensics",
+    "workItemId": "work:test",
+    "workItemRevision": 1,
+    "roleKey": "database_forensics",
+    "requiredCapabilityKeys": [
+      "database_forensics"
+    ],
+    "completionCriteria": [
+      "artifact_published"
+    ],
+    "dependsOnPositionIds": [],
+    "budgetUnits": 10,
+    "maximumActionBudgetUnits": 5,
+    "positionDigest": "sha256:c39c1432c617857da6778cc16f72bdc0171b6fa2f2621b8dbb61cea5c95d4ae3"
+  },
+  "wallClockOrigin": "2026-09-19T12:00:00.000Z",
+  "mandateTrust": "local test attestation",
+  "discoveryMembershipAttestation": "fixtures",
+  "teamStore": "test PostgreSQL CAS adapter",
+  "rollbackWitness": "process-local; not host-loss safe"
+}

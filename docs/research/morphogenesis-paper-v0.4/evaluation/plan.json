@@ -1,0 +1,2424 @@
+{
+  "schemaVersion": 1,
+  "phase": "held-out-finite-grid",
+  "frozenAt": "2026-09-19T21:37:24.141Z",
+  "sourceCommit": "e978544915a329387e13883fa352191f6993dcc7",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132
+  ],
+  "horizon": 8,
+  "rolePhaseBudget": 16,
+  "databaseQueryBudget": 512,
+  "conditions": [
+    "fixed",
+    "minimal",
+    "durable",
+    "morphogenesis"
+  ],
+  "shapes": [
+    "stable",
+    "burst",
+    "shrinking",
+    "false_forecast"
+  ],
+  "faults": [
+    "none",
+    "lost_ack",
+    "reconciliation_outage"
+  ],
+  "expectedCases": 1536,
+  "pilotManifestDigest": "sha256:7cb4c7dc6114b0b448f01c96722da99af9a747f56ffb7a39704f12476db0cc12",
+  "sampleRationale": "32 distinct integer-array inputs per shape/fault cell for held-out finite-grid coverage. No statistical-power or population reliability claim.",
+  "analysis": "Independent Python exact-arithmetic oracle; raw per-case scores, stratified summaries, paired mean differences. Local elapsed times diagnostic only; no monetary conversion.",
+  "exclusions": "None. Unexpected errors invalidate the attempt; preserve all cases. Denials, blocked phases and budget exhaustion remain outcomes. Pilot seeds excluded.",
+  "claimBoundary": "Controlled deterministic task and reservation study; not LLM organizational intelligence, independent-host fault tolerance, production performance or cross-framework superiority.",
+  "inputs": [
+    {
+      "seed": 101,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:71871caabd95c6828963c069266672b7e2be9b1dda88248a03c316454a9f099d"
+    },
+    {
+      "seed": 101,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:fc5cc9442ff2e937d4f7e053088d8136dfa171f3dbfdfbc2eac75a0084557b9c"
+    },
+    {
+      "seed": 101,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:fcb052927f3551fe7b16db543e1d60bb952a72d1c551514f47b629be199f71da"
+    },
+    {
+      "seed": 101,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:ef77ea7277556a10bce68ce1c824173c7c8e956288083dbcfa5a247ed6780634"
+    },
+    {
+      "seed": 101,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:3b5c5030b71a790d993a869c0b1fca6d79766a3c026a0ba6db7b5c73077aaf36"
+    },
+    {
+      "seed": 101,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bcdfea1ff9e7a8dda42d9e6edaedd2fb9dde0a661f4de25031c4f2df863af331"
+    },
+    {
+      "seed": 101,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:d99f7504832dbdb047224b1b811facd92819e16d427c5d4327f6e61c303c49e4"
+    },
+    {
+      "seed": 101,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:a110e9c441c177915ae1b616b8b7d8edad995dbbe167130381a8fd34b79014f6"
+    },
+    {
+      "seed": 101,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:a6580ac3b43da859f7d16cc5d457b1a6f41ddd83e849d2f5ed0d7168b2afad62"
+    },
+    {
+      "seed": 101,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:a50d51bde7116b8c4caabc34a9dd2f1976e5785056b1944175c97dbedd2ac718"
+    },
+    {
+      "seed": 101,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:587d8848c671c5d098d50d0fc8d66212e9d7e147e998a3676730dcf1940a0b6a"
+    },
+    {
+      "seed": 101,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:f0820fba4e45a6607bf152adab58d769c48dbdc6936014e7d92e6971b79bc5cf"
+    },
+    {
+      "seed": 102,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:2146b585e19e02ed6335dfdeac33d398337a77b83496f3ffe71b519dcf7949ce"
+    },
+    {
+      "seed": 102,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:843c78a80bb7164ff63645593afbc1a3d39ba43e1843a5bd63086f9844f0ea1d"
+    },
+    {
+      "seed": 102,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:b308859da8ff9b601bee2148de7960a22c234e1fcc554c7bcd6f14e63044d510"
+    },
+    {
+      "seed": 102,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:5412a032e22f62682b0e358cd9a3bdfc28813df2f535f9b253c4445c43b6c616"
+    },
+    {
+      "seed": 102,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:5255e3f6cd7a3c6be2bca3026377c23371ade1e0f1c80da3a7fa741dbf2aa7eb"
+    },
+    {
+      "seed": 102,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:0e6ab1a39e3347ae2b1bab69c0e7794aa6a3c15cc470f711d8995d3faeddfa01"
+    },
+    {
+      "seed": 102,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:1e309fe41364584442d6b5000e1d5b3a86a95b904ca4547dbc4421f4cbd9b357"
+    },
+    {
+      "seed": 102,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:c939ff970f6c1305e1f5e3d8ce8628cc9448ec76c623093363c0e4a9d08eabe5"
+    },
+    {
+      "seed": 102,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:6794899d923e68c3507462a82560f3d787d3140055de22132a103b6ae990cd37"
+    },
+    {
+      "seed": 102,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:da555e144f783f50ed89a53faef73e2b55b0bb30f2e66805adbdb1d4f5e05797"
+    },
+    {
+      "seed": 102,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:fbff43a02370fd21abb23e2e6c275bfe85661a7f51c09c26b4447c6628f426f8"
+    },
+    {
+      "seed": 102,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bbc575846fb9bcde0da013d34b2e10e011fd9bb7b339dcaa0a4e334d120ae4d2"
+    },
+    {
+      "seed": 103,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:69f7d1da41ec2bff5c7b0a793709a1c77ba16ddfa6e501be50778ce4103ceb84"
+    },
+    {
+      "seed": 103,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:052380b07aacdea7ebe1160b20a8ada0d64bacc9bcda1bec88a92b77686329f6"
+    },
+    {
+      "seed": 103,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:dd31cc60ad616774ea4cb1d39c692bdd27d318ec67f24ff85d0ab46ff423f8c1"
+    },
+    {
+      "seed": 103,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:0def776105cafae6a6b8bf98b949e2f93122a2ceba58e2349bff3c0a71134976"
+    },
+    {
+      "seed": 103,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:7965757a82bc3f70ddbcb71de11fbbe72b9be97920263b1823939679c8cdc075"
+    },
+    {
+      "seed": 103,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:e6805276eaab466c51052ad8cd1385661ea22b7e1710f8329fd6e24af9e5a100"
+    },
+    {
+      "seed": 103,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:39f41e61773fac9aa7359fbc3b606fe3453a91afce64af8e5e4b05d6423979c9"
+    },
+    {
+      "seed": 103,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:743c43747a05d3566f5e8ddb3ee8f5f61a420aa308174c7832460b4350f40e5e"
+    },
+    {
+      "seed": 103,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:c7b74312a29be5673e9d9de96ecd3d4df05beb5c62c60b74a0889b7279fa11b1"
+    },
+    {
+      "seed": 103,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:9d8650f98a3de58f8c0edea896bb5a8cd712b5e6a53354a5f0336f2d09ebb127"
+    },
+    {
+      "seed": 103,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:e68907bb217c709c3fe658e1c51b62e8e98355aadf706781f49dad0e090a63d6"
+    },
+    {
+      "seed": 103,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bc82d8acfad995089d77aa5fb8e23da3b3a19e6161b3909452a0fe5b2ee75daa"
+    },
+    {
+      "seed": 104,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:4c52f4490190438b62fe411c73968eca8caa4304c97f3f2efd3e591ba68bc8ad"
+    },
+    {
+      "seed": 104,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:25665ada575eba0db39590127c070525e14ab4c23df6e0e551e1fbc4fe08c18a"
+    },
+    {
+      "seed": 104,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2c89dbad29af14f7bf8425174d13c18b67d3736e692d963b2b3160623878a845"
+    },
+    {
+      "seed": 104,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:7e8b0732d39d37c8652633a7d72ef351ecbe6c7683e80819be2bbd6dbf279ea1"
+    },
+    {
+      "seed": 104,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:a19a2bdf9d9167abfa7359862f6a5dde201fcd5de8659dbe69a33a75d68ddb94"
+    },
+    {
+      "seed": 104,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9ee181a7a3215bc3c93eb30aa42e3a1db96f8298924626aff5b1de3ba2b2a9ed"
+    },
+    {
+      "seed": 104,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:c84e9d4563bfc3081f8c2f44242bc203f2e22642f29745f0bbaf0ace5717d444"
+    },
+    {
+      "seed": 104,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:74b9dfe2f9575c853b958c36979143b90f60b447c22fdf5040ead09e1c0b4e83"
+    },
+    {
+      "seed": 104,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:09d7081097341c8f0aa4fe4a3ef88afecd9f785a8509f015a289e7842cfcae12"
+    },
+    {
+      "seed": 104,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:ecb0298b182fd97c7fb0a9098ba48a6e41b668978037f04df59425465dad31a3"
+    },
+    {
+      "seed": 104,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:6a468712fb07f9b4fea0dd260ad6c3b3a4f93a918186271bd40d6911f1561e10"
+    },
+    {
+      "seed": 104,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:4114058c150d76ec813e1f12daf0bfedbe200319bb5147d32099249cf6ef6526"
+    },
+    {
+      "seed": 105,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:61d5136eccd2ea1e1b2c0bd625cef67ca2e99e4680725788777906362e5a7f0a"
+    },
+    {
+      "seed": 105,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:852aed1f2f7409ae03ab40ab2c00cf8a5f14047d669ac6ccc3f4b2f5a189a2a2"
+    },
+    {
+      "seed": 105,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:cd5069d540c79a01d582aea4554ba4d92cab98f936e8a7a2fc6290c3df479160"
+    },
+    {
+      "seed": 105,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:557f1945e37ad0dcfaf5e6ab840583332f58750de0c743f84c7bd81f242e3a9c"
+    },
+    {
+      "seed": 105,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:c1b564bef27b24966942c5018a849eaf229f24f29492c25e1c1af1b0921ce7ae"
+    },
+    {
+      "seed": 105,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:7a98d0dd86e699a477e9c26b4b02b1c3d47a0ca710039636d3a8d4813e6ed727"
+    },
+    {
+      "seed": 105,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:b6acc47558d65eb0e03d7f3ee72857fca907bc2fc9516b266a8347d8e2c2735f"
+    },
+    {
+      "seed": 105,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:701c161736e44361e705b7bd4838c94f2f670b561a41c820b07b1ac695b4b694"
+    },
+    {
+      "seed": 105,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:a3f0d4bead3b7e0cee7cf7d123c8b444a61a12034a45217147f779538bb3d383"
+    },
+    {
+      "seed": 105,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:4caac8b4058fb2d71de2bc778b36a6c8dc19ee5b916bca9fa85a91b7fbc69de7"
+    },
+    {
+      "seed": 105,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:e9f10949f4d75b87067c994aee1b37138053e6bbab60b7cd52330d40d14a3fe7"
+    },
+    {
+      "seed": 105,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9a720e510afaf2f24316db05d5774fe82fdf4f1307b1106e01c81594845e58f8"
+    },
+    {
+      "seed": 106,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:12a9e697b780e23e2098fb2ed4b335c6f41e64bca57652df11dc51ec08d7671b"
+    },
+    {
+      "seed": 106,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:e857440351e5c97df55e491d106a20ed5a7398594f37dd16a5022c884052ffdb"
+    },
+    {
+      "seed": 106,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:008b28ee6c11118163c4d501de291a7c0e18e119826dbfd0254c18a47340ba30"
+    },
+    {
+      "seed": 106,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:698b88e10ba1c84247b1710233469b5bc5336f5586ea0489ebd041ec3b5ae06d"
+    },
+    {
+      "seed": 106,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:6e008d6ef0adffe11209993408481d264e2727201b32332b76586e42dfbd2cd2"
+    },
+    {
+      "seed": 106,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bc3ab6580192824fee17ca73242e78506e0da00bd994afecf107936d1cea76d0"
+    },
+    {
+      "seed": 106,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:8d43f9ff13d81df5f6c6b8347b6070a208f60219a43b28e20d7ea6d691fb4284"
+    },
+    {
+      "seed": 106,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:9528800c7eb52b510dbb9757f139ec985798f884ec5eb780166bc7e7d7db787d"
+    },
+    {
+      "seed": 106,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:3d83f7c016c455fcacc9bb7d80571385d2795a75397bcccd07ff806b29fabc07"
+    },
+    {
+      "seed": 106,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:be1d0671a2409a54d9f4ee5f00e80d9901e67897f8595d9366894f3fd14283e7"
+    },
+    {
+      "seed": 106,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:984b0feaafc0cacced4fcd467b40f9e8bbb09298536dd3398c711ab69f54368e"
+    },
+    {
+      "seed": 106,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9b0765e9d8b6f649f80089bdae3dfa1c34f3f906bfe232a043bfa75174c7b57f"
+    },
+    {
+      "seed": 107,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:31ca4fb06037676ab86ef76074d5e19b5cc0b34a2413517e1db08f6152f41dcb"
+    },
+    {
+      "seed": 107,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:a61cde58c8aceb3818b9c19028428b6bec145aad62bcdceb93cd91a281ae254a"
+    },
+    {
+      "seed": 107,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:4a620299380dbf66be0b28eead23e152b2faf82345a565c7bdd189b68ff60b6a"
+    },
+    {
+      "seed": 107,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:715a0a5397040b564e3d36f3148d2f40bc61e3cd6d50a4d4bc90e4f11b527e8c"
+    },
+    {
+      "seed": 107,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:591ee39f8a00645483118d3a818f66297f373887c876c4a4d919ab7eec95bc7d"
+    },
+    {
+      "seed": 107,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:c1c9ceb12a6fa33ba156a2bf83c15e9804d3bd89cccb704c8d8dc9cb39f31aa0"
+    },
+    {
+      "seed": 107,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:3e363085035bb99947dc8b98e75a473750218ed18e0c2552e58557ea06be3434"
+    },
+    {
+      "seed": 107,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:b993004b6f9f68884176b683b470db5c3d4fb96c91fe339abdff41437ad957e1"
+    },
+    {
+      "seed": 107,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:eada135806aaee9920f747f628217e5e8b8ba07820a10cf89b5a042a8e5c06ae"
+    },
+    {
+      "seed": 107,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:996ef43b09a66655e69648d1a211b513ed65ca54f9a63227c237c7e102fd1588"
+    },
+    {
+      "seed": 107,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:13db70cdbfa5f3659230d553e764e35c1805d4cb4f352130d89156b0194668b5"
+    },
+    {
+      "seed": 107,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2688504e7ce452fd2c7a2923e5f2e721908792ba2aaecd19ab0df701afb2b438"
+    },
+    {
+      "seed": 108,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:effa84f234e81fdef5bc04838efe2a925197de0247e31b85450d3aa25d61ed5b"
+    },
+    {
+      "seed": 108,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:ec2dbdf9e6fe2108272e4f73c63479704d6ded7291267a59f6d328503003c1e1"
+    },
+    {
+      "seed": 108,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5e637dd3a4d3f0312ca47ce30c0529e60a1a60c40ae7c12d18885e5308d0dc30"
+    },
+    {
+      "seed": 108,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:ef7369b18391d5347c84b3dab22b30992f562cca601a99a0116d6093709b86f5"
+    },
+    {
+      "seed": 108,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:c3aae45e11f6d163abb47f2eff668696d86582a7d9c18c55fdfa6d8b72387aff"
+    },
+    {
+      "seed": 108,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:f47dcbebc4ce6428b61225d8b264c29a6bff7ffd1e5fbdc4d394f1ccf1a6f9a1"
+    },
+    {
+      "seed": 108,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:d421c37242c10db2bc6e0b1ed6a2e61b0ecbe96e956b936e41c93fb16753d740"
+    },
+    {
+      "seed": 108,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:7fe591c3d839d2d19edcf9ea2ee6382280e505996bbb14f4a29591397a16adb2"
+    },
+    {
+      "seed": 108,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:b080fdf6adf191667c2f5d0b933320cea7801f82f2b0e5e267aa93e6b77a9b15"
+    },
+    {
+      "seed": 108,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:4eedd35d47b126572e8d03b7d2be054a884142bd88d2ecf9cbb814610bdfdcf9"
+    },
+    {
+      "seed": 108,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:56f5f0f2117478df4063a416e3b75031ef79ee0e182a4f78549c67e641c01ab0"
+    },
+    {
+      "seed": 108,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2e44286f39b85a18c5e5b37be8be925e502bbe9158803ef1185214cc475f01be"
+    },
+    {
+      "seed": 109,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:11771f5ca9724a32e332b51b3c6de38b5d211ade3396360e8937e532cbe261a8"
+    },
+    {
+      "seed": 109,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:d6c62cf684bc299071ea0f945c871df4b7b467bda64f341810f7a5bc06dd3e22"
+    },
+    {
+      "seed": 109,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:eae4fd9e0a6cc19b3772ef6353662e776f29dcef99a9f150411250767a9a4932"
+    },
+    {
+      "seed": 109,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:84a84f63531514752884766852925ee91e49317cf61527dbfa783b735ab1f2ea"
+    },
+    {
+      "seed": 109,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:805dce0f52a609d91341fd5a59f7e59fcd7e127a28f55a7897fef7866c46ab60"
+    },
+    {
+      "seed": 109,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:57203bd3dd9cddd4ec406b1adbb2aa9310108dd7c5460e619c7ca2263101d206"
+    },
+    {
+      "seed": 109,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:3c9de61a396f12e09bde71d1f9c110143b102b01b8781b712c36fe1a3a442bab"
+    },
+    {
+      "seed": 109,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:409f50398b6fa0fb0bd6b7b0b5cc76044591ba9e277538bbeac513481c310972"
+    },
+    {
+      "seed": 109,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2cc905accb2197c27e357727eb88d134c93b7d5d33cc7281bc231d444c62347b"
+    },
+    {
+      "seed": 109,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:0abab2b7e32c2e9708e97a7f50b3996e8f199a4f311ec39d07fe98740fb197ff"
+    },
+    {
+      "seed": 109,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:1924a243ba5f135259ccb48d842984a5b39b5c9268bdd40d3ba4ff1fb922412e"
+    },
+    {
+      "seed": 109,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bfc19647e4be09e81023d3b392b80d897de0f7dd69ebed0fdcb8b116e923c90a"
+    },
+    {
+      "seed": 110,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:6587b552ae86be5e7600328cca6392828fe772ed5516adc77c940dbd744b60c0"
+    },
+    {
+      "seed": 110,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:6983ab29923595f80b412a21341111331021db43f9198a970bfb8fffadea581e"
+    },
+    {
+      "seed": 110,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:085eca9e398841dba9f52ae7ec23104be59d6482391cd26d8e384fcd6b4cdaa7"
+    },
+    {
+      "seed": 110,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:c07ac14554cf182300ff1d057c32acd3ca0d9e006fc5dc6dc05ae9786526814e"
+    },
+    {
+      "seed": 110,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:540141d1713882b8afed223496d819a8c7aeec6476e1428c0f051d768e77e8d0"
+    },
+    {
+      "seed": 110,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:ede4da3ba053f92b5e6e458079942f97e0df1f5be598eba0fc6777baabf49f87"
+    },
+    {
+      "seed": 110,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:d7f12b4ae358d842d7cf0c6fba51d4e93613dd55928c0545f2e2610b2422bea2"
+    },
+    {
+      "seed": 110,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:3c1bf1736831557167bbee068a1a4b637e9e7ebbd7a47ddc43e719867e735be3"
+    },
+    {
+      "seed": 110,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:0915e11e7b8397aa3daec1daa1ba6249a5b4007f93e0d15f844203955e1ff921"
+    },
+    {
+      "seed": 110,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:1a5c1f7a87beac9124eca596f115ffcf4f37b3da868b7dee8a4bdbe0cafb8199"
+    },
+    {
+      "seed": 110,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:cbd1606a669a72cbc9e55730b3b923d5329b13351b128d444cd1ce3ba6c9148a"
+    },
+    {
+      "seed": 110,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:a08b2a92f421ba37b533434e389fd16240a231c0a541e1a8002350a14cd2e29d"
+    },
+    {
+      "seed": 111,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:07bf70c40e7134c9648b8b0514a85a81eb76f440a576738c85ee1b6c1f84229a"
+    },
+    {
+      "seed": 111,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:520102902708d3c14761e831706c02cc120c980869b69b4f121340576be1ef43"
+    },
+    {
+      "seed": 111,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:021fa667b2c5d880fde6cd6e15009594f1bc1818c7df9efa111192a4bf1a780c"
+    },
+    {
+      "seed": 111,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:c1b6638b47ea3140ca58661e71fb25b89eca2c7c53d10fc9ebc9a01f400542f8"
+    },
+    {
+      "seed": 111,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:e970500046ac6a72f611e2607a71a4db6842b9aca5c374868532c41e2f7661f2"
+    },
+    {
+      "seed": 111,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:e57011efa2d07384e74a1b2350e73833992441bb0f3c71e4fc8603556524e6d1"
+    },
+    {
+      "seed": 111,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:abd65d44d7c00aef3b1697173b92154e5b32f6d8107096d60a45eced4a9e3e4c"
+    },
+    {
+      "seed": 111,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:8117cfea89b831ab6611cceb93e946ba53223ed1cdfff40ce488d620697543a6"
+    },
+    {
+      "seed": 111,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:ecae6940c62ca795a4bece707f442a7aa57e6127f1ab9eed3af8c2e1c2d8bcb5"
+    },
+    {
+      "seed": 111,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:3620b79920af4c4a18a57660f033fb3f229ee4fabac6bc9740e9aed7dafe0ab6"
+    },
+    {
+      "seed": 111,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:7fb7ddd16edadb31c49c99865121b07e1ef0bbe56ee79b4c9406a2bf1bc70363"
+    },
+    {
+      "seed": 111,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:3b08df67870cfecaac26eda3976d07c6bc3a8c6a0342f6cd686d2ec31a792e1a"
+    },
+    {
+      "seed": 112,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:0286c6cd94b796806452e0af80fea96398eee72db1af2c3bb29aeb98915da8f0"
+    },
+    {
+      "seed": 112,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:64e215d0507e55b5dd52c16fd5c7a7176194266b5c9438bed0a1c4a839ca429d"
+    },
+    {
+      "seed": 112,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:89cfed71867b4b0b30398d0076cb235ec4254841518b7f586a4ef5f1590091f5"
+    },
+    {
+      "seed": 112,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:fd5c1ffdb4ca7e22ae9f0dea1ff1a39d196a8a4c81f5b31c98009f917a15d792"
+    },
+    {
+      "seed": 112,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:c4762831b4f44e1ae8f8a0d83d623c68db342089eb9eb632560aac285faf9820"
+    },
+    {
+      "seed": 112,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:dd40c2e9cce3e5c1fbd7f166f13eb7938a2102aaa2ccfce617409193ba283648"
+    },
+    {
+      "seed": 112,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:8396d0aa29e8d0dd99e3ac7d6f7ec281cc488354f93dc014a341045c39beac81"
+    },
+    {
+      "seed": 112,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:684bcb1a4166442a16a3833f66ec8d55938f936bc82aa483f460414800f56069"
+    },
+    {
+      "seed": 112,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:7d38aafbc9741521f42a5100dfb1f830477f4fc2834b79d68dcd825bfe38660c"
+    },
+    {
+      "seed": 112,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:0bc2b136ab26b7d801f0bd5e5844d70689f5c56e117224503e22ccdafac1d64c"
+    },
+    {
+      "seed": 112,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:15ccf36263d15913300434d36bb261d95438e682af2e69217b5049f1838dd3eb"
+    },
+    {
+      "seed": 112,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:92e0b5cecf3bdf35732b26853208de0605140d1410e19524e0e3efff859278cf"
+    },
+    {
+      "seed": 113,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:a344fa05ec4d12cd3f065d60a64046122ebf82459f6d98a6920b6a25439aed39"
+    },
+    {
+      "seed": 113,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:754bb9db54efbaab8bbf29fe029525198d751db0bc2debd3b5ba385d0d09eb70"
+    },
+    {
+      "seed": 113,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9467ad50ddbffe372f605bbbd08a3aec7c68d5e7499f4448aa5258fb464b8990"
+    },
+    {
+      "seed": 113,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:faca57f7b0457ddf4d6bfd49eba366f4a0db6127ff1e32b1f4beafec06752859"
+    },
+    {
+      "seed": 113,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:cb2347345be95b12f1d827e6ac3bb67f9b72a20dc1f1238b96a30a1da3a5bcc3"
+    },
+    {
+      "seed": 113,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:180d9ce500e53111e7c06c27cb960db1ec86afe48fab19c2c8e9057599725f47"
+    },
+    {
+      "seed": 113,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:fc40c0f31ed2fa3685990bbdf9b586da43a15b7b007b94122eadeb136f140b24"
+    },
+    {
+      "seed": 113,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:852e13baff2e4eb29af0d55d542a29cfc0a9dab4e53abd324ff45a0040ba5cbc"
+    },
+    {
+      "seed": 113,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:05c9d3c9229142590b8c5620c8d1ff5b00f16e10d00049d3f24c52508347b03d"
+    },
+    {
+      "seed": 113,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:cb95003c3c5fe6e1fb70460931456c6a74d7c372e16544580d742ab23644ba3b"
+    },
+    {
+      "seed": 113,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:5fdc9c56daa7030246acf520cd66213ac8deb31c78fda68f9ecb8c1db363dd7d"
+    },
+    {
+      "seed": 113,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:89ad86ec8ead6377fc7b1df57998ec139501c153709d889d7f335517064a10a5"
+    },
+    {
+      "seed": 114,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:b59f83bffcaccae5e7b0d5190de0ffd625fd3127d0eb4af1d806a46700054a4d"
+    },
+    {
+      "seed": 114,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:018e304a071eb65525388fb2db568947ca993986993ff3d46aa189728edbf8a1"
+    },
+    {
+      "seed": 114,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:428e1aa7fbfc4a3e8bd183b11d004a30b5a62df95648c9e8fe2d3d9a2c088ef3"
+    },
+    {
+      "seed": 114,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:00af80aacaede6378b60b76a9a11c6c47ccc549737bdaa4d04d5159481ff45e4"
+    },
+    {
+      "seed": 114,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:56fc90c2158b50b6a8ebaea5106ab63b44cdae17f27976790de81ce6bbf6b636"
+    },
+    {
+      "seed": 114,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:7655aaad7d3cece5708503aac4ea469a6bdbc8263dabec72ae04028d6acd45a1"
+    },
+    {
+      "seed": 114,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:cfcc38b7577869f70cc21d2de72daeba9789c70355599992c6edba576d86c036"
+    },
+    {
+      "seed": 114,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:88258292c5eaba4b5c55620c8365ded21c93e9a70b04a4bf141344b551ea8eb0"
+    },
+    {
+      "seed": 114,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:6911cc7ea3eea9a699a061d72732160672d31be347175e2800ca5d00c7f5f690"
+    },
+    {
+      "seed": 114,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:0041a2ba0aced8ffcf56675c56ec265fc68f76992645675634670be63e150015"
+    },
+    {
+      "seed": 114,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:3fe446cc57ad7d7e87c3e103a8b8677e950c9cf6d194c4b3bc77432b8dc4680e"
+    },
+    {
+      "seed": 114,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5542a30f77e9e12817c7e658c9b2cba786c08412efe241c7eaff5dfb0110e658"
+    },
+    {
+      "seed": 115,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:f0359d98c181d4927061ba35c890e07e01efd7d9178407ea2fcf5bd53be14538"
+    },
+    {
+      "seed": 115,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:809051fc4ae16bd225e13437d1fa5efdf1a46994418ff1963c81285f53ee3bb2"
+    },
+    {
+      "seed": 115,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:94d76e46142c2a531406da637eb80a57f7aec9ed48d545d4a5a58081f87cf583"
+    },
+    {
+      "seed": 115,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:5df4d3db9f9dda09826da262671ff60923bc9f93acb2388a7609ac07e90582ee"
+    },
+    {
+      "seed": 115,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:3ee4f60b88145461ebc07e247ee3cbb12bcb62bb724174152eb159d88c1ac686"
+    },
+    {
+      "seed": 115,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:0c16bfa8752548b295c1a50a61e244a299614bc37865a14bcbbc9d899191a034"
+    },
+    {
+      "seed": 115,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:00e9df7727cda41ea9e6b0364945e78c3304daceba7214584b9686a4e5dd76fb"
+    },
+    {
+      "seed": 115,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:216c234b274f435b6b40de7d038fd9bc5dc02a8760e54786fc5c6cbde9f2e175"
+    },
+    {
+      "seed": 115,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:b6b957035f78ccd7391dc821fd20ef514fdddf41007841807d9aa3bab3759c6d"
+    },
+    {
+      "seed": 115,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:bf3e4ea60b09131f59b3eeb24724aee4b2c11ae0a9c62b5de14c48ff4967398f"
+    },
+    {
+      "seed": 115,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:0470c956bbb6c66779f2b53e335b5c8f435f882139c9038df54d77211f71173d"
+    },
+    {
+      "seed": 115,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:454b2ecbd2236bb68eb0e241c99a9bcdad18275fc7dc6ce610ecf00781b41d05"
+    },
+    {
+      "seed": 116,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:a1b90cf4c211e01497a543da37d3595b71f8a3817bdb5703385a11de007e1816"
+    },
+    {
+      "seed": 116,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:6d4a0a4f2fff9021162b52cb5efa2185cbc4a1b8d6797921cdc7bbcae9833a2e"
+    },
+    {
+      "seed": 116,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:a525c0ba700f101011787b6500bae6c04885a77e58ffd5b850f7a9f156a79194"
+    },
+    {
+      "seed": 116,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:92a423bc606847e2a30b538c4504b4bca81d46069983a5b3bb1ed3ef4307109a"
+    },
+    {
+      "seed": 116,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:3c9de6c6534a08418651dd4c9b774b53146584924eb7411e84816c8efc8cba4d"
+    },
+    {
+      "seed": 116,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:e85ab5933e311fd7886a2a9b3f6f5729bc747c54fe80f404291828c7cbbdd4f7"
+    },
+    {
+      "seed": 116,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:1cab5a43643e1e909c706d961f481c368140cab713160c4fc286a141fc2102c0"
+    },
+    {
+      "seed": 116,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:b0daf2d338ab5f24f69df787ed2d19219c2a040dbae2535efbb6972a2241937e"
+    },
+    {
+      "seed": 116,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:cf1dcb1fc752b99f9b9a20ab75fd75077a3d1a9ec1d9658ea9ee30e3ba83e65e"
+    },
+    {
+      "seed": 116,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:a597d1bc2c19b4bbdb0cf1149df055bd580444de129313b800b93e3c9e828cad"
+    },
+    {
+      "seed": 116,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:e6b6442cd137469e92dc580d2fd31da41d63c7f56a77f724c60317a970dc5c19"
+    },
+    {
+      "seed": 116,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:a06d539c54307215733ffcfc473612a1809b09ecc3eb18120e3a5f89d4dc66e2"
+    },
+    {
+      "seed": 117,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:5af8494565c2332d1f7d9cc9447b745b8a6cea84131d157774897626d761b27f"
+    },
+    {
+      "seed": 117,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:7bc41c207a829a9209646745d952afe604c42a2ee2a0984afb5118426c241045"
+    },
+    {
+      "seed": 117,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:4313a5aab18dbecb05bdba18609fe761662047a7a25ba98441d1bcefbfce1248"
+    },
+    {
+      "seed": 117,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:69cadfa86cd3818fc217bb9bd453ed2eda801285679d621f089cce5874889940"
+    },
+    {
+      "seed": 117,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:7330b953e795eac68ce7ff6e12323eabfd130bf5d6f965d413576fc9e9b5d39e"
+    },
+    {
+      "seed": 117,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:b21f0957eff2046e3bcd2066a238a6d71bdeb4ef1ebda7f48365520a673319fa"
+    },
+    {
+      "seed": 117,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:f9c2f6276de75b08110946a3c0be14a2c38daa1004e4a3eb3026b2eb16d34d9d"
+    },
+    {
+      "seed": 117,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:94f173e2631e5dddb5eed007df0d01b3889b87067b50a41ff84bf46d37be08e7"
+    },
+    {
+      "seed": 117,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:f81a4815d0ce5035b49eacfff4c29337ba44ee3cdff8f256cc91527f9715789f"
+    },
+    {
+      "seed": 117,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:692569363c0145a2f72eba9db0096530fcb634a1eec20b643054654829e33294"
+    },
+    {
+      "seed": 117,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:c4a27c38abb087ba734de6ce11e38b80b0740ceea90833465b6d6df1d95cb207"
+    },
+    {
+      "seed": 117,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5d63a3098bb0b4c3279eee258c1d84cd9f4e1b7345ac8503736aa19827eafa76"
+    },
+    {
+      "seed": 118,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:ef7bb6f87ed7605ee5a0bcd0be78312b35ca67398bc36506ac58f85a2c2e8024"
+    },
+    {
+      "seed": 118,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:ede85947865c328895d31dad1837d4d99d5d3ec5659f5d23d98cb6db20b88004"
+    },
+    {
+      "seed": 118,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:768dcf3c526ff0fa361df2645a740ca22c7cb43319ac481fc44de16420652885"
+    },
+    {
+      "seed": 118,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:843100ff3990ac8d60ce8a210651f3384e8aeb28e6102f33d69b248649c9b217"
+    },
+    {
+      "seed": 118,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:8a6f602939f9a570ddac7b8f7100d6096b108d7491a541ba86bddbc3cbf3c7ed"
+    },
+    {
+      "seed": 118,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:ae7f5b8cc62c12c3a0315e8e7597879f1fe3bb41d4badc8d10cd8a3791c6d52d"
+    },
+    {
+      "seed": 118,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:a2d4f9112b502c7e37ef8fe3aff27d7e01b99ea6655a858265539d2b66bd5e8a"
+    },
+    {
+      "seed": 118,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:8e85313b3f98ca62da7026ef76ed6b0fa1ac5d366a886f8322aaa3ac6d724047"
+    },
+    {
+      "seed": 118,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:da86950ea4f47312846df736a9ff02bc162cbed29ba4daeb96b5082c22b78a43"
+    },
+    {
+      "seed": 118,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:299a3a253050984284f56eea00464a8715f51234606fcd98c1fb96d258e2429e"
+    },
+    {
+      "seed": 118,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:40079826fd75ca407f175d2ade6dee3bd4218fc7f98003213735eac663d69bb9"
+    },
+    {
+      "seed": 118,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:043c4823196602c0e64cb27e874af8963d76f26fe2c687fd7b5be68ac88ac4ed"
+    },
+    {
+      "seed": 119,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:ed77a9a8293b43f916f792646eda892a377a458a9a6f9b31df1d0612a7e4a232"
+    },
+    {
+      "seed": 119,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:899a7a45dbbccce2a9339daab1c2a2f74b05d8d7bf9f90f249ca3ec1fb6d6bd0"
+    },
+    {
+      "seed": 119,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9a61ee817f8f5d4497d4aba6423fbd0ac98b7a81cb3b0bf5b6d21350ec8aa4d0"
+    },
+    {
+      "seed": 119,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:e7b72a91ea9f3a04dfaf8911c2c7fb702392b0e3ccda49c5ee5521a0b3f622b3"
+    },
+    {
+      "seed": 119,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:1c320b913b01aff1f995f6ac1adfe91db2a72bb121e8185b54d900ac704dc807"
+    },
+    {
+      "seed": 119,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5faeda8d333a3b7e86411b357e073762d18d63646d6358412ff08960647a4492"
+    },
+    {
+      "seed": 119,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:58313511f7e201f2979391603cf5e594ae73347f4f233107020d23fb8f4662ac"
+    },
+    {
+      "seed": 119,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:84d5d8239b7f151e15fc60bb2230a4997d5788ffd1ae077d0e2732eb16c7ea2b"
+    },
+    {
+      "seed": 119,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:997924e5d55e8d76094d1a673705186d071914a237a41026a8688f6f2602764d"
+    },
+    {
+      "seed": 119,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:aae3157cee613d62c1edaee60b69ac4888dda6af0f7f754035944039d8391318"
+    },
+    {
+      "seed": 119,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:23cccadaa47c32f48c0f23d625b7429a15acaa3374f4897cd7392a95d2fa41cb"
+    },
+    {
+      "seed": 119,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:51549db09b0e9c8dfc35c8129ef3c92dd26be25307d66360d1c6f9c0d66dc4a1"
+    },
+    {
+      "seed": 120,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:318788c0ede0b6066457e2287b9f56f16a80ae8975ee901180de8e3404c58c6a"
+    },
+    {
+      "seed": 120,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:8a11b0c99d825542f5b1b93737c1e9e47774c01f4d4581ce22b85e220f5812af"
+    },
+    {
+      "seed": 120,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5d72737a0b28ac0b0f942948aca7605f126744e41f8d4c59a303588c73e3f8e1"
+    },
+    {
+      "seed": 120,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:57e308989c418df1e362a666b64ef9f3cca82b0450f9627945e8569e60938301"
+    },
+    {
+      "seed": 120,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:978d9fcc1c802225af176c9b859ba4182217a190b64c00b5954f06f4194dc138"
+    },
+    {
+      "seed": 120,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:d13c2078c84190d25bffcd047b0b7a482ba90f159ee50ee4599410ea4b6a9451"
+    },
+    {
+      "seed": 120,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:e18522c8c4f8ac000a35b23008a8c5f9fc1847f716846cf372a084f6cf0649bc"
+    },
+    {
+      "seed": 120,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:399e87a588f170bf48ff5f2444ce6cbaff7ec23e0d2cf8c9150ab5faed77579c"
+    },
+    {
+      "seed": 120,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9923487337140ee4d14f59d979aa278e4eb4f94c00e4382806570bb833089667"
+    },
+    {
+      "seed": 120,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:adbce0a0089935bc009063616245cf495388826285d3d877e6cc931f432e822b"
+    },
+    {
+      "seed": 120,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:d365a0494085b89379641d41f0a0f5d1c6819724983f33785002707faeba3dc7"
+    },
+    {
+      "seed": 120,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:1a85b8972359d26b2e31a305edf726c77f237c190129cdef440c156415d9adfb"
+    },
+    {
+      "seed": 121,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:a336933817244ec0f8ae2559ef80235f69f4efc283d451dad0f6f4aed22d14c8"
+    },
+    {
+      "seed": 121,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:0940fa2046fc43cfaccf9e2acf361a0023e314d6f41d373fe677e2bc18eef19f"
+    },
+    {
+      "seed": 121,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:738a71fed31ae947b77045c337347c1c59af934b161edc9f3927c432dc0589ea"
+    },
+    {
+      "seed": 121,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:469f2c433d33e0ee5b26d0dd3213119a52b215fd27a437deb7cd37aac6c9e231"
+    },
+    {
+      "seed": 121,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:b6d190b5bfeafc39660564c551c011d6b459061522920e6b3e6067ccfeaafb93"
+    },
+    {
+      "seed": 121,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:215e860346c2d2884e5d3d900ba96a5f0740934512395bfddaa675f83cd18cf8"
+    },
+    {
+      "seed": 121,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:0bb631244bd775bfa1e4a95acc0af8434ca4623e39eacf9887f3b311b2a690a4"
+    },
+    {
+      "seed": 121,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:32c0d311596c43388a24f36315db2410b16ab699c9aeda3da1e89aa16782825e"
+    },
+    {
+      "seed": 121,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5e8ca2ff7378bc4a53ffb1d279dfc58ae1d5a37b931f9a18d822ef7b91a21583"
+    },
+    {
+      "seed": 121,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:603eb99853a05e83bea55677bc4d86666d158818a438fe52600e8a20a002a348"
+    },
+    {
+      "seed": 121,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:f3f0f2fe7bb70661162b117cce41ac5949a091d19bfbacb79f4e25da1fc8fe31"
+    },
+    {
+      "seed": 121,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:67fcdcc3ed5ab9eba8cbe3e2ad235f85727c56d1917352f0c473d0469bbdbaab"
+    },
+    {
+      "seed": 122,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:6ebfb7a68ea15585daa37b99a709e31d03604678b94cbbe08b9adf336b42c9f8"
+    },
+    {
+      "seed": 122,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:194bbd7c3a297b3ffefeb5061957455f3423ab4ebe8b27de86f162dd0b9c33df"
+    },
+    {
+      "seed": 122,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:1f4db7eb6077bb1b880f813ce290ebd8e5836f1d72703d51ac243461c011abb0"
+    },
+    {
+      "seed": 122,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:16743a1179f7dc843795fd895e31cdf72164a252438edfecc2e2bba2844a3948"
+    },
+    {
+      "seed": 122,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:5259648d0974f446a0c7a28ff6264f247a45b37e5804477cd00ffba8c4097e11"
+    },
+    {
+      "seed": 122,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:0ce7c372dca73f3f3a5a278969233c55bd617a45b2592b82038a9fbd191dab75"
+    },
+    {
+      "seed": 122,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:977e81aef798bcdcde29f2790f4209c679e5d9a60c94f005d1a4158218563d32"
+    },
+    {
+      "seed": 122,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:80db73f11031b6a87e0f45b03befa9664a52910c5106dea9e04b7e39893f3341"
+    },
+    {
+      "seed": 122,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:fa8bbc03bcd2f09539f63881067327f3a6a8542e6734fdb34514cd6a92336363"
+    },
+    {
+      "seed": 122,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:573c319beaee4ef775f6b2a653ab0b8d03626038c1c05cacf9733ce0b65e2838"
+    },
+    {
+      "seed": 122,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:63c5c36ae8f94cf226ff8bd4afaa5e723dcdf732009fc2a82fd607dbbb2f2270"
+    },
+    {
+      "seed": 122,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:926f4c2bb5e8812327ddbbd907a5404fe38addfb9ae45a3445c79d865b151622"
+    },
+    {
+      "seed": 123,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:1338add45a696ac5a9c04cc1aa864123e1d88f8e3dec72815bf6739e396925d7"
+    },
+    {
+      "seed": 123,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:42dbc42f159ec45f4233649b91a42bc84e4c10089cac2d61e4ecda9b97e2031a"
+    },
+    {
+      "seed": 123,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:da61463854b343980b594f0c25ebc2e683a8fdaa2c2369eb2081413a48dbc65c"
+    },
+    {
+      "seed": 123,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:56afd31939b0d6b1b8e4a621ed4753b32213a6e41cd8191d2b4c3fda81d9138f"
+    },
+    {
+      "seed": 123,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:9ac21d0bc28163c0ded46ae56028d28d983198d85dd6842b874c264d7307ce37"
+    },
+    {
+      "seed": 123,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:0b6def56bbcd5c23c304f3cffd52a91052fd4d879d937cabb9d99373c8ac4a7e"
+    },
+    {
+      "seed": 123,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:648739948c1f326a17fc39b1fc2e2540b542f11c1b539f68d0a830a77cce062e"
+    },
+    {
+      "seed": 123,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:61d2cf18569ffa3369574624dc4358c1e0d0cfd3282989ae15a4c30027b65ab8"
+    },
+    {
+      "seed": 123,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:6072e800a4132cd967f8d09984e71f8eda3419dcae795d133a58ec625f5066fd"
+    },
+    {
+      "seed": 123,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:cc1d605c09203af80fad4499651c28963538053e74d32df2f346785a8a1c18d7"
+    },
+    {
+      "seed": 123,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:dad4203201c7d922f16368b3ee28d1c80c656335ebc0d9bbc34ae702753d548a"
+    },
+    {
+      "seed": 123,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9414ab867c73d73ede68d490a2bbebb1283d04a057686257ef93a1a08db1c798"
+    },
+    {
+      "seed": 124,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:191b22e7e5f6149693e8c37311ce8b485047838672319df729a4166363a984dd"
+    },
+    {
+      "seed": 124,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:85f55073d8ab32af01eec082b15a0bec37795aebef13e38c8c333eb95e1407ce"
+    },
+    {
+      "seed": 124,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2e7d340a49b6958a53208ac5c31680f0901089d40e5f27c1ea4c65ea0546ecb9"
+    },
+    {
+      "seed": 124,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:4a8e278718576a21e2a01b002924294ca0ffa44668bd743e6b32f1fedb115006"
+    },
+    {
+      "seed": 124,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:f2d47a3636b40a414cd58e1e79dc8f7b8940c4872943581e6e22aa172496f301"
+    },
+    {
+      "seed": 124,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:228306f58b1048c8d6925bc45907a42f80cedcde2c74a8640a3110aa3bfc719e"
+    },
+    {
+      "seed": 124,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:1d2a8a33d7360933e4f26a4277f790307175e5c3ff5b09d69deb1c4168693a79"
+    },
+    {
+      "seed": 124,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:f55c4b95e5b132c700c749382ae90224b650d682e00385f16b0500ffc11d6ea1"
+    },
+    {
+      "seed": 124,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2dd64325610dc7503203e79cf7cd3210f81277cfb0366f334047c38831848d78"
+    },
+    {
+      "seed": 124,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:c29ad2a74dcf7daa44feda5712f2ec6d4e61660cf4f925d5c683fb332ea6ccee"
+    },
+    {
+      "seed": 124,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:5e4906e2e6d1a91161f5cb2c7b32525d55c45856cacc6e1724edd420241c4351"
+    },
+    {
+      "seed": 124,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:c89a5083af7a26df94184c1e54672551891402a584f0b3ae06422dbb61d9474a"
+    },
+    {
+      "seed": 125,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:665c0590569945df1b7559cc0791f77b7901145381a55fd25d8a923bb78ae825"
+    },
+    {
+      "seed": 125,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:37133010cc3530002afc881b673b80861ec0c670e07998aee6a25e1a099e6f3d"
+    },
+    {
+      "seed": 125,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:f05423e81fca02643981e18a58681432fe600d86db9a7f669cd309d8c766f66b"
+    },
+    {
+      "seed": 125,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:f2dc4b5f676c35dd7fa700ef4244ea6cdb2cdadaa3269998c7c0620da768e9b2"
+    },
+    {
+      "seed": 125,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:1efe848bd698fa86928f5bd6695ae9ece5cdeddfcb6092972dab7400a8b9bd44"
+    },
+    {
+      "seed": 125,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:416323f89683eb925d1d1947264a417d8c4735c413fbc0da389d784754f91869"
+    },
+    {
+      "seed": 125,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:30dcbca39ad044bfcc6f3f8b71a6244be6d3422a844b5629f11cee00c8707acb"
+    },
+    {
+      "seed": 125,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:2f5cb6e39d97aafb6da673e42086fdc87f86a84f2261829d7eaa8bb671259598"
+    },
+    {
+      "seed": 125,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:d41cf57f21335212de0ee88c4a6d49d22df9d0f41965b021f7fd39eb37b51bbf"
+    },
+    {
+      "seed": 125,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:6c70525ad859c46d3d514c949d8f82d9d1527525bbceb092e37e9abb31d6cf37"
+    },
+    {
+      "seed": 125,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:6e853378a412e6c619ce76e3772d11e5fc4db0ce209be766a8c22fef06584769"
+    },
+    {
+      "seed": 125,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:98228b5bc82a93baf4bf25b52f2c7da81a746b23f44cbf1f2f8a26b674e66b44"
+    },
+    {
+      "seed": 126,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:ceab0d8087fc30090ff1568dcb4b716f3fbc4cbe1f9befd8aaf17bf17f0f1fb6"
+    },
+    {
+      "seed": 126,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:c29f7fa0a46b548e5bc8f756f803b43efaddee80d9de71d6f987d1d3852e56d5"
+    },
+    {
+      "seed": 126,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:173ffd5b0528af389c0f19f2b13b74923abb231d0037a0e373def5a21fc5023c"
+    },
+    {
+      "seed": 126,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:3bdfbb7c3f49a3266174eb4ae3d7815871a57b507c51d1e1c38f2dbd731f2a3c"
+    },
+    {
+      "seed": 126,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:f2a6abf98b5ffc8368b373feaaa113cb4585c306b9460eb7d3ce5b834cafd4ed"
+    },
+    {
+      "seed": 126,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:6a7f37004252611a16037cb5edce4624dbee4b01283f05dcfa001d6c16cddcc7"
+    },
+    {
+      "seed": 126,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:86879d5126bd5b510a267dda285253e787fb56696f70c662cd271afdff791a33"
+    },
+    {
+      "seed": 126,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:8944b5a6b471aa970596de988b4e79c122d1707c6365cf46cf7517e0ed2abf21"
+    },
+    {
+      "seed": 126,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:ff6bfe8c6c79f175c3ebb3482206e532a6d71a400b48e136a824cd9aeee42cdd"
+    },
+    {
+      "seed": 126,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:c51a1cd77f069a4a1ff954c19ba1c0431e4eafd6b4b6d442ad07beeb6b084826"
+    },
+    {
+      "seed": 126,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:d4ce7c3babf13218880849c13d2c216d42259e8c6b46085e828b4958e11490f7"
+    },
+    {
+      "seed": 126,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:2bcbdd7fdcd73955a664599efb8fc5d1c998135e178c451ccea51fb4e08fa7c2"
+    },
+    {
+      "seed": 127,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:b688f62156840857b64686a602f502353819080bfc34b741b5f595d7038b3f1a"
+    },
+    {
+      "seed": 127,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:202638ecc3dbc2fa281310c9e4e3e92560d6d7dcf94e0979b02e0307a7b00806"
+    },
+    {
+      "seed": 127,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:6dc8c96601195df927aaf6541ff0dd1e6134e3c1a2e647addb44743433e2d3f2"
+    },
+    {
+      "seed": 127,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:b765387e1d170ba87285df746c924235631ac90b8ec8fdc1de39f24cd699010f"
+    },
+    {
+      "seed": 127,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:728240115a6254397d8cdec1634fe871f513088692e831d85389ea29b3380875"
+    },
+    {
+      "seed": 127,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:b06bb58affb4247e26e5aa74c3c8d572f2382999141c5b9686400cc38176f47f"
+    },
+    {
+      "seed": 127,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:416d70656683b0a4ae173958879b519f26492b79c0abbddd81eeabe9486570dd"
+    },
+    {
+      "seed": 127,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:02a60f0058fd43482c5752f273035e41a004c40488b3da20c50ffb787e26f098"
+    },
+    {
+      "seed": 127,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:c3dbe8b643487e3b8624826d113a5ae838c15b6642c8baaa4559e762a6c851bc"
+    },
+    {
+      "seed": 127,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:e4ca9a1d7b197bbd3fd548a93c4a49a9c65ee1f0323805a008dd3e6b05e3ce8e"
+    },
+    {
+      "seed": 127,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:0099213dadf8ae9a086ad432ec905babd77663b31fce08934c485e213bc70b1d"
+    },
+    {
+      "seed": 127,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:390046de63627c7d691b9adc21a4e405af97a7a9c02641955625df34bc0d57d5"
+    },
+    {
+      "seed": 128,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:f36d8323f0ed1889ce0d83ed7aa89771bcaaa6e038319881906891ab0a7d5271"
+    },
+    {
+      "seed": 128,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:1f722fed7666d54ab72004b948eccb40889a155760446cfaea45054e67328cfa"
+    },
+    {
+      "seed": 128,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:bd23afa1e393a41bef5c4021447f5855072df8ccfd9edee9b1b8f2e13e95ce33"
+    },
+    {
+      "seed": 128,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:772a61ad454ccf7dd4a9544131b4d97ed2cd677152cb552297bcd215a2fefc1f"
+    },
+    {
+      "seed": 128,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:21c34206078c7c1838adc810ed28cd2f06d6ada101e0a7c20b260e245850e5a8"
+    },
+    {
+      "seed": 128,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:fd9c075fcc4d66fffb689b97d4fc92bf302c780e8b36f9e85b1ea40c75461e45"
+    },
+    {
+      "seed": 128,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:717a78d4ccdc941dfb4bbc902d0e69011c09d44e060d54648c5da06db39d9122"
+    },
+    {
+      "seed": 128,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:e74b304d43af9ad6d7194293c48bcea93630c6787e012efc51696448bd68c187"
+    },
+    {
+      "seed": 128,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:1586bc3c818169ddfe388e327e22cd99583bc037cb6659f9044dfc30c51dc3b2"
+    },
+    {
+      "seed": 128,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:95700c84108f8aacf227c7712627ace10aee2446c43d89fc860e95085daa9dc0"
+    },
+    {
+      "seed": 128,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:4f7fd715ffe91bea720dc6e6f2178200990e78175655dfd44aa58969186b8379"
+    },
+    {
+      "seed": 128,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:f03c192e8c40d0252d859b1930c6deb42d52177e7755897aea775795e71517e7"
+    },
+    {
+      "seed": 129,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:704a0380835107792139463da9289fc8b764606fbc25bd1cd7441e6a713fecd9"
+    },
+    {
+      "seed": 129,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:d62dcc26fb0455e0bd96137de704b50a3ebe1190bd16b5cc5db9caf68ff360da"
+    },
+    {
+      "seed": 129,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:9e853c0e6a631a9ac62070679a5366c425326ddcc96fbc80c0f5f4d64673059f"
+    },
+    {
+      "seed": 129,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:4c12a21bf2e4c011d5264563cccf0b4528af1d08490a967ee4a81fffe713101e"
+    },
+    {
+      "seed": 129,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:c43dd5025cd8a8cc5d54247483f8c59871d67e5b6703f20cbdd0cd35d23ca231"
+    },
+    {
+      "seed": 129,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5b1bdd533946b10d905946f8a0cb4994446c54e4e4502035a463d089080b3b37"
+    },
+    {
+      "seed": 129,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:9f8cf83d4079a1ae785f582773e1e65171fd794aae6a8bab748f17921949912f"
+    },
+    {
+      "seed": 129,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:4fdadad40d0b552f469da38e15c15b00f1e39826e8be6902233fc3f9bd0c0824"
+    },
+    {
+      "seed": 129,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:ab89c9cb0d4fe100e33001aa05e149fb70b653fe9836bac69ad4ae626f082227"
+    },
+    {
+      "seed": 129,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:d830197bd1d1aad5fd9514f12acab43fe1dd4d1df0c77c58d42dd23306fd6a19"
+    },
+    {
+      "seed": 129,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:28ec55e66e84db5ee459ac3e15c03b33e7973d58e7806bd752f14282994f9612"
+    },
+    {
+      "seed": 129,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:aa86777d12b026225ed580d0e1b82424b31980521b1cc969473b16df27a03890"
+    },
+    {
+      "seed": 130,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:14aeaa12a71d2f39e5db5724f0869fcfcdf1b745a677555dce8406006f9348bc"
+    },
+    {
+      "seed": 130,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:7442e79a6826e58ae7d6fbf864e88bfd5d39f3e87268e4375d211c0c41c01944"
+    },
+    {
+      "seed": 130,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:105679401e01110d63d35aa658b0cb923700198c5752a50794c246baf3c10bcb"
+    },
+    {
+      "seed": 130,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:c58f41eaaa9c0e63ec242e839286591f5df66f643df851fef3c9392f007a9f13"
+    },
+    {
+      "seed": 130,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:498af17be7ea1276698c7c274f7f81f4ef68961ee816814e3937439d4f5fe754"
+    },
+    {
+      "seed": 130,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:eeeb33b203d489c688ed693d65ab8c5a2dbdd686b5584e06f5529aaf32afeb0c"
+    },
+    {
+      "seed": 130,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:0480c337fd360b9b153d57e66f17e0206944add3ec7ddc15297d0f7aeea80595"
+    },
+    {
+      "seed": 130,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:b03cbee43f49c656d592774f420fd873ae772d30c955a4de254499dd0d4bcc57"
+    },
+    {
+      "seed": 130,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:21b66ce516bebe20292897050b43cff61bc554466a91f930ea3b00e87cb8e5f3"
+    },
+    {
+      "seed": 130,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:be4f7d1c211d848f8d5ea02c91f00e1ede0d8dbedb41a13a3b0aea8dbe39e4aa"
+    },
+    {
+      "seed": 130,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:eb353b1b3f978a1f83ffe2952013a59c2d08939342f349285766ca61a33f7e91"
+    },
+    {
+      "seed": 130,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:3821adb04aadc95ee9ca95ca9f6e462e179c9c3719f58c1d967f29dc74718967"
+    },
+    {
+      "seed": 131,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:39636d07966d4a750eb68996291ac3309c2e16058085a704c68a6b738bd63541"
+    },
+    {
+      "seed": 131,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:e238ca3059e4140c05a04aee0687c837d53014fe4070433641a8f8f01b48d6d4"
+    },
+    {
+      "seed": 131,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:e23e65cfb466bd5c7bead3700863081a4da2a41b3a0175f497d5edeeecf678c6"
+    },
+    {
+      "seed": 131,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:5ccf0c5b6a5862b726d0cdd335d33e7594e069ca2206e020aadeb1f1ba946146"
+    },
+    {
+      "seed": 131,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:9dc6b68b82a0995c54e878b9b22b7baaf6f575028f02e31a0576264273006c71"
+    },
+    {
+      "seed": 131,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:19fc843d1ef9ac8e84546bc215eb66e09b656d44cec1c9251fa99a62213c87a4"
+    },
+    {
+      "seed": 131,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:ffcd018236fd34b803c5d7e589c58e9edd70f6e2dd7a046c7b6f87526e95f695"
+    },
+    {
+      "seed": 131,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:0c88c3dd1afcd3bc871bba4cf90c10716597480e000519386083d229deddf5bc"
+    },
+    {
+      "seed": 131,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:e76e211aab8368dde7522f3e8708e7adececf070a8a1758930ccb59147acfd72"
+    },
+    {
+      "seed": 131,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:3713c57b85ac1065482a0c841644f3c7150ea84e929c6e74d2b827c04f3dafc3"
+    },
+    {
+      "seed": 131,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:4b8fc73dfebeca2966909936bd3df209028f88174a74e3b1fe70d2fcd3328734"
+    },
+    {
+      "seed": 131,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:5f615cc3035f585d988ec0be8a676a674e9d85bfa39e9556d1a296e0c782e642"
+    },
+    {
+      "seed": 132,
+      "shape": "stable",
+      "fault": "none",
+      "digest": "sha256:2279a42d8d0620e2e84c04ecd874edee638073da672e75076434611e74ca7b6b"
+    },
+    {
+      "seed": 132,
+      "shape": "stable",
+      "fault": "lost_ack",
+      "digest": "sha256:91e923f8f6b567826216634e2e5131e91915dbc83bbca27f5bd3c8253badcc54"
+    },
+    {
+      "seed": 132,
+      "shape": "stable",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:4cc0853c5151c10262571680764ca3f14e7707b58a702ab8a68a1afd2aed5712"
+    },
+    {
+      "seed": 132,
+      "shape": "burst",
+      "fault": "none",
+      "digest": "sha256:45f80b5ba3e97e3eeaed3e30bda045a0221214a4e5b0aacef46cd8d73f550dfd"
+    },
+    {
+      "seed": 132,
+      "shape": "burst",
+      "fault": "lost_ack",
+      "digest": "sha256:00b33be3615e4d98d02f1d0f7514662e130d077306e890197c781bcdb9daac03"
+    },
+    {
+      "seed": 132,
+      "shape": "burst",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:af374e7605e0965f10166aae49c6277180d6fe7df06b44bb00ec10a87a75bd8c"
+    },
+    {
+      "seed": 132,
+      "shape": "shrinking",
+      "fault": "none",
+      "digest": "sha256:44d5dab336ba3327ffa9f2b21c02f141ce7aaa4fa3babbe130b6a4ab18026568"
+    },
+    {
+      "seed": 132,
+      "shape": "shrinking",
+      "fault": "lost_ack",
+      "digest": "sha256:319018b13466b1e760e960824b5fb0aa1f192bc684f596850334bfac58f74b74"
+    },
+    {
+      "seed": 132,
+      "shape": "shrinking",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:103af892b3e4a73af896c6bd802529c23105a3d9562228089441d1a93ef802be"
+    },
+    {
+      "seed": 132,
+      "shape": "false_forecast",
+      "fault": "none",
+      "digest": "sha256:1fdeb886d57e8dfc115cc3b661e33cf80bdcea79f337e5d60656841fee658a8e"
+    },
+    {
+      "seed": 132,
+      "shape": "false_forecast",
+      "fault": "lost_ack",
+      "digest": "sha256:d1028d767f74268da3a3977a1fa1ec75dc11c91386c00c455a95d203e1cac390"
+    },
+    {
+      "seed": 132,
+      "shape": "false_forecast",
+      "fault": "reconciliation_outage",
+      "digest": "sha256:d1ad0abde38f8e5ca3428d150105ee0f1393b50091381603911eb2391bc4e8ab"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "experiments/morphogenesis-paper/missions/controllers.mjs",
+      "digest": "sha256:920611da0e1b6ddb98ae75c96ac02252293200f0396d6b8b73ed7fd5df12f568"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/design.md",
+      "digest": "sha256:a4b1cde07a3a803c21feb4310e074f2c90783cdfabdc01580cf58cb33b71f428"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/freeze.mjs",
+      "digest": "sha256:d34479d4fb01a11078752bf2f626624bbb4422476db344be1545586859dc932a"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/oracle.py",
+      "digest": "sha256:654c491f6a2984ad3880cdb6afa1386c98681aace8eaaed9beb7f01476191db5"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/owner.mjs",
+      "digest": "sha256:c51a59bd3d8c99a1cded6bc78f15a343ea062bc9c6de87c2dd8172efbc53365f"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/pilot-plan.json",
+      "digest": "sha256:7ee3899c4ff1a527a999e9e79f7aa385c02d756006a7158d2e9e9b6c8ca3402e"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/run-local.mjs",
+      "digest": "sha256:bd756c0a9999776a566dad600b9a5ce1665df87f97c7d0a22f56ecd86edff91c"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/run.mjs",
+      "digest": "sha256:d15049a915ea14ab244b1b2df3ffc3f8727e6d40d5b00cd23ff0d1eb6764cb79"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/test_oracle.py",
+      "digest": "sha256:2b5132571c43a996a8fe5dee45108db8ec8e404f7cef788fb039e6072a05153d"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/verify.mjs",
+      "digest": "sha256:70c33d33f51a52fe23aac2ea0e071d3fa037f75b8e06071c37c6d7fd5185e64b"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/verify.test.mjs",
+      "digest": "sha256:29b9977388684a9072910dfc57e3c38864c05d272299f86dd6dcac9cf9a1d684"
+    },
+    {
+      "path": "experiments/morphogenesis-paper/missions/workload.mjs",
+      "digest": "sha256:4390f3159ba249c5077b93dd40fbad425b5952b9b9ad786e9a4968d1594a5cc6"
+    }
+  ],
+  "sharedFixtureDigest": "sha256:28dd7f1e6a8a05a7d2f820c06d289e8b616abbdc271e137caaa8dc651e1a9fa8",
+  "lockfileDigest": "sha256:d201e505afabe12ee3abe892af7cb24e3b40b4aa52c68da9f2e090955a01f582"
+}

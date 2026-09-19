@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "e978544915a329387e13883fa352191f6993dcc7",
+  "evidenceClass": "local PostgreSQL integration pilot; fixture discovery/membership/attestation",
+  "externalSpendUsd": 0,
+  "modelCalls": 0,
+  "race": {
+    "approvedProposals": 2,
+    "teamsActivatedBeforeHead": 2,
+    "workProductsBeforeHead": 2,
+    "headEpochBefore": 1,
+    "acceptedSuccessors": 1,
+    "losingWorkReleased": true,
+    "losingTeamCancelled": true,
+    "losingExecutionPhase": "committing_morphology",
+    "newPoolReopenVerified": true
+  },
+  "status": "failed",
+  "error": {
+    "message": "The input did not match the regular expression /owner admission/. Input:\n\n'team proposal coverage or window is invalid'\n",
+    "stack": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /owner admission/. Input:\n\n'team proposal coverage or window is invalid'\n\n    at main (file:///Users/douglasrodriguez/Dev/agentplat/experiments/morphogenesis-paper/integration/run.mjs:276:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///Users/douglasrodriguez/Dev/agentplat/experiments/morphogenesis-paper/integration/run.mjs:295:1"
+  }
+}

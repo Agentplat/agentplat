@@ -1,0 +1,785 @@
+{
+  "schemaVersion": 1,
+  "caseId": "114-shrinking-none-minimal",
+  "condition": "minimal",
+  "input": {
+    "schemaVersion": 1,
+    "seed": 114,
+    "shape": "shrinking",
+    "fault": "none",
+    "horizon": 8,
+    "rolePhaseBudget": 16,
+    "databaseQueryBudget": 512,
+    "maximumRoleReservations": 3,
+    "specialistStart": 1,
+    "specialistEnd": 2,
+    "fixedSpecialist": true,
+    "tasks": [
+      {
+        "id": "task:0",
+        "phase": 0,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          64,
+          48,
+          90,
+          57,
+          -13,
+          22,
+          52,
+          -7,
+          59,
+          82,
+          98,
+          -17,
+          -12,
+          59,
+          9,
+          33
+        ]
+      },
+      {
+        "id": "task:1",
+        "phase": 1,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          60,
+          29,
+          36,
+          70,
+          73,
+          -19,
+          100,
+          1,
+          77,
+          55,
+          93,
+          97,
+          97,
+          88,
+          -3,
+          71,
+          61,
+          100,
+          85,
+          -11,
+          76,
+          95,
+          46,
+          29,
+          53,
+          45,
+          86,
+          24,
+          26,
+          35,
+          99,
+          10,
+          72,
+          16,
+          51,
+          82,
+          74,
+          68
+        ]
+      },
+      {
+        "id": "task:2",
+        "phase": 2,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          10,
+          95,
+          52,
+          -2,
+          45,
+          29,
+          92,
+          84,
+          67,
+          -16,
+          76,
+          14,
+          -12,
+          58,
+          23,
+          -19
+        ]
+      },
+      {
+        "id": "task:3",
+        "phase": 3,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          -11,
+          30,
+          94,
+          -1,
+          3,
+          21,
+          51,
+          36,
+          73,
+          20,
+          40,
+          78,
+          68,
+          52,
+          2,
+          -20,
+          61,
+          60,
+          -7,
+          -13
+        ]
+      },
+      {
+        "id": "task:4",
+        "phase": 4,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          12,
+          9,
+          60,
+          78,
+          79,
+          8,
+          56,
+          78,
+          -16,
+          58,
+          40,
+          90,
+          6,
+          11,
+          64,
+          20,
+          63,
+          86,
+          72,
+          99,
+          27,
+          79,
+          80,
+          67,
+          43,
+          32,
+          -17,
+          0,
+          28,
+          39,
+          63,
+          9,
+          78,
+          53
+        ]
+      },
+      {
+        "id": "task:5",
+        "phase": 5,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          71,
+          58,
+          10,
+          -12,
+          100,
+          28,
+          45,
+          57,
+          79,
+          7,
+          73,
+          80,
+          19,
+          90,
+          -17,
+          36,
+          81,
+          33,
+          62,
+          72,
+          99,
+          96,
+          21,
+          -9,
+          -1,
+          66,
+          29,
+          81,
+          -10,
+          31,
+          92,
+          22,
+          -7,
+          84,
+          -8,
+          85,
+          31,
+          38
+        ]
+      },
+      {
+        "id": "task:6",
+        "phase": 6,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          34,
+          61,
+          -4,
+          22,
+          60,
+          26,
+          -6,
+          4,
+          35,
+          99,
+          93,
+          -19,
+          39,
+          6,
+          38,
+          72,
+          7,
+          8,
+          28,
+          21,
+          8,
+          80,
+          12,
+          75,
+          35,
+          60,
+          0,
+          16,
+          45,
+          37,
+          13,
+          24,
+          57,
+          -4
+        ]
+      },
+      {
+        "id": "task:7",
+        "phase": 7,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          -13,
+          -10,
+          53,
+          8,
+          74,
+          12,
+          -2,
+          42,
+          16,
+          83,
+          10,
+          -20,
+          44,
+          -12,
+          -10,
+          19,
+          89,
+          73
+        ]
+      }
+    ],
+    "revision": {
+      "id": "task:0",
+      "phase": 6,
+      "version": 2,
+      "kind": "sum",
+      "data": [
+        65,
+        48,
+        90,
+        58,
+        -13,
+        22,
+        53,
+        -7,
+        59,
+        83,
+        98,
+        -17,
+        -11,
+        59,
+        9,
+        34
+      ]
+    }
+  },
+  "metrics": {
+    "queries": 25,
+    "queryEvents": [
+      {
+        "sequence": 1,
+        "kind": "INSERT",
+        "statementDigest": "sha256:57a37e3240475e8c237396407f9ac64219d254c93715fd8e1e4c3a6db24dbd11"
+      },
+      {
+        "sequence": 2,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 3,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 4,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 5,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:d16d4d1f1db13c0366c70fd9aee5768cb0b174ba03a4fdc98b8b0adb05b07fe2"
+      },
+      {
+        "sequence": 6,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 7,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 8,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 9,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 10,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 11,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 12,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 13,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:d16d4d1f1db13c0366c70fd9aee5768cb0b174ba03a4fdc98b8b0adb05b07fe2"
+      },
+      {
+        "sequence": 14,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 15,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 16,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 17,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 18,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 19,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 20,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 21,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 22,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 23,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 24,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 25,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      }
+    ],
+    "wallTimeMs": 9.466958000000886
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 2,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:4a30ee00fb03603197ad48c79a56622e5d944e273ff3efd760f40f1c11f19e1a"
+    },
+    {
+      "sequence": 3,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 4,
+      "phase": 1,
+      "kind": "role-materialized",
+      "roleId": "role:a1a4a17cbe7d3b00",
+      "operationId": "114-shrinking-none-minimal:attempt:0",
+      "initial": false
+    },
+    {
+      "sequence": 5,
+      "phase": 1,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 6,
+      "phase": 1,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:2f38e313ed320815fef002b292e9b5cfab6498853c196c13cc405b45ba8a3c3b"
+    },
+    {
+      "sequence": 7,
+      "phase": 2,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 8,
+      "phase": 2,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:27df28688a108c5ead25aa3875dbc1dac894bfb03406e50371c4256cfc6a452a"
+    },
+    {
+      "sequence": 9,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 10,
+      "phase": 3,
+      "kind": "role-retired",
+      "roleId": "role:a1a4a17cbe7d3b00"
+    },
+    {
+      "sequence": 11,
+      "phase": 3,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 12,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:b77544d092cc19f5573d83a536aa9ed7ad64acc44b0e2935b330555d0951de55"
+    },
+    {
+      "sequence": 13,
+      "phase": 4,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 14,
+      "phase": 4,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:4ce0b90cc79694924af7aff18fb74996fa9524dcd0ff8d22ef8af4ae0156f4ed"
+    },
+    {
+      "sequence": 15,
+      "phase": 5,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 16,
+      "phase": 5,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:76898262b2e3b059fefce947860bad756d12a7d19210bf643e71beef06678238"
+    },
+    {
+      "sequence": 17,
+      "phase": 6,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 18,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:108ffbe7473ce7597d0ac9bd77a7d5f4947740d82f9d19308d8b01da719988d0"
+    },
+    {
+      "sequence": 19,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:706d7a8d37b38b2a6008532eb73f2e6bdbca460e0395e1e789b2e7f67f619ad9"
+    },
+    {
+      "sequence": 20,
+      "phase": 7,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 21,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:d5e5f71e513df313121307cc335b8f97d2580bc5edecc04087f55ed2852b6469"
+    },
+    {
+      "sequence": 22,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:212ab2e169ab08612649b9509e57fa50230674be7b88d1e941a27847e5c2624c"
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": false,
+      "fenced": true,
+      "roleId": "role:a1a4a17cbe7d3b00",
+      "operationId": "114-shrinking-none-minimal:attempt:0",
+      "createdPhase": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "report",
+      "value": {
+        "task:0": {
+          "numerator": 630,
+          "denominator": 1
+        },
+        "task:1": {
+          "numerator": 85071,
+          "denominator": 76
+        },
+        "task:2": {
+          "numerator": 23133,
+          "denominator": 16
+        },
+        "task:3": {
+          "numerator": 637,
+          "denominator": 1
+        },
+        "task:4": {
+          "numerator": 1554,
+          "denominator": 1
+        },
+        "task:5": {
+          "numerator": 1712,
+          "denominator": 1
+        },
+        "task:6": {
+          "numerator": 1082,
+          "denominator": 1
+        },
+        "task:7": {
+          "numerator": 456,
+          "denominator": 1
+        }
+      },
+      "digest": "sha256:212ab2e169ab08612649b9509e57fa50230674be7b88d1e941a27847e5c2624c",
+      "version": 1,
+      "inputDigest": "sha256:cfcc38b7577869f70cc21d2de72daeba9789c70355599992c6edba576d86c036",
+      "dependencies": [
+        {
+          "id": "task:0",
+          "digest": "sha256:108ffbe7473ce7597d0ac9bd77a7d5f4947740d82f9d19308d8b01da719988d0",
+          "version": 2
+        },
+        {
+          "id": "task:1",
+          "digest": "sha256:2f38e313ed320815fef002b292e9b5cfab6498853c196c13cc405b45ba8a3c3b",
+          "version": 1
+        },
+        {
+          "id": "task:2",
+          "digest": "sha256:27df28688a108c5ead25aa3875dbc1dac894bfb03406e50371c4256cfc6a452a",
+          "version": 1
+        },
+        {
+          "id": "task:3",
+          "digest": "sha256:b77544d092cc19f5573d83a536aa9ed7ad64acc44b0e2935b330555d0951de55",
+          "version": 1
+        },
+        {
+          "id": "task:4",
+          "digest": "sha256:4ce0b90cc79694924af7aff18fb74996fa9524dcd0ff8d22ef8af4ae0156f4ed",
+          "version": 1
+        },
+        {
+          "id": "task:5",
+          "digest": "sha256:76898262b2e3b059fefce947860bad756d12a7d19210bf643e71beef06678238",
+          "version": 1
+        },
+        {
+          "id": "task:6",
+          "digest": "sha256:706d7a8d37b38b2a6008532eb73f2e6bdbca460e0395e1e789b2e7f67f619ad9",
+          "version": 1
+        },
+        {
+          "id": "task:7",
+          "digest": "sha256:d5e5f71e513df313121307cc335b8f97d2580bc5edecc04087f55ed2852b6469",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 624,
+        "denominator": 1
+      },
+      "digest": "sha256:4a30ee00fb03603197ad48c79a56622e5d944e273ff3efd760f40f1c11f19e1a",
+      "version": 1,
+      "inputDigest": "sha256:f766253a0242742613a37aba0df25ed5d23634f51de42dc51505896f3cb42221",
+      "dependencies": []
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 630,
+        "denominator": 1
+      },
+      "digest": "sha256:108ffbe7473ce7597d0ac9bd77a7d5f4947740d82f9d19308d8b01da719988d0",
+      "version": 2,
+      "inputDigest": "sha256:0dea589190be59447853cedb1fe1ac162145494cc8c78974bdf69769ffc6ad88",
+      "dependencies": []
+    },
+    {
+      "id": "task:1",
+      "value": {
+        "numerator": 85071,
+        "denominator": 76
+      },
+      "digest": "sha256:2f38e313ed320815fef002b292e9b5cfab6498853c196c13cc405b45ba8a3c3b",
+      "version": 1,
+      "inputDigest": "sha256:224a45e1a4e7a64a33e44197902d9812e8b9d9635212c1753302ea2d7645836c",
+      "dependencies": []
+    },
+    {
+      "id": "task:2",
+      "value": {
+        "numerator": 23133,
+        "denominator": 16
+      },
+      "digest": "sha256:27df28688a108c5ead25aa3875dbc1dac894bfb03406e50371c4256cfc6a452a",
+      "version": 1,
+      "inputDigest": "sha256:f10cd28e552ec106e0606a3493af687aaa2d7a354939b2a24ed68eb23e025d92",
+      "dependencies": []
+    },
+    {
+      "id": "task:3",
+      "value": {
+        "numerator": 637,
+        "denominator": 1
+      },
+      "digest": "sha256:b77544d092cc19f5573d83a536aa9ed7ad64acc44b0e2935b330555d0951de55",
+      "version": 1,
+      "inputDigest": "sha256:28161d309727269d77074bd51d69896a674b9ab9197f72993f944c717f9811ba",
+      "dependencies": []
+    },
+    {
+      "id": "task:4",
+      "value": {
+        "numerator": 1554,
+        "denominator": 1
+      },
+      "digest": "sha256:4ce0b90cc79694924af7aff18fb74996fa9524dcd0ff8d22ef8af4ae0156f4ed",
+      "version": 1,
+      "inputDigest": "sha256:57f0f3d5635b6fd51b87840b34e04b842cb2b232be9cba458a4f7e9b0be17747",
+      "dependencies": []
+    },
+    {
+      "id": "task:5",
+      "value": {
+        "numerator": 1712,
+        "denominator": 1
+      },
+      "digest": "sha256:76898262b2e3b059fefce947860bad756d12a7d19210bf643e71beef06678238",
+      "version": 1,
+      "inputDigest": "sha256:8d9dfc50ec6cb901e7a1b021fe8daea1e52393f9af8a011b9a8de3c7940864d5",
+      "dependencies": []
+    },
+    {
+      "id": "task:6",
+      "value": {
+        "numerator": 1082,
+        "denominator": 1
+      },
+      "digest": "sha256:706d7a8d37b38b2a6008532eb73f2e6bdbca460e0395e1e789b2e7f67f619ad9",
+      "version": 1,
+      "inputDigest": "sha256:6d747a5bbf9db8da8cc1c59e1c5e0b0d4a32103c0dd5eb6c880ff73067eb403e",
+      "dependencies": []
+    },
+    {
+      "id": "task:7",
+      "value": {
+        "numerator": 456,
+        "denominator": 1
+      },
+      "digest": "sha256:d5e5f71e513df313121307cc335b8f97d2580bc5edecc04087f55ed2852b6469",
+      "version": 1,
+      "inputDigest": "sha256:255578c4def7422161049dda7c616c84685f45eae0ea0010789dee060e643ba5",
+      "dependencies": []
+    }
+  ],
+  "controller": {
+    "condition": "minimal",
+    "role": null,
+    "done": true
+  }
+}

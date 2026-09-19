@@ -1,0 +1,1588 @@
+{
+  "schemaVersion": 1,
+  "caseId": "129-shrinking-reconciliation_outage-durable",
+  "condition": "durable",
+  "input": {
+    "schemaVersion": 1,
+    "seed": 129,
+    "shape": "shrinking",
+    "fault": "reconciliation_outage",
+    "horizon": 8,
+    "rolePhaseBudget": 16,
+    "databaseQueryBudget": 512,
+    "maximumRoleReservations": 3,
+    "specialistStart": 1,
+    "specialistEnd": 2,
+    "fixedSpecialist": true,
+    "tasks": [
+      {
+        "id": "task:0",
+        "phase": 0,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          10,
+          52,
+          64,
+          -2,
+          88,
+          54,
+          35,
+          72,
+          26,
+          -4,
+          -17,
+          42,
+          69,
+          33,
+          78,
+          5,
+          2,
+          26,
+          -16,
+          84,
+          28,
+          3,
+          69,
+          35,
+          8,
+          -8,
+          41,
+          54,
+          82,
+          20,
+          48
+        ]
+      },
+      {
+        "id": "task:1",
+        "phase": 1,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          70,
+          81,
+          75,
+          -19,
+          64,
+          93,
+          26,
+          36,
+          11,
+          -2,
+          19,
+          53,
+          73,
+          22,
+          58,
+          -7,
+          14,
+          89,
+          32,
+          12,
+          -9,
+          59
+        ]
+      },
+      {
+        "id": "task:2",
+        "phase": 2,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          7,
+          3,
+          90,
+          59,
+          64,
+          44,
+          18,
+          -1,
+          95,
+          72,
+          -11,
+          -7,
+          15,
+          47,
+          38,
+          65,
+          6,
+          3,
+          12,
+          3,
+          99,
+          -11,
+          42,
+          34,
+          49,
+          73,
+          31,
+          24,
+          31,
+          64,
+          -5,
+          83,
+          16,
+          68
+        ]
+      },
+      {
+        "id": "task:3",
+        "phase": 3,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          45,
+          19,
+          77,
+          -14,
+          -1,
+          8,
+          11,
+          -17,
+          12,
+          69,
+          -19,
+          -8,
+          96,
+          42,
+          68,
+          94,
+          15,
+          -18,
+          91,
+          24
+        ]
+      },
+      {
+        "id": "task:4",
+        "phase": 4,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          11,
+          59,
+          53,
+          61,
+          -19,
+          22,
+          64,
+          36,
+          30,
+          37,
+          17,
+          79,
+          48,
+          92,
+          -7,
+          -5,
+          9,
+          90,
+          7,
+          88,
+          71,
+          15,
+          48,
+          66,
+          -3,
+          13,
+          64,
+          24,
+          54,
+          -7
+        ]
+      },
+      {
+        "id": "task:5",
+        "phase": 5,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          56,
+          -16,
+          89,
+          -19,
+          -19,
+          97,
+          36,
+          64,
+          -9,
+          23,
+          71,
+          70,
+          80,
+          78,
+          6,
+          -15,
+          -10,
+          44,
+          23
+        ]
+      },
+      {
+        "id": "task:6",
+        "phase": 6,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          16,
+          2,
+          25,
+          68,
+          10,
+          23,
+          60,
+          100,
+          85,
+          70,
+          61,
+          17,
+          38,
+          62,
+          25,
+          90,
+          17,
+          24,
+          -15,
+          58,
+          44,
+          3,
+          -20,
+          50,
+          54,
+          89,
+          25,
+          58,
+          9,
+          -1,
+          -6,
+          70,
+          12,
+          -13,
+          23,
+          21
+        ]
+      },
+      {
+        "id": "task:7",
+        "phase": 7,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          68,
+          21,
+          -11,
+          8,
+          57,
+          10,
+          -17,
+          -2,
+          12,
+          14,
+          -10,
+          87,
+          61,
+          -10,
+          73,
+          81,
+          9,
+          59,
+          89
+        ]
+      }
+    ],
+    "revision": {
+      "id": "task:0",
+      "phase": 6,
+      "version": 2,
+      "kind": "sum",
+      "data": [
+        11,
+        52,
+        64,
+        -1,
+        88,
+        54,
+        36,
+        72,
+        26,
+        -3,
+        -17,
+        42,
+        70,
+        33,
+        78,
+        6,
+        2,
+        26,
+        -15,
+        84,
+        28,
+        4,
+        69,
+        35,
+        9,
+        -8,
+        41,
+        55,
+        82,
+        20,
+        49
+      ]
+    }
+  },
+  "metrics": {
+    "queries": 133,
+    "queryEvents": [
+      {
+        "sequence": 1,
+        "kind": "INSERT",
+        "statementDigest": "sha256:57a37e3240475e8c237396407f9ac64219d254c93715fd8e1e4c3a6db24dbd11"
+      },
+      {
+        "sequence": 2,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 3,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 4,
+        "kind": "SELECT",
+        "statementDigest": "sha256:72458fc346bc99dd1bdf6eb88bca1634bd6e3275f6937ba6b971197cae3542be"
+      },
+      {
+        "sequence": 5,
+        "kind": "SELECT",
+        "statementDigest": "sha256:800ecf89dfeee5d2afe12ab18a4693996732b8afc54745108fe9778fe24213c3"
+      },
+      {
+        "sequence": 6,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1c18cad00d68e18fce9a1c99b326c99643d662b5c3dd13b5108b80e4b825302b"
+      },
+      {
+        "sequence": 7,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 8,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 9,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 10,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 11,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c2a6440ef1025a9bdb3dcfe122cb1e5f4701f55ed51c651f7c8a4acd2aee85c1"
+      },
+      {
+        "sequence": 12,
+        "kind": "INSERT",
+        "statementDigest": "sha256:916622516f247688674402c41e753fd8d909df1610b7aa8eee0e4f8e44d1fa89"
+      },
+      {
+        "sequence": 13,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 14,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 15,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 16,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 17,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 18,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 19,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 20,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 21,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 22,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 23,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 24,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 25,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 26,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:d16d4d1f1db13c0366c70fd9aee5768cb0b174ba03a4fdc98b8b0adb05b07fe2"
+      },
+      {
+        "sequence": 27,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 28,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 29,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 30,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 31,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 32,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 33,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 34,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 35,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 36,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 37,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 38,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 39,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:3f47dba1db4db67fda661f0c1b981a6284319c8730ddf9d7b0742c1b56053966"
+      },
+      {
+        "sequence": 40,
+        "kind": "INSERT",
+        "statementDigest": "sha256:916622516f247688674402c41e753fd8d909df1610b7aa8eee0e4f8e44d1fa89"
+      },
+      {
+        "sequence": 41,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 42,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8a0fd781bafb745a8aa42d676c26edd4755974f9eefd706d0d164765e2427466"
+      },
+      {
+        "sequence": 43,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 44,
+        "kind": "SELECT",
+        "statementDigest": "sha256:72458fc346bc99dd1bdf6eb88bca1634bd6e3275f6937ba6b971197cae3542be"
+      },
+      {
+        "sequence": 45,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5603a313408dba69c9ef66f729e6a00a8c9b3a59d858471662845c776aed336e"
+      },
+      {
+        "sequence": 46,
+        "kind": "SELECT",
+        "statementDigest": "sha256:800ecf89dfeee5d2afe12ab18a4693996732b8afc54745108fe9778fe24213c3"
+      },
+      {
+        "sequence": 47,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1c18cad00d68e18fce9a1c99b326c99643d662b5c3dd13b5108b80e4b825302b"
+      },
+      {
+        "sequence": 48,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 49,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 50,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 51,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 52,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 53,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 54,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 55,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 56,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 57,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8a0fd781bafb745a8aa42d676c26edd4755974f9eefd706d0d164765e2427466"
+      },
+      {
+        "sequence": 58,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 59,
+        "kind": "SELECT",
+        "statementDigest": "sha256:72458fc346bc99dd1bdf6eb88bca1634bd6e3275f6937ba6b971197cae3542be"
+      },
+      {
+        "sequence": 60,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5603a313408dba69c9ef66f729e6a00a8c9b3a59d858471662845c776aed336e"
+      },
+      {
+        "sequence": 61,
+        "kind": "SELECT",
+        "statementDigest": "sha256:800ecf89dfeee5d2afe12ab18a4693996732b8afc54745108fe9778fe24213c3"
+      },
+      {
+        "sequence": 62,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1c18cad00d68e18fce9a1c99b326c99643d662b5c3dd13b5108b80e4b825302b"
+      },
+      {
+        "sequence": 63,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 64,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 65,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 66,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 67,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 68,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 69,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 70,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 71,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 72,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 73,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 74,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 75,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 76,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 77,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:3f47dba1db4db67fda661f0c1b981a6284319c8730ddf9d7b0742c1b56053966"
+      },
+      {
+        "sequence": 78,
+        "kind": "INSERT",
+        "statementDigest": "sha256:916622516f247688674402c41e753fd8d909df1610b7aa8eee0e4f8e44d1fa89"
+      },
+      {
+        "sequence": 79,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 80,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8a0fd781bafb745a8aa42d676c26edd4755974f9eefd706d0d164765e2427466"
+      },
+      {
+        "sequence": 81,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 82,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 83,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 84,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 85,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 86,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 87,
+        "kind": "SELECT",
+        "statementDigest": "sha256:72458fc346bc99dd1bdf6eb88bca1634bd6e3275f6937ba6b971197cae3542be"
+      },
+      {
+        "sequence": 88,
+        "kind": "SELECT",
+        "statementDigest": "sha256:800ecf89dfeee5d2afe12ab18a4693996732b8afc54745108fe9778fe24213c3"
+      },
+      {
+        "sequence": 89,
+        "kind": "SELECT",
+        "statementDigest": "sha256:1c18cad00d68e18fce9a1c99b326c99643d662b5c3dd13b5108b80e4b825302b"
+      },
+      {
+        "sequence": 90,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 91,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 92,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 93,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 94,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c2a6440ef1025a9bdb3dcfe122cb1e5f4701f55ed51c651f7c8a4acd2aee85c1"
+      },
+      {
+        "sequence": 95,
+        "kind": "INSERT",
+        "statementDigest": "sha256:916622516f247688674402c41e753fd8d909df1610b7aa8eee0e4f8e44d1fa89"
+      },
+      {
+        "sequence": 96,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 97,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 98,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 99,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 100,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 101,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 102,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 103,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 104,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 105,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 106,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 107,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 108,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:d16d4d1f1db13c0366c70fd9aee5768cb0b174ba03a4fdc98b8b0adb05b07fe2"
+      },
+      {
+        "sequence": 109,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 110,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:d16d4d1f1db13c0366c70fd9aee5768cb0b174ba03a4fdc98b8b0adb05b07fe2"
+      },
+      {
+        "sequence": 111,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 112,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 113,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ff0693ada8f67f53f5c2f618fd075193a0277847f32ddcab39e3305910c731cf"
+      },
+      {
+        "sequence": 114,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 115,
+        "kind": "INSERT",
+        "statementDigest": "sha256:c786b621cd265ab9a29ebafcd685f86130b21b8d27b36fa32c88d4aff1888f13"
+      },
+      {
+        "sequence": 116,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 117,
+        "kind": "SELECT",
+        "statementDigest": "sha256:ee2b94e3a1810a01e2e91b4c1c1463023141d42f95227ad9b0744ea499f135e6"
+      },
+      {
+        "sequence": 118,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:4486308335d8aa3933cd81496ee31af86979280bb120cdde74f8e1302612612c"
+      },
+      {
+        "sequence": 119,
+        "kind": "BEGIN",
+        "statementDigest": "sha256:a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032"
+      },
+      {
+        "sequence": 120,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:3f47dba1db4db67fda661f0c1b981a6284319c8730ddf9d7b0742c1b56053966"
+      },
+      {
+        "sequence": 121,
+        "kind": "INSERT",
+        "statementDigest": "sha256:916622516f247688674402c41e753fd8d909df1610b7aa8eee0e4f8e44d1fa89"
+      },
+      {
+        "sequence": 122,
+        "kind": "COMMIT",
+        "statementDigest": "sha256:79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f"
+      },
+      {
+        "sequence": 123,
+        "kind": "INSERT",
+        "statementDigest": "sha256:8a0fd781bafb745a8aa42d676c26edd4755974f9eefd706d0d164765e2427466"
+      },
+      {
+        "sequence": 124,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 125,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 126,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 127,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 128,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 129,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 130,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 131,
+        "kind": "SELECT",
+        "statementDigest": "sha256:17efd748e707d5370d8578dc074e7ce4361fa40cbaef8c971a2005362c9c5d42"
+      },
+      {
+        "sequence": 132,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      },
+      {
+        "sequence": 133,
+        "kind": "INSERT",
+        "statementDigest": "sha256:518259775b57f803021e3627c1d72d566cca80c07e3574cc80e3d436a0d8fecd"
+      }
+    ],
+    "wallTimeMs": 49.72891600000003
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 2,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:7caa9ccaea479567578e242d4d32ff29b4e8d1b685ed92ddd1971890ba585df9"
+    },
+    {
+      "sequence": 3,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 4,
+      "phase": 1,
+      "kind": "owner-reconciliation",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate"
+    },
+    {
+      "sequence": 5,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 6,
+      "phase": 1,
+      "kind": "role-materialized",
+      "roleId": "role:325d9fbbb39b04e0",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate",
+      "initial": false
+    },
+    {
+      "sequence": 7,
+      "phase": 1,
+      "kind": "ack-lost",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate"
+    },
+    {
+      "sequence": 8,
+      "phase": 1,
+      "kind": "owner-reconciliation",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate"
+    },
+    {
+      "sequence": 9,
+      "phase": 1,
+      "kind": "transition-blocked"
+    },
+    {
+      "sequence": 10,
+      "phase": 1,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 11,
+      "phase": 1,
+      "kind": "task-blocked",
+      "taskId": "task:1"
+    },
+    {
+      "sequence": 12,
+      "phase": 2,
+      "kind": "owner-reconciliation",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate"
+    },
+    {
+      "sequence": 13,
+      "phase": 2,
+      "kind": "transition-blocked"
+    },
+    {
+      "sequence": 14,
+      "phase": 2,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 15,
+      "phase": 2,
+      "kind": "task-blocked",
+      "taskId": "task:1"
+    },
+    {
+      "sequence": 16,
+      "phase": 2,
+      "kind": "task-blocked",
+      "taskId": "task:2"
+    },
+    {
+      "sequence": 17,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate"
+    },
+    {
+      "sequence": 18,
+      "phase": 3,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 19,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:5874eeea95d0e1e23f3838d6866b4400416f9ded3cab9249a48aeee93555ab66"
+    },
+    {
+      "sequence": 20,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:31a550a38100e4c521825687f370f3a4c04123e22412d84395250b79bd65aefb"
+    },
+    {
+      "sequence": 21,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:d202c16313bcc5161c07beba93c633aee13db48a359d38f61d1bde8e89d5445e"
+    },
+    {
+      "sequence": 22,
+      "phase": 4,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 23,
+      "phase": 4,
+      "kind": "role-fenced",
+      "roleId": "role:325d9fbbb39b04e0"
+    },
+    {
+      "sequence": 24,
+      "phase": 4,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 25,
+      "phase": 4,
+      "kind": "role-retired",
+      "roleId": "role:325d9fbbb39b04e0"
+    },
+    {
+      "sequence": 26,
+      "phase": 4,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 27,
+      "phase": 4,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:9eb5ce10d3ee947efaaaa3f6b1c6296224b6e626cf8f861db1b0447fb4003e9a"
+    },
+    {
+      "sequence": 28,
+      "phase": 5,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 29,
+      "phase": 5,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:264926daa30d18c1cfa9e2093e5614fa4d998fac99c114c3fc6bddeba0963b5a"
+    },
+    {
+      "sequence": 30,
+      "phase": 6,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 31,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:1dc163db40d6daf0296cf24678a33c56780a1a5bc718834859920f90754dd950"
+    },
+    {
+      "sequence": 32,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:fd9170dd6734c5b9862309dac0db6caa46ece6ddc02c0e85d251ce52ef5475fe"
+    },
+    {
+      "sequence": 33,
+      "phase": 7,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 34,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:26caee449583d0d8eeb2b40c23c50c0fbc76a107cd8a0ec7d393c7570660ed09"
+    },
+    {
+      "sequence": 35,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:60078609e9f5f674273bfbcc5e495675ec618ba8b5af0c973835d280779fc9c5"
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": false,
+      "fenced": true,
+      "roleId": "role:325d9fbbb39b04e0",
+      "operationId": "129-shrinking-reconciliation_outage-durable:durable-activate",
+      "createdPhase": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "report",
+      "value": {
+        "task:0": {
+          "numerator": 1092,
+          "denominator": 1
+        },
+        "task:1": {
+          "numerator": 135801,
+          "denominator": 121
+        },
+        "task:2": {
+          "numerator": 304806,
+          "denominator": 289
+        },
+        "task:3": {
+          "numerator": 594,
+          "denominator": 1
+        },
+        "task:4": {
+          "numerator": 1117,
+          "denominator": 1
+        },
+        "task:5": {
+          "numerator": 649,
+          "denominator": 1
+        },
+        "task:6": {
+          "numerator": 1254,
+          "denominator": 1
+        },
+        "task:7": {
+          "numerator": 599,
+          "denominator": 1
+        }
+      },
+      "digest": "sha256:60078609e9f5f674273bfbcc5e495675ec618ba8b5af0c973835d280779fc9c5",
+      "version": 1,
+      "inputDigest": "sha256:ab89c9cb0d4fe100e33001aa05e149fb70b653fe9836bac69ad4ae626f082227",
+      "dependencies": [
+        {
+          "id": "task:0",
+          "digest": "sha256:1dc163db40d6daf0296cf24678a33c56780a1a5bc718834859920f90754dd950",
+          "version": 2
+        },
+        {
+          "id": "task:1",
+          "digest": "sha256:5874eeea95d0e1e23f3838d6866b4400416f9ded3cab9249a48aeee93555ab66",
+          "version": 1
+        },
+        {
+          "id": "task:2",
+          "digest": "sha256:31a550a38100e4c521825687f370f3a4c04123e22412d84395250b79bd65aefb",
+          "version": 1
+        },
+        {
+          "id": "task:3",
+          "digest": "sha256:d202c16313bcc5161c07beba93c633aee13db48a359d38f61d1bde8e89d5445e",
+          "version": 1
+        },
+        {
+          "id": "task:4",
+          "digest": "sha256:9eb5ce10d3ee947efaaaa3f6b1c6296224b6e626cf8f861db1b0447fb4003e9a",
+          "version": 1
+        },
+        {
+          "id": "task:5",
+          "digest": "sha256:264926daa30d18c1cfa9e2093e5614fa4d998fac99c114c3fc6bddeba0963b5a",
+          "version": 1
+        },
+        {
+          "id": "task:6",
+          "digest": "sha256:fd9170dd6734c5b9862309dac0db6caa46ece6ddc02c0e85d251ce52ef5475fe",
+          "version": 1
+        },
+        {
+          "id": "task:7",
+          "digest": "sha256:26caee449583d0d8eeb2b40c23c50c0fbc76a107cd8a0ec7d393c7570660ed09",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1081,
+        "denominator": 1
+      },
+      "digest": "sha256:7caa9ccaea479567578e242d4d32ff29b4e8d1b685ed92ddd1971890ba585df9",
+      "version": 1,
+      "inputDigest": "sha256:e0520ee137a4ba06b48df4f8f231c122b87e26001b656f5f5bf3c0ff97bcc25a",
+      "dependencies": []
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1092,
+        "denominator": 1
+      },
+      "digest": "sha256:1dc163db40d6daf0296cf24678a33c56780a1a5bc718834859920f90754dd950",
+      "version": 2,
+      "inputDigest": "sha256:bf628e4b9f33bb0a4d2573d0e76b3bed7efbe931a3364373bdb9ca6612b24456",
+      "dependencies": []
+    },
+    {
+      "id": "task:1",
+      "value": {
+        "numerator": 135801,
+        "denominator": 121
+      },
+      "digest": "sha256:5874eeea95d0e1e23f3838d6866b4400416f9ded3cab9249a48aeee93555ab66",
+      "version": 1,
+      "inputDigest": "sha256:63c9cf3cf223f798ffa7d29775833fd57b241c9355e38fd883b9055948018711",
+      "dependencies": []
+    },
+    {
+      "id": "task:2",
+      "value": {
+        "numerator": 304806,
+        "denominator": 289
+      },
+      "digest": "sha256:31a550a38100e4c521825687f370f3a4c04123e22412d84395250b79bd65aefb",
+      "version": 1,
+      "inputDigest": "sha256:105ed471a190f7d09a1485886982754a34048b450b0cf7f4fa5554374cff253c",
+      "dependencies": []
+    },
+    {
+      "id": "task:3",
+      "value": {
+        "numerator": 594,
+        "denominator": 1
+      },
+      "digest": "sha256:d202c16313bcc5161c07beba93c633aee13db48a359d38f61d1bde8e89d5445e",
+      "version": 1,
+      "inputDigest": "sha256:9c0c1e9bd75b5de6dc674c818b2f55ac784f2d25a1195c0b2b85be734053f1eb",
+      "dependencies": []
+    },
+    {
+      "id": "task:4",
+      "value": {
+        "numerator": 1117,
+        "denominator": 1
+      },
+      "digest": "sha256:9eb5ce10d3ee947efaaaa3f6b1c6296224b6e626cf8f861db1b0447fb4003e9a",
+      "version": 1,
+      "inputDigest": "sha256:849222c8a16f89ecb1efb14871bb143e322e8f567df2bb45dcadde6d3a216449",
+      "dependencies": []
+    },
+    {
+      "id": "task:5",
+      "value": {
+        "numerator": 649,
+        "denominator": 1
+      },
+      "digest": "sha256:264926daa30d18c1cfa9e2093e5614fa4d998fac99c114c3fc6bddeba0963b5a",
+      "version": 1,
+      "inputDigest": "sha256:46f8ba5f4ed8e2341a54b3a59192b7018e5cbb245be9496d58f8683159a4c48c",
+      "dependencies": []
+    },
+    {
+      "id": "task:6",
+      "value": {
+        "numerator": 1254,
+        "denominator": 1
+      },
+      "digest": "sha256:fd9170dd6734c5b9862309dac0db6caa46ece6ddc02c0e85d251ce52ef5475fe",
+      "version": 1,
+      "inputDigest": "sha256:f59d906bbe5ece95d2879de3153d2f8eb094c187827f109e1f8e714a7a1e12f4",
+      "dependencies": []
+    },
+    {
+      "id": "task:7",
+      "value": {
+        "numerator": 599,
+        "denominator": 1
+      },
+      "digest": "sha256:26caee449583d0d8eeb2b40c23c50c0fbc76a107cd8a0ec7d393c7570660ed09",
+      "version": 1,
+      "inputDigest": "sha256:58125e88ed35e25eece14d0d511b45922d12a2806564ac2cde1c136696101494",
+      "dependencies": []
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": true,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "129-shrinking-reconciliation_outage-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "waiting",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "waiting",
+            "attempt": 2,
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "reasonCode": "task_attempt_in_flight",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:apply:2"
+          },
+          {
+            "stageId": "finalize",
+            "status": "blocked",
+            "attempt": 0
+          }
+        ],
+        "input": {
+          "caseId": "129-shrinking-reconciliation_outage-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:10.000Z",
+        "updatedAt": "2026-09-19T12:00:10.000Z",
+        "stateDigest": "sha256:34bb405d730a623a9f9f7cfd549c3f9faa8ff2451f718d7a48307bb16382418e"
+      },
+      {
+        "input": {
+          "action": "activate",
+          "caseId": "129-shrinking-reconciliation_outage-durable"
+        },
+        "runId": "129-shrinking-reconciliation_outage-durable:activate",
+        "status": "waiting",
+        "revision": 1,
+        "tenantId": "missions",
+        "createdAt": "2026-09-19T12:00:10.000Z",
+        "processId": "mission-role",
+        "updatedAt": "2026-09-19T12:00:10.000Z",
+        "stageStates": [
+          {
+            "status": "terminal",
+            "attempt": 1,
+            "outcome": "succeeded",
+            "stageId": "authorize",
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:authorize:1",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          },
+          {
+            "status": "waiting",
+            "attempt": 2,
+            "stageId": "apply",
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:apply:2",
+            "reasonCode": "task_attempt_in_flight"
+          },
+          {
+            "status": "blocked",
+            "attempt": 0,
+            "stageId": "finalize"
+          }
+        ],
+        "stateDigest": "sha256:34bb405d730a623a9f9f7cfd549c3f9faa8ff2451f718d7a48307bb16382418e",
+        "schemaVersion": 1,
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b"
+      },
+      {
+        "input": {
+          "action": "activate",
+          "caseId": "129-shrinking-reconciliation_outage-durable"
+        },
+        "runId": "129-shrinking-reconciliation_outage-durable:activate",
+        "status": "completed",
+        "revision": 2,
+        "tenantId": "missions",
+        "createdAt": "2026-09-19T12:00:10.000Z",
+        "processId": "mission-role",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stageStates": [
+          {
+            "status": "terminal",
+            "attempt": 1,
+            "outcome": "succeeded",
+            "stageId": "authorize",
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:authorize:1",
+            "finishedAt": "2026-09-19T12:00:10.000Z"
+          },
+          {
+            "status": "terminal",
+            "attempt": 2,
+            "stageId": "apply",
+            "startedAt": "2026-09-19T12:00:10.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:apply:2",
+            "reasonCode": "task_attempt_in_flight",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "status": "terminal",
+            "attempt": 1,
+            "stageId": "finalize",
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:activate:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "schemaVersion": 1,
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "stateDigest": "sha256:10c56460dc53bf10dbb7a6e10cb5c7730e8a329bb947d7929860faad18371172"
+      },
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "129-shrinking-reconciliation_outage-durable:retire",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:40.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:retire:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:40.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:40.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:retire:apply:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:40.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:40.000Z",
+            "taskRunId": "129-shrinking-reconciliation_outage-durable:retire:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:40.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "129-shrinking-reconciliation_outage-durable",
+          "action": "retire"
+        },
+        "createdAt": "2026-09-19T12:00:40.000Z",
+        "updatedAt": "2026-09-19T12:00:40.000Z",
+        "stateDigest": "sha256:aac7433bc37770acb1ca717a5d051bf2c39ee366bef41cbfd10f51c72390ec42"
+      }
+    ]
+  }
+}

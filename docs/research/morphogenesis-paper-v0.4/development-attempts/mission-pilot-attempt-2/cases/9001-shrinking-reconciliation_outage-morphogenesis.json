@@ -1,0 +1,2897 @@
+{
+  "schemaVersion": 1,
+  "caseId": "9001-shrinking-reconciliation_outage-morphogenesis",
+  "condition": "morphogenesis",
+  "input": {
+    "schemaVersion": 1,
+    "seed": 9001,
+    "shape": "shrinking",
+    "fault": "reconciliation_outage",
+    "horizon": 8,
+    "rolePhaseBudget": 16,
+    "databaseQueryBudget": 512,
+    "maximumRoleReservations": 3,
+    "specialistStart": 1,
+    "specialistEnd": 2,
+    "fixedSpecialist": true,
+    "tasks": [
+      {
+        "id": "task:0",
+        "phase": 0,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          53,
+          -18,
+          -18,
+          10,
+          75,
+          -17,
+          16,
+          9,
+          -2,
+          -10,
+          59,
+          58,
+          5,
+          83,
+          62,
+          3,
+          -16,
+          24,
+          31,
+          59,
+          18,
+          15,
+          85,
+          73,
+          29,
+          -11,
+          3,
+          41,
+          2,
+          96,
+          0,
+          12,
+          54,
+          -2,
+          59,
+          80
+        ]
+      },
+      {
+        "id": "task:1",
+        "phase": 1,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          35,
+          18,
+          40,
+          88,
+          97,
+          72,
+          54,
+          38,
+          27,
+          18,
+          -2,
+          33,
+          29,
+          -16,
+          -14,
+          69,
+          -3,
+          17,
+          30,
+          14,
+          23,
+          90,
+          7,
+          -10,
+          18
+        ]
+      },
+      {
+        "id": "task:2",
+        "phase": 2,
+        "version": 1,
+        "kind": "variance",
+        "data": [
+          -8,
+          78,
+          10,
+          42,
+          72,
+          -9,
+          84,
+          -5,
+          -8,
+          -5,
+          66,
+          58,
+          96,
+          66,
+          27,
+          72,
+          53,
+          35,
+          50,
+          42,
+          14,
+          82,
+          71,
+          4,
+          50,
+          2,
+          40
+        ]
+      },
+      {
+        "id": "task:3",
+        "phase": 3,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          -4,
+          23,
+          -14,
+          -7,
+          22,
+          44,
+          98,
+          48,
+          34,
+          30,
+          32,
+          20,
+          53,
+          61,
+          42,
+          48,
+          85,
+          97,
+          -10,
+          70,
+          60,
+          19,
+          87,
+          4,
+          43,
+          9,
+          88,
+          12,
+          21,
+          78,
+          5,
+          97
+        ]
+      },
+      {
+        "id": "task:4",
+        "phase": 4,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          82,
+          95,
+          82,
+          99,
+          -5,
+          12,
+          100,
+          32,
+          19,
+          53,
+          86,
+          11,
+          19,
+          49,
+          -6,
+          16,
+          -7,
+          35,
+          62,
+          -17,
+          68,
+          52,
+          -15,
+          51,
+          39,
+          4,
+          39
+        ]
+      },
+      {
+        "id": "task:5",
+        "phase": 5,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          19,
+          6,
+          30,
+          12,
+          58,
+          -3,
+          39,
+          19,
+          34,
+          38,
+          92,
+          89,
+          68,
+          27,
+          58,
+          37,
+          44,
+          86,
+          -15,
+          0,
+          57,
+          49,
+          37,
+          -5,
+          -11,
+          86,
+          -16,
+          6,
+          35,
+          62,
+          90,
+          27,
+          -18,
+          95,
+          33,
+          -12,
+          41
+        ]
+      },
+      {
+        "id": "task:6",
+        "phase": 6,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          40,
+          97,
+          40,
+          38,
+          86,
+          62,
+          -1,
+          85,
+          33,
+          47,
+          84,
+          96,
+          88,
+          59,
+          59,
+          10,
+          88,
+          -1,
+          100,
+          31
+        ]
+      },
+      {
+        "id": "task:7",
+        "phase": 7,
+        "version": 1,
+        "kind": "sum",
+        "data": [
+          69,
+          63,
+          16,
+          79,
+          -6,
+          96,
+          29,
+          71,
+          -4,
+          97,
+          -20,
+          18,
+          -3,
+          20,
+          22,
+          -5,
+          65,
+          38,
+          -7,
+          22,
+          88,
+          -8,
+          71,
+          99,
+          62,
+          -20,
+          47,
+          95,
+          28,
+          6,
+          27,
+          -7,
+          37,
+          -2
+        ]
+      }
+    ],
+    "revision": {
+      "id": "task:0",
+      "phase": 6,
+      "version": 2,
+      "kind": "sum",
+      "data": [
+        54,
+        -18,
+        -18,
+        11,
+        75,
+        -17,
+        17,
+        9,
+        -2,
+        -9,
+        59,
+        58,
+        6,
+        83,
+        62,
+        4,
+        -16,
+        24,
+        32,
+        59,
+        18,
+        16,
+        85,
+        73,
+        30,
+        -11,
+        3,
+        42,
+        2,
+        96,
+        1,
+        12,
+        54,
+        -1,
+        59,
+        80
+      ]
+    }
+  },
+  "metrics": {
+    "queries": 83,
+    "queryEvents": [
+      {
+        "sequence": 1,
+        "kind": "INSERT",
+        "statementDigest": "sha256:2b232e527ceca661a98e3d2a24ea946d3763d078d2735fe916c232a3d9f9444f"
+      },
+      {
+        "sequence": 2,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 3,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 4,
+        "kind": "INSERT",
+        "statementDigest": "sha256:4ec84757784acd3fd58435ab70c04b635d5a82b60979a1b035d2896607f7675f"
+      },
+      {
+        "sequence": 5,
+        "kind": "INSERT",
+        "statementDigest": "sha256:4ec84757784acd3fd58435ab70c04b635d5a82b60979a1b035d2896607f7675f"
+      },
+      {
+        "sequence": 6,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 7,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 8,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 9,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 10,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 11,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 12,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 13,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 14,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 15,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 16,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 17,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:1779b68cc6a9b67a652f21754168488764fa5b6d4ec445579030f18184feaa81"
+      },
+      {
+        "sequence": 18,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 19,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 20,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 21,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 22,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 23,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 24,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 25,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 26,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 27,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 28,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 29,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 30,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 31,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 32,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 33,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 34,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 35,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 36,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 37,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 38,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 39,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 40,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 41,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 42,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 43,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 44,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 45,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 46,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 47,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 48,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 49,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 50,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 51,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 52,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 53,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 54,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 55,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 56,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 57,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 58,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 59,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 60,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 61,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:1779b68cc6a9b67a652f21754168488764fa5b6d4ec445579030f18184feaa81"
+      },
+      {
+        "sequence": 62,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 63,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 64,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 65,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 66,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:1779b68cc6a9b67a652f21754168488764fa5b6d4ec445579030f18184feaa81"
+      },
+      {
+        "sequence": 67,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 68,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 69,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 70,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 71,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 72,
+        "kind": "UPDATE",
+        "statementDigest": "sha256:2a15ce889d53c2a61c73562ab48be3ea6e646288861d1adcf27e136de022aaa9"
+      },
+      {
+        "sequence": 73,
+        "kind": "SELECT",
+        "statementDigest": "sha256:4c5c78ebf8e9e6408e9864773bcf10ff7efd64d48e5c33ceb11e47254863cf1d"
+      },
+      {
+        "sequence": 74,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 75,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 76,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 77,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 78,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 79,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 80,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 81,
+        "kind": "SELECT",
+        "statementDigest": "sha256:5c57b7cc23163b22f178c223243eced7ba9677a8c7b531de5e697fcf22f456d3"
+      },
+      {
+        "sequence": 82,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      },
+      {
+        "sequence": 83,
+        "kind": "INSERT",
+        "statementDigest": "sha256:43e8e1d8904a83c4d80e3bb9cf4e178c46539143797429bdc520f0ed9e8d960d"
+      }
+    ],
+    "wallTimeMs": 50.511041999999975
+  },
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 2,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:5297508a1421dd2931df3b3e2a72f58f8a9f9ccca17bb59f04abaf076805d8fb"
+    },
+    {
+      "sequence": 3,
+      "phase": 1,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 4,
+      "phase": 1,
+      "kind": "role-materialized",
+      "roleId": "role:6d8b16585531930c",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+      "initial": false
+    },
+    {
+      "sequence": 5,
+      "phase": 1,
+      "kind": "ack-lost",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team"
+    },
+    {
+      "sequence": 6,
+      "phase": 1,
+      "kind": "owner-reconciliation",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team"
+    },
+    {
+      "sequence": 7,
+      "phase": 1,
+      "kind": "transition-blocked",
+      "reason": "Team operation ID is invalid"
+    },
+    {
+      "sequence": 8,
+      "phase": 1,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 9,
+      "phase": 1,
+      "kind": "task-blocked",
+      "taskId": "task:1"
+    },
+    {
+      "sequence": 10,
+      "phase": 2,
+      "kind": "owner-reconciliation",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team"
+    },
+    {
+      "sequence": 11,
+      "phase": 2,
+      "kind": "owner-reconciliation",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team"
+    },
+    {
+      "sequence": 12,
+      "phase": 2,
+      "kind": "transition-blocked",
+      "reason": "Team operation ID is invalid"
+    },
+    {
+      "sequence": 13,
+      "phase": 2,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 14,
+      "phase": 2,
+      "kind": "task-blocked",
+      "taskId": "task:1"
+    },
+    {
+      "sequence": 15,
+      "phase": 2,
+      "kind": "task-blocked",
+      "taskId": "task:2"
+    },
+    {
+      "sequence": 16,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team"
+    },
+    {
+      "sequence": 17,
+      "phase": 3,
+      "kind": "role-phase",
+      "units": 2
+    },
+    {
+      "sequence": 18,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:2b5e0733a44a2b9ef6bddb8c170c2d4fc567fc2748d77b8ae94ad0bcbe47cad5"
+    },
+    {
+      "sequence": 19,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:6755c18d18f077b7e528857149936e202c43f301a7db226534947efe736e303d"
+    },
+    {
+      "sequence": 20,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:f2ce6a67893320ce1db998d733b75081ea025cd15e5b7f8445c1557db61d9ea4"
+    },
+    {
+      "sequence": 21,
+      "phase": 4,
+      "kind": "role-fenced",
+      "roleId": "role:6d8b16585531930c"
+    },
+    {
+      "sequence": 22,
+      "phase": 4,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 23,
+      "phase": 4,
+      "kind": "role-retired",
+      "roleId": "role:6d8b16585531930c"
+    },
+    {
+      "sequence": 24,
+      "phase": 4,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 25,
+      "phase": 4,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:3d3e19791a4358af9fcc2bdf0c0e80aa631c64ceed7a2c6ed927631e37d3a572"
+    },
+    {
+      "sequence": 26,
+      "phase": 5,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 27,
+      "phase": 5,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:568c46e3cf2d22d57290f256eb0374c44521bd7ce1cb19760581a9504445b049"
+    },
+    {
+      "sequence": 28,
+      "phase": 6,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 29,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:cca8918cbcd51c5857163dc7df4f094719317f4d286646222eb79311a96c619d"
+    },
+    {
+      "sequence": 30,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:adc28a03e2041224e89bbe1b3865cc7499ca491e8a42ef86613cb0206775cedf"
+    },
+    {
+      "sequence": 31,
+      "phase": 7,
+      "kind": "role-phase",
+      "units": 1
+    },
+    {
+      "sequence": 32,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:ea2bec58155fc2bedf9686dd4aef5a8e210da941221c175cd039a709af727b69"
+    },
+    {
+      "sequence": 33,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:2c60784faf553726171a4028c0e15ad8345e2866da76123dc8fff419aa344d69"
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": false,
+      "fenced": true,
+      "roleId": "role:6d8b16585531930c",
+      "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+      "createdPhase": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "report",
+      "value": {
+        "task:0": {
+          "numerator": 1032,
+          "denominator": 1
+        },
+        "task:1": {
+          "numerator": 617566,
+          "denominator": 625
+        },
+        "task:2": {
+          "numerator": 780596,
+          "denominator": 729
+        },
+        "task:3": {
+          "numerator": 1295,
+          "denominator": 1
+        },
+        "task:4": {
+          "numerator": 1055,
+          "denominator": 1
+        },
+        "task:5": {
+          "numerator": 1294,
+          "denominator": 1
+        },
+        "task:6": {
+          "numerator": 1141,
+          "denominator": 1
+        },
+        "task:7": {
+          "numerator": 1183,
+          "denominator": 1
+        }
+      },
+      "digest": "sha256:2c60784faf553726171a4028c0e15ad8345e2866da76123dc8fff419aa344d69",
+      "version": 1,
+      "inputDigest": "sha256:d92fa61bd3313e7e3d74d97fdab72026ca4b5486f239bd242960b80081765777",
+      "dependencies": [
+        {
+          "id": "task:0",
+          "digest": "sha256:cca8918cbcd51c5857163dc7df4f094719317f4d286646222eb79311a96c619d",
+          "version": 2
+        },
+        {
+          "id": "task:1",
+          "digest": "sha256:2b5e0733a44a2b9ef6bddb8c170c2d4fc567fc2748d77b8ae94ad0bcbe47cad5",
+          "version": 1
+        },
+        {
+          "id": "task:2",
+          "digest": "sha256:6755c18d18f077b7e528857149936e202c43f301a7db226534947efe736e303d",
+          "version": 1
+        },
+        {
+          "id": "task:3",
+          "digest": "sha256:f2ce6a67893320ce1db998d733b75081ea025cd15e5b7f8445c1557db61d9ea4",
+          "version": 1
+        },
+        {
+          "id": "task:4",
+          "digest": "sha256:3d3e19791a4358af9fcc2bdf0c0e80aa631c64ceed7a2c6ed927631e37d3a572",
+          "version": 1
+        },
+        {
+          "id": "task:5",
+          "digest": "sha256:568c46e3cf2d22d57290f256eb0374c44521bd7ce1cb19760581a9504445b049",
+          "version": 1
+        },
+        {
+          "id": "task:6",
+          "digest": "sha256:adc28a03e2041224e89bbe1b3865cc7499ca491e8a42ef86613cb0206775cedf",
+          "version": 1
+        },
+        {
+          "id": "task:7",
+          "digest": "sha256:ea2bec58155fc2bedf9686dd4aef5a8e210da941221c175cd039a709af727b69",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1020,
+        "denominator": 1
+      },
+      "digest": "sha256:5297508a1421dd2931df3b3e2a72f58f8a9f9ccca17bb59f04abaf076805d8fb",
+      "version": 1,
+      "inputDigest": "sha256:8d152ab539a66b12219287ca944085a644e76eb02623b726ee14fbc83f64d5ae",
+      "dependencies": []
+    },
+    {
+      "id": "task:0",
+      "value": {
+        "numerator": 1032,
+        "denominator": 1
+      },
+      "digest": "sha256:cca8918cbcd51c5857163dc7df4f094719317f4d286646222eb79311a96c619d",
+      "version": 2,
+      "inputDigest": "sha256:4d098e6ad8726aa9a95c9fa516c4e0bb62db0128afcc39835a29d5da76d14aa3",
+      "dependencies": []
+    },
+    {
+      "id": "task:1",
+      "value": {
+        "numerator": 617566,
+        "denominator": 625
+      },
+      "digest": "sha256:2b5e0733a44a2b9ef6bddb8c170c2d4fc567fc2748d77b8ae94ad0bcbe47cad5",
+      "version": 1,
+      "inputDigest": "sha256:2db23e31bf68d58bc6de33928b99bfd2d589b8565eececc3abefc313bc57da51",
+      "dependencies": []
+    },
+    {
+      "id": "task:2",
+      "value": {
+        "numerator": 780596,
+        "denominator": 729
+      },
+      "digest": "sha256:6755c18d18f077b7e528857149936e202c43f301a7db226534947efe736e303d",
+      "version": 1,
+      "inputDigest": "sha256:8ca583fab09d3933e04447cfb2509b02ecf8edf217c0db495ca1cc8bcfd990af",
+      "dependencies": []
+    },
+    {
+      "id": "task:3",
+      "value": {
+        "numerator": 1295,
+        "denominator": 1
+      },
+      "digest": "sha256:f2ce6a67893320ce1db998d733b75081ea025cd15e5b7f8445c1557db61d9ea4",
+      "version": 1,
+      "inputDigest": "sha256:a56499b199944e1356123acfcf6f1d1fc3dfc0a012ab3e07c759b9934cfc902b",
+      "dependencies": []
+    },
+    {
+      "id": "task:4",
+      "value": {
+        "numerator": 1055,
+        "denominator": 1
+      },
+      "digest": "sha256:3d3e19791a4358af9fcc2bdf0c0e80aa631c64ceed7a2c6ed927631e37d3a572",
+      "version": 1,
+      "inputDigest": "sha256:3696763993d9a3a14d01fb8b5d17936d43dcf9aa2d1aba1216d8a080ab2e9946",
+      "dependencies": []
+    },
+    {
+      "id": "task:5",
+      "value": {
+        "numerator": 1294,
+        "denominator": 1
+      },
+      "digest": "sha256:568c46e3cf2d22d57290f256eb0374c44521bd7ce1cb19760581a9504445b049",
+      "version": 1,
+      "inputDigest": "sha256:82027b4b0e357c82ee516cd2d13251f490c9a741e596f0225368044bc0f0449c",
+      "dependencies": []
+    },
+    {
+      "id": "task:6",
+      "value": {
+        "numerator": 1141,
+        "denominator": 1
+      },
+      "digest": "sha256:adc28a03e2041224e89bbe1b3865cc7499ca491e8a42ef86613cb0206775cedf",
+      "version": 1,
+      "inputDigest": "sha256:f3b3d818e73254247a5d59551adaa7720e1db796a8a2d0bb43f834327f002695",
+      "dependencies": []
+    },
+    {
+      "id": "task:7",
+      "value": {
+        "numerator": 1183,
+        "denominator": 1
+      },
+      "digest": "sha256:ea2bec58155fc2bedf9686dd4aef5a8e210da941221c175cd039a709af727b69",
+      "version": 1,
+      "inputDigest": "sha256:4478588b4cea83165530e1995cdd40c2b420663221998dc954c5d1d1ff192c9b",
+      "dependencies": []
+    }
+  ],
+  "controller": {
+    "condition": "morphogenesis",
+    "role": null,
+    "done": true,
+    "context": {
+      "policy": {
+        "schemaVersion": 1,
+        "policy": {
+          "schemaVersion": 1,
+          "policyId": "policy:morphogenesis:test",
+          "policyVersion": 1,
+          "parentPolicyDigest": null,
+          "requiredSourceClasses": [
+            "membership",
+            "mission",
+            "team",
+            "work"
+          ],
+          "allowedOperators": [
+            "detach_agent",
+            "instantiate_agent",
+            "recruit_existing",
+            "retire_agent"
+          ],
+          "allowedDecisionRoutes": [
+            "authorized_agent",
+            "authorized_person"
+          ],
+          "requireIndependentDecider": true,
+          "allowAgentCreation": true,
+          "maximumPopulation": 16,
+          "maximumNewAgentsPerProposal": 2,
+          "maximumResourceUnitsPerProposal": 1000,
+          "minimumNeedSeverityBps": 5000,
+          "limits": {
+            "maximumSourceHeads": 16,
+            "maximumComponents": 128,
+            "maximumPositions": 16,
+            "maximumAgentDispositions": 32,
+            "maximumOperations": 32,
+            "maximumDependenciesPerOperation": 8,
+            "maximumEvidenceDigests": 16,
+            "maximumInvariantDigests": 16,
+            "maximumProposalTtlMs": 500,
+            "maximumNeedTtlMs": 1000,
+            "maximumSourceFreshnessMs": 200,
+            "maximumCommitAttempts": 4,
+            "maximumTransformationsPerWindow": 4,
+            "transformationWindowMs": 10000,
+            "cooldownMs": 500,
+            "hysteresisBps": 500
+          }
+        },
+        "policyDigest": "sha256:9f730ac9da60d63399e025196eeef9f5f3fb9a73dd23a300f90825737cacd3dc"
+      },
+      "scope": {
+        "schemaVersion": 1,
+        "tenantId": "tenant:test",
+        "morphologyId": "morphology:test",
+        "policyDomainId": "policy-domain:test",
+        "missionId": "mission:test",
+        "missionIntentId": "mission-intent:test",
+        "objectiveId": "objective:test",
+        "meshId": "mesh:test",
+        "roomId": "room:test",
+        "workItemId": "work:test",
+        "workItemRevision": 1,
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+      },
+      "sourceHeads": [
+        {
+          "schemaVersion": 1,
+          "sourceHeadId": "source-head:mission",
+          "sourceClass": "mission",
+          "sourceId": "source:mission",
+          "sourceVersion": 1,
+          "sourceImplementationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "sourceRevision": 3,
+          "sourceRecordDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "authenticationEvidenceDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "required": true,
+          "observedAtLogicalMs": 100,
+          "expiresAtLogicalMs": 500,
+          "sourceHeadDigest": "sha256:cfc6f4d23034796d8fbbd635e67bb436797ee804c23e3b98165e0d8c6e43dd1c"
+        },
+        {
+          "schemaVersion": 1,
+          "sourceHeadId": "source-head:membership",
+          "sourceClass": "membership",
+          "sourceId": "source:membership",
+          "sourceVersion": 1,
+          "sourceImplementationDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "sourceRevision": 3,
+          "sourceRecordDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "authenticationEvidenceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "required": true,
+          "observedAtLogicalMs": 100,
+          "expiresAtLogicalMs": 500,
+          "sourceHeadDigest": "sha256:6900c8f64d3cffeff01d937f644cae2bca6f065046bc26ac56995d23fa932d6b"
+        },
+        {
+          "schemaVersion": 1,
+          "sourceHeadId": "source-head:team",
+          "sourceClass": "team",
+          "sourceId": "source:team",
+          "sourceVersion": 1,
+          "sourceImplementationDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "sourceRevision": 3,
+          "sourceRecordDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "authenticationEvidenceDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "required": true,
+          "observedAtLogicalMs": 100,
+          "expiresAtLogicalMs": 500,
+          "sourceHeadDigest": "sha256:d5dc14f1d1e63d1f93fcae778985b871711ff54581dbe4352be8eca06febfed2"
+        },
+        {
+          "schemaVersion": 1,
+          "sourceHeadId": "source-head:work",
+          "sourceClass": "work",
+          "sourceId": "source:work",
+          "sourceVersion": 1,
+          "sourceImplementationDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "sourceRevision": 3,
+          "sourceRecordDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "authenticationEvidenceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "required": true,
+          "observedAtLogicalMs": 100,
+          "expiresAtLogicalMs": 500,
+          "sourceHeadDigest": "sha256:22afc68ce496f21416fad35f09569494b47a31549e0d8cd039ca771c73d1d24a"
+        }
+      ],
+      "components": [
+        {
+          "schemaVersion": 1,
+          "componentKind": "artifact",
+          "componentId": "component:mission",
+          "sourceHeadDigest": "sha256:cfc6f4d23034796d8fbbd635e67bb436797ee804c23e3b98165e0d8c6e43dd1c",
+          "recordDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "revision": 3,
+          "epoch": 1,
+          "componentDigest": "sha256:c1a7c4b47f9e2ef2d4562a106672bb74ab53e265c9cf1526467ce835f3419105"
+        },
+        {
+          "schemaVersion": 1,
+          "componentKind": "membership",
+          "componentId": "component:membership",
+          "sourceHeadDigest": "sha256:6900c8f64d3cffeff01d937f644cae2bca6f065046bc26ac56995d23fa932d6b",
+          "recordDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "revision": 3,
+          "epoch": 2,
+          "componentDigest": "sha256:0a52c0b4043b78bce9c432a5f81df28b8695cb005864b90d86ddcadf01bb6a03"
+        },
+        {
+          "schemaVersion": 1,
+          "componentKind": "team",
+          "componentId": "component:team",
+          "sourceHeadDigest": "sha256:d5dc14f1d1e63d1f93fcae778985b871711ff54581dbe4352be8eca06febfed2",
+          "recordDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "revision": 3,
+          "epoch": 3,
+          "componentDigest": "sha256:238734b37f35b04bb70b3e5f0dc0948a56a0ac31e48cbb177c3e4df5a7204cd4"
+        },
+        {
+          "schemaVersion": 1,
+          "componentKind": "work_contract",
+          "componentId": "component:work",
+          "sourceHeadDigest": "sha256:22afc68ce496f21416fad35f09569494b47a31549e0d8cd039ca771c73d1d24a",
+          "recordDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": 3,
+          "epoch": 4,
+          "componentDigest": "sha256:70d8cefda2cadd493efd08c2ee5cfdb1d257fa19b72a3d2d00676e0c974ddb54"
+        }
+      ],
+      "snapshot": {
+        "schemaVersion": 1,
+        "snapshotId": "snapshot:test:1",
+        "scope": {
+          "schemaVersion": 1,
+          "tenantId": "tenant:test",
+          "morphologyId": "morphology:test",
+          "policyDomainId": "policy-domain:test",
+          "missionId": "mission:test",
+          "missionIntentId": "mission-intent:test",
+          "objectiveId": "objective:test",
+          "meshId": "mesh:test",
+          "roomId": "room:test",
+          "workItemId": "work:test",
+          "workItemRevision": 1,
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+        },
+        "morphologyEpoch": 1,
+        "previousMorphologyDigest": null,
+        "policyDigest": "sha256:9f730ac9da60d63399e025196eeef9f5f3fb9a73dd23a300f90825737cacd3dc",
+        "implementationDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceHeads": [
+          {
+            "schemaVersion": 1,
+            "sourceHeadId": "source-head:membership",
+            "sourceClass": "membership",
+            "sourceId": "source:membership",
+            "sourceVersion": 1,
+            "sourceImplementationDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "sourceRevision": 3,
+            "sourceRecordDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+            "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+            "authenticationEvidenceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "required": true,
+            "observedAtLogicalMs": 100,
+            "expiresAtLogicalMs": 500,
+            "sourceHeadDigest": "sha256:6900c8f64d3cffeff01d937f644cae2bca6f065046bc26ac56995d23fa932d6b"
+          },
+          {
+            "schemaVersion": 1,
+            "sourceHeadId": "source-head:mission",
+            "sourceClass": "mission",
+            "sourceId": "source:mission",
+            "sourceVersion": 1,
+            "sourceImplementationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "sourceRevision": 3,
+            "sourceRecordDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+            "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+            "authenticationEvidenceDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "required": true,
+            "observedAtLogicalMs": 100,
+            "expiresAtLogicalMs": 500,
+            "sourceHeadDigest": "sha256:cfc6f4d23034796d8fbbd635e67bb436797ee804c23e3b98165e0d8c6e43dd1c"
+          },
+          {
+            "schemaVersion": 1,
+            "sourceHeadId": "source-head:team",
+            "sourceClass": "team",
+            "sourceId": "source:team",
+            "sourceVersion": 1,
+            "sourceImplementationDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "sourceRevision": 3,
+            "sourceRecordDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+            "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+            "authenticationEvidenceDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "required": true,
+            "observedAtLogicalMs": 100,
+            "expiresAtLogicalMs": 500,
+            "sourceHeadDigest": "sha256:d5dc14f1d1e63d1f93fcae778985b871711ff54581dbe4352be8eca06febfed2"
+          },
+          {
+            "schemaVersion": 1,
+            "sourceHeadId": "source-head:work",
+            "sourceClass": "work",
+            "sourceId": "source:work",
+            "sourceVersion": 1,
+            "sourceImplementationDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "sourceRevision": 3,
+            "sourceRecordDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+            "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+            "authenticationEvidenceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "required": true,
+            "observedAtLogicalMs": 100,
+            "expiresAtLogicalMs": 500,
+            "sourceHeadDigest": "sha256:22afc68ce496f21416fad35f09569494b47a31549e0d8cd039ca771c73d1d24a"
+          }
+        ],
+        "components": [
+          {
+            "schemaVersion": 1,
+            "componentKind": "artifact",
+            "componentId": "component:mission",
+            "sourceHeadDigest": "sha256:cfc6f4d23034796d8fbbd635e67bb436797ee804c23e3b98165e0d8c6e43dd1c",
+            "recordDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "revision": 3,
+            "epoch": 1,
+            "componentDigest": "sha256:c1a7c4b47f9e2ef2d4562a106672bb74ab53e265c9cf1526467ce835f3419105"
+          },
+          {
+            "schemaVersion": 1,
+            "componentKind": "membership",
+            "componentId": "component:membership",
+            "sourceHeadDigest": "sha256:6900c8f64d3cffeff01d937f644cae2bca6f065046bc26ac56995d23fa932d6b",
+            "recordDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "revision": 3,
+            "epoch": 2,
+            "componentDigest": "sha256:0a52c0b4043b78bce9c432a5f81df28b8695cb005864b90d86ddcadf01bb6a03"
+          },
+          {
+            "schemaVersion": 1,
+            "componentKind": "team",
+            "componentId": "component:team",
+            "sourceHeadDigest": "sha256:d5dc14f1d1e63d1f93fcae778985b871711ff54581dbe4352be8eca06febfed2",
+            "recordDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "revision": 3,
+            "epoch": 3,
+            "componentDigest": "sha256:238734b37f35b04bb70b3e5f0dc0948a56a0ac31e48cbb177c3e4df5a7204cd4"
+          },
+          {
+            "schemaVersion": 1,
+            "componentKind": "work_contract",
+            "componentId": "component:work",
+            "sourceHeadDigest": "sha256:22afc68ce496f21416fad35f09569494b47a31549e0d8cd039ca771c73d1d24a",
+            "recordDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": 3,
+            "epoch": 4,
+            "componentDigest": "sha256:70d8cefda2cadd493efd08c2ee5cfdb1d257fa19b72a3d2d00676e0c974ddb54"
+          }
+        ],
+        "population": {
+          "activeAgents": 2,
+          "dormantAgents": 0,
+          "activeTeams": 1,
+          "concurrentlyProvisioningAgents": 0
+        },
+        "resources": {
+          "configuredResourceUnits": 100,
+          "reservedResourceUnits": 20,
+          "consumedInteractionUnits": 10
+        },
+        "observedAtLogicalMs": 200,
+        "logicalTimeHighWaterMs": 200,
+        "snapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029"
+      },
+      "need": {
+        "schemaVersion": 1,
+        "needId": "need:test:1",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "reasonCode": "missing_capability",
+        "severityBps": 7500,
+        "boundedViewDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "candidateSearchLimit": 32,
+        "evidenceDigests": [
+          "sha256:22afc68ce496f21416fad35f09569494b47a31549e0d8cd039ca771c73d1d24a"
+        ],
+        "detectedAtLogicalMs": 210,
+        "expiresAtLogicalMs": 600,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4"
+      },
+      "target": {
+        "schemaVersion": 1,
+        "targetId": "target:9001-shrinking-reconciliation_outage-morphogenesis",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "positions": [
+          {
+            "schemaVersion": 1,
+            "positionId": "position:database-forensics",
+            "roleKey": "database_forensics",
+            "requiredCapabilityKeys": [
+              "database_forensics"
+            ],
+            "dependsOnPositionIds": [],
+            "fillMode": "recruit_existing",
+            "currentAgentId": null,
+            "instantiationProfileDigest": null,
+            "resourceBudgetUnits": 10,
+            "maximumActionBudgetUnits": 5,
+            "positionDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1"
+          }
+        ],
+        "agentDispositions": [],
+        "invariantDigests": [
+          "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c"
+        ],
+        "estimatedActiveAgents": 3,
+        "estimatedNewAgents": 0,
+        "estimatedResourceUnits": 10,
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1"
+      },
+      "proposal": {
+        "schemaVersion": 1,
+        "proposalId": "proposal:9001-shrinking-reconciliation_outage-morphogenesis",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "operations": [
+          {
+            "schemaVersion": 1,
+            "operationId": "operation:recruit:9001-shrinking-reconciliation_outage-morphogenesis",
+            "operator": "recruit_existing",
+            "effectClass": "protected_external",
+            "dependsOnOperationIds": [],
+            "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+            "compensation": "none",
+            "operationDigest": "sha256:93cda656563e9d1e56bc477f3eb8aa9afdbf0ca8d8c96a9342662896ff3690e6"
+          }
+        ],
+        "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "proposerVersion": 1,
+        "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "proposedAtLogicalMs": 220,
+        "expiresAtLogicalMs": 500,
+        "advisoryOnly": true,
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b"
+      }
+    },
+    "decision": {
+      "schemaVersion": 1,
+      "decisionId": "decision:9001-shrinking-reconciliation_outage-morphogenesis",
+      "candidate": {
+        "schemaVersion": 1,
+        "candidateId": "candidate:9001-shrinking-reconciliation_outage-morphogenesis",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "morphologyEpoch": 1,
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe",
+        "operationDigests": [
+          "sha256:93cda656563e9d1e56bc477f3eb8aa9afdbf0ca8d8c96a9342662896ff3690e6"
+        ],
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "policyDigest": "sha256:9f730ac9da60d63399e025196eeef9f5f3fb9a73dd23a300f90825737cacd3dc",
+        "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "membershipEpoch": 1,
+        "authorityId": "authority:mission",
+        "authorityEpoch": 1,
+        "workContractDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "preparedAtLogicalMs": 230,
+        "expiresAtLogicalMs": 480,
+        "candidateDigest": "sha256:d95b442851157f5434ee608744661f9c51dbe389f4a0cab88d8e4fbd962de0a2"
+      },
+      "authorization": {
+        "schemaVersion": 1,
+        "authorizationId": "approval:9001-shrinking-reconciliation_outage-morphogenesis",
+        "candidateDigest": "sha256:d95b442851157f5434ee608744661f9c51dbe389f4a0cab88d8e4fbd962de0a2",
+        "route": "authorized_agent",
+        "actorType": "agent",
+        "actorId": "agent:reviewer",
+        "actorMandateDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "independenceGroupId": "reviewer:independent",
+        "disposition": "approved",
+        "proofDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "issuedAtLogicalMs": 235,
+        "expiresAtLogicalMs": 470,
+        "authorizationDigest": "sha256:af9eff03de7b3c076b53c9718ba8831c0609834b21b7e6e99766abe6c35f58d1"
+      },
+      "decisionPortId": "decision:mission",
+      "decisionPortVersion": 1,
+      "decisionPortImplementationDigest": "sha256:93ac816b3a48e71536c346eb44394910140d0513fc39e7260386dc94dac7b812",
+      "decidedAtLogicalMs": 240,
+      "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84"
+    },
+    "reservation": {
+      "schemaVersion": 1,
+      "request": {
+        "schemaVersion": 1,
+        "reservationId": "reservation:9001-shrinking-reconciliation_outage-morphogenesis",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "expectedMorphologyEpoch": 1,
+        "operationId": "reserve:9001-shrinking-reconciliation_outage-morphogenesis",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "reservedAtLogicalMs": 245,
+        "expiresAtLogicalMs": 500,
+        "requestDigest": "sha256:c8abeff23a88ecf0625435c80316cf27c2f9e012d1544ef40b77fed234ebfbb7"
+      },
+      "status": "reserved",
+      "closedAtLogicalMs": null,
+      "closeOperationId": null,
+      "closeReasonCode": null,
+      "reservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d"
+    },
+    "executions": [
+      {
+        "schemaVersion": 1,
+        "team": null,
+        "agent": {
+          "peerId": "peer:statistics",
+          "source": "existing",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipEpoch": 1,
+          "roleDefinitionDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "fence": null,
+        "phase": "activating_team",
+        "scope": {
+          "schemaVersion": 1,
+          "tenantId": "tenant:test",
+          "morphologyId": "morphology:test",
+          "policyDomainId": "policy-domain:test",
+          "missionId": "mission:test",
+          "missionIntentId": "mission-intent:test",
+          "objectiveId": "objective:test",
+          "meshId": "mesh:test",
+          "roomId": "room:test",
+          "workItemId": "work:test",
+          "workItemRevision": 1,
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+        },
+        "branch": "recruit_existing",
+        "events": [
+          {
+            "schemaVersion": 1,
+            "sequence": 1,
+            "phase": "prepared",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+              "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+              "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d"
+            ],
+            "logicalTimeMs": 250,
+            "previousEventDigest": null,
+            "eventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 2,
+            "phase": "agent_ready",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 260,
+            "previousEventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04",
+            "eventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 3,
+            "phase": "attesting",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017",
+            "eventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 4,
+            "phase": "attested",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542"
+            ],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379",
+            "eventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 5,
+            "phase": "enrollment_verified",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 280,
+            "previousEventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b",
+            "eventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 6,
+            "phase": "activating_team",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [],
+            "logicalTimeMs": 300,
+            "previousEventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0",
+            "eventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd"
+          }
+        ],
+        "profile": null,
+        "receipt": null,
+        "revision": 5,
+        "stateKey": "execution:9001-shrinking-reconciliation_outage-morphogenesis",
+        "activation": null,
+        "continuity": null,
+        "attestation": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+          "profileDigest": null,
+          "schemaVersion": 1,
+          "attestationDigest": "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+          "attestedAtLogicalMs": 270,
+          "validUntilLogicalMs": 450,
+          "runtimeAttestationDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "eligibilityEvidenceDigests": [
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "capabilityAssessmentDigests": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "searchResult": {
+          "status": "eligible_candidates",
+          "candidates": [
+            {
+              "peerId": "peer:statistics",
+              "agentId": "agent:statistics",
+              "instanceId": "instance:statistics",
+              "budgetUnits": 10,
+              "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+              "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "schemaVersion": 1,
+              "capabilityKeys": [
+                "database_forensics"
+              ],
+              "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+              "membershipEpoch": 1,
+              "observedAtLogicalMs": 245,
+              "validUntilLogicalMs": 450,
+              "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "locallyEvaluatedScoreMicros": 9000,
+              "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ],
+          "resultDigest": "sha256:03c8c0569a30e3c74d032852b5ab4ab65ee8022fd70489beedd1ac0348f18d24",
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1",
+          "schemaVersion": 1,
+          "observedAtLogicalMs": 245,
+          "searchedCandidateCount": 1,
+          "completeWithinDeclaredView": true
+        },
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "searchRequest": {
+          "schemaVersion": 1,
+          "requestId": "search:9001-shrinking-reconciliation_outage-morphogenesis",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+          "requiredCapabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "membershipEpoch": 1,
+          "viewId": "view:local",
+          "viewDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "searchLimit": 2,
+          "requestedAtLogicalMs": 245,
+          "expiresAtLogicalMs": 500,
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1"
+        },
+        "terminalAgent": null,
+        "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+        "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "pendingOperation": {
+          "kind": "activate_team",
+          "status": "prepared",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+          "resultDigest": null,
+          "preparedAtLogicalMs": 300
+        },
+        "selectedCandidate": {
+          "peerId": "peer:statistics",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "budgetUnits": 10,
+          "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+          "membershipEpoch": 1,
+          "observedAtLogicalMs": 245,
+          "validUntilLogicalMs": 450,
+          "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "locallyEvaluatedScoreMicros": 9000,
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "budgetReleaseDigest": null,
+        "budgetReservationId": "reservation:9001-shrinking-reconciliation_outage-morphogenesis",
+        "logicalTimeHighWaterMs": 300,
+        "morphologyHeadStateKey": "head:9001-shrinking-reconciliation_outage-morphogenesis",
+        "requiredCapabilityKeys": [
+          "database_forensics"
+        ],
+        "budgetReservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d",
+        "expectedMorphologyEpoch": 1,
+        "predecessorRecordDigest": "sha256:13fc5cf3a564642d31bc7a1fe149518fcd0b334c298bd2e2b4236a664b336176",
+        "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0",
+        "profileCertificationDigest": null,
+        "recordDigest": "sha256:d1b1666f490a87f8296b6147f13c28eff447313d56bc674a2137ef8d633665e6"
+      },
+      {
+        "schemaVersion": 1,
+        "team": null,
+        "agent": {
+          "peerId": "peer:statistics",
+          "source": "existing",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipEpoch": 1,
+          "roleDefinitionDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "fence": null,
+        "phase": "activating_team",
+        "scope": {
+          "schemaVersion": 1,
+          "tenantId": "tenant:test",
+          "morphologyId": "morphology:test",
+          "policyDomainId": "policy-domain:test",
+          "missionId": "mission:test",
+          "missionIntentId": "mission-intent:test",
+          "objectiveId": "objective:test",
+          "meshId": "mesh:test",
+          "roomId": "room:test",
+          "workItemId": "work:test",
+          "workItemRevision": 1,
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+        },
+        "branch": "recruit_existing",
+        "events": [
+          {
+            "schemaVersion": 1,
+            "sequence": 1,
+            "phase": "prepared",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+              "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+              "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d"
+            ],
+            "logicalTimeMs": 250,
+            "previousEventDigest": null,
+            "eventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 2,
+            "phase": "agent_ready",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 260,
+            "previousEventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04",
+            "eventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 3,
+            "phase": "attesting",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017",
+            "eventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 4,
+            "phase": "attested",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542"
+            ],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379",
+            "eventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 5,
+            "phase": "enrollment_verified",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 280,
+            "previousEventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b",
+            "eventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 6,
+            "phase": "activating_team",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [],
+            "logicalTimeMs": 300,
+            "previousEventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0",
+            "eventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd"
+          }
+        ],
+        "profile": null,
+        "receipt": null,
+        "revision": 5,
+        "stateKey": "execution:9001-shrinking-reconciliation_outage-morphogenesis",
+        "activation": null,
+        "continuity": null,
+        "attestation": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+          "profileDigest": null,
+          "schemaVersion": 1,
+          "attestationDigest": "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+          "attestedAtLogicalMs": 270,
+          "validUntilLogicalMs": 450,
+          "runtimeAttestationDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "eligibilityEvidenceDigests": [
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "capabilityAssessmentDigests": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "searchResult": {
+          "status": "eligible_candidates",
+          "candidates": [
+            {
+              "peerId": "peer:statistics",
+              "agentId": "agent:statistics",
+              "instanceId": "instance:statistics",
+              "budgetUnits": 10,
+              "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+              "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "schemaVersion": 1,
+              "capabilityKeys": [
+                "database_forensics"
+              ],
+              "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+              "membershipEpoch": 1,
+              "observedAtLogicalMs": 245,
+              "validUntilLogicalMs": 450,
+              "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "locallyEvaluatedScoreMicros": 9000,
+              "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ],
+          "resultDigest": "sha256:03c8c0569a30e3c74d032852b5ab4ab65ee8022fd70489beedd1ac0348f18d24",
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1",
+          "schemaVersion": 1,
+          "observedAtLogicalMs": 245,
+          "searchedCandidateCount": 1,
+          "completeWithinDeclaredView": true
+        },
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "searchRequest": {
+          "schemaVersion": 1,
+          "requestId": "search:9001-shrinking-reconciliation_outage-morphogenesis",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+          "requiredCapabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "membershipEpoch": 1,
+          "viewId": "view:local",
+          "viewDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "searchLimit": 2,
+          "requestedAtLogicalMs": 245,
+          "expiresAtLogicalMs": 500,
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1"
+        },
+        "terminalAgent": null,
+        "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+        "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "pendingOperation": {
+          "kind": "activate_team",
+          "status": "prepared",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+          "resultDigest": null,
+          "preparedAtLogicalMs": 300
+        },
+        "selectedCandidate": {
+          "peerId": "peer:statistics",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "budgetUnits": 10,
+          "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+          "membershipEpoch": 1,
+          "observedAtLogicalMs": 245,
+          "validUntilLogicalMs": 450,
+          "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "locallyEvaluatedScoreMicros": 9000,
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "budgetReleaseDigest": null,
+        "budgetReservationId": "reservation:9001-shrinking-reconciliation_outage-morphogenesis",
+        "logicalTimeHighWaterMs": 300,
+        "morphologyHeadStateKey": "head:9001-shrinking-reconciliation_outage-morphogenesis",
+        "requiredCapabilityKeys": [
+          "database_forensics"
+        ],
+        "budgetReservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d",
+        "expectedMorphologyEpoch": 1,
+        "predecessorRecordDigest": "sha256:13fc5cf3a564642d31bc7a1fe149518fcd0b334c298bd2e2b4236a664b336176",
+        "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0",
+        "profileCertificationDigest": null,
+        "recordDigest": "sha256:d1b1666f490a87f8296b6147f13c28eff447313d56bc674a2137ef8d633665e6"
+      },
+      {
+        "schemaVersion": 1,
+        "team": {
+          "teamId": "role:6d8b16585531930c",
+          "teamEpoch": 2,
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+          "receiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "schemaVersion": 1,
+          "teamProposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+          "activatedAtLogicalMs": 300,
+          "executionStateDigest": "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1",
+          "jointWorkContractDigest": "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1",
+          "retainedArtifactDigests": [
+            "sha256:5297508a1421dd2931df3b3e2a72f58f8a9f9ccca17bb59f04abaf076805d8fb"
+          ],
+          "individualWorkContractDigests": [
+            "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1"
+          ],
+          "invalidatedCausalClosureDigests": []
+        },
+        "agent": {
+          "peerId": "peer:statistics",
+          "source": "existing",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipEpoch": 1,
+          "roleDefinitionDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "fence": null,
+        "phase": "morphology_active",
+        "scope": {
+          "schemaVersion": 1,
+          "tenantId": "tenant:test",
+          "morphologyId": "morphology:test",
+          "policyDomainId": "policy-domain:test",
+          "missionId": "mission:test",
+          "missionIntentId": "mission-intent:test",
+          "objectiveId": "objective:test",
+          "meshId": "mesh:test",
+          "roomId": "room:test",
+          "workItemId": "work:test",
+          "workItemRevision": 1,
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+        },
+        "branch": "recruit_existing",
+        "events": [
+          {
+            "schemaVersion": 1,
+            "sequence": 1,
+            "phase": "prepared",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+              "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+              "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d"
+            ],
+            "logicalTimeMs": 250,
+            "previousEventDigest": null,
+            "eventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 2,
+            "phase": "agent_ready",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 260,
+            "previousEventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04",
+            "eventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 3,
+            "phase": "attesting",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017",
+            "eventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 4,
+            "phase": "attested",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542"
+            ],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379",
+            "eventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 5,
+            "phase": "enrollment_verified",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 280,
+            "previousEventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b",
+            "eventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 6,
+            "phase": "activating_team",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [],
+            "logicalTimeMs": 300,
+            "previousEventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0",
+            "eventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 7,
+            "phase": "team_active",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [
+              "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4"
+            ],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd",
+            "eventDigest": "sha256:98b3f838515ddcb4a25ffcdc9c4991296511d9a56890d9b73d3d1707dc28700d"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 8,
+            "phase": "committing_morphology",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+            "evidenceDigests": [],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:98b3f838515ddcb4a25ffcdc9c4991296511d9a56890d9b73d3d1707dc28700d",
+            "eventDigest": "sha256:40f7d929c52d786d1ee91426a73b5be32abf0edc583010f6131a492e14e1b736"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 9,
+            "phase": "morphology_active",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+            "evidenceDigests": [
+              "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e"
+            ],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:40f7d929c52d786d1ee91426a73b5be32abf0edc583010f6131a492e14e1b736",
+            "eventDigest": "sha256:574762343ec5bd557c5ff14724e3e7f19b3b67c7952af7ba3f71cb424249b32f"
+          }
+        ],
+        "profile": null,
+        "receipt": null,
+        "revision": 8,
+        "stateKey": "execution:9001-shrinking-reconciliation_outage-morphogenesis",
+        "activation": {
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+          "schemaVersion": 1,
+          "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+          "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+          "morphologyEpoch": 2,
+          "teamReceiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "activatedAtLogicalMs": 320,
+          "morphologyHeadDigest": "sha256:9bb71b0facf0d5a89e93c9feb38621e45cabc77ecb89f5a60ea7a7e7657f2462",
+          "activationReceiptDigest": "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e",
+          "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0"
+        },
+        "continuity": null,
+        "attestation": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+          "profileDigest": null,
+          "schemaVersion": 1,
+          "attestationDigest": "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+          "attestedAtLogicalMs": 270,
+          "validUntilLogicalMs": 450,
+          "runtimeAttestationDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "eligibilityEvidenceDigests": [
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "capabilityAssessmentDigests": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "searchResult": {
+          "status": "eligible_candidates",
+          "candidates": [
+            {
+              "peerId": "peer:statistics",
+              "agentId": "agent:statistics",
+              "instanceId": "instance:statistics",
+              "budgetUnits": 10,
+              "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+              "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "schemaVersion": 1,
+              "capabilityKeys": [
+                "database_forensics"
+              ],
+              "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+              "membershipEpoch": 1,
+              "observedAtLogicalMs": 245,
+              "validUntilLogicalMs": 450,
+              "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "locallyEvaluatedScoreMicros": 9000,
+              "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ],
+          "resultDigest": "sha256:03c8c0569a30e3c74d032852b5ab4ab65ee8022fd70489beedd1ac0348f18d24",
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1",
+          "schemaVersion": 1,
+          "observedAtLogicalMs": 245,
+          "searchedCandidateCount": 1,
+          "completeWithinDeclaredView": true
+        },
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "searchRequest": {
+          "schemaVersion": 1,
+          "requestId": "search:9001-shrinking-reconciliation_outage-morphogenesis",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+          "requiredCapabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "membershipEpoch": 1,
+          "viewId": "view:local",
+          "viewDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "searchLimit": 2,
+          "requestedAtLogicalMs": 245,
+          "expiresAtLogicalMs": 500,
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1"
+        },
+        "terminalAgent": null,
+        "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+        "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "pendingOperation": {
+          "kind": "commit_morphology",
+          "status": "applied",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+          "resultDigest": "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e",
+          "preparedAtLogicalMs": 320
+        },
+        "selectedCandidate": {
+          "peerId": "peer:statistics",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "budgetUnits": 10,
+          "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+          "membershipEpoch": 1,
+          "observedAtLogicalMs": 245,
+          "validUntilLogicalMs": 450,
+          "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "locallyEvaluatedScoreMicros": 9000,
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "budgetReleaseDigest": null,
+        "budgetReservationId": "reservation:9001-shrinking-reconciliation_outage-morphogenesis",
+        "logicalTimeHighWaterMs": 320,
+        "morphologyHeadStateKey": "head:9001-shrinking-reconciliation_outage-morphogenesis",
+        "requiredCapabilityKeys": [
+          "database_forensics"
+        ],
+        "budgetReservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d",
+        "expectedMorphologyEpoch": 1,
+        "predecessorRecordDigest": "sha256:318b0a9bd9f1cba0c8ca654bfcaf71061f3a8187783d2d2907bd1279a024babc",
+        "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0",
+        "profileCertificationDigest": null,
+        "recordDigest": "sha256:9aeb183a22b16ffaf7db620ab366d32e6249a95c7abda0a36feb8264ed076a4f"
+      },
+      {
+        "schemaVersion": 1,
+        "team": {
+          "teamId": "role:6d8b16585531930c",
+          "teamEpoch": 2,
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+          "receiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "schemaVersion": 1,
+          "teamProposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+          "activatedAtLogicalMs": 300,
+          "executionStateDigest": "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1",
+          "jointWorkContractDigest": "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1",
+          "retainedArtifactDigests": [
+            "sha256:5297508a1421dd2931df3b3e2a72f58f8a9f9ccca17bb59f04abaf076805d8fb"
+          ],
+          "individualWorkContractDigests": [
+            "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1"
+          ],
+          "invalidatedCausalClosureDigests": []
+        },
+        "agent": {
+          "peerId": "peer:statistics",
+          "source": "existing",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipEpoch": 1,
+          "roleDefinitionDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "fence": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:fence",
+          "schemaVersion": 1,
+          "fencedAtLogicalMs": 330,
+          "teamReceiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "fenceReceiptDigest": "sha256:d332d90e2e6a37fc07875e8f07fccfac9bfb8d51d35e355c66e5d1a31999e396",
+          "effectReceiptDigest": "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1",
+          "successorFenceDigests": [
+            "sha256:3b05c5a5377820d81f1686f013adc863db3c894539509ad2626e852649eeebd9"
+          ],
+          "fencedWorkContractDigests": [
+            "sha256:f00e54d2d771cf2628261b653e2beb9e321785764792d0c57d7fbdcfe52e14d1"
+          ],
+          "revokedActionGrantDigests": []
+        },
+        "phase": "completed",
+        "scope": {
+          "schemaVersion": 1,
+          "tenantId": "tenant:test",
+          "morphologyId": "morphology:test",
+          "policyDomainId": "policy-domain:test",
+          "missionId": "mission:test",
+          "missionIntentId": "mission-intent:test",
+          "objectiveId": "objective:test",
+          "meshId": "mesh:test",
+          "roomId": "room:test",
+          "workItemId": "work:test",
+          "workItemRevision": 1,
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99"
+        },
+        "branch": "recruit_existing",
+        "events": [
+          {
+            "schemaVersion": 1,
+            "sequence": 1,
+            "phase": "prepared",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+              "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+              "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d"
+            ],
+            "logicalTimeMs": 250,
+            "previousEventDigest": null,
+            "eventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 2,
+            "phase": "agent_ready",
+            "outcome": "state",
+            "operationId": null,
+            "evidenceDigests": [
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 260,
+            "previousEventDigest": "sha256:8c6ae91cacab5770667c57189c2b00f27a90812a804e2faa694abdea00a22b04",
+            "eventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 3,
+            "phase": "attesting",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:65c98926d94f64a2a942ec08f21c603c77db0dbbe9bbef23a2b88179cf5ae017",
+            "eventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 4,
+            "phase": "attested",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542"
+            ],
+            "logicalTimeMs": 270,
+            "previousEventDigest": "sha256:4211e8934ba68a4d461fb4a1732ae37863eb5db32958149d48525f79d5adb379",
+            "eventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 5,
+            "phase": "enrollment_verified",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+            "evidenceDigests": [
+              "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+              "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f"
+            ],
+            "logicalTimeMs": 280,
+            "previousEventDigest": "sha256:cc42eec982c004ed35f01abd0d1e5f36a48a6918de0cd721459584124380c31b",
+            "eventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 6,
+            "phase": "activating_team",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [],
+            "logicalTimeMs": 300,
+            "previousEventDigest": "sha256:11ece816abad13ccfaa1f4a5650563c4065f24d6b57332e4b9c035f7cc9f54e0",
+            "eventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 7,
+            "phase": "team_active",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:activate-team",
+            "evidenceDigests": [
+              "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4"
+            ],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:211cfe5cfa8a256b4c892c31db023e2e6317f2df2c9716d0400158c8a3f502cd",
+            "eventDigest": "sha256:98b3f838515ddcb4a25ffcdc9c4991296511d9a56890d9b73d3d1707dc28700d"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 8,
+            "phase": "committing_morphology",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+            "evidenceDigests": [],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:98b3f838515ddcb4a25ffcdc9c4991296511d9a56890d9b73d3d1707dc28700d",
+            "eventDigest": "sha256:40f7d929c52d786d1ee91426a73b5be32abf0edc583010f6131a492e14e1b736"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 9,
+            "phase": "morphology_active",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+            "evidenceDigests": [
+              "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e"
+            ],
+            "logicalTimeMs": 320,
+            "previousEventDigest": "sha256:40f7d929c52d786d1ee91426a73b5be32abf0edc583010f6131a492e14e1b736",
+            "eventDigest": "sha256:574762343ec5bd557c5ff14724e3e7f19b3b67c7952af7ba3f71cb424249b32f"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 10,
+            "phase": "checkpointing",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:checkpoint",
+            "evidenceDigests": [],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:574762343ec5bd557c5ff14724e3e7f19b3b67c7952af7ba3f71cb424249b32f",
+            "eventDigest": "sha256:fec6a5c3ff4dfa64c6da6abd995b0ccdf9d24f2ea0aebcd892d90e5f3a356a7b"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 11,
+            "phase": "checkpointed",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:checkpoint",
+            "evidenceDigests": [
+              "sha256:3680892019ae2237e8a42ff423a3d5ba9bddfd24f5092e370dbd2babeae6a669"
+            ],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:fec6a5c3ff4dfa64c6da6abd995b0ccdf9d24f2ea0aebcd892d90e5f3a356a7b",
+            "eventDigest": "sha256:486556ee8c172d366762fb8a0ec4e91de5a425a477fb615c608c6a59a69d89c2"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 12,
+            "phase": "fencing",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:fence",
+            "evidenceDigests": [],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:486556ee8c172d366762fb8a0ec4e91de5a425a477fb615c608c6a59a69d89c2",
+            "eventDigest": "sha256:ba2e7178a3699d1a6b23cc8758df2861e24b75fbfd4eb91c227f83fdb8c24954"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 13,
+            "phase": "fenced",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:fence",
+            "evidenceDigests": [
+              "sha256:d332d90e2e6a37fc07875e8f07fccfac9bfb8d51d35e355c66e5d1a31999e396"
+            ],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:ba2e7178a3699d1a6b23cc8758df2861e24b75fbfd4eb91c227f83fdb8c24954",
+            "eventDigest": "sha256:75d210eb454910941c24395893e8f5fc256e142914c70ffafd230daedcf49c47"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 14,
+            "phase": "draining",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:detach",
+            "evidenceDigests": [],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:75d210eb454910941c24395893e8f5fc256e142914c70ffafd230daedcf49c47",
+            "eventDigest": "sha256:4de975abbd0b3dc81db34f5478171dff60f98208bcccd752e0b452548cd374fb"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 15,
+            "phase": "detached",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:detach",
+            "evidenceDigests": [
+              "sha256:b4cac4764a7be89c4a1eeb1cff29dc8810e28e4d6bf7b5ed8934af69b3942baf"
+            ],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:4de975abbd0b3dc81db34f5478171dff60f98208bcccd752e0b452548cd374fb",
+            "eventDigest": "sha256:c9f006e498b800d5e3653aaaa831217dce0d09b7d9bc9f7cc08939ef8c143f31"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 16,
+            "phase": "releasing_budget",
+            "outcome": "prepared",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:release-budget",
+            "evidenceDigests": [],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:c9f006e498b800d5e3653aaaa831217dce0d09b7d9bc9f7cc08939ef8c143f31",
+            "eventDigest": "sha256:0677dc27823f68939924fba71217a7d67f9f8d0fe8deeb218c83a90b013c991f"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 17,
+            "phase": "budget_released",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:release-budget",
+            "evidenceDigests": [
+              "sha256:03222bb4dbfc9c8f6ba02e10330f9d2069e7081bde775d453adfed79c5d74250"
+            ],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:0677dc27823f68939924fba71217a7d67f9f8d0fe8deeb218c83a90b013c991f",
+            "eventDigest": "sha256:f5e2c8a7d70840ac657a5b49d39e464e9bc977e4cb571a19d6587b740cf98287"
+          },
+          {
+            "schemaVersion": 1,
+            "sequence": 18,
+            "phase": "completed",
+            "outcome": "applied",
+            "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:release-budget",
+            "evidenceDigests": [
+              "sha256:03222bb4dbfc9c8f6ba02e10330f9d2069e7081bde775d453adfed79c5d74250",
+              "sha256:d414736899dab8bbf75a1f10f0c0927c749ada667deb3fe3226486fb94aaf655"
+            ],
+            "logicalTimeMs": 330,
+            "previousEventDigest": "sha256:f5e2c8a7d70840ac657a5b49d39e464e9bc977e4cb571a19d6587b740cf98287",
+            "eventDigest": "sha256:1a6a16f3fb1bd287597bd530e1b3a57ffb85d4f6e236bf022faf001318b01f8e"
+          }
+        ],
+        "profile": null,
+        "receipt": {
+          "receiptId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:receipt",
+          "disposition": "success",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "receiptDigest": "sha256:d414736899dab8bbf75a1f10f0c0927c749ada667deb3fe3226486fb94aaf655",
+          "schemaVersion": 1,
+          "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+          "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+          "fenceReceiptDigest": "sha256:d332d90e2e6a37fc07875e8f07fccfac9bfb8d51d35e355c66e5d1a31999e396",
+          "budgetReleaseDigest": "sha256:03222bb4dbfc9c8f6ba02e10330f9d2069e7081bde775d453adfed79c5d74250",
+          "evaluatedAtLogicalMs": 330,
+          "outcomeEvidenceDigests": [
+            "sha256:123df3bc0edd47230eec7151e96152526a32c0e3793003d50a9ebb63e53c443a"
+          ],
+          "activationReceiptDigest": "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e",
+          "budgetReservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d",
+          "continuityReceiptDigest": "sha256:3680892019ae2237e8a42ff423a3d5ba9bddfd24f5092e370dbd2babeae6a669",
+          "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0",
+          "resultingMorphologyEpoch": 2,
+          "terminalAgentReceiptDigest": "sha256:b4cac4764a7be89c4a1eeb1cff29dc8810e28e4d6bf7b5ed8934af69b3942baf"
+        },
+        "revision": 17,
+        "stateKey": "execution:9001-shrinking-reconciliation_outage-morphogenesis",
+        "activation": {
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:commit-morphology",
+          "schemaVersion": 1,
+          "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+          "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+          "morphologyEpoch": 2,
+          "teamReceiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "activatedAtLogicalMs": 320,
+          "morphologyHeadDigest": "sha256:9bb71b0facf0d5a89e93c9feb38621e45cabc77ecb89f5a60ea7a7e7657f2462",
+          "activationReceiptDigest": "sha256:a1fcad14d2f6c62935cc7029945b48a5eaf4a525b898311e6ced58b7b5dca93e",
+          "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0"
+        },
+        "continuity": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:checkpoint",
+          "schemaVersion": 1,
+          "checkpointDigest": "sha256:123df3bc0edd47230eec7151e96152526a32c0e3793003d50a9ebb63e53c443a",
+          "teamReceiptDigest": "sha256:0675ad1d9318bdec6c1b9346a4d8e9380a6bbbe96e2401723e1baa45a26a20d4",
+          "completedAtLogicalMs": 330,
+          "continuityReceiptDigest": "sha256:3680892019ae2237e8a42ff423a3d5ba9bddfd24f5092e370dbd2babeae6a669",
+          "preservedArtifactDigests": [
+            "sha256:2b5e0733a44a2b9ef6bddb8c170c2d4fc567fc2748d77b8ae94ad0bcbe47cad5",
+            "sha256:5297508a1421dd2931df3b3e2a72f58f8a9f9ccca17bb59f04abaf076805d8fb",
+            "sha256:6755c18d18f077b7e528857149936e202c43f301a7db226534947efe736e303d",
+            "sha256:f2ce6a67893320ce1db998d733b75081ea025cd15e5b7f8445c1557db61d9ea4"
+          ],
+          "completedCausalNodeDigests": [],
+          "invalidatedCausalClosureDigests": []
+        },
+        "attestation": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:attest",
+          "profileDigest": null,
+          "schemaVersion": 1,
+          "attestationDigest": "sha256:0a373b3127e33c50e831af656c493574e2c5a298476cb0cd3ee96e9d5b58c542",
+          "attestedAtLogicalMs": 270,
+          "validUntilLogicalMs": 450,
+          "runtimeAttestationDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "eligibilityEvidenceDigests": [
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "capabilityAssessmentDigests": [
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "searchResult": {
+          "status": "eligible_candidates",
+          "candidates": [
+            {
+              "peerId": "peer:statistics",
+              "agentId": "agent:statistics",
+              "instanceId": "instance:statistics",
+              "budgetUnits": 10,
+              "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+              "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "schemaVersion": 1,
+              "capabilityKeys": [
+                "database_forensics"
+              ],
+              "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+              "membershipEpoch": 1,
+              "observedAtLogicalMs": 245,
+              "validUntilLogicalMs": 450,
+              "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "locallyEvaluatedScoreMicros": 9000,
+              "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+          ],
+          "resultDigest": "sha256:03c8c0569a30e3c74d032852b5ab4ab65ee8022fd70489beedd1ac0348f18d24",
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1",
+          "schemaVersion": 1,
+          "observedAtLogicalMs": 245,
+          "searchedCandidateCount": 1,
+          "completeWithinDeclaredView": true
+        },
+        "targetDigest": "sha256:22bbfd3ee1402851b3c10d6cf2e3023d12de4f654345e9970bc173915b00fca1",
+        "searchRequest": {
+          "schemaVersion": 1,
+          "requestId": "search:9001-shrinking-reconciliation_outage-morphogenesis",
+          "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+          "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+          "requiredCapabilityKeys": [
+            "database_forensics"
+          ],
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "membershipEpoch": 1,
+          "viewId": "view:local",
+          "viewDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "searchLimit": 2,
+          "requestedAtLogicalMs": 245,
+          "expiresAtLogicalMs": 500,
+          "requestDigest": "sha256:9f46acb58111d188be1263d599533b4ddf8a298406921d08d483766ce1ded1c1"
+        },
+        "terminalAgent": {
+          "agentDigest": "sha256:7033e498f1f88c212d2c0acfc5b266c3b13686c2dda5b8b7eed6ffcc86363b8f",
+          "disposition": "detached",
+          "operationId": "execution:9001-shrinking-reconciliation_outage-morphogenesis:detach",
+          "schemaVersion": 1,
+          "membershipEpoch": null,
+          "terminalReceiptDigest": "sha256:b4cac4764a7be89c4a1eeb1cff29dc8810e28e4d6bf7b5ed8934af69b3942baf",
+          "terminatedAtLogicalMs": 330,
+          "lifecycleReceiptDigest": "sha256:58e528619efbd007742fb65fc23f8a49d5c09cd18f69c8ec81efd8839904c387",
+          "membershipConfigurationDigest": null
+        },
+        "decisionDigest": "sha256:11dea9928d86a438bb167ec99a863f77d0a26a9abe0f40c521f6ad418e263a84",
+        "positionDigest": "sha256:55768192a356a0113038d6295c0be7fac1cbc62d6b7ea099d4b622f6c337553c",
+        "proposalDigest": "sha256:d00a4c269da5c219ad4e7ce60580ec7ff7d808da03dd52248a39b4c67b67d26b",
+        "pendingOperation": null,
+        "selectedCandidate": {
+          "peerId": "peer:statistics",
+          "agentId": "agent:statistics",
+          "instanceId": "instance:statistics",
+          "budgetUnits": 10,
+          "candidateId": "existing:9001-shrinking-reconciliation_outage-morphogenesis",
+          "lineageDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "schemaVersion": 1,
+          "capabilityKeys": [
+            "database_forensics"
+          ],
+          "candidateDigest": "sha256:85e23e8053ff54a0bdb320d347679a2a78d2f05071539235c968f40a0da6c4d6",
+          "membershipEpoch": 1,
+          "observedAtLogicalMs": 245,
+          "validUntilLogicalMs": 450,
+          "sourceEvidenceDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "locallyEvaluatedScoreMicros": 9000,
+          "membershipConfigurationDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "budgetReleaseDigest": "sha256:03222bb4dbfc9c8f6ba02e10330f9d2069e7081bde775d453adfed79c5d74250",
+        "budgetReservationId": "reservation:9001-shrinking-reconciliation_outage-morphogenesis",
+        "logicalTimeHighWaterMs": 330,
+        "morphologyHeadStateKey": "head:9001-shrinking-reconciliation_outage-morphogenesis",
+        "requiredCapabilityKeys": [
+          "database_forensics"
+        ],
+        "budgetReservationDigest": "sha256:e3e3f054f9fe2bf38fa3a7a0a304d84f5612d661ef2525c50bb243a50dd6a71d",
+        "expectedMorphologyEpoch": 1,
+        "predecessorRecordDigest": "sha256:f8e79fc383e1963c045c1e3cd744ca4855fc19ac3be61d8dace8806ce9d3dfeb",
+        "resultingSnapshotDigest": "sha256:54c92c7f8a06214c7baf4306a8ce8725c403fae53d689dfed3d474978dfdd0f0",
+        "profileCertificationDigest": null,
+        "recordDigest": "sha256:82f8b25c2fb7a452d27a0de584b3edcac2272d59ef0c393ed30f61d5d35e4376"
+      }
+    ]
+  }
+}
