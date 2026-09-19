@@ -230,6 +230,35 @@ test('public audit evidence exceptions require exact path, size and digest', asy
   }
 });
 
+test('public audit recognizes PDF headers without relying on NUL bytes', async () => {
+  const fixture = await auditFixture();
+  try {
+    const contents = Buffer.concat([
+      Buffer.from('%PDF-1.7\n%'),
+      Buffer.from([0x93, 0x8c, 0x8b, 0x9e]),
+      Buffer.from('\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n'),
+    ]);
+    assert.equal(contents.includes(0), false);
+    await writeFile(path.join(fixture.root, 'paper.pdf'), contents);
+    assert.equal((await runPublicAudit({ root: fixture.root })).allowedBinaryFiles, 1);
+    await writeFile(path.join(fixture.root, 'disguised.txt'), contents);
+    await assert.rejects(runPublicAudit({ root: fixture.root }), /binary file type is not allowlisted/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('a PDF extension alone does not bypass text credential scanning', async () => {
+  const fixture = await auditFixture();
+  try {
+    const key = ['API', 'KEY'].join('_');
+    await writeFile(path.join(fixture.root, 'not-a-pdf.pdf'), `${key}='${'a'.repeat(32)}'\n`);
+    await assert.rejects(runPublicAudit({ root: fixture.root }), /secret assignment/);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test('public audit rejects stale exception entries and still scans excepted text', async () => {
   const staleFixture = await auditFixture();
   try {
