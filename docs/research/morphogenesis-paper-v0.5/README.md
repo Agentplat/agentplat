@@ -27,9 +27,14 @@ Its experiment source baseline remains
 Do not run that frozen registration against the new runtime and relabel the result
 as the historical execution. New runtime evidence has its own source manifests.
 
+The new runtime, paper and evidence are pinned together by the
+[paper-v0.5 source tag](https://github.com/Agentplat/agentplat/tree/paper-v0.5).
+Use that tag for reproduction; the separate environment manifests retain the
+pre-commit working-tree and compiled-module hashes recorded during execution.
+
 ## Reproduce the new extension
 
-From the checkout containing this directory, Node.js 22.13+, pnpm 11.25 and Docker:
+From the `paper-v0.5` checkout, Node.js 22.13+, pnpm 11.25 and Docker:
 
 ```sh
 pnpm install --frozen-lockfile

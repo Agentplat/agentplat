@@ -407,7 +407,7 @@ Governed agent morphogenesis treats organizational change as a coordinated trans
 
 ## Artifact availability
 
-The public AgentPlat repository contains the manuscript sources, reproducible experiments and raw evidence [1]. The v0.5 artifact index separates the frozen v0.4 mission matrix from the new governance cells, persistent supersession trace and bounded model. Source and compiled-module digests identify executed code; the index carries exact version references and commands. All new experiments run locally without model credentials or paid inference.
+The [versioned artifact](https://github.com/Agentplat/agentplat/tree/paper-v0.5/docs/research/morphogenesis-paper-v0.5) contains the manuscript sources, reproducible experiments and raw evidence [1]. The v0.5 artifact index separates the frozen v0.4 mission matrix from the new governance cells, persistent supersession trace and bounded model. Source and compiled-module digests identify executed code; the index carries exact version references and commands. All new experiments run locally without model credentials or paid inference.
 
 ## References
 

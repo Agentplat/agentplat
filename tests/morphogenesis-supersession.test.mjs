@@ -207,3 +207,14 @@ test("the Work fence adapter preserves the original effect timestamp across reco
   assert.equal(original.fenceReceiptDigest,recovered.fenceReceiptDigest);
   await assert.rejects(port.reconcile({...input,logicalTimeMs:200}),/incomplete/);
 });
+
+for (const field of ["continuity", "fence", "terminalAgent"])
+  test(`supersession rejects changed nested ${field} evidence with a recomputed outer digest`, async () => {
+    const f = await fixture();
+    await f.runtime.beginSupersededResolution({stateKey:f.stateKey,logicalTimeMs:230});
+    const forged = structuredClone(await finish(f));
+    forged[field].agentDigest = sha("0");
+    const {recordDigest, ...body} = forged;
+    forged.recordDigest = digestPlanningJsonV1("morphogenesis-execution-record",body);
+    assert.throws(() => validateMorphogenesisExecutionRecordV1(forged), /Supersession .* evidence is invalid/);
+  });

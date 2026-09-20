@@ -18,6 +18,9 @@ import {
 } from "./morphogenesis-decision.js";
 import {
   createMorphogenesisReceiptV1,
+  createMorphogenesisContinuityReceiptV1,
+  createMorphogenesisAuthorityFenceReceiptV1,
+  createMorphogenesisTerminalAgentReceiptV1,
   type MorphogenesisActivationReceiptV1,
   type MorphogenesisAgentRetirementPortV1,
   type MorphogenesisAuthorityFencePortV1,
@@ -1162,6 +1165,32 @@ function validateSupersessionState(value: Omit<MorphogenesisExecutionRecordV1, "
     fail("Supersession execution binding is invalid");
   validateLifecycleAgent(value.agent);
   validateTeamReceipt(value.team);
+  if (value.continuity) {
+    const checked = createMorphogenesisContinuityReceiptV1(value.continuity);
+    if (checked.continuityReceiptDigest !== value.continuity.continuityReceiptDigest ||
+        checked.agentDigest !== value.agent.agentDigest || checked.teamReceiptDigest !== value.team.receiptDigest ||
+        checked.operationId !== `${value.stateKey}:checkpoint` ||
+        checked.completedAtLogicalMs < binding.startedAtLogicalMs || checked.completedAtLogicalMs > value.logicalTimeHighWaterMs)
+      fail("Supersession continuity evidence is invalid");
+  }
+  if (value.fence) {
+    const checked = createMorphogenesisAuthorityFenceReceiptV1(value.fence);
+    if (!value.continuity || checked.fenceReceiptDigest !== value.fence.fenceReceiptDigest ||
+        checked.agentDigest !== value.agent.agentDigest || checked.teamReceiptDigest !== value.team.receiptDigest ||
+        checked.operationId !== `${value.stateKey}:fence` ||
+        value.team.individualWorkContractDigests.some(d => !checked.fencedWorkContractDigests.includes(d)) ||
+        checked.fencedAtLogicalMs < value.continuity.completedAtLogicalMs || checked.fencedAtLogicalMs > value.logicalTimeHighWaterMs)
+      fail("Supersession fence evidence is invalid");
+  }
+  if (value.terminalAgent) {
+    const checked = createMorphogenesisTerminalAgentReceiptV1(value.terminalAgent);
+    const existing = value.agent.source === "existing";
+    if (!value.fence || checked.terminalReceiptDigest !== value.terminalAgent.terminalReceiptDigest ||
+        checked.agentDigest !== value.agent.agentDigest || checked.disposition !== (existing ? "detached" : "retired") ||
+        checked.operationId !== `${value.stateKey}:${existing ? "detach" : "retire"}` ||
+        checked.terminatedAtLogicalMs < value.fence.fencedAtLogicalMs || checked.terminatedAtLogicalMs > value.logicalTimeHighWaterMs)
+      fail("Supersession terminal owner evidence is invalid");
+  }
   if (value.phase !== "superseded") {
     if (Object.hasOwn(value, "supersessionReceipt")) fail("Supersession receipt precedes terminal resolution");
     return;
