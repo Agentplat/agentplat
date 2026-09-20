@@ -212,6 +212,17 @@ test("Beta 8 requires all 65 packages, the A2A group, and exact versions", async
   await assert.rejects(() => assertReleaseLine({ root: mixed }), /must use 0\.3\.0-beta\.8/);
 });
 
+test("Beta 9 requires all 65 packages, the A2A group, and exact versions", async (t) => {
+  const line = RELEASE_LINES.find((line) => line.id === "beta9");
+  const good = await createReleaseLineFixture({ line });
+  const missing = await createReleaseLineFixture({ line, includeRequired: false });
+  const mixed = await createReleaseLineFixture({ line, packageVersion: "0.3.0-beta.8" });
+  t.after(() => Promise.all([good, missing, mixed].map((root) => rm(root, { force: true, recursive: true }))));
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(() => assertReleaseLine({ root: missing }));
+  await assert.rejects(() => assertReleaseLine({ root: mixed }), /must use 0\.3\.0-beta\.9/);
+});
+
 async function createReleaseLineFixture({
   duplicateTrust = false,
   includeRequired = true,

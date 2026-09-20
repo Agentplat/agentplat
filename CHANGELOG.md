@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.3.0-beta.9 — prepared, not yet published
+
+- Add opt-in Morphogenesis supersession admission and terminal cleanup receipts,
+  retaining stable owner operation identities and the accepted morphology head.
+- Add a workflow compensation adapter and authority-neutral Room projection.
+- Preserve original fence timestamps during delayed owner reconciliation.
+- Add a runnable PostgreSQL Room/Team/Work example, contract tests and bounded
+  TLA+ model. Publish paper v0.5 with separate adversarial admission evidence.
+- All 65 packages move together; npm `next` distribution requires the existing
+  protected release workflow and human staged-package approval. No `latest`
+  promotion or production-reliability claim is part of this change.
+
 ## 0.3.0-beta.8 — published 2026-09-14 (UTC)
 
 All 65 public packages are available under `next`; `latest` was not promoted.

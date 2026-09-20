@@ -91,3 +91,30 @@ The lifecycle, discovery, attestation, Team, fencing and external material
 ports are deterministic local implementations for the example. They
 demonstrate source/API composition, not production deployment, global candidate
 absence or organizational improvement.
+
+## Persistent owner integration and superseded resolution
+
+```sh
+pnpm --filter @agentplat/collective-host-postgres... --filter @agentplat/collective-control-postgres... --filter @agentplat/rooms-mesh... --filter @agentplat/workflows-rooms... --filter @agentplat/runtime-mock... build
+node examples/agent-morphogenesis/persistent-local.mjs /tmp/morphogenesis-persistent-new
+```
+
+Requires Docker. The output directory must not exist. The wrapper creates a
+PostgreSQL 18 container bound to an ephemeral loopback port and removes it on
+exit. It makes no model or paid-service calls. Raw evidence and configuration
+are retained in the selected directory.
+
+The example connects PostgreSQL Room approvals to actual Team Formation and
+Work reducers. Two approved proposals compete for one head. The loser uses
+`beginSupersededResolution` and `advanceSupersededResolution`, recovers a lost
+fence acknowledgement, releases its work and budget, and records `superseded`.
+The winner cannot detach until a previously admitted job finishes. A separate
+case rejects work after mandate expiry despite a still-valid organizational
+decision. Room artifacts expose the two different terminal outcomes.
+
+The admission/draining adapter is application code. Catalog observations,
+membership and scripted reviewers are fixtures, and the rollback witness is
+process-local. Replace those boundaries for a real deployment; this example does
+not demonstrate host-loss recovery, production identity or external ActionGateway
+effects. See [ADR 0054](../../docs/adr/0054-morphogenesis-superseded-resolution.md)
+for API compatibility, direct-successor proof and owner obligations.

@@ -1,0 +1,27 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 46 and seed -807527669854370863 with 2 workers on 12 cores with 6144MB heap and 64MB offheap memory [pid: 6098] (Mac OS X 26.2 aarch64, Eclipse Adoptium 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/douglasrodriguez/Dev/agentplat/experiments/morphogenesis-paper/model/Supersession.tla
+Parsing file /private/var/folders/7j/gv4l3nwx2nb3lsg5l7qhlmq80000gn/T/Naturals.tla
+Parsing file /private/var/folders/7j/gv4l3nwx2nb3lsg5l7qhlmq80000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/7j/gv4l3nwx2nb3lsg5l7qhlmq80000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Supersession
+Starting... (2026-09-20 10:55:42)
+Implied-temporal checking--satisfiability problem has 1 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-20 10:55:42.
+Progress(17) at 2026-09-20 10:55:42: 761 states generated, 260 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 260 total distinct states at (2026-09-20 10:55:42)
+Finished checking temporal properties in 00s at 2026-09-20 10:55:42
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 7.1E-15
+761 states generated, 260 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 17.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 3 and the 95th percentile is 2).
+Finished in 00s at (2026-09-20 10:55:42)

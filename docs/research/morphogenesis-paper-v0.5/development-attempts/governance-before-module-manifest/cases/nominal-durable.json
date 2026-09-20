@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-nominal-durable",
+  "condition": "durable",
+  "cell": "nominal",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMfu0J4jWbQ7FuHnbOqp128BwAlAo8k8ivcux4jb667w=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-nominal-durable",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:e57c4e8292ef3d444e93c7ca8814c221db8cf3a0b8ef6ffe15aa0a484f287b49",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-nominal-durable",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:bb787c3a28a30f9bca7dd53f92eab62b0c821ff2eb1e23b640c9f2eb6a7ec230"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:a896df676bcf1fb5af176893c0a808066fb7aacab1f437778f1ee883ab6fbe0e"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-nominal-durable:durable-activate",
+        "proposalDigest": "sha256:a896df676bcf1fb5af176893c0a808066fb7aacab1f437778f1ee883ab6fbe0e",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:a896df676bcf1fb5af176893c0a808066fb7aacab1f437778f1ee883ab6fbe0e\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "LJ8yZJgY3VFl5QkLxe8sUHtLspHqZwl/U1o9tVfOZPTjAKGHMtubeKe3m1l0x3sLwX4ga2LCz7LZ22M6UNumAg==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": true
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": false,
+      "fenced": true,
+      "roleId": "role:d3e28252e0c9ee94",
+      "operationId": "authority-nominal-durable:durable-activate",
+      "createdPhase": 3
+    }
+  ],
+  "chains": [
+    {
+      "operationId": "authority-nominal-durable:durable-activate",
+      "role": {
+        "kind": "statistics",
+        "active": false,
+        "fenced": true,
+        "roleId": "role:d3e28252e0c9ee94",
+        "operationId": "authority-nominal-durable:durable-activate",
+        "createdPhase": 3
+      },
+      "admissionIndex": 0,
+      "proposal": {
+        "schemaVersion": 1,
+        "proposalId": "proposal:authority-nominal-durable",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+        "targetDigest": "sha256:e57c4e8292ef3d444e93c7ca8814c221db8cf3a0b8ef6ffe15aa0a484f287b49",
+        "operations": [
+          {
+            "schemaVersion": 1,
+            "operationId": "operation:recruit:authority-nominal-durable",
+            "operator": "recruit_existing",
+            "effectClass": "protected_external",
+            "dependsOnOperationIds": [],
+            "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+            "compensation": "none",
+            "operationDigest": "sha256:bb787c3a28a30f9bca7dd53f92eab62b0c821ff2eb1e23b640c9f2eb6a7ec230"
+          }
+        ],
+        "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "proposerVersion": 1,
+        "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "proposedAtLogicalMs": 220,
+        "expiresAtLogicalMs": 500,
+        "advisoryOnly": true,
+        "proposalDigest": "sha256:a896df676bcf1fb5af176893c0a808066fb7aacab1f437778f1ee883ab6fbe0e"
+      },
+      "controllerCondition": "durable"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:31c0a2313fa7c248fc8f01ec72696691f9d280dda42134bb84a72ccd0c2598f6"
+    },
+    {
+      "sequence": 2,
+      "phase": 1,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:372966a351b3dd6c84060035b4b4990f5a964edf6567c5bb2385a47364c6ed64"
+    },
+    {
+      "sequence": 3,
+      "phase": 2,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:90ecde2f899e0d1d036fa4cc30be3328c7c59c424d89f093f085e503e3bc4c6d"
+    },
+    {
+      "sequence": 4,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 5,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-nominal-durable:durable-activate"
+    },
+    {
+      "sequence": 6,
+      "phase": 3,
+      "kind": "role-materialized",
+      "roleId": "role:d3e28252e0c9ee94",
+      "operationId": "authority-nominal-durable:durable-activate",
+      "initial": false
+    },
+    {
+      "sequence": 7,
+      "phase": 3,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:48cfc8fcd2f7e5892a586dbd6a4c6a33dc50e8a946e98dddc92999950d0ddbbc"
+    },
+    {
+      "sequence": 8,
+      "phase": 4,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:e671f880904df94f806d1de509b09c352db1dd9f464da6d53a0e4de490c2084a"
+    },
+    {
+      "sequence": 9,
+      "phase": 5,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 10,
+      "phase": 5,
+      "kind": "role-fenced",
+      "roleId": "role:d3e28252e0c9ee94"
+    },
+    {
+      "sequence": 11,
+      "phase": 5,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 12,
+      "phase": 5,
+      "kind": "role-retired",
+      "roleId": "role:d3e28252e0c9ee94"
+    },
+    {
+      "sequence": 13,
+      "phase": 5,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:e4851ee0aeeacbecb8083f1d149152320c55ee418b3fc3f9608d88f36cbd559a"
+    },
+    {
+      "sequence": 14,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:95d56d0c7bbe74cb1d7ce9a910b266099468df3d46f1157d76095d6dfe26dcde"
+    },
+    {
+      "sequence": 15,
+      "phase": 6,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:430a8e538d1296066576349fa39f46c0d996fe59960c8d3c691a6ac933637381"
+    },
+    {
+      "sequence": 16,
+      "phase": 7,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:b03d5045125a6d8212a0c0d29105d4c14d54e09cd7507c93e628f1a37ab22665"
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": true,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-nominal-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-nominal-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-nominal-durable:activate:apply:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-nominal-durable:activate:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-nominal-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:9362e28565e8ccb7d25f61670bc1a149e7a138c969300e986430cd95c2c489c4"
+      },
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-nominal-durable:retire",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:50.000Z",
+            "taskRunId": "authority-nominal-durable:retire:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:50.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:50.000Z",
+            "taskRunId": "authority-nominal-durable:retire:apply:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:50.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:50.000Z",
+            "taskRunId": "authority-nominal-durable:retire:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:50.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-nominal-durable",
+          "action": "retire"
+        },
+        "createdAt": "2026-09-19T12:00:50.000Z",
+        "updatedAt": "2026-09-19T12:00:50.000Z",
+        "stateDigest": "sha256:f0d856a1dc87059ffa8e70f6fe5528d5d5957226492413def37857575ab69b9f"
+      }
+    ]
+  },
+  "denied": false,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

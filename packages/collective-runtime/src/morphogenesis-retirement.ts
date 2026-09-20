@@ -15,6 +15,7 @@ import type {
 import {
   MorphologyHeadRuntimeV1,
 } from "./morphogenesis-runtime.js";
+import { validateMorphologyHeadV1 } from "./morphogenesis-validation.js";
 
 export interface MorphogenesisActivationReceiptV1 {
   readonly schemaVersion: 1;
@@ -30,6 +31,11 @@ export interface MorphogenesisActivationReceiptV1 {
 }
 
 export interface MorphogenesisMorphologyActivationPortV1 {
+  /** Authoritative read required only by the opt-in superseded-resolution path. */
+  inspectHead?(input: {
+    readonly morphologyHeadStateKey: AgentPlatID;
+    readonly scope: MorphogenesisScopeV1;
+  }): Promise<MorphologyHeadV1 | null>;
   activate(input: {
     readonly operationId: AgentPlatID;
     readonly morphologyHeadStateKey: AgentPlatID;
@@ -217,6 +223,19 @@ export class MorphologyHeadMorphogenesisActivationPortV1
   implements MorphogenesisMorphologyActivationPortV1
 {
   constructor(readonly heads: MorphologyHeadRuntimeV1) {}
+
+  async inspectHead(input: {
+    readonly morphologyHeadStateKey: AgentPlatID;
+    readonly scope: MorphogenesisScopeV1;
+  }): Promise<MorphologyHeadV1 | null> {
+    const loaded = await this.heads.options.store.load(input.morphologyHeadStateKey);
+    if (!loaded) return null;
+    const head = validateMorphologyHeadV1(loaded);
+    if (head.stateKey !== input.morphologyHeadStateKey ||
+        head.scopeDigest !== input.scope.scopeDigest)
+      fail("Morphogenesis authoritative head inspection is cross-scoped");
+    return head;
+  }
 
   activate(input: Parameters<MorphogenesisMorphologyActivationPortV1["activate"]>[0]) {
     return this.#commit(input);

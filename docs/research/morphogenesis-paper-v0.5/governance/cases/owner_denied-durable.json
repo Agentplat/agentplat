@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-owner_denied-durable",
+  "condition": "durable",
+  "cell": "owner_denied",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAzaqoP1nEzd6wTmMBEd1VG3KBLTfGEqu1iG7bo6QNHgQ=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-owner_denied-durable",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:7a4242ec45f36da44882dbfcd38bfb86f172cf6caea2ca3779b94d85be1b3dca",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-owner_denied-durable",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:ed5c3a21640877ecf5a0294e2025cb69207b14b043e05aa9aba0e30c4433859b"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:d15f3c3811d649ba1ee447db03fb2883b1a06d997979fdae19efe18b9b6351b7"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-owner_denied-durable:durable-activate",
+        "proposalDigest": "sha256:d15f3c3811d649ba1ee447db03fb2883b1a06d997979fdae19efe18b9b6351b7",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:d15f3c3811d649ba1ee447db03fb2883b1a06d997979fdae19efe18b9b6351b7\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "2pOTBc8gfTP2wfU7G/XZAADuJ71hewrGa4HV4PmoAz82q4T5UKfS2+dCc8YWIdWNu2sCccMnOLedBR/xrfHZBQ==",
+      "at": 300,
+      "ownerAllows": false,
+      "allowed": false
+    }
+  ],
+  "roles": [],
+  "chains": [],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:31c0a2313fa7c248fc8f01ec72696691f9d280dda42134bb84a72ccd0c2598f6"
+    },
+    {
+      "sequence": 2,
+      "phase": 1,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:372966a351b3dd6c84060035b4b4990f5a964edf6567c5bb2385a47364c6ed64"
+    },
+    {
+      "sequence": 3,
+      "phase": 2,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:90ecde2f899e0d1d036fa4cc30be3328c7c59c424d89f093f085e503e3bc4c6d"
+    },
+    {
+      "sequence": 4,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 5,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-owner_denied-durable:durable-activate"
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": false,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-owner_denied-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "failed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-owner_denied-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-owner_denied-durable:activate:apply:1",
+            "outcome": "failed",
+            "finishedAt": "2026-09-19T12:00:30.000Z",
+            "reasonCode": "task_executor_error"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 0,
+            "outcome": "skipped",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-owner_denied-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:27b83a49161881bd42c9667ff427fd8e28f81fb2336a61bda9ae126507955f3b"
+      }
+    ]
+  },
+  "denied": true,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

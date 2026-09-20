@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-scope_escalated-fixed",
+  "condition": "fixed",
+  "cell": "scope_escalated",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEASbyN76KR9Yi++czUHFzyFftvjCgZAkQ7XfPqM4mFhlo=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-scope_escalated-fixed",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:dc5d290cb4184b541e90fd022732eca2a1c85c697799ac47f2f5722c3588837c",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-scope_escalated-fixed",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:6d5861cb9764d689531535ef08ceeb323a016a76ec68bb7cd82cca1e1de3a301"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:8ce7e482e8aae423d2c8de651d59ae4794bf521cd80a062a81e8bb591894608f"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-scope_escalated-fixed:fixed",
+        "proposalDigest": "sha256:8ce7e482e8aae423d2c8de651d59ae4794bf521cd80a062a81e8bb591894608f",
+        "scopeDigest": "sha256:515de2af1d93dec40867ecba81a3700e8415c52830d3b86e9f09b3d061a5426a",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:8ce7e482e8aae423d2c8de651d59ae4794bf521cd80a062a81e8bb591894608f\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "uwpd4dD1NKZYjOl6XDm+8BiRyaGHB8labm+zIiAfFvXrBStQEoovGj5zaGBhY14+BcdaqBj6aI4WqYPsddqBDg==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": false
+    }
+  ],
+  "roles": [],
+  "chains": [],
+  "events": [],
+  "controller": {
+    "condition": "fixed",
+    "role": null,
+    "done": false
+  },
+  "denied": true,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

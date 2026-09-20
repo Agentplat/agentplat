@@ -52,6 +52,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run audit:dependencies:production
       - run: pnpm run check
+      - name: Verify persistent Morphogenesis and paper evidence
+        run: |
+          node examples/agent-morphogenesis/persistent.mjs /tmp/morphogenesis-persistent-ci
+          node experiments/morphogenesis-paper/governance/verify-persistent.mjs /tmp/morphogenesis-persistent-ci
+          node experiments/morphogenesis-paper/governance/verify.mjs docs/research/morphogenesis-paper-v0.5/governance
+          MORPHOGENESIS_GOVERNANCE_EVIDENCE=docs/research/morphogenesis-paper-v0.5/governance node --test experiments/morphogenesis-paper/governance/verify.test.mjs
+        env:
+          MORPHOGENESIS_PG_PORT: "5432"
+          PGUSER: agentplat_test
+          PGDATABASE: agentplat_test
+          PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/sessions-redis test
       - run: pnpm --filter @agentplat/audit-postgres test
         env:
