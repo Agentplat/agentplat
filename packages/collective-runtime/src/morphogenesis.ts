@@ -4,6 +4,7 @@ export * from "./morphogenesis-control.js";
 export * from "./morphogenesis-decision.js";
 export * from "./morphogenesis-engine.js";
 export * from "./morphogenesis-execution.js";
+export * from "./morphogenesis-supersession.js";
 export * from "./morphogenesis-instantiation.js";
 export * from "./morphogenesis-outcomes.js";
 export * from "./morphogenesis-validation.js";

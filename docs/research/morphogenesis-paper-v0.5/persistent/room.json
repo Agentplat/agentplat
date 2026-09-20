@@ -1,0 +1,481 @@
+{
+  "room": {
+    "tenantId": "tenant:test",
+    "id": "room:test",
+    "title": "Persistent Morphogenesis",
+    "goal": "Preserve work while a specialist transition is superseded",
+    "status": "active",
+    "createdAt": "2026-09-19T12:00:00.240Z",
+    "updatedAt": "2026-09-19T12:00:00.240Z"
+  },
+  "participants": [
+    {
+      "tenantId": "tenant:test",
+      "id": "agent:planner",
+      "type": "agent",
+      "displayName": "Local planner",
+      "role": "planner",
+      "authorityLevel": 0,
+      "permissions": [],
+      "boundaries": [],
+      "memoryScope": null,
+      "runtime": {
+        "platform": "mock"
+      },
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "person:reviewer:a",
+      "type": "human",
+      "displayName": "Local reviewer a",
+      "role": "reviewer",
+      "authorityLevel": 1,
+      "permissions": [
+        "approve:action"
+      ],
+      "boundaries": [],
+      "memoryScope": null,
+      "runtime": null,
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "person:reviewer:b",
+      "type": "human",
+      "displayName": "Local reviewer b",
+      "role": "reviewer",
+      "authorityLevel": 1,
+      "permissions": [
+        "approve:action"
+      ],
+      "boundaries": [],
+      "memoryScope": null,
+      "runtime": null,
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "person:reviewer:expiry",
+      "type": "human",
+      "displayName": "Local reviewer expiry",
+      "role": "reviewer",
+      "authorityLevel": 1,
+      "permissions": [
+        "approve:action"
+      ],
+      "boundaries": [],
+      "memoryScope": null,
+      "runtime": null,
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z"
+    }
+  ],
+  "messages": [],
+  "tasks": [],
+  "artifacts": [
+    {
+      "tenantId": "tenant:test",
+      "id": "morphogenesis-receipt:execution:b:receipt",
+      "roomId": "room:test",
+      "type": "agent-morphogenesis-receipt",
+      "title": "Morphogenesis receipt execution:b:receipt",
+      "status": "draft",
+      "currentVersion": 1,
+      "authors": [],
+      "provenance": {
+        "sourceMemoryIds": [],
+        "sourceMessageIds": [],
+        "sourceArtifactIds": []
+      },
+      "assumptions": [],
+      "risks": [],
+      "metadata": {
+        "disposition": "success",
+        "receiptDigest": "sha256:1009b0133061ed3c3665d6c10ce06037534174621e6b04d3f7af4d90556bce6a",
+        "proposalDigest": "sha256:57f49b8d9a035ffdc2d7ebb3c80c7535e1732fe2f1d6c04a1d450e8af3bf2027",
+        "resultingMorphologyEpoch": 2,
+        "morphogenesisSchemaVersion": 1
+      },
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z",
+      "versions": [
+        {
+          "tenantId": "tenant:test",
+          "id": "39bcb7ce-1521-43d8-8e2e-9419fc7ee0dd",
+          "artifactId": "morphogenesis-receipt:execution:b:receipt",
+          "version": 1,
+          "content": {
+            "receiptId": "execution:b:receipt",
+            "disposition": "success",
+            "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+            "receiptDigest": "sha256:1009b0133061ed3c3665d6c10ce06037534174621e6b04d3f7af4d90556bce6a",
+            "schemaVersion": 1,
+            "decisionDigest": "sha256:8ddb5e2cd5a8da4fbb964ade73e8dbe4ce6c33401091e650f53e85af7729413e",
+            "proposalDigest": "sha256:57f49b8d9a035ffdc2d7ebb3c80c7535e1732fe2f1d6c04a1d450e8af3bf2027",
+            "fenceReceiptDigest": "sha256:e300ac9d09aca73191fe7ba67d9f429b9bb9fd20a097870b697e9e87b071b6f0",
+            "budgetReleaseDigest": "sha256:d058779f05cd97a935605f129f0343d2defa2674740634fb5503714f81c7c367",
+            "evaluatedAtLogicalMs": 346,
+            "outcomeEvidenceDigests": [
+              "sha256:b47573fd35a0827abd38a218df210b930f96ce3f5b2dcb4c59c7b87421598f37"
+            ],
+            "activationReceiptDigest": "sha256:2e32536e76515a829c9a42f5a5da9c7c95980e98388729588e2c97178858f69a",
+            "budgetReservationDigest": "sha256:0eff6a64eb5f7b261cd43fee9c4afe4546ab1e21e38eb7890bc4daffc3d246b2",
+            "continuityReceiptDigest": "sha256:9f078a55ccf55f931bedd3328a9894f5808dca6488d1f67c13ab0b0e228c84b2",
+            "resultingSnapshotDigest": "sha256:33acf3f37a9043a603ae5b341fbb362514acca871cf96cacf329968f2f8fa827",
+            "resultingMorphologyEpoch": 2,
+            "terminalAgentReceiptDigest": "sha256:4008d01fa01e2691ab85966fdbfb00ccfed66280c7d8bbcc3f5e800c996a0732"
+          },
+          "contentType": "application/json",
+          "createdAt": "2026-09-19T12:00:00.240Z"
+        }
+      ]
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "morphogenesis-supersession:execution:a:supersession",
+      "roomId": "room:test",
+      "type": "agent-morphogenesis-supersession",
+      "title": "Superseded Morphogenesis transition",
+      "status": "draft",
+      "currentVersion": 1,
+      "authors": [],
+      "provenance": {
+        "sourceMemoryIds": [],
+        "sourceMessageIds": [],
+        "sourceArtifactIds": []
+      },
+      "assumptions": [],
+      "risks": [
+        "authority-remains-external"
+      ],
+      "metadata": {
+        "disposition": "superseded",
+        "receiptDigest": "sha256:349a511ee5f94850ed3074849e40c52bb42d7875f7a9e166c974dbb679cf93c0",
+        "proposalDigest": "sha256:1334a5933d6cc78baf841bcb86f2211f103a9d67302edd151cb7ce1eeaecfbfc",
+        "authorityGranted": false,
+        "winningHeadDigest": "sha256:9075f7b8c2d9ef3cb88a426f91b7ec71df99ad3879e6408cbc4d29bc250df25e",
+        "executionRecordDigest": "sha256:a699adf7cf58aa70844df21bbb48cfc6442c0ff44ff596bdbef93913db1f00d6",
+        "morphogenesisSchemaVersion": 1
+      },
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z",
+      "versions": [
+        {
+          "tenantId": "tenant:test",
+          "id": "78532e05-db5c-4555-b82c-d56d3c938453",
+          "artifactId": "morphogenesis-supersession:execution:a:supersession",
+          "version": 1,
+          "content": {
+            "binding": {
+              "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+              "winningHead": {
+                "format": "application/vnd.agentplat.morphology-head.v1+json",
+                "revision": 1,
+                "stateKey": "head:paper",
+                "headDigest": "sha256:9075f7b8c2d9ef3cb88a426f91b7ec71df99ad3879e6408cbc4d29bc250df25e",
+                "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+                "policyDigest": "sha256:9f730ac9da60d63399e025196eeef9f5f3fb9a73dd23a300f90825737cacd3dc",
+                "receiptDigest": "sha256:410926650d8be31d6e21c10e74b214e9809d6a9819a8a02b4bca4c30f0d11c36",
+                "schemaVersion": 1,
+                "decisionDigest": "sha256:8ddb5e2cd5a8da4fbb964ade73e8dbe4ce6c33401091e650f53e85af7729413e",
+                "snapshotDigest": "sha256:33acf3f37a9043a603ae5b341fbb362514acca871cf96cacf329968f2f8fa827",
+                "morphologyEpoch": 2,
+                "predecessorHeadDigest": "sha256:d538d94238c6808e3c5df7a77eb05ab506c5a8c5fb36a564b629f6b8fd9a44d6",
+                "acceptedProposalDigest": "sha256:57f49b8d9a035ffdc2d7ebb3c80c7535e1732fe2f1d6c04a1d450e8af3bf2027",
+                "logicalTimeHighWaterMs": 310
+              },
+              "resolutionId": "execution:a:supersession",
+              "schemaVersion": 1,
+              "proposalDigest": "sha256:1334a5933d6cc78baf841bcb86f2211f103a9d67302edd151cb7ce1eeaecfbfc",
+              "executionStateKey": "execution:a",
+              "startedAtLogicalMs": 320,
+              "supersessionDigest": "sha256:0dcba94be5412d81fff99cb1012356f233c8acc388140b2f9b835c0238612f06",
+              "executionRecordDigest": "sha256:276d86617373a334b7353675b985a3d1f0e332ccfe3642aba73fd8edebc31bf0",
+              "expectedMorphologyEpoch": 1
+            },
+            "receipt": {
+              "resolutionId": "execution:a:supersession",
+              "receiptDigest": "sha256:349a511ee5f94850ed3074849e40c52bb42d7875f7a9e166c974dbb679cf93c0",
+              "schemaVersion": 1,
+              "decisionDigest": "sha256:4e9a123a22307033c89218c921ce95743d6ce0dca2f228a5c29560e4beb7c337",
+              "proposalDigest": "sha256:1334a5933d6cc78baf841bcb86f2211f103a9d67302edd151cb7ce1eeaecfbfc",
+              "winningHeadDigest": "sha256:9075f7b8c2d9ef3cb88a426f91b7ec71df99ad3879e6408cbc4d29bc250df25e",
+              "fenceReceiptDigest": "sha256:1f44fea5c17b235ad41aa235d9e0cac4e622df4a4b0d9365cb4e60d934c723ed",
+              "supersessionDigest": "sha256:0dcba94be5412d81fff99cb1012356f233c8acc388140b2f9b835c0238612f06",
+              "budgetReleaseDigest": "sha256:878e8f12608ba7ec3da666d73de6a26fe77515a2c9fd9468c866751323f877d5",
+              "resolvedAtLogicalMs": 321,
+              "continuityReceiptDigest": "sha256:44200c32e647951a27135c2ca8912723c89ceb49b179e76380845c450ac73563",
+              "terminalAgentReceiptDigest": "sha256:73452e35cbd61d000e13c3596eba17109b814dadfa5c2b5b63b296e6cc34fd4a"
+            }
+          },
+          "contentType": "application/json",
+          "createdAt": "2026-09-19T12:00:00.240Z"
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "tenantId": "tenant:test",
+      "id": "101b52df-4982-4c36-bbb4-f9d946759a71",
+      "roomId": "room:test",
+      "targetType": "action",
+      "targetId": "candidate:b",
+      "action": "morphogenesis.approve:sha256:b6f04981c7e39d0b9bde7e5890fbccd466ee01833a566b5663b370fa224d6ee2",
+      "status": "approved",
+      "requestedBy": "agent:planner",
+      "decidedBy": "person:reviewer:b",
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z",
+      "decidedAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "a6810f68-bb64-4f6c-bb0b-4734cc3d6200",
+      "roomId": "room:test",
+      "targetType": "action",
+      "targetId": "candidate:a",
+      "action": "morphogenesis.approve:sha256:245574062eacb1d5a763fb03f36345e67a6b96c0043e7da77c7b0efb2ae7435b",
+      "status": "approved",
+      "requestedBy": "agent:planner",
+      "decidedBy": "person:reviewer:a",
+      "createdAt": "2026-09-19T12:00:00.240Z",
+      "updatedAt": "2026-09-19T12:00:00.240Z",
+      "decidedAt": "2026-09-19T12:00:00.240Z"
+    }
+  ],
+  "policies": [],
+  "memory": [],
+  "contextSnapshots": [],
+  "runs": [],
+  "toolCalls": [],
+  "events": [
+    {
+      "tenantId": "tenant:test",
+      "id": "8d75ece7-6b29-4794-845f-d59ca391ebbe",
+      "roomId": "room:test",
+      "type": "room_created",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "title": "Persistent Morphogenesis",
+        "roomId": "room:test",
+        "parentRoomId": null
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "d9029627-b7f0-4d41-b024-f969009f790c",
+      "roomId": "room:test",
+      "type": "participant_added",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "role": "planner",
+        "roomId": "room:test",
+        "participantId": "agent:planner",
+        "participantType": "agent"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "8ce1b792-0b0e-46e0-b7b6-f1f9e28d6e7f",
+      "roomId": "room:test",
+      "type": "participant_added",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "role": "reviewer",
+        "roomId": "room:test",
+        "participantId": "person:reviewer:a",
+        "participantType": "human"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "33ebc0f0-bf57-4c9d-9e2e-5a82b4354cb7",
+      "roomId": "room:test",
+      "type": "participant_added",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "role": "reviewer",
+        "roomId": "room:test",
+        "participantId": "person:reviewer:b",
+        "participantType": "human"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "dba56b1a-b70e-4a18-86dd-f1dd83445898",
+      "roomId": "room:test",
+      "type": "participant_added",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "role": "reviewer",
+        "roomId": "room:test",
+        "participantId": "person:reviewer:expiry",
+        "participantType": "human"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "9ff9099a-63e2-482f-b99a-ecd93098b305",
+      "roomId": "room:test",
+      "type": "approval_requested",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "targetId": "candidate:a",
+        "expiresAt": null,
+        "approvalId": "a6810f68-bb64-4f6c-bb0b-4734cc3d6200",
+        "targetType": "action",
+        "targetVersion": null
+      },
+      "metadata": {
+        "actorId": "agent:planner"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z",
+      "actorId": "agent:planner"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "872a1b7d-e33a-40a7-be8a-fb831169aa05",
+      "roomId": "room:test",
+      "type": "approval_granted",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "targetId": "candidate:a",
+        "approvalId": "a6810f68-bb64-4f6c-bb0b-4734cc3d6200"
+      },
+      "metadata": {
+        "actorId": "person:reviewer:a"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z",
+      "actorId": "person:reviewer:a"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "ce2bbb94-19a8-4355-86ef-fdccb4eedbfe",
+      "roomId": "room:test",
+      "type": "approval_requested",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "targetId": "candidate:b",
+        "expiresAt": null,
+        "approvalId": "101b52df-4982-4c36-bbb4-f9d946759a71",
+        "targetType": "action",
+        "targetVersion": null
+      },
+      "metadata": {
+        "actorId": "agent:planner"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z",
+      "actorId": "agent:planner"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "3239cff5-a2ec-4cf7-b029-a13da03e09c2",
+      "roomId": "room:test",
+      "type": "approval_granted",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "targetId": "candidate:b",
+        "approvalId": "101b52df-4982-4c36-bbb4-f9d946759a71"
+      },
+      "metadata": {
+        "actorId": "person:reviewer:b"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z",
+      "actorId": "person:reviewer:b"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "c9d4407a-22eb-4ec2-8119-bc4ae010f753",
+      "roomId": "room:test",
+      "type": "artifact_created",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "artifactId": "morphogenesis-supersession:execution:a:supersession"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    },
+    {
+      "tenantId": "tenant:test",
+      "id": "07151af1-1361-4552-8612-6343d0acd452",
+      "roomId": "room:test",
+      "type": "artifact_created",
+      "source": "agentplat.rooms",
+      "subject": {
+        "id": "room:test",
+        "type": "room",
+        "tenantId": "tenant:test"
+      },
+      "payload": {
+        "roomId": "room:test",
+        "artifactId": "morphogenesis-receipt:execution:b:receipt"
+      },
+      "occurredAt": "2026-09-19T12:00:00.240Z"
+    }
+  ],
+  "childRooms": []
+}

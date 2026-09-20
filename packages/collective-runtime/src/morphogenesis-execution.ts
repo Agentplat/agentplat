@@ -31,6 +31,14 @@ import {
 } from "./morphogenesis-retirement.js";
 import type { AgentInstantiationProfileAnyV1 } from "./morphogenesis-instantiation.js";
 import { validateMorphogenesisScopeV1 } from "./morphogenesis-validation.js";
+import {
+  createMorphogenesisSupersessionBindingV1,
+  createMorphogenesisSupersessionReceiptV1,
+  validateMorphogenesisSupersessionBindingV1,
+  validateMorphogenesisSupersessionReceiptV1,
+  type MorphogenesisSupersessionBindingV1,
+  type MorphogenesisSupersessionReceiptV1,
+} from "./morphogenesis-supersession.js";
 
 export interface MorphogenesisCandidateSearchRequestV1 {
   readonly schemaVersion: 1;
@@ -281,7 +289,9 @@ export interface MorphogenesisExecutionRecordV1 {
     | "retired"
     | "releasing_budget"
     | "budget_released"
-    | "completed";
+    | "completed"
+    | "superseding"
+    | "superseded";
   readonly branch:
     | "recruit_existing"
     | "catalog_created"
@@ -304,6 +314,9 @@ export interface MorphogenesisExecutionRecordV1 {
   readonly logicalTimeHighWaterMs: number;
   readonly predecessorRecordDigest: PlanningDigestV1 | null;
   readonly recordDigest: PlanningDigestV1;
+  /** Present only after opting into resolution of a proven losing proposal. */
+  readonly supersession?: MorphogenesisSupersessionBindingV1;
+  readonly supersessionReceipt?: MorphogenesisSupersessionReceiptV1;
 }
 
 export interface MorphogenesisExecutionStoreV1 {
@@ -681,7 +694,9 @@ export class MorphogenesisExecutionRuntimeV1 {
       const receipt = await this.options.continuity.reconcile(this.continuityInput(current, input.logicalTimeMs));
       return this.applyContinuity(current, receipt, input.logicalTimeMs);
     }
-    if (current.phase !== "morphology_active") fail("Morphogenesis checkpoint phase is invalid");
+    if (current.phase !== "morphology_active" &&
+        !(current.phase === "superseding" && current.supersession))
+      fail("Morphogenesis checkpoint phase is invalid");
     const operationId = `${current.stateKey}:checkpoint` as AgentPlatID;
     current = await this.saveNext(current, {
       phase: "checkpointing",
@@ -770,6 +785,8 @@ export class MorphogenesisExecutionRuntimeV1 {
 
   async complete(input: { readonly stateKey: AgentPlatID; readonly disposition: MorphogenesisReceiptV1["disposition"]; readonly outcomeEvidenceDigests: readonly PlanningDigestV1[]; readonly logicalTimeMs: number }): Promise<MorphogenesisExecutionRecordV1> {
     const current = await this.required(input.stateKey);
+    if (current.supersession)
+      fail("Superseded executions must close through advanceSupersededResolution");
     if (current.phase === "completed") return current;
     if (current.phase !== "budget_released" || !current.budgetReleaseDigest) fail("Morphogenesis completion requires released budget");
     const receipt = createMorphogenesisReceiptV1({
@@ -790,6 +807,87 @@ export class MorphogenesisExecutionRuntimeV1 {
       evaluatedAtLogicalMs: input.logicalTimeMs,
     });
     return this.saveNext(current, { phase: "completed", receipt, pendingOperation: null, logicalTimeMs: input.logicalTimeMs });
+  }
+
+  /** Claims a losing execution before cleanup; never infers non-commit from a timeout. */
+  async beginSupersededResolution(input: {
+    readonly stateKey: AgentPlatID;
+    readonly logicalTimeMs: number;
+  }): Promise<MorphogenesisExecutionRecordV1> {
+    const current = validateMorphogenesisExecutionRecordV1(await this.required(input.stateKey));
+    if (current.supersession) return current;
+    if (current.activation || current.receipt ||
+        !["team_active", "committing_morphology"].includes(current.phase) ||
+        !current.agent || !current.team)
+      fail("Supersession requires an activated Team without committed morphology");
+    if (input.logicalTimeMs < current.logicalTimeHighWaterMs)
+      fail("Supersession logical time regressed");
+    if (typeof this.options.morphology.inspectHead !== "function")
+      fail("Supersession requires authoritative morphology head inspection");
+    const winningHead = await this.options.morphology.inspectHead({
+      morphologyHeadStateKey: current.morphologyHeadStateKey,
+      scope: current.scope,
+    });
+    if (!winningHead || winningHead.stateKey !== current.morphologyHeadStateKey)
+      fail("Supersession authoritative winning head is unavailable or mismatched");
+    const supersession = createMorphogenesisSupersessionBindingV1({
+      resolutionId: `${current.stateKey}:supersession` as AgentPlatID,
+      executionStateKey: current.stateKey,
+      executionRecordDigest: current.recordDigest,
+      scopeDigest: current.scope.scopeDigest,
+      proposalDigest: current.proposalDigest,
+      expectedMorphologyEpoch: current.expectedMorphologyEpoch,
+      winningHead,
+      startedAtLogicalMs: input.logicalTimeMs,
+    });
+    return this.saveNext(current, {
+      phase: "superseding", supersession, pendingOperation: null,
+      logicalTimeMs: input.logicalTimeMs,
+    });
+  }
+
+  /** One durable cleanup step. Owner uncertainty rejects and retains the pending identity. */
+  async advanceSupersededResolution(input: {
+    readonly stateKey: AgentPlatID;
+    readonly logicalTimeMs: number;
+  }): Promise<MorphogenesisExecutionRecordV1> {
+    const current = validateMorphogenesisExecutionRecordV1(await this.required(input.stateKey));
+    if (!current.supersession) fail("Superseded resolution has not been admitted");
+    if (current.phase === "superseded") return current;
+    if (input.logicalTimeMs < current.logicalTimeHighWaterMs)
+      fail("Supersession logical time regressed");
+    switch (current.phase) {
+      case "superseding":
+      case "checkpointing": return this.checkpoint(input);
+      case "checkpointed":
+      case "fencing": return this.fenceAuthority(input);
+      case "fenced":
+      case "draining": return this.drain(input);
+      case "detached":
+      case "retired":
+      case "releasing_budget": return this.releaseBudget(input);
+      case "budget_released": {
+        if (!current.continuity || !current.fence || !current.terminalAgent || !current.budgetReleaseDigest)
+          fail("Superseded resolution lacks required owner receipts");
+        const supersessionReceipt = createMorphogenesisSupersessionReceiptV1({
+          resolutionId: current.supersession.resolutionId,
+          supersessionDigest: current.supersession.supersessionDigest,
+          proposalDigest: current.proposalDigest,
+          decisionDigest: current.decisionDigest,
+          winningHeadDigest: current.supersession.winningHead.headDigest,
+          continuityReceiptDigest: current.continuity.continuityReceiptDigest,
+          fenceReceiptDigest: current.fence.fenceReceiptDigest,
+          terminalAgentReceiptDigest: current.terminalAgent.terminalReceiptDigest,
+          budgetReleaseDigest: current.budgetReleaseDigest,
+          resolvedAtLogicalMs: input.logicalTimeMs,
+        });
+        return this.saveNext(current, {
+          phase: "superseded", supersessionReceipt, pendingOperation: null,
+          logicalTimeMs: input.logicalTimeMs,
+        });
+      }
+      default: return fail("Superseded resolution phase is invalid");
+    }
   }
 
   activationInput(current: MorphogenesisExecutionRecordV1, logicalTimeMs: number) {
@@ -905,6 +1003,8 @@ export class MorphogenesisExecutionRuntimeV1 {
         ?.terminalReceiptDigest,
       (values.receipt as MorphogenesisReceiptV1 | undefined)?.receiptDigest,
       values.budgetReleaseDigest as PlanningDigestV1 | undefined,
+      (values.supersession as MorphogenesisSupersessionBindingV1 | undefined)?.supersessionDigest,
+      (values.supersessionReceipt as MorphogenesisSupersessionReceiptV1 | undefined)?.receiptDigest,
       ].filter((value): value is PlanningDigestV1 => Boolean(value))),
     ];
     const event = createExecutionEvent({
@@ -980,6 +1080,8 @@ export function validateMorphogenesisExecutionRecordV1(
     "team",
     "terminalAgent",
     "targetDigest",
+    ...(Object.hasOwn(value, "supersession") ? ["supersession"] : []),
+    ...(Object.hasOwn(value, "supersessionReceipt") ? ["supersessionReceipt"] : []),
   ].sort();
   if (
     Object.getOwnPropertySymbols(input).length > 0 ||
@@ -1043,8 +1145,46 @@ export function createMorphogenesisAgentAttestationV1(input: Omit<MorphogenesisA
 function validateAttestation(input: MorphogenesisAgentAttestationV1): MorphogenesisAgentAttestationV1 { const result = createMorphogenesisAgentAttestationV1(stripDigest(input)); if (input.attestationDigest !== result.attestationDigest) fail("agent attestation digest is invalid"); return result; }
 export function createMorphogenesisSuccessorTeamReceiptV1(input: Omit<MorphogenesisSuccessorTeamReceiptV1, "schemaVersion" | "receiptDigest">): MorphogenesisSuccessorTeamReceiptV1 { const body = freeze({ schemaVersion: 1 as const, operationId: id(input.operationId, "Team operation ID"), agentDigest: sha(input.agentDigest, "Team agent digest"), teamId: id(input.teamId, "Team ID"), teamEpoch: positive(input.teamEpoch, "Team epoch"), teamProposalDigest: sha(input.teamProposalDigest, "Team proposal digest"), jointWorkContractDigest: sha(input.jointWorkContractDigest, "joint Work Contract digest"), individualWorkContractDigests: digests(input.individualWorkContractDigests, "individual Work Contract digests", 1, 1_024), executionStateDigest: sha(input.executionStateDigest, "successor execution state digest"), retainedArtifactDigests: digests(input.retainedArtifactDigests, "retained execution artifacts", 0, 4_096), invalidatedCausalClosureDigests: digests(input.invalidatedCausalClosureDigests, "invalidated causal closure", 0, 4_096), activatedAtLogicalMs: nonNegative(input.activatedAtLogicalMs, "Team activation time") }); return freeze({ ...body, receiptDigest: digest("morphogenesis-successor-team-receipt", body) }); }
 function validateTeamReceipt(input: MorphogenesisSuccessorTeamReceiptV1): MorphogenesisSuccessorTeamReceiptV1 { const result = createMorphogenesisSuccessorTeamReceiptV1(stripDigest(input)); if (input.receiptDigest !== result.receiptDigest) fail("successor Team receipt digest is invalid"); return result; }
-function createRecord(input: Omit<MorphogenesisExecutionRecordV1, "schemaVersion" | "recordDigest"> & { recordDigest?: undefined }): MorphogenesisExecutionRecordV1 { const { recordDigest: _ignored, ...value } = input; const body = freeze({ schemaVersion: 1 as const, ...value, stateKey: id(value.stateKey, "execution state key"), scope: validateMorphogenesisScopeV1(value.scope), proposalDigest: sha(value.proposalDigest, "execution proposal digest"), targetDigest: sha(value.targetDigest, "execution target digest"), decisionDigest: sha(value.decisionDigest, "execution decision digest"), budgetReservationDigest: sha(value.budgetReservationDigest, "execution budget reservation digest"), budgetReservationId: id(value.budgetReservationId, "budget reservation ID"), budgetReleaseDigest: value.budgetReleaseDigest === null ? null : sha(value.budgetReleaseDigest, "budget release digest"), morphologyHeadStateKey: id(value.morphologyHeadStateKey, "morphology head state key"), expectedMorphologyEpoch: positive(value.expectedMorphologyEpoch, "expected morphology epoch"), resultingSnapshotDigest: sha(value.resultingSnapshotDigest, "resulting snapshot digest"), positionDigest: sha(value.positionDigest, "execution position digest"), requiredCapabilityKeys: ids(value.requiredCapabilityKeys, "execution capability keys", 1, 256), searchRequest: createMorphogenesisCandidateSearchRequestV1(stripDigest(value.searchRequest)), profileCertificationDigest: value.profileCertificationDigest === null ? null : sha(value.profileCertificationDigest, "profile certification digest"), events: validateExecutionEvents(value.events), revision: nonNegative(value.revision, "execution revision"), logicalTimeHighWaterMs: nonNegative(value.logicalTimeHighWaterMs, "execution logical time"), predecessorRecordDigest: value.predecessorRecordDigest === null ? null : sha(value.predecessorRecordDigest, "execution predecessor digest") }); return freeze({ ...body, recordDigest: digest("morphogenesis-execution-record", body) }); }
-function sameAppliedResult(left: MorphogenesisExecutionRecordV1, right: MorphogenesisExecutionRecordV1): boolean { return left.phase === right.phase && left.pendingOperation?.resultDigest === right.pendingOperation?.resultDigest && left.agent?.agentDigest === right.agent?.agentDigest && left.attestation?.attestationDigest === right.attestation?.attestationDigest && left.team?.receiptDigest === right.team?.receiptDigest && left.activation?.activationReceiptDigest === right.activation?.activationReceiptDigest && left.continuity?.continuityReceiptDigest === right.continuity?.continuityReceiptDigest && left.fence?.fenceReceiptDigest === right.fence?.fenceReceiptDigest && left.terminalAgent?.terminalReceiptDigest === right.terminalAgent?.terminalReceiptDigest && left.budgetReleaseDigest === right.budgetReleaseDigest && left.receipt?.receiptDigest === right.receipt?.receiptDigest; }
+function createRecord(input: Omit<MorphogenesisExecutionRecordV1, "schemaVersion" | "recordDigest"> & { recordDigest?: undefined }): MorphogenesisExecutionRecordV1 { const { recordDigest: _ignored, ...value } = input; validateSupersessionState(value); const body = freeze({ schemaVersion: 1 as const, ...value, stateKey: id(value.stateKey, "execution state key"), scope: validateMorphogenesisScopeV1(value.scope), proposalDigest: sha(value.proposalDigest, "execution proposal digest"), targetDigest: sha(value.targetDigest, "execution target digest"), decisionDigest: sha(value.decisionDigest, "execution decision digest"), budgetReservationDigest: sha(value.budgetReservationDigest, "execution budget reservation digest"), budgetReservationId: id(value.budgetReservationId, "budget reservation ID"), budgetReleaseDigest: value.budgetReleaseDigest === null ? null : sha(value.budgetReleaseDigest, "budget release digest"), morphologyHeadStateKey: id(value.morphologyHeadStateKey, "morphology head state key"), expectedMorphologyEpoch: positive(value.expectedMorphologyEpoch, "expected morphology epoch"), resultingSnapshotDigest: sha(value.resultingSnapshotDigest, "resulting snapshot digest"), positionDigest: sha(value.positionDigest, "execution position digest"), requiredCapabilityKeys: ids(value.requiredCapabilityKeys, "execution capability keys", 1, 256), searchRequest: createMorphogenesisCandidateSearchRequestV1(stripDigest(value.searchRequest)), profileCertificationDigest: value.profileCertificationDigest === null ? null : sha(value.profileCertificationDigest, "profile certification digest"), events: validateExecutionEvents(value.events), revision: nonNegative(value.revision, "execution revision"), logicalTimeHighWaterMs: nonNegative(value.logicalTimeHighWaterMs, "execution logical time"), predecessorRecordDigest: value.predecessorRecordDigest === null ? null : sha(value.predecessorRecordDigest, "execution predecessor digest") }); return freeze({ ...body, recordDigest: digest("morphogenesis-execution-record", body) }); }
+function validateSupersessionState(value: Omit<MorphogenesisExecutionRecordV1, "schemaVersion" | "recordDigest">): void {
+  if (!Object.hasOwn(value, "supersession")) {
+    if (Object.hasOwn(value, "supersessionReceipt") || ["superseding", "superseded"].includes(value.phase))
+      fail("Supersession phase or receipt lacks its immutable binding");
+    return;
+  }
+  const binding = validateMorphogenesisSupersessionBindingV1(value.supersession);
+  if (binding.executionStateKey !== value.stateKey || binding.scopeDigest !== value.scope.scopeDigest ||
+      binding.proposalDigest !== value.proposalDigest || binding.expectedMorphologyEpoch !== value.expectedMorphologyEpoch ||
+      binding.winningHead.stateKey !== value.morphologyHeadStateKey || value.activation !== null || value.receipt !== null ||
+      !value.agent || !value.team || binding.startedAtLogicalMs > value.logicalTimeHighWaterMs ||
+      !["superseding", "checkpointing", "checkpointed", "fencing", "fenced", "draining", "detached", "retired",
+        "releasing_budget", "budget_released", "superseded"].includes(value.phase))
+    fail("Supersession execution binding is invalid");
+  validateLifecycleAgent(value.agent);
+  validateTeamReceipt(value.team);
+  if (value.phase !== "superseded") {
+    if (Object.hasOwn(value, "supersessionReceipt")) fail("Supersession receipt precedes terminal resolution");
+    return;
+  }
+  const receipt = validateMorphogenesisSupersessionReceiptV1(value.supersessionReceipt);
+  if (!value.continuity || !value.fence || !value.terminalAgent || !value.budgetReleaseDigest || value.pendingOperation !== null ||
+      receipt.resolutionId !== binding.resolutionId || receipt.supersessionDigest !== binding.supersessionDigest ||
+      receipt.proposalDigest !== value.proposalDigest || receipt.decisionDigest !== value.decisionDigest ||
+      receipt.winningHeadDigest !== binding.winningHead.headDigest ||
+      receipt.continuityReceiptDigest !== value.continuity.continuityReceiptDigest ||
+      receipt.fenceReceiptDigest !== value.fence.fenceReceiptDigest ||
+      receipt.terminalAgentReceiptDigest !== value.terminalAgent.terminalReceiptDigest ||
+      receipt.budgetReleaseDigest !== value.budgetReleaseDigest || receipt.resolvedAtLogicalMs < binding.startedAtLogicalMs ||
+      receipt.resolvedAtLogicalMs > value.logicalTimeHighWaterMs)
+    fail("Supersession terminal receipt binding is invalid");
+}
+
+/** Terminal outcomes are distinct: success has a normal receipt; supersession has a cleanup receipt. */
+export function isMorphogenesisExecutionTerminalV1(record: MorphogenesisExecutionRecordV1): boolean {
+  return record.phase === "completed" || record.phase === "superseded";
+}
+
+function sameAppliedResult(left: MorphogenesisExecutionRecordV1, right: MorphogenesisExecutionRecordV1): boolean { return left.phase === right.phase && left.pendingOperation?.resultDigest === right.pendingOperation?.resultDigest && left.agent?.agentDigest === right.agent?.agentDigest && left.attestation?.attestationDigest === right.attestation?.attestationDigest && left.team?.receiptDigest === right.team?.receiptDigest && left.activation?.activationReceiptDigest === right.activation?.activationReceiptDigest && left.continuity?.continuityReceiptDigest === right.continuity?.continuityReceiptDigest && left.fence?.fenceReceiptDigest === right.fence?.fenceReceiptDigest && left.terminalAgent?.terminalReceiptDigest === right.terminalAgent?.terminalReceiptDigest && left.budgetReleaseDigest === right.budgetReleaseDigest && left.receipt?.receiptDigest === right.receipt?.receiptDigest && left.supersession?.supersessionDigest === right.supersession?.supersessionDigest && left.supersessionReceipt?.receiptDigest === right.supersessionReceipt?.receiptDigest; }
 function createExecutionEvent(input: Omit<MorphogenesisExecutionEventV1, "schemaVersion" | "eventDigest">): MorphogenesisExecutionEventV1 { const body = freeze({ schemaVersion: 1 as const, sequence: positive(input.sequence, "execution event sequence"), phase: input.phase, outcome: input.outcome, operationId: input.operationId === null ? null : id(input.operationId, "execution event operation ID"), evidenceDigests: digests(input.evidenceDigests, "execution event evidence", 0, 32), logicalTimeMs: nonNegative(input.logicalTimeMs, "execution event logical time"), previousEventDigest: input.previousEventDigest === null ? null : sha(input.previousEventDigest, "execution event predecessor") }); return freeze({ ...body, eventDigest: digest("morphogenesis-execution-event", body) }); }
 function validateExecutionEvents(input: readonly MorphogenesisExecutionEventV1[]): readonly MorphogenesisExecutionEventV1[] { if (!Array.isArray(input) || input.length < 1 || input.length > 512) fail("execution event history is invalid"); const result = input.map((event, index) => { const { schemaVersion, eventDigest, ...body } = event; if (schemaVersion !== 1 || event.sequence !== index + 1 || event.previousEventDigest !== (index === 0 ? null : input[index - 1]!.eventDigest)) fail("execution event lineage is invalid"); const rebuilt = createExecutionEvent(body); if (rebuilt.eventDigest !== eventDigest) fail("execution event digest is invalid"); return rebuilt; }); return freeze(result); }
 function stripDigest<T extends object>(input: T): Omit<T, "candidateDigest" | "requestDigest" | "resultDigest" | "attestationDigest" | "receiptDigest"> { const clone = { ...input } as Record<string, unknown>; for (const key of ["candidateDigest", "requestDigest", "resultDigest", "attestationDigest", "receiptDigest"]) delete clone[key]; return clone as never; }

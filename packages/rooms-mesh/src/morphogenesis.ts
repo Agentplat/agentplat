@@ -1,5 +1,6 @@
 import {
   type MorphogenesisExecutionRecordV1,
+  validateMorphogenesisExecutionRecordV1,
   type MorphogenesisNeedV1,
   type MorphogenesisProposalV1,
   type MorphogenesisReceiptV1,
@@ -531,6 +532,48 @@ export function projectMorphogenesisReceiptToRoomArtifactV1(input: {
         proposalDigest: input.receipt.proposalDigest,
         resultingMorphologyEpoch: input.receipt.resultingMorphologyEpoch,
         disposition: input.receipt.disposition,
+      },
+    },
+  });
+}
+
+/** Projects cleanup evidence without pretending that the losing proposal activated. */
+export function projectMorphogenesisSupersessionToRoomArtifactV1(input: {
+  readonly room: Room;
+  readonly execution: MorphogenesisExecutionRecordV1;
+  readonly createdBy?: string;
+}): MorphogenesisRoomArtifactProjectionV1 {
+  const execution = validateMorphogenesisExecutionRecordV1(input.execution);
+  assertAdvancedRoomScope(input.room, execution.scope);
+  if (execution.phase !== "superseded" || !execution.supersession || !execution.supersessionReceipt)
+    fail("Morphogenesis supersession projection requires a terminal cleanup receipt");
+  const receipt = execution.supersessionReceipt;
+  const id = `morphogenesis-supersession:${receipt.resolutionId}`;
+  return freeze({
+    schemaVersion: 1,
+    kind: "room.artifact",
+    tenantId: input.room.tenantId,
+    roomId: input.room.id,
+    idempotencyKey: id,
+    input: {
+      id,
+      type: "agent-morphogenesis-supersession",
+      title: "Superseded Morphogenesis transition",
+      content: { binding: execution.supersession, receipt } as unknown as CreateArtifactInput["content"],
+      contentType: "application/json",
+      authors: input.createdBy ? [input.createdBy] : [],
+      provenance: { sourceMessageIds: [], sourceArtifactIds: [], sourceMemoryIds: [] },
+      assumptions: [],
+      risks: ["authority-remains-external"],
+      ...(input.createdBy ? { createdBy: input.createdBy } : {}),
+      metadata: {
+        morphogenesisSchemaVersion: 1,
+        disposition: "superseded",
+        proposalDigest: execution.proposalDigest,
+        executionRecordDigest: execution.recordDigest,
+        receiptDigest: receipt.receiptDigest,
+        winningHeadDigest: receipt.winningHeadDigest,
+        authorityGranted: false,
       },
     },
   });

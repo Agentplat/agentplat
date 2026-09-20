@@ -12,6 +12,7 @@ export const A2A_PACKAGE_NAMES = Object.freeze([
   "@agentplat/a2a",
   "@agentplat/agent-registry",
   "@agentplat/agent-registry-postgres",
+
 ]);
 
 export const RELEASE_LINES = Object.freeze([
@@ -74,6 +75,13 @@ export const RELEASE_LINES = Object.freeze([
     catalogPackageCount: 65,
     id: "beta8",
     releaseVersion: "0.3.0-beta.8",
+    trustPackageCount: 1,
+    requiredPackageNames: A2A_PACKAGE_NAMES,
+  }),
+  Object.freeze({
+    catalogPackageCount: 65,
+    id: "beta9",
+    releaseVersion: "0.3.0-beta.9",
     trustPackageCount: 1,
     requiredPackageNames: A2A_PACKAGE_NAMES,
   }),

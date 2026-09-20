@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-lost_ack-minimal",
+  "condition": "minimal",
+  "cell": "lost_ack",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqASnp1jLdOSRHZXAr+NHvX50zTguiwV/EwldXYbipSg=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-lost_ack-minimal",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:880c21894661d7e3a3eab9def013a6e892adc40db8f3f8d75adebcc0901aa87e",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-lost_ack-minimal",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:aabf850372a7d5017de071a413913393f31e14d0589223d52324e1396a4b11f6"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-lost_ack-minimal:attempt:0",
+        "proposalDigest": "sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "F9IVyObuSYVPO3ev8B47PAq3ula2+6NYjW/q4poPoy1M6K/tM0jwP234CbiAlKKE0bg+/iGmmkTrQcT9pRXNAQ==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": true
+    },
+    {
+      "request": {
+        "operationId": "authority-lost_ack-minimal:attempt:1",
+        "proposalDigest": "sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "F9IVyObuSYVPO3ev8B47PAq3ula2+6NYjW/q4poPoy1M6K/tM0jwP234CbiAlKKE0bg+/iGmmkTrQcT9pRXNAQ==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": true
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": true,
+      "fenced": false,
+      "roleId": "role:af256ffb34adebb9",
+      "operationId": "authority-lost_ack-minimal:attempt:0",
+      "createdPhase": 3
+    },
+    {
+      "kind": "statistics",
+      "active": true,
+      "fenced": false,
+      "roleId": "role:5d88216c2b563640",
+      "operationId": "authority-lost_ack-minimal:attempt:1",
+      "createdPhase": 3
+    }
+  ],
+  "chains": [
+    {
+      "operationId": "authority-lost_ack-minimal:attempt:0",
+      "role": {
+        "kind": "statistics",
+        "active": true,
+        "fenced": false,
+        "roleId": "role:af256ffb34adebb9",
+        "operationId": "authority-lost_ack-minimal:attempt:0",
+        "createdPhase": 3
+      },
+      "admissionIndex": 0,
+      "proposal": {
+        "schemaVersion": 1,
+        "proposalId": "proposal:authority-lost_ack-minimal",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+        "targetDigest": "sha256:880c21894661d7e3a3eab9def013a6e892adc40db8f3f8d75adebcc0901aa87e",
+        "operations": [
+          {
+            "schemaVersion": 1,
+            "operationId": "operation:recruit:authority-lost_ack-minimal",
+            "operator": "recruit_existing",
+            "effectClass": "protected_external",
+            "dependsOnOperationIds": [],
+            "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+            "compensation": "none",
+            "operationDigest": "sha256:aabf850372a7d5017de071a413913393f31e14d0589223d52324e1396a4b11f6"
+          }
+        ],
+        "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "proposerVersion": 1,
+        "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "proposedAtLogicalMs": 220,
+        "expiresAtLogicalMs": 500,
+        "advisoryOnly": true,
+        "proposalDigest": "sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96"
+      },
+      "controllerCondition": "minimal"
+    },
+    {
+      "operationId": "authority-lost_ack-minimal:attempt:1",
+      "role": {
+        "kind": "statistics",
+        "active": true,
+        "fenced": false,
+        "roleId": "role:5d88216c2b563640",
+        "operationId": "authority-lost_ack-minimal:attempt:1",
+        "createdPhase": 3
+      },
+      "admissionIndex": 1,
+      "proposal": {
+        "schemaVersion": 1,
+        "proposalId": "proposal:authority-lost_ack-minimal",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+        "targetDigest": "sha256:880c21894661d7e3a3eab9def013a6e892adc40db8f3f8d75adebcc0901aa87e",
+        "operations": [
+          {
+            "schemaVersion": 1,
+            "operationId": "operation:recruit:authority-lost_ack-minimal",
+            "operator": "recruit_existing",
+            "effectClass": "protected_external",
+            "dependsOnOperationIds": [],
+            "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+            "compensation": "none",
+            "operationDigest": "sha256:aabf850372a7d5017de071a413913393f31e14d0589223d52324e1396a4b11f6"
+          }
+        ],
+        "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "proposerVersion": 1,
+        "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "proposedAtLogicalMs": 220,
+        "expiresAtLogicalMs": 500,
+        "advisoryOnly": true,
+        "proposalDigest": "sha256:bd9b5d306bc3148d5c25959d88aa4e088739a5892ea8b203ea67de212c78fd96"
+      },
+      "controllerCondition": "minimal"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 3,
+      "kind": "role-materialized",
+      "roleId": "role:af256ffb34adebb9",
+      "operationId": "authority-lost_ack-minimal:attempt:0",
+      "initial": false
+    },
+    {
+      "sequence": 2,
+      "phase": 3,
+      "kind": "ack-lost",
+      "operationId": "authority-lost_ack-minimal:attempt:0"
+    },
+    {
+      "sequence": 3,
+      "phase": 3,
+      "kind": "role-materialized",
+      "roleId": "role:5d88216c2b563640",
+      "operationId": "authority-lost_ack-minimal:attempt:1",
+      "initial": false
+    }
+  ],
+  "controller": {
+    "condition": "minimal",
+    "role": {
+      "roleId": "role:5d88216c2b563640",
+      "operationId": "authority-lost_ack-minimal:attempt:1",
+      "kind": "statistics",
+      "active": true,
+      "fenced": false,
+      "createdPhase": 3
+    },
+    "done": false
+  },
+  "denied": false,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

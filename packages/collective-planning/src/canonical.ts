@@ -325,6 +325,8 @@ const digestDomains = new Set<PlanningDigestDomainV1>([
   "morphogenesis-agent-attestation",
   "morphogenesis-successor-team-receipt",
   "morphogenesis-execution-record",
+  "morphogenesis-supersession-binding",
+  "morphogenesis-supersession-receipt",
   "morphogenesis-activation-evidence",
   "morphogenesis-activation-receipt",
   "morphogenesis-continuity-receipt",

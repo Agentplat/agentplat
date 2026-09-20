@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-lost_ack-durable",
+  "condition": "durable",
+  "cell": "lost_ack",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqASnp1jLdOSRHZXAr+NHvX50zTguiwV/EwldXYbipSg=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-lost_ack-durable",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:3c521fbe488ef1a5321e803d9229599cd88ac958400e049ae1c28a8849a720d3",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-lost_ack-durable",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:040399a4ca9aa44b7ecf6ad63ace4e1b2927282974a42e410e18f29e0251621a"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:afa54d8f585ec459ce31da4b9ea797534b2449a079256b08bfacf5829f1a83f6"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-lost_ack-durable:durable-activate",
+        "proposalDigest": "sha256:afa54d8f585ec459ce31da4b9ea797534b2449a079256b08bfacf5829f1a83f6",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:afa54d8f585ec459ce31da4b9ea797534b2449a079256b08bfacf5829f1a83f6\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "Av3pxWFMv5exg9A+tdKS2mmNa8VxkA8GyKvg7zk4QSSQ5JSBvBHY5bH2dNGE1wIJjdxxXFNzsVbsmKogRFhzBg==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": true
+    }
+  ],
+  "roles": [
+    {
+      "kind": "statistics",
+      "active": true,
+      "fenced": false,
+      "roleId": "role:1b88c9aad2e18c03",
+      "operationId": "authority-lost_ack-durable:durable-activate",
+      "createdPhase": 3
+    }
+  ],
+  "chains": [
+    {
+      "operationId": "authority-lost_ack-durable:durable-activate",
+      "role": {
+        "kind": "statistics",
+        "active": true,
+        "fenced": false,
+        "roleId": "role:1b88c9aad2e18c03",
+        "operationId": "authority-lost_ack-durable:durable-activate",
+        "createdPhase": 3
+      },
+      "admissionIndex": 0,
+      "proposal": {
+        "schemaVersion": 1,
+        "proposalId": "proposal:authority-lost_ack-durable",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+        "expectedCurrentEpoch": 1,
+        "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+        "targetDigest": "sha256:3c521fbe488ef1a5321e803d9229599cd88ac958400e049ae1c28a8849a720d3",
+        "operations": [
+          {
+            "schemaVersion": 1,
+            "operationId": "operation:recruit:authority-lost_ack-durable",
+            "operator": "recruit_existing",
+            "effectClass": "protected_external",
+            "dependsOnOperationIds": [],
+            "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+            "compensation": "none",
+            "operationDigest": "sha256:040399a4ca9aa44b7ecf6ad63ace4e1b2927282974a42e410e18f29e0251621a"
+          }
+        ],
+        "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+        "budget": {
+          "maximumActiveAgents": 3,
+          "maximumNewAgents": 0,
+          "maximumConcurrentProvisioning": 0,
+          "maximumResourceUnits": 10,
+          "maximumInteractionUnits": 100,
+          "maximumActionUnits": 10,
+          "maximumInputTokens": 100,
+          "maximumOutputTokens": 100,
+          "maximumTotalTokens": 200,
+          "maximumDurationMs": 1000,
+          "maximumCosts": [
+            {
+              "currency": "USD",
+              "micros": 1000000
+            }
+          ],
+          "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+        },
+        "decisionRoute": "authorized_agent",
+        "proposerId": "agent:planner",
+        "proposerVersion": 1,
+        "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "proposedAtLogicalMs": 220,
+        "expiresAtLogicalMs": 500,
+        "advisoryOnly": true,
+        "proposalDigest": "sha256:afa54d8f585ec459ce31da4b9ea797534b2449a079256b08bfacf5829f1a83f6"
+      },
+      "controllerCondition": "durable"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 2,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-lost_ack-durable:durable-activate"
+    },
+    {
+      "sequence": 3,
+      "phase": 3,
+      "kind": "role-materialized",
+      "roleId": "role:1b88c9aad2e18c03",
+      "operationId": "authority-lost_ack-durable:durable-activate",
+      "initial": false
+    },
+    {
+      "sequence": 4,
+      "phase": 3,
+      "kind": "ack-lost",
+      "operationId": "authority-lost_ack-durable:durable-activate"
+    },
+    {
+      "sequence": 5,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-lost_ack-durable:durable-activate"
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": false,
+    "role": {
+      "kind": "statistics",
+      "active": true,
+      "fenced": false,
+      "roleId": "role:1b88c9aad2e18c03",
+      "operationId": "authority-lost_ack-durable:durable-activate",
+      "createdPhase": 3
+    },
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-lost_ack-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "completed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-lost_ack-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 2,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "reasonCode": "response_lost",
+            "taskRunId": "authority-lost_ack-durable:activate:apply:2",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-lost_ack-durable:activate:finalize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-lost_ack-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:e7fac6206283de84e1e4f9dd8d013d4e5f11417556151c0c881a110c9eb47d9c"
+      }
+    ]
+  },
+  "denied": false,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

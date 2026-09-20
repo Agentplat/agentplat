@@ -632,12 +632,15 @@ export interface MorphogenesisWorkActionFenceCommandPortV1 {
     readonly revokedActionGrantDigests: readonly PlanningDigestV1[];
     readonly successorFenceDigests: readonly PlanningDigestV1[];
     readonly effectReceiptDigest: PlanningDigestV1;
+    /** Persist the original effect time when reconciliation occurs later. */
+    readonly fencedAtLogicalMs?: number;
   }>;
   reconcile(input: Parameters<MorphogenesisAuthorityFencePortV1["reconcile"]>[0]): Promise<{
     readonly fencedWorkContractDigests: readonly PlanningDigestV1[];
     readonly revokedActionGrantDigests: readonly PlanningDigestV1[];
     readonly successorFenceDigests: readonly PlanningDigestV1[];
     readonly effectReceiptDigest: PlanningDigestV1;
+    readonly fencedAtLogicalMs?: number;
   }>;
 }
 
@@ -663,7 +666,8 @@ export class WorkActionMorphogenesisAuthorityFencePortV1
         (digest) => !result.fencedWorkContractDigests.includes(digest),
       ) ||
       result.successorFenceDigests.length < 1 ||
-      !/^sha256:[0-9a-f]{64}$/u.test(result.effectReceiptDigest)
+      !/^sha256:[0-9a-f]{64}$/u.test(result.effectReceiptDigest) ||
+      (result.fencedAtLogicalMs !== undefined && result.fencedAtLogicalMs > input.logicalTimeMs)
     )
       fail("Work/Action fence result is incomplete");
     return createMorphogenesisAuthorityFenceReceiptV1({
@@ -674,7 +678,7 @@ export class WorkActionMorphogenesisAuthorityFencePortV1
       revokedActionGrantDigests: result.revokedActionGrantDigests,
       successorFenceDigests: result.successorFenceDigests,
       effectReceiptDigest: result.effectReceiptDigest,
-      fencedAtLogicalMs: input.logicalTimeMs,
+      fencedAtLogicalMs: result.fencedAtLogicalMs ?? input.logicalTimeMs,
     });
   }
 }

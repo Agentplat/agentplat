@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-mandate_expired-durable",
+  "condition": "durable",
+  "cell": "mandate_expired",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqASnp1jLdOSRHZXAr+NHvX50zTguiwV/EwldXYbipSg=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-mandate_expired-durable",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:b4448d2bf7a4c6eb4b16c0fdda7b0f885e5c0e915eaf0e07d454c68927d7e983",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-mandate_expired-durable",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:0538c82925c4d138be8d2d24023f05e5f4d0c12a5b9be79b55258999edaeaa57"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:7ecc4029ad0e7ef9111dd4b7143c97187d6b5c01f7b32f8849c1f6ddb933ba9c"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-mandate_expired-durable:durable-activate",
+        "proposalDigest": "sha256:7ecc4029ad0e7ef9111dd4b7143c97187d6b5c01f7b32f8849c1f6ddb933ba9c",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:7ecc4029ad0e7ef9111dd4b7143c97187d6b5c01f7b32f8849c1f6ddb933ba9c\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":290}",
+      "signature": "jHAw5BiFhx6WbzZjNI0LzIjZVU3fn/qwhReqcMK5UwUfzcTYK2U22G5s87dFIBxlN3w1AfWOF21pFbVYg2WQCQ==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": false
+    }
+  ],
+  "roles": [],
+  "chains": [],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 2,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-mandate_expired-durable:durable-activate"
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": false,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-mandate_expired-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "failed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-mandate_expired-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-mandate_expired-durable:activate:apply:1",
+            "outcome": "failed",
+            "finishedAt": "2026-09-19T12:00:30.000Z",
+            "reasonCode": "task_executor_error"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 0,
+            "outcome": "skipped",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-mandate_expired-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:b5702bb819a4f3d074ee8a2d9bc8642daa9103be6f373b5968b930b6695ce7ac"
+      }
+    ]
+  },
+  "denied": true,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

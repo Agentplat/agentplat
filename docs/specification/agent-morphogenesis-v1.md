@@ -55,3 +55,12 @@ authoritative.
 Conformance with this document is additive. It does not change an
 implementation's AgentPlat compatibility level 1–4 claim until a future
 baseline manifest explicitly incorporates Agent Morphogenesis.
+
+## Opt-in superseded execution resolution
+
+The additive preview profile in [ADR 0054](../adr/0054-morphogenesis-superseded-resolution.md)
+adds `superseding` and terminal `superseded` without changing legacy record digests.
+Admission requires authoritative proof of another proposal's exact direct
+successor. Checkpoint, fence, drain/detach or retirement, and budget release remain
+owner obligations. A separate supersession receipt cannot stand in for normal
+activation. See the ADR for ambiguous-history handling and compatibility.

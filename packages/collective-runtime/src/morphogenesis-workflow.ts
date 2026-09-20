@@ -186,6 +186,33 @@ export interface MorphogenesisWorkflowCompensationPortV1 {
   }): Promise<{ readonly receiptDigest: PlanningDigestV1 }>;
 }
 
+/** Opt-in Workflow compensation for a proven losing morphology proposal only. */
+export class MorphogenesisSupersededCompensationPortV1
+  implements MorphogenesisWorkflowCompensationPortV1
+{
+  constructor(readonly execution: MorphogenesisExecutionRuntimeV1) {}
+
+  async compensate(input: Parameters<MorphogenesisWorkflowCompensationPortV1["compensate"]>[0]) {
+    input.signal.throwIfAborted();
+    let state = await this.execution.beginSupersededResolution({
+      stateKey: input.execution.stateKey,
+      logicalTimeMs: input.logicalTimeMs,
+    });
+    // Checkpoint, fence, drain, budget release and terminal receipt. Each call
+    // journals its intent; an interrupted owner call is reconciled on retry.
+    for (let step = 0; step < 5 && state.phase !== "superseded"; step += 1) {
+      input.signal.throwIfAborted();
+      state = await this.execution.advanceSupersededResolution({
+        stateKey: state.stateKey,
+        logicalTimeMs: input.logicalTimeMs,
+      });
+    }
+    if (state.phase !== "superseded" || !state.supersessionReceipt)
+      throw new Error("Morphogenesis superseded compensation remains incomplete");
+    return { receiptDigest: state.supersessionReceipt.receiptDigest };
+  }
+}
+
 /** Protected Workflow executor for the concrete Morphogenesis effect stages. */
 export class MorphogenesisExecutionTaskExecutorV1
   implements TaskExecutorPortV1
