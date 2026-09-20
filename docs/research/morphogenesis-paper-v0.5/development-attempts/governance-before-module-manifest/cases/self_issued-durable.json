@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "id": "authority-self_issued-durable",
+  "condition": "durable",
+  "cell": "self_issued",
+  "clock": {
+    "origin": "2026-09-20T00:00:00.000Z",
+    "admissionMs": 300,
+    "scope": "prescribed owner clock; no skew tested"
+  },
+  "trustedPublicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMfu0J4jWbQ7FuHnbOqp128BwAlAo8k8ivcux4jb667w=\n-----END PUBLIC KEY-----\n",
+  "proposal": {
+    "schemaVersion": 1,
+    "proposalId": "proposal:authority-self_issued-durable",
+    "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+    "currentSnapshotDigest": "sha256:2e5b56c49070db022d69eef49227459bc87e493e29901418375c896f49f41029",
+    "expectedCurrentEpoch": 1,
+    "needDigest": "sha256:1de032b0dcf9d83f7bbcf9b8cd06071b0a0f78acfab6b9154138b3259c864be4",
+    "targetDigest": "sha256:6374227441b8f769d09c9ae7531c17b55bb79c784e198a3ee2464590a7c82f38",
+    "operations": [
+      {
+        "schemaVersion": 1,
+        "operationId": "operation:recruit:authority-self_issued-durable",
+        "operator": "recruit_existing",
+        "effectClass": "protected_external",
+        "dependsOnOperationIds": [],
+        "targetReferenceDigest": "sha256:52ef937a941e557ed5d14ed62a7d5bcf462d2523d814860c058a7688bed1a3d1",
+        "compensation": "none",
+        "operationDigest": "sha256:f48e43bca36cb7522b018b79a9effef4efe54b3ce034a7c0c7a912f251f02cfc"
+      }
+    ],
+    "processDefinitionDigest": "sha256:62c37a60ab175f36e6ba0ff4025a9bb1f77a3c402075fa7e82515e3bda12d017",
+    "budget": {
+      "maximumActiveAgents": 3,
+      "maximumNewAgents": 0,
+      "maximumConcurrentProvisioning": 0,
+      "maximumResourceUnits": 10,
+      "maximumInteractionUnits": 100,
+      "maximumActionUnits": 10,
+      "maximumInputTokens": 100,
+      "maximumOutputTokens": 100,
+      "maximumTotalTokens": 200,
+      "maximumDurationMs": 1000,
+      "maximumCosts": [
+        {
+          "currency": "USD",
+          "micros": 1000000
+        }
+      ],
+      "budgetDigest": "sha256:e55a2b7cc011fcd30dc92e5988ac8184bc8c11b28db1eae81308b8165fb20afe"
+    },
+    "decisionRoute": "authorized_agent",
+    "proposerId": "agent:planner",
+    "proposerVersion": 1,
+    "proposerImplementationDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "proposedAtLogicalMs": 220,
+    "expiresAtLogicalMs": 500,
+    "advisoryOnly": true,
+    "proposalDigest": "sha256:e7f816d46cde95049f22f37586feea350cc8461b7f1eea1b4a1d738aea9d76f3"
+  },
+  "admissions": [
+    {
+      "request": {
+        "operationId": "authority-self_issued-durable:durable-activate",
+        "proposalDigest": "sha256:e7f816d46cde95049f22f37586feea350cc8461b7f1eea1b4a1d738aea9d76f3",
+        "scopeDigest": "sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99",
+        "subject": "agent:statistics"
+      },
+      "payload": "{\"proposalDigest\":\"sha256:e7f816d46cde95049f22f37586feea350cc8461b7f1eea1b4a1d738aea9d76f3\",\"scopeDigest\":\"sha256:3e47e49a21d3ba805b0aa16ee286b87d518e8dee9f871d1c02cd64cbf0283c99\",\"subject\":\"agent:statistics\",\"issuer\":\"authority:reference\",\"validFrom\":200,\"decisionUntil\":450,\"mandateUntil\":400}",
+      "signature": "zzxMtP5RtuRqCcv6wkb6cX2rWiwvI6/Mn2b0G/z/3BpIJAyHEuA6o6X+jNzOI7War+lBYL67dDwna6aDWBUsBw==",
+      "at": 300,
+      "ownerAllows": true,
+      "allowed": false
+    }
+  ],
+  "roles": [],
+  "chains": [],
+  "events": [
+    {
+      "sequence": 1,
+      "phase": 0,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:31c0a2313fa7c248fc8f01ec72696691f9d280dda42134bb84a72ccd0c2598f6"
+    },
+    {
+      "sequence": 2,
+      "phase": 1,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:372966a351b3dd6c84060035b4b4990f5a964edf6567c5bb2385a47364c6ed64"
+    },
+    {
+      "sequence": 3,
+      "phase": 2,
+      "kind": "artifact-accepted",
+      "artifactDigest": "sha256:90ecde2f899e0d1d036fa4cc30be3328c7c59c424d89f093f085e503e3bc4c6d"
+    },
+    {
+      "sequence": 4,
+      "phase": 3,
+      "kind": "owner-authorization"
+    },
+    {
+      "sequence": 5,
+      "phase": 3,
+      "kind": "owner-reconciliation",
+      "operationId": "authority-self_issued-durable:durable-activate"
+    }
+  ],
+  "controller": {
+    "condition": "durable",
+    "done": false,
+    "role": null,
+    "workflowStates": [
+      {
+        "schemaVersion": 1,
+        "tenantId": "missions",
+        "runId": "authority-self_issued-durable:activate",
+        "processId": "mission-role",
+        "processVersion": "1",
+        "definitionDigest": "sha256:997b2b32d3bb926054e301bb701115f94dde9c409f64249be306e78a80cb990b",
+        "revision": 1,
+        "status": "failed",
+        "stageStates": [
+          {
+            "stageId": "authorize",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-self_issued-durable:activate:authorize:1",
+            "outcome": "succeeded",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          },
+          {
+            "stageId": "apply",
+            "status": "terminal",
+            "attempt": 1,
+            "startedAt": "2026-09-19T12:00:30.000Z",
+            "taskRunId": "authority-self_issued-durable:activate:apply:1",
+            "outcome": "failed",
+            "finishedAt": "2026-09-19T12:00:30.000Z",
+            "reasonCode": "task_executor_error"
+          },
+          {
+            "stageId": "finalize",
+            "status": "terminal",
+            "attempt": 0,
+            "outcome": "skipped",
+            "finishedAt": "2026-09-19T12:00:30.000Z"
+          }
+        ],
+        "input": {
+          "caseId": "authority-self_issued-durable",
+          "action": "activate"
+        },
+        "createdAt": "2026-09-19T12:00:30.000Z",
+        "updatedAt": "2026-09-19T12:00:30.000Z",
+        "stateDigest": "sha256:768567bbeb7f6969d183157d4729df66074e784c2803d4b114a07f8160a3ba0d"
+      }
+    ]
+  },
+  "denied": true,
+  "limits": "Synthetic signed admission envelope around real controllers and PostgreSQL; not a production identity provider or policy benchmark"
+}

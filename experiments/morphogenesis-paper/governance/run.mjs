@@ -2,7 +2,7 @@
 // Historical source is imported, never rewritten; owner enforcement is shared.
 import assert from 'node:assert/strict';
 import {createHash,generateKeyPairSync,sign,verify,randomBytes} from 'node:crypto';
-import {mkdirSync,writeFileSync,readFileSync,existsSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -78,6 +78,11 @@ async function main(){
  const keys={trusted:generateKeyPairSync('ed25519'),attacker:generateKeyPairSync('ed25519')};
  const pool=createPostgresPool({host:'127.0.0.1',port:Number(process.env.MORPHOGENESIS_PG_PORT),user:'postgres',database:'postgres',max:6});
  const schema=`governance_${randomBytes(6).toString('hex')}`;let count=0;
+ const walk=p=>readdirSync(p,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(p,e.name)):[path.join(p,e.name)]);
+ write(path.join(output,'environment.json'),{node:process.version,platform:process.platform,arch:process.arch,
+  compiledModules:walk(path.join(root,'packages')).filter(p=>p.includes('/dist/')&&p.endsWith('.js')).sort().map(p=>({path:path.relative(root,p),digest:sha(readFileSync(p))})),
+  postgresImageId:process.env.MORPHOGENESIS_PG_IMAGE_ID??'not-recorded'});
+
  const sourcePaths=['experiments/morphogenesis-paper/governance/run.mjs','experiments/morphogenesis-paper/governance/verify.mjs','experiments/morphogenesis-paper/governance/protocol.md','experiments/morphogenesis-paper/missions/controllers.mjs','experiments/morphogenesis-paper/missions/owner.mjs','experiments/morphogenesis-paper/missions/workload.mjs','experiments/morphogenesis-paper/integration/fixture.mjs'];
  write(path.join(output,'registration.json'),{recordedBeforeRun:new Date().toISOString(),conditions:CONDITIONS,cells:CELLS,trustedPublicKey:keys.trusted.publicKey.export({format:'pem',type:'spki'}),unit:'prescribed scenario; one input seed; no statistical sample-size claim',sourceCommit:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim(),sources:sourcePaths.map(p=>({path:p,digest:sha(readFileSync(path.join(root,p)))})),lockfileDigest:sha(readFileSync(path.join(root,'pnpm-lock.yaml')))});
  try{
