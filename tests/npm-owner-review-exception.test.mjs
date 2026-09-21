@@ -48,3 +48,11 @@ test("empty GitHub variable expansions preserve ordinary review", () => {
     }),
   );
 });
+
+test('standing exception permits future releases and preserves historical limits',()=>{
+ const x=fixture();x.manifest.releaseVersion='0.3.0-beta.9';
+ x.environment.AGENTPLAT_NPM_OWNER_REVIEW_VERSION='owner-initiated';
+ assert.doesNotThrow(()=>assertStageReviewPolicy(x));
+ x.environment.AGENTPLAT_NPM_OWNER_REVIEW_LOGIN='other';
+ assert.throws(()=>assertStageReviewPolicy(x));
+});

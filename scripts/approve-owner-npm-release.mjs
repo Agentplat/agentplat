@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {canOwnerApproveRelease} from './npm-owner-review-exception.mjs';
+const runId=process.argv[2];assert.match(runId??'',/^\d+$/,'supply a release run ID');
+const repo='repos/Agentplat/agentplat';
+const get=p=>JSON.parse(execFileSync('gh',['api',p],{encoding:'utf8'}));
+const run=get(`${repo}/actions/runs/${runId}`),viewer=get('user');
+assert(canOwnerApproveRelease({actor:run.actor,triggeringActor:run.triggering_actor,viewer}),'Automatic review is limited to owner-initiated and owner-rerun releases');
+assert.equal(run.head_branch,'main');assert.equal(run.path,'.github/workflows/release.yml');
+assert.equal(run.event,'workflow_dispatch');
+const jobs=get(`${repo}/actions/runs/${runId}/jobs`).jobs;
+assert(jobs.some(j=>j.name==='prepare'&&j.conclusion==='success'),'Exact artifacts must pass preparation first');
+const env=get(`${repo}/environments/npm-production`);
+assert.equal(env.can_admins_bypass,false);
+assert.equal(env.deployment_branch_policy.protected_branches,true);
+assert.equal(env.deployment_branch_policy.custom_branch_policies,false);
+const review=env.protection_rules.find(r=>r.type==='required_reviewers');
+assert.equal(review.prevent_self_review,false);
+assert.deepEqual(review.reviewers.map(r=>({type:r.type,id:r.reviewer.id})),[{type:'User',id:viewer.id}]);
+const pending=get(`${repo}/actions/runs/${runId}/pending_deployments`);
+const target=pending.find(p=>p.environment.name==='npm-production');
+assert(target?.current_user_can_approve,'Owner approval must be available for this pending environment');
+execFileSync('gh',['api','--method','POST',`${repo}/actions/runs/${runId}/pending_deployments`,'--input','-'],{
+ input:JSON.stringify({environment_ids:[target.environment.id],state:'approved',comment:'Standing owner authorization: owner-initiated release; independently prepared exact artifacts. npm staged byte review and 2FA remain required.'}),stdio:['pipe','pipe','pipe']});
+console.log('Owner-initiated staging approved; npm publication still requires staged-byte approval and 2FA.');

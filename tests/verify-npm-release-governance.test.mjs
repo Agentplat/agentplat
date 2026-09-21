@@ -134,3 +134,12 @@ test("owner PR exception rejects other actors, rulesets and always bypass", () =
     assert.equal(analyzeNpmReleaseGovernance(state).status, "failed");
   }
 });
+
+test('standing npm owner exception preserves the sole-owner reviewer boundary',()=>{
+ const s=secureState();s.releaseVersion='0.3.0-beta.9';
+ s.environment.protection_rules[0]={type:'required_reviewers',prevent_self_review:false,reviewers:[{type:'User',reviewer:{login:'douglas-grishen'}}]};
+ s.environmentVariables.variables.push({name:'AGENTPLAT_NPM_OWNER_REVIEW_VERSION',value:'owner-initiated'},{name:'AGENTPLAT_NPM_OWNER_REVIEW_LOGIN',value:'douglas-grishen'});
+ assert.equal(analyzeNpmReleaseGovernance(s).status,'passed');
+ s.environment.protection_rules[0].reviewers.push({type:'User',reviewer:{login:'other'}});
+ assert.equal(analyzeNpmReleaseGovernance(s).status,'failed');
+});

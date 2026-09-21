@@ -9,8 +9,8 @@ external configuration.
 No CI job may make an AgentPlat package publicly installable. CI may only place
 the exact reviewed tarballs into npm staged publishing. A maintainer who did not
 initiate the release must normally review those staged bytes and approve them
-with 2FA. The version-bound owner-approved exceptions below are the only exceptions to
-independent npm deployment review; it does not waive byte review or 2FA.
+with 2FA. The standing owner exception below and historical version-bound exceptions
+permit owner approval without another reviewer. Neither waives byte review or 2FA.
 
 The release uses one artifact set:
 
@@ -179,3 +179,34 @@ Beta 8 closure on 2026-09-14 (UTC): all 65 packages were approved with npm
 were removed. Governance verification passed with no findings. The standing
 owner PR-review exception remains. See the
 [distribution record](../releases/beta8-distribution-20260914.md).
+
+
+## Standing owner release exception — 2026-09-21
+
+The owner explicitly authorized no independent review for changes and releases
+he initiates. This supersedes the release-version limit for future owner runs.
+The existing owner-only PR exception remains unchanged; required checks still run.
+
+For npm, keep `npm-production` protected-main-only, disable administrator bypass,
+and retain exactly `douglas-grishen` (user ID `207043696`) as required reviewer.
+Set `prevent_self_review=false`. The owner approval can be performed automatically
+on his behalf, without asking him to name another reviewer, only after preparation
+has passed and both the original actor and rerun actor are that exact account.
+Other initiators still require the owner's separate review. Do not automatically
+approve another contributor's run or broaden this to other administrators.
+
+Set `AGENTPLAT_NPM_OWNER_REVIEW_VERSION=owner-initiated` and
+`AGENTPLAT_NPM_OWNER_REVIEW_LOGIN=douglas-grishen` after the updated guard is on main.
+These standing settings remain after publication; the Beta 7/8 restoration steps
+above describe those historical temporary exceptions, not this standing policy.
+For the already-prepared Beta 9 run using the old guard, retain unset exception
+flags until staging completes; its owner-only GitHub approval is authorized by
+this instruction and does not require rebuilding the reviewed package bytes.
+
+Use `node scripts/approve-owner-npm-release.mjs RUN_ID` for automatic owner
+approval. It checks authenticated user ID, original/rerun actors, workflow,
+protected branch, successful artifact preparation and the exact environment
+reviewer configuration before approving the pending staging deployment.
+A task authorized to publish an owner-initiated release should perform this step
+without requesting another independent reviewer. npm staged-byte approval and
+2FA remain a separate human-controlled publication boundary.
