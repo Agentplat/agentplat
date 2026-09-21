@@ -56,7 +56,9 @@ export function analyzeNpmReleaseGovernance({
       reviewerRule?.reviewers?.length === 1 &&
       reviewerRule.reviewers[0].type === "User" &&
       reviewerRule.reviewers[0].reviewer?.login ===
-        NPM_OWNER_REVIEW_EXCEPTION.ownerLogin;
+        NPM_OWNER_REVIEW_EXCEPTION.ownerLogin &&
+      (ownerReviewVersion !== NPM_OWNER_REVIEW_EXCEPTION.standingMode ||
+        reviewerRule.reviewers[0].reviewer?.id === NPM_OWNER_REVIEW_EXCEPTION.ownerId);
     if (
       !reviewerRule ||
       (reviewerRule.prevent_self_review !== true && !ownerReviewer)
