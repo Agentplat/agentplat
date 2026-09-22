@@ -78,3 +78,12 @@ and scripted reviewers are fixtures; the rollback witness is process-local.
 TLC explores a bounded abstraction under stated fairness and owner assumptions,
 not the full TypeScript implementation. No LLM-quality or production-reliability
 claim is made. This preprint has not been submitted to a venue by this task.
+
+## Subsequent stable distribution
+
+AgentPlat 1.0.0 is now distributed on npm under `latest`; see the
+[distribution record](../../releases/stable1-distribution-20260922.md) for the
+exact release source and successful verification workflow. This is a subsequent
+software distribution, not the source of the experiments in paper v0.5.
+Reproduce those experiments with the original pinned sources above. The frozen
+paper-v0.5 manuscript, PDF and evidence references are unchanged.

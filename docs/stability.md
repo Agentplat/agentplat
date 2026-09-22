@@ -1,8 +1,8 @@
 # Stability and maintenance
 
-Version 1.0.0 is the first coordinated stable release candidate in source.
-Registry publication is pending. This policy takes effect for published 1.x
-versions; use the distribution record to identify a verified release.
+Version 1.0.0 is the first coordinated stable release, published on npm under
+`latest`. This policy applies to published 1.x versions. See the
+[verified distribution record](releases/stable1-distribution-20260922.md).
 
 ## Public compatibility contract
 

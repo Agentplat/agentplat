@@ -5,8 +5,8 @@ production. This is a maintainer-reported deployment statement, not a published
 customer study: package versions, workload, observation period and incident
 metrics have not yet been recorded here. It does not expand the paper's evidence.
 
-Version 1.0.0 is being prepared for stable publication. Until the distribution
-record confirms the complete release, do not assume it is available on npm.
+Version 1.0.0 is published on npm under `latest`. See the
+[verified distribution record](releases/stable1-distribution-20260922.md).
 
 ## Supported application boundaries
 
