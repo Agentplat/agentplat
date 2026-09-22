@@ -2,7 +2,30 @@
 
 ## Unreleased
 
-## 0.3.0-beta.9 — prepared, not yet published
+## 1.0.0 — prepared; publication pending
+
+- Establish a public API compatibility and maintenance policy for the 65-package
+  coordinated stable line, with explicit experimental capability boundaries.
+- Add production deployment and preview migration guidance.
+- Target `latest` only through the protected release workflow and complete
+  registry/consumer verification. No completed publication is claimed here.
+
+## 0.3.0-beta.10 — superseded before publication by 1.0.0
+
+- Carries the Morphogenesis supersession APIs, compensation adapter, Room
+  projection, fence timestamp recovery and persistent integration example from
+  beta.9 into a fresh coordinated 65-package release.
+- Uses the separately authorized release-level OIDC flow: exact prepared files,
+  one protected GitHub approval, dependency-order publication and registry checks.
+- No registry completion is claimed until all package signatures, bytes,
+  provenance and consumers pass. `latest` is not promoted.
+
+## 0.3.0-beta.9 — partially published; not a complete coordinated release
+
+Three package versions were verified public during migration. Remaining staged
+versions and the original artifact are preserved. This release was not announced
+as complete; use a subsequently verified coordinated release for adoption.
+
 
 - Add opt-in Morphogenesis supersession admission and terminal cleanup receipts,
   retaining stable owner operation identities and the accepted morphology head.

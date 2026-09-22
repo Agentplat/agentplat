@@ -1,9 +1,11 @@
-# Release-level OIDC publication (prepared, not activated)
+# Release-level OIDC publication (activation authorized; setup in progress)
 
 The owner requested preparation of this alternative after interactive staged
 approval failed to reuse a passkey across the coordinated package cohort.
-This document is the reviewable activation proposal. No npm publisher permissions,
-GitHub environments or enablement variables are changed by merging the code.
+The owner subsequently authorized activation and preparation of 1.0.0. The
+reviewed implementation is integrated. External configuration is being installed;
+publication remains blocked until every package relationship is verified and the
+explicit flags are enabled. No repeated activation approval is required.
 
 ## Change in authority
 
@@ -53,7 +55,7 @@ publisher verifies existing versions rather than rebuilding, republishing or
 silently repairing tags. A mismatched existing version requires investigation.
 The progress report is diagnostic; registry evidence determines resume behavior.
 
-## Activation proposal — requires owner's final authorization
+## Authorized activation procedure
 
 After the reviewed code is integrated and required CI passes:
 
@@ -75,7 +77,7 @@ After the reviewed code is integrated and required CI passes:
   using the authenticated maintainer CLI. It checks the owner, exact main-only
   deployment rule, enablement flags and existing main/Actions protections.
 - Prepare a fresh coordinated version and run a dry-run first. Then dispatch the
-  same reviewed main source with `dry_run=false`, tag `next`, scope `all`.
+  same reviewed main source with `dry_run=false`, tag `latest` for 1.0.0 (`next` for prereleases), scope `all`.
   After preparation passes, approve the one environment deployment, or use
   `node scripts/approve-owner-npm-release.mjs RUN_ID --direct` on the owner's
   behalf. It refuses foreign original/rerun actors, failed preparation, another
@@ -93,11 +95,10 @@ Staged and public versions share npm's version uniqueness constraint. The new
 publisher must not overwrite them, automatically reject staging, unpublish a
 version or move old tags to disguise this partial release.
 
-Use a fresh coordinated version, proposed `0.3.0-beta.10`, after checking current
+Use a fresh coordinated version, proposed `1.0.0`, after checking current
 registry availability. Bump all package manifests through the existing version
 script, add the supported release-line entry, regenerate/verify the lockfile if
-needed, and produce a NEW manifest from the approved source. No such version
-bump or publication is included in this preparation change. Historical paper
+needed, and produce a NEW manifest from the approved source. The 1.0.0 version bump is prepared; publication is still pending. Historical paper
 and beta.9 artifacts keep their original source references. Handling leftover
 private staging is a separate, explicitly authorized cleanup.
 

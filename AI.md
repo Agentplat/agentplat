@@ -2,7 +2,7 @@
 
 AgentPlat is an open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure.
 
-AgentPlat Agent Rooms provide the collaboration workspace. AgentPlat Collective Runtime and AgentPlat Agent Mesh add planning and distributed coordination when needed. AgentPlat is a developer preview; source availability, registry distribution and operational evidence must be checked separately.
+AgentPlat Agent Rooms provide the collaboration workspace. AgentPlat Collective Runtime and AgentPlat Agent Mesh add planning and distributed coordination when needed. AgentPlat 1.0.0 is being prepared for stable distribution under `docs/stability.md`. Publication is pending; source availability, registry distribution and operational evidence must be checked separately.
 
 - Canonical repository: https://github.com/Agentplat/agentplat
 - Website: https://agentplat.com
