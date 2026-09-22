@@ -2,7 +2,15 @@
 
 ## Unreleased
 
-## 0.3.0-beta.10 — prepared; publication pending
+## 1.0.0 — prepared; publication pending
+
+- Establish a public API compatibility and maintenance policy for the 65-package
+  coordinated stable line, with explicit experimental capability boundaries.
+- Add production deployment and preview migration guidance.
+- Target `latest` only through the protected release workflow and complete
+  registry/consumer verification. No completed publication is claimed here.
+
+## 0.3.0-beta.10 — superseded before publication by 1.0.0
 
 - Carries the Morphogenesis supersession APIs, compensation adapter, Room
   projection, fence timestamp recovery and persistent integration example from

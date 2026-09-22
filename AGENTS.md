@@ -42,9 +42,10 @@ required CI, protected main, stage-only publishing, staged-byte review and npm
 
 
 The owner has authorized activation of the release-level OIDC alternative in
-`docs/security/npm-direct-release.md` and a fresh beta.10 cohort. Complete the
+`docs/security/npm-direct-release.md` and a fresh release cohort. Complete the
 specified trusted publisher/environment configuration and verify it before
 setting the enablement flags. Do not request that same activation approval again.
-Platform-required passkey authentication still belongs to the owner. Once enabled,
+The owner subsequently authorized 1.0.0 stable publication to latest, replacing
+the unpublished beta.10 candidate. Platform-required passkey authentication still belongs to the owner. Once enabled,
 that profile uses one release-level approval and exact artifact checks; legacy
 beta.9 staging and published versions remain intact.

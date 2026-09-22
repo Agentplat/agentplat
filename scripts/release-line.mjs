@@ -92,6 +92,13 @@ export const RELEASE_LINES = Object.freeze([
     trustPackageCount: 1,
     requiredPackageNames: A2A_PACKAGE_NAMES,
   }),
+  Object.freeze({
+    catalogPackageCount: 65,
+    id: "stable1",
+    releaseVersion: "1.0.0",
+    trustPackageCount: 1,
+    requiredPackageNames: A2A_PACKAGE_NAMES,
+  }),
 ]);
 
 /**

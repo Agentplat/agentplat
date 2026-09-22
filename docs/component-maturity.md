@@ -3,7 +3,7 @@
 This is the editorial entry point for adoption status. Source availability,
 registry distribution, executable checks and operational evidence answer
 different questions. None implies another. The source checkout currently
-uses a coordinated preview version; it does not prove that version is on npm.
+prepares coordinated version 1.0.0; publication is pending. The [stability contract](stability.md) governs API compatibility independently of operational evidence.
 
 ## Source and integration map
 

@@ -1,19 +1,23 @@
 # Release channels
 
-AgentPlat uses one fixed version for all publishable packages. Preview work is
-published under the npm `next` tag; `latest` remains the last promoted preview
-until the maintainers explicitly promote a tested release.
+AgentPlat uses one fixed version for all 65 publishable packages. The next
+planned stable release is **1.0.0**, targeting npm `latest`. It replaces the
+unpublished beta.10 candidate. Publication is pending; this document does not
+assert that registry tags have moved.
 
-Install the current preview deliberately:
+Stable 1.x releases follow the [stability contract](stability.md). Prereleases
+use `next` and must never promote `latest`. Stable promotion requires successful
+public checks, exact artifact verification, reference integration validation,
+and clean registry consumers for the entire coordinated release.
+
+After the 1.0.0 distribution record is verified, install exact versions:
 
 ```sh
-pnpm add @agentplat/framework@next @agentplat/sessions@next
+pnpm add @agentplat/framework@1.0.0 @agentplat/sessions@1.0.0
 ```
 
-Preview APIs are supported for evaluation and production-preview validation,
-but may change between prereleases. A preview is promoted to `latest` only after
-the public checks, package smoke test, reference examples and downstream
-integration validation are green.
+See the [production and migration guide](production.md). Historical observations
+below describe previews; they do not override the stable 1.x policy.
 
 `0.3.0-alpha.4` was the coordinated Evidence and Trust preview.
 This paragraph describes that historical release, not the current npm tag.
@@ -36,7 +40,7 @@ server-only adapters live at `@agentplat/mesh/trust` and
 adapters receive Trust filtering or restriction; direct Mesh, provider,
 handler and dispatcher calls keep their existing behavior.
 
-Session/browser APIs remain on `next` until the reference Next.js controls,
+Historically, session/browser APIs remained on `next` until the reference Next.js controls,
 public contract tests, package smoke test, downstream validation and a stable
 API review are all green for a promotion candidate. `latest` is intentionally
 not advanced merely because a preview release is published.
