@@ -20,6 +20,9 @@ const OWNER_PR_REVIEW_EXCEPTION = Object.freeze({
 export function analyzeNpmReleaseGovernance({
   environment,
   environmentVariables,
+  repositoryVariables,
+  deploymentBranchPolicies,
+  releaseMode = "staged",
   repositorySecrets,
   actionsPermissions,
   mainBranchRules,
@@ -28,6 +31,8 @@ export function analyzeNpmReleaseGovernance({
   distTag = "next",
 }) {
   const findings = [];
+  assert.ok(["staged", "direct"].includes(releaseMode));
+  const direct = releaseMode === "direct";
   const variable = (name) =>
     environmentVariables?.variables?.find((entry) => entry.name === name)
       ?.value;
@@ -40,9 +45,9 @@ export function analyzeNpmReleaseGovernance({
     ownerReviewVersion,
     ownerReviewLogin,
   });
-  if ((ownerReviewVersion || ownerReviewLogin) && !ownerException)
+  if (!direct && (ownerReviewVersion || ownerReviewLogin) && !ownerException)
     findings.push("npm_owner_review_exception_scope_mismatch");
-  if (environment?.name !== "npm-production") {
+  if (environment?.name !== (direct ? "npm-release" : "npm-production")) {
     findings.push("npm_production_environment_missing");
   } else {
     if (environment.can_admins_bypass !== false) {
@@ -52,16 +57,20 @@ export function analyzeNpmReleaseGovernance({
       (rule) => rule.type === "required_reviewers",
     );
     const ownerReviewer =
-      ownerException &&
+      (direct || ownerException) &&
       reviewerRule?.reviewers?.length === 1 &&
       reviewerRule.reviewers[0].type === "User" &&
       reviewerRule.reviewers[0].reviewer?.login ===
         NPM_OWNER_REVIEW_EXCEPTION.ownerLogin &&
-      (ownerReviewVersion !== NPM_OWNER_REVIEW_EXCEPTION.standingMode ||
-        reviewerRule.reviewers[0].reviewer?.id === NPM_OWNER_REVIEW_EXCEPTION.ownerId);
+      ((!direct &&
+        ownerReviewVersion !== NPM_OWNER_REVIEW_EXCEPTION.standingMode) ||
+        reviewerRule.reviewers[0].reviewer?.id ===
+          NPM_OWNER_REVIEW_EXCEPTION.ownerId);
     if (
       !reviewerRule ||
-      (reviewerRule.prevent_self_review !== true && !ownerReviewer)
+      (direct
+        ? !ownerReviewer || reviewerRule.prevent_self_review !== false
+        : reviewerRule.prevent_self_review !== true && !ownerReviewer)
     ) {
       findings.push("npm_environment_independent_review_missing");
     }
@@ -71,20 +80,33 @@ export function analyzeNpmReleaseGovernance({
     ) {
       findings.push("npm_environment_reviewer_missing");
     }
-    if (
-      environment.deployment_branch_policy?.protected_branches !== true ||
-      environment.deployment_branch_policy?.custom_branch_policies !== false
-    ) {
-      findings.push("npm_environment_protected_branch_policy_missing");
-    }
-    if (
-      !environmentVariables?.variables?.some(
-        (variable) =>
-          variable.name === "AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED" &&
-          variable.value === "true",
+    if (direct) {
+      if (
+        environment.deployment_branch_policy?.protected_branches !== false ||
+        environment.deployment_branch_policy?.custom_branch_policies !== true ||
+        deploymentBranchPolicies?.branch_policies?.length !== 1 ||
+        deploymentBranchPolicies.branch_policies[0].name !== "main" ||
+        deploymentBranchPolicies.branch_policies[0].type !== "branch"
       )
-    ) {
-      findings.push("npm_stage_only_confirmation_variable_missing");
+        findings.push("npm_direct_main_only_policy_missing");
+      if (variable("AGENTPLAT_NPM_DIRECT_PUBLISH_CONFIRMED") !== "true")
+        findings.push("npm_direct_publisher_confirmation_missing");
+      if (
+        !repositoryVariables?.variables?.some(
+          (v) =>
+            v.name === "AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED" &&
+            v.value === "true",
+        )
+      )
+        findings.push("npm_direct_release_not_enabled");
+    } else {
+      if (
+        environment.deployment_branch_policy?.protected_branches !== true ||
+        environment.deployment_branch_policy?.custom_branch_policies !== false
+      )
+        findings.push("npm_environment_protected_branch_policy_missing");
+      if (variable("AGENTPLAT_NPM_STAGE_ONLY_CONFIRMED") !== "true")
+        findings.push("npm_stage_only_confirmation_variable_missing");
     }
   }
 
@@ -142,13 +164,31 @@ export function analyzeNpmReleaseGovernance({
 }
 
 export function verifyNpmReleaseGovernance() {
-  const environment = ghApi(`repos/${REPOSITORY}/environments/npm-production`, {
-    allow404: true,
-  });
+  const releaseMode = process.env.AGENTPLAT_NPM_RELEASE_MODE ?? "staged";
+  assert.ok(["staged", "direct"].includes(releaseMode));
+  const environmentName =
+    releaseMode === "direct" ? "npm-release" : "npm-production";
+  const environment = ghApi(
+    `repos/${REPOSITORY}/environments/${environmentName}`,
+    {
+      allow404: true,
+    },
+  );
   const environmentVariables = ghApi(
-    `repos/${REPOSITORY}/environments/npm-production/variables`,
+    `repos/${REPOSITORY}/environments/${environmentName}/variables`,
     { allow404: true },
   );
+  const repositoryVariables =
+    releaseMode === "direct"
+      ? ghApi(`repos/${REPOSITORY}/actions/variables`)
+      : undefined;
+  const deploymentBranchPolicies =
+    releaseMode === "direct"
+      ? ghApi(
+          `repos/${REPOSITORY}/environments/${environmentName}/deployment-branch-policies`,
+          { allow404: true },
+        )
+      : undefined;
   const repositorySecrets = ghApi(`repos/${REPOSITORY}/actions/secrets`);
   const actionsPermissions = ghApi(`repos/${REPOSITORY}/actions/permissions`);
   const mainBranchRules = ghApi(`repos/${REPOSITORY}/rules/branches/main`);
@@ -167,6 +207,9 @@ export function verifyNpmReleaseGovernance() {
     ];
   });
   const report = analyzeNpmReleaseGovernance({
+    releaseMode,
+    repositoryVariables,
+    deploymentBranchPolicies,
     environment,
     environmentVariables,
     repositorySecrets,

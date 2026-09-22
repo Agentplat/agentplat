@@ -4,6 +4,14 @@
 to npm. **Status:** implemented repository controls plus explicitly identified
 external configuration.
 
+## Prepared alternative (not activated)
+
+A release-level OIDC profile has been prepared at the owner's request. See
+[npm direct release](npm-direct-release.md) for its gates, tests, migration and
+explicit activation proposal. It remains disabled until the owner authorizes
+npm permission changes and the enablement flags are set. The stage-only rules
+below remain the active policy for `release.yml` / `npm-production`.
+
 ## Security invariant
 
 No CI job may make an AgentPlat package publicly installable. CI may only place

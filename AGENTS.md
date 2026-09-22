@@ -39,3 +39,10 @@ with `node scripts/approve-owner-npm-release.mjs RUN_ID`; do not ask him to name
 another reviewer. Other initiators still require separate owner review. Preserve
 required CI, protected main, stage-only publishing, staged-byte review and npm
 2FA. See `docs/security/npm-release-security.md` for the exact boundary.
+
+
+The release-level OIDC alternative in `docs/security/npm-direct-release.md` is
+prepared but NOT activated. Do not enable its flags, create its trusted publisher
+relationships or publish a new cohort without the owner's final activation
+approval. Once explicitly enabled, its own single-release approval and exact
+artifact checks replace per-package staged approval for that profile only.

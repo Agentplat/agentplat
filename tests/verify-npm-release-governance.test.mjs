@@ -104,29 +104,40 @@ test("owner self-review is limited to Beta 8 and the authorized single reviewer"
   );
 });
 
-
 test("standing owner PR review exception is independent of the npm release version", () => {
   const state = secureState();
   state.mainBranchRules.push({
-    type: "ruleset_bypass_actor", ruleset_id: 20820479,
-    bypass_mode: "pull_request", actor_type: "User", actor_id: 207043696,
+    type: "ruleset_bypass_actor",
+    ruleset_id: 20820479,
+    bypass_mode: "pull_request",
+    actor_type: "User",
+    actor_id: 207043696,
   });
   for (const releaseVersion of ["0.3.0-beta.8", "0.3.0-beta.9"]) {
     state.releaseVersion = releaseVersion;
     assert.equal(analyzeNpmReleaseGovernance(state).status, "passed");
   }
   state.environment.protection_rules[0].prevent_self_review = false;
-  assert.ok(analyzeNpmReleaseGovernance(state).findings.includes("npm_environment_independent_review_missing"));
+  assert.ok(
+    analyzeNpmReleaseGovernance(state).findings.includes(
+      "npm_environment_independent_review_missing",
+    ),
+  );
 });
 
 test("owner PR exception rejects other actors, rulesets and always bypass", () => {
   const allowed = {
-    type: "ruleset_bypass_actor", ruleset_id: 20820479,
-    bypass_mode: "pull_request", actor_type: "User", actor_id: 207043696,
+    type: "ruleset_bypass_actor",
+    ruleset_id: 20820479,
+    bypass_mode: "pull_request",
+    actor_type: "User",
+    actor_id: 207043696,
   };
   for (const change of [
-    { actor_id: 1 }, { actor_type: "RepositoryRole" },
-    { ruleset_id: 20819947 }, { ruleset_id: undefined },
+    { actor_id: 1 },
+    { actor_type: "RepositoryRole" },
+    { ruleset_id: 20819947 },
+    { ruleset_id: undefined },
     { bypass_mode: "always" },
   ]) {
     const state = secureState();
@@ -135,14 +146,73 @@ test("owner PR exception rejects other actors, rulesets and always bypass", () =
   }
 });
 
-test('standing npm owner exception preserves the sole-owner reviewer boundary',()=>{
- const s=secureState();s.releaseVersion='0.3.0-beta.9';
- s.environment.protection_rules[0]={type:'required_reviewers',prevent_self_review:false,reviewers:[{type:'User',reviewer:{login:'douglas-grishen',id:207043696}}]};
- s.environmentVariables.variables.push({name:'AGENTPLAT_NPM_OWNER_REVIEW_VERSION',value:'owner-initiated'},{name:'AGENTPLAT_NPM_OWNER_REVIEW_LOGIN',value:'douglas-grishen'});
- assert.equal(analyzeNpmReleaseGovernance(s).status,'passed');
- s.environment.protection_rules[0].reviewers[0].reviewer.id=1;
- assert.equal(analyzeNpmReleaseGovernance(s).status,'failed');
- s.environment.protection_rules[0].reviewers[0].reviewer.id=207043696;
- s.environment.protection_rules[0].reviewers.push({type:'User',reviewer:{login:'other'}});
- assert.equal(analyzeNpmReleaseGovernance(s).status,'failed');
+test("standing npm owner exception preserves the sole-owner reviewer boundary", () => {
+  const s = secureState();
+  s.releaseVersion = "0.3.0-beta.9";
+  s.environment.protection_rules[0] = {
+    type: "required_reviewers",
+    prevent_self_review: false,
+    reviewers: [
+      { type: "User", reviewer: { login: "douglas-grishen", id: 207043696 } },
+    ],
+  };
+  s.environmentVariables.variables.push(
+    { name: "AGENTPLAT_NPM_OWNER_REVIEW_VERSION", value: "owner-initiated" },
+    { name: "AGENTPLAT_NPM_OWNER_REVIEW_LOGIN", value: "douglas-grishen" },
+  );
+  assert.equal(analyzeNpmReleaseGovernance(s).status, "passed");
+  s.environment.protection_rules[0].reviewers[0].reviewer.id = 1;
+  assert.equal(analyzeNpmReleaseGovernance(s).status, "failed");
+  s.environment.protection_rules[0].reviewers[0].reviewer.id = 207043696;
+  s.environment.protection_rules[0].reviewers.push({
+    type: "User",
+    reviewer: { login: "other" },
+  });
+  assert.equal(analyzeNpmReleaseGovernance(s).status, "failed");
+});
+
+test("direct release requires explicit enablement, immutable owner and main-only deployment selection", () => {
+  const s = secureState();
+  s.releaseMode = "direct";
+  s.environment.name = "npm-release";
+  s.environment.protection_rules[0] = {
+    type: "required_reviewers",
+    prevent_self_review: false,
+    reviewers: [
+      { type: "User", reviewer: { login: "douglas-grishen", id: 207043696 } },
+    ],
+  };
+  s.environment.deployment_branch_policy = {
+    protected_branches: false,
+    custom_branch_policies: true,
+  };
+  s.deploymentBranchPolicies = {
+    branch_policies: [{ name: "main", type: "branch" }],
+  };
+  s.environmentVariables.variables = [
+    { name: "AGENTPLAT_NPM_DIRECT_PUBLISH_CONFIRMED", value: "true" },
+  ];
+  s.repositoryVariables = {
+    variables: [
+      { name: "AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED", value: "true" },
+    ],
+  };
+  assert.equal(analyzeNpmReleaseGovernance(s).status, "passed");
+  for (const mutate of [
+    (x) => (x.environment.protection_rules[0].reviewers[0].reviewer.id = 1),
+    (x) => (x.environment.protection_rules[0].prevent_self_review = true),
+    (x) => (x.environment.can_admins_bypass = true),
+    (x) =>
+      x.deploymentBranchPolicies.branch_policies.push({
+        name: "*",
+        type: "branch",
+      }),
+    (x) => (x.deploymentBranchPolicies.branch_policies[0].type = "tag"),
+    (x) => (x.repositoryVariables.variables = []),
+    (x) => (x.environmentVariables.variables = []),
+  ]) {
+    const x = structuredClone(s);
+    mutate(x);
+    assert.equal(analyzeNpmReleaseGovernance(x).status, "failed");
+  }
 });

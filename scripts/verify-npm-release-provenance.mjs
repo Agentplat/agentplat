@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import {
+  verifyRegistryArtifact,
+  publicRegistryUrl,
+} from "./npm-registry-artifact.mjs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,6 +40,12 @@ export async function verifyNpmReleaseProvenance({
     expectedPackageNames,
   });
 
+  const keyResponse = await fetchImplementation(
+    "https://registry.npmjs.org/-/npm/v1/keys",
+    { redirect: "error" },
+  );
+  assert.ok(keyResponse.ok, "Unable to read npm registry signing keys");
+  const keys = await keyResponse.json();
   for (const artifact of manifest.artifacts) {
     const packumentResponse = await fetchImplementation(
       `https://registry.npmjs.org/${encodeURIComponent(artifact.name)}`,
@@ -46,13 +56,20 @@ export async function verifyNpmReleaseProvenance({
     const version = packument.versions?.[artifact.version];
     assert.ok(version, `${artifact.name}@${artifact.version} is not published`);
     const attestationResponse = await fetchImplementation(
-      version.dist?.attestations?.url,
+      publicRegistryUrl(version.dist?.attestations?.url),
+      { redirect: "error" },
     );
     assert.equal(
       attestationResponse.ok,
       true,
       `Unable to read ${artifact.name} attestations`,
     );
+    await verifyRegistryArtifact({
+      artifact,
+      dist: version.dist,
+      keys,
+      fetchImplementation,
+    });
     validateRegistryPackageEvidence({
       artifact,
       attestations: await attestationResponse.json(),
@@ -60,6 +77,7 @@ export async function verifyNpmReleaseProvenance({
       distributionTags: packument["dist-tags"],
       expectedCommit: manifest.sourceCommit,
       expectedDistTag: manifest.distTag,
+      expectedWorkflowPath: environment.AGENTPLAT_RELEASE_WORKFLOW_PATH,
     });
   }
   console.log(
@@ -74,7 +92,15 @@ export function validateRegistryPackageEvidence({
   distributionTags,
   expectedCommit,
   expectedDistTag,
+  expectedWorkflowPath = ".github/workflows/release.yml",
 }) {
+  assert.ok(
+    [
+      ".github/workflows/release.yml",
+      ".github/workflows/release-direct.yml",
+    ].includes(expectedWorkflowPath),
+    "Unapproved release workflow",
+  );
   assert.equal(
     dist.integrity,
     artifact.integrity,
@@ -124,7 +150,7 @@ export function validateRegistryPackageEvidence({
   assert.deepEqual(buildDefinition?.externalParameters?.workflow, {
     ref: "refs/heads/main",
     repository: "https://github.com/Agentplat/agentplat",
-    path: ".github/workflows/release.yml",
+    path: expectedWorkflowPath,
   });
   assert.ok(
     buildDefinition?.resolvedDependencies?.some(
