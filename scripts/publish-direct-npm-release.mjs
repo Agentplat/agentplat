@@ -194,6 +194,11 @@ export async function publishDirectNpmRelease({
   };
   const report = path.join(root, "direct-release-report.json");
   try {
+    // npm rejects loading one path as both user and global configuration.
+    clean.NPM_CONFIG_USERCONFIG = path.join(cwd, "user.npmrc");
+    clean.NPM_CONFIG_GLOBALCONFIG = path.join(cwd, "global.npmrc");
+    await writeFile(clean.NPM_CONFIG_USERCONFIG, "", { mode: 0o600 });
+    await writeFile(clean.NPM_CONFIG_GLOBALCONFIG, "", { mode: 0o600 });
     const version = execute("npm", ["--version"], {
       cwd,
       environment: clean,
