@@ -90,7 +90,7 @@ async function fixture(t, { hooks = false } = {}) {
       }),
     );
     const filename =
-      p.name.replace("@", "").replace("/", "-") + "-1.2.3-beta.1.tgz";
+      p.name.replace(/^@/u, "").replaceAll("/", "-") + "-1.2.3-beta.1.tgz";
     execFileSync("tar", [
       "-czf",
       path.join(dir, filename),
@@ -323,7 +323,7 @@ function registryEvidence(a, commit, bytes) {
         predicateType: "https://slsa.dev/provenance/v1",
         subject: [
           {
-            name: `pkg:npm/${a.name.replace("@", "%40")}@${a.version}`,
+            name: `pkg:npm/${a.name.replace(/^@/u, "%40")}@${a.version}`,
             digest: {
               sha512: Buffer.from(a.integrity.slice(7), "base64").toString(
                 "hex",
