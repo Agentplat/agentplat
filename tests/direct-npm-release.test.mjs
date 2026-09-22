@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
@@ -191,8 +192,8 @@ test("publishes only exact tarballs, dependencies first, from a credential-free 
     assert(c.args.includes("--ignore-scripts"));
     assert(c.args.includes("--provenance"));
     assert(c.args.includes("--registry=https://registry.npmjs.org/"));
-    assert.equal(c.opts.environment.NPM_CONFIG_USERCONFIG, "/dev/null");
-    assert.equal(c.opts.environment.NPM_CONFIG_GLOBALCONFIG, "/dev/null");
+    assert.equal(c.opts.environment.NPM_CONFIG_USERCONFIG, path.join(c.opts.cwd, "user.npmrc"));
+    assert.equal(c.opts.environment.NPM_CONFIG_GLOBALCONFIG, path.join(c.opts.cwd, "global.npmrc"));
     assert.notEqual(c.opts.cwd, f.root);
     assert.notEqual(c.opts.cwd, f.dir);
   }
@@ -446,4 +447,22 @@ test("the workflow keeps preparation unprivileged, publication gated and registr
   assert.match(verify, /verify-npm-release-provenance/);
   assert.match(verify, /AGENTPLAT_REGISTRY_CONSUMER_PROFILE: postgres/);
   assert.match(verify, /node-version: 22\.22\.0/);
+});
+
+ test("real npm loads the isolated publication configuration", async (t) => {
+  const f = await fixture(t);
+  await publishDirectNpmRelease({
+    ...f,
+    environment: environment(),
+    fetchImplementation: freshRegistry,
+    execute(command, args, options) {
+      const result = spawnSync(command, ["--version"], {
+        cwd: options.cwd,
+        env: { ...process.env, ...options.environment },
+        encoding: "utf8",
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return result;
+    },
+  });
 });
