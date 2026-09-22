@@ -4,12 +4,12 @@
 to npm. **Status:** implemented repository controls plus explicitly identified
 external configuration.
 
-## Prepared alternative (not activated)
+## Release-level alternative (activation authorized; setup in progress)
 
 A release-level OIDC profile has been prepared at the owner's request. See
 [npm direct release](npm-direct-release.md) for its gates, tests, migration and
-explicit activation proposal. It remains disabled until the owner authorizes
-npm permission changes and the enablement flags are set. The stage-only rules
+explicit activation proposal. The owner has authorized npm permission changes. It remains disabled until all
+relationships are verified and the enablement flags are set. The stage-only rules
 below remain the active policy for `release.yml` / `npm-production`.
 
 ## Security invariant

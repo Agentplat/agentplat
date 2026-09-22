@@ -2,7 +2,22 @@
 
 ## Unreleased
 
-## 0.3.0-beta.9 — prepared, not yet published
+## 0.3.0-beta.10 — prepared; publication pending
+
+- Carries the Morphogenesis supersession APIs, compensation adapter, Room
+  projection, fence timestamp recovery and persistent integration example from
+  beta.9 into a fresh coordinated 65-package release.
+- Uses the separately authorized release-level OIDC flow: exact prepared files,
+  one protected GitHub approval, dependency-order publication and registry checks.
+- No registry completion is claimed until all package signatures, bytes,
+  provenance and consumers pass. `latest` is not promoted.
+
+## 0.3.0-beta.9 — partially published; not a complete coordinated release
+
+Three package versions were verified public during migration. Remaining staged
+versions and the original artifact are preserved. This release was not announced
+as complete; use a subsequently verified coordinated release for adoption.
+
 
 - Add opt-in Morphogenesis supersession admission and terminal cleanup receipts,
   retaining stable owner operation identities and the accepted morphology head.

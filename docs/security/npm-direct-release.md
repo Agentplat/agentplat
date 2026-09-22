@@ -1,9 +1,11 @@
-# Release-level OIDC publication (prepared, not activated)
+# Release-level OIDC publication (activation authorized; setup in progress)
 
 The owner requested preparation of this alternative after interactive staged
 approval failed to reuse a passkey across the coordinated package cohort.
-This document is the reviewable activation proposal. No npm publisher permissions,
-GitHub environments or enablement variables are changed by merging the code.
+The owner subsequently authorized activation and preparation of beta.10. The
+reviewed implementation is integrated. External configuration is being installed;
+publication remains blocked until every package relationship is verified and the
+explicit flags are enabled. No repeated activation approval is required.
 
 ## Change in authority
 
@@ -53,7 +55,7 @@ publisher verifies existing versions rather than rebuilding, republishing or
 silently repairing tags. A mismatched existing version requires investigation.
 The progress report is diagnostic; registry evidence determines resume behavior.
 
-## Activation proposal — requires owner's final authorization
+## Authorized activation procedure
 
 After the reviewed code is integrated and required CI passes:
 
@@ -96,8 +98,7 @@ version or move old tags to disguise this partial release.
 Use a fresh coordinated version, proposed `0.3.0-beta.10`, after checking current
 registry availability. Bump all package manifests through the existing version
 script, add the supported release-line entry, regenerate/verify the lockfile if
-needed, and produce a NEW manifest from the approved source. No such version
-bump or publication is included in this preparation change. Historical paper
+needed, and produce a NEW manifest from the approved source. The beta.10 version bump is prepared; publication is still pending. Historical paper
 and beta.9 artifacts keep their original source references. Handling leftover
 private staging is a separate, explicitly authorized cleanup.
 

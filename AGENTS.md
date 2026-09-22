@@ -41,8 +41,10 @@ required CI, protected main, stage-only publishing, staged-byte review and npm
 2FA. See `docs/security/npm-release-security.md` for the exact boundary.
 
 
-The release-level OIDC alternative in `docs/security/npm-direct-release.md` is
-prepared but NOT activated. Do not enable its flags, create its trusted publisher
-relationships or publish a new cohort without the owner's final activation
-approval. Once explicitly enabled, its own single-release approval and exact
-artifact checks replace per-package staged approval for that profile only.
+The owner has authorized activation of the release-level OIDC alternative in
+`docs/security/npm-direct-release.md` and a fresh beta.10 cohort. Complete the
+specified trusted publisher/environment configuration and verify it before
+setting the enablement flags. Do not request that same activation approval again.
+Platform-required passkey authentication still belongs to the owner. Once enabled,
+that profile uses one release-level approval and exact artifact checks; legacy
+beta.9 staging and published versions remain intact.
