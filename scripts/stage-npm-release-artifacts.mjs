@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { assertStageReviewPolicy } from "./npm-owner-review-exception.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPublicPackageCatalog } from "./public-package-catalog.mjs";
@@ -87,44 +87,11 @@ export async function stageNpmReleaseArtifacts({
 
   assertStageReviewPolicy({ manifest, environment });
 
-  const expectedFiles = [
-    RELEASE_ARTIFACT_MANIFEST,
-    ...manifest.artifacts.map((artifact) => artifact.filename),
-  ].sort(compareAscii);
-  assert.deepEqual(
-    (await readdir(artifactDirectory)).sort(compareAscii),
-    expectedFiles,
-    "Release artifact directory contains missing or unexpected files",
-  );
-
-  for (const artifact of manifest.artifacts) {
-    const tarballPath = path.join(artifactDirectory, artifact.filename);
-    const contents = await readFile(tarballPath);
-    assert.equal(
-      contents.byteLength,
-      artifact.size,
-      `${artifact.name} size mismatch`,
-    );
-    assert.equal(
-      `sha512-${createHash("sha512").update(contents).digest("base64")}`,
-      artifact.integrity,
-      `${artifact.name} integrity mismatch`,
-    );
-    const packedManifest = JSON.parse(
-      run("tar", ["-xOzf", tarballPath, "package/package.json"], {
-        environment: scrubAuthentication(environment),
-      }).stdout,
-    );
-    assert.equal(packedManifest.name, artifact.name);
-    assert.equal(packedManifest.version, artifact.version);
-    for (const scriptName of Object.keys(packedManifest.scripts ?? {})) {
-      assert.equal(
-        PROHIBITED_LIFECYCLE_SCRIPTS.has(scriptName),
-        false,
-        `${artifact.name} packed forbidden lifecycle script ${scriptName}`,
-      );
-    }
-  }
+  await verifyReleaseArtifactFiles({
+    artifactDirectory,
+    manifest,
+    environment,
+  });
 
   assertSupportedNpm(
     run("npm", ["--version"], { environment: scrubAuthentication(environment) })
@@ -165,6 +132,65 @@ export async function stageNpmReleaseArtifacts({
   console.log(
     `Staged ${manifest.artifacts.length} packages from ${manifest.sourceCommit}; no package is public until separately approved with 2FA.`,
   );
+}
+
+export async function verifyReleaseArtifactFiles({
+  artifactDirectory,
+  manifest,
+  environment,
+}) {
+  const packedManifests = [];
+  assert.ok(
+    (await lstat(artifactDirectory)).isDirectory() &&
+      !(await lstat(artifactDirectory)).isSymbolicLink(),
+    "Artifact directory must be a real directory",
+  );
+  const expectedFiles = [
+    RELEASE_ARTIFACT_MANIFEST,
+    ...manifest.artifacts.map((artifact) => artifact.filename),
+  ].sort(compareAscii);
+  assert.deepEqual(
+    (await readdir(artifactDirectory)).sort(compareAscii),
+    expectedFiles,
+    "Release artifact directory contains missing or unexpected files",
+  );
+
+  for (const artifact of manifest.artifacts) {
+    const tarballPath = path.join(artifactDirectory, artifact.filename);
+    const stat = await lstat(tarballPath);
+    assert.ok(
+      stat.isFile() && !stat.isSymbolicLink(),
+      "Artifact must be a regular file",
+    );
+    const contents = await readFile(tarballPath);
+    assert.equal(
+      contents.byteLength,
+      artifact.size,
+      `${artifact.name} size mismatch`,
+    );
+    assert.equal(
+      `sha512-${createHash("sha512").update(contents).digest("base64")}`,
+      artifact.integrity,
+      `${artifact.name} integrity mismatch`,
+    );
+    const packedManifest = JSON.parse(
+      run("tar", ["-xOzf", tarballPath, "package/package.json"], {
+        environment: scrubAuthentication(environment),
+      }).stdout,
+    );
+    packedManifests.push(packedManifest);
+    assert.equal(packedManifest.name, artifact.name);
+    assert.equal(packedManifest.version, artifact.version);
+    for (const scriptName of Object.keys(packedManifest.scripts ?? {})) {
+      assert.equal(
+        PROHIBITED_LIFECYCLE_SCRIPTS.has(scriptName),
+        false,
+        `${artifact.name} packed forbidden lifecycle script ${scriptName}`,
+      );
+    }
+  }
+
+  return packedManifests;
 }
 
 export function validateReleaseArtifactManifest(

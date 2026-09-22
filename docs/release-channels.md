@@ -47,3 +47,9 @@ version's `latest` tag. This caveat applies to the first publication of
 `@agentplat/trust`, as it did when the four Agent Mesh packages were introduced
 in Alpha 1. Consumers should still install the coordinated channel explicitly
 while the framework is in preview.
+
+
+A disabled-by-default [release-level OIDC profile](security/npm-direct-release.md)
+prepares one verified cohort for one protected deployment approval. It requires
+explicit activation of separate npm publisher permissions; the existing staged
+release workflow remains the active default until that activation.
