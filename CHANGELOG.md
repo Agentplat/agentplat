@@ -2,13 +2,13 @@
 
 ## Unreleased
 
-## 1.0.0 — prepared; publication pending
+## 1.0.0 — published 2026-09-22 (UTC)
 
 - Establish a public API compatibility and maintenance policy for the 65-package
   coordinated stable line, with explicit experimental capability boundaries.
 - Add production deployment and preview migration guidance.
-- Target `latest` only through the protected release workflow and complete
-  registry/consumer verification. No completed publication is claimed here.
+- All 65 packages are published under `latest`; registry and clean consumer
+  verification passed. See [distribution record](docs/releases/stable1-distribution-20260922.md).
 
 ## 0.3.0-beta.10 — superseded before publication by 1.0.0
 

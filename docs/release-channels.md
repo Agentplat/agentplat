@@ -1,9 +1,8 @@
 # Release channels
 
-AgentPlat uses one fixed version for all 65 publishable packages. The next
-planned stable release is **1.0.0**, targeting npm `latest`. It replaces the
-unpublished beta.10 candidate. Publication is pending; this document does not
-assert that registry tags have moved.
+AgentPlat uses one fixed version for all 65 publishable packages. **1.0.0** is
+published under npm `latest`; it replaces the unpublished beta.10 candidate.
+See the [verified distribution record](releases/stable1-distribution-20260922.md).
 
 Stable 1.x releases follow the [stability contract](stability.md). Prereleases
 use `next` and must never promote `latest`. Stable promotion requires successful

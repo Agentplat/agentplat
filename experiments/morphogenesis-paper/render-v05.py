@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the v0.2 Markdown manuscript and three native vector figures.
+"""Render the v0.5 or v1.0 Markdown manuscript and three native vector figures.
 
 Requires reportlab and Times New Roman/Arial TTFs; no network access.
 The small parser supports only the constructs used by this manuscript.
@@ -21,7 +21,7 @@ from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = sys.argv[1] if len(sys.argv)>1 else 'v0.5'
-assert VERSION == 'v0.5'
+assert VERSION in ('v0.5', 'v1.0')
 SOURCE = ROOT / f'docs/research/morphogenesis-paper-{VERSION}'
 OUTPUT = ROOT / f'output/pdf/agent-morphogenesis-paper-{VERSION}.pdf'
 FONT_DIR = Path(os.environ.get('MORPHOGENESIS_FONT_DIR', '/System/Library/Fonts/Supplemental'))
