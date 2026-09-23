@@ -64,3 +64,6 @@ Admission requires authoritative proof of another proposal's exact direct
 successor. Checkpoint, fence, drain/detach or retirement, and budget release remain
 owner obligations. A separate supersession receipt cannot stand in for normal
 activation. See the ADR for ambiguous-history handling and compatibility.
+
+For the v1.0 paper's reproducible results, supersession trace and evidence limits,
+see the [public evidence summary](../research/agent-morphogenesis-paper-v1.0-public-summary.md).
