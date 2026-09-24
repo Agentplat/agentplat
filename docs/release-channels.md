@@ -4,6 +4,10 @@ AgentPlat uses one fixed version for all 65 publishable packages. **1.0.0** is
 published under npm `latest`; it replaces the unpublished beta.10 candidate.
 See the [verified distribution record](releases/stable1-distribution-20260922.md).
 
+The source catalog currently also contains `@agentplat/assessor-typesafe` as an
+unpublished source-only adapter. It is not part of the 65-package npm stable
+cohort; a later coordinated release must admit and publish it explicitly.
+
 Stable 1.x releases follow the [stability contract](stability.md). Prereleases
 use `next` and must never promote `latest`. Stable promotion requires successful
 public checks, exact artifact verification, reference integration validation,

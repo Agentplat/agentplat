@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { reviewProposal } from "./proposal-reviewer.mjs";
 
 const base = (process.env.API_URL ?? "http://localhost:3000").replace(
   /\/$/,
@@ -122,6 +123,24 @@ if (process.argv[2] === "inspect") {
     contentType: "text/plain",
     createdBy: agents[1].id,
   });
+  const reviewedDraft = await request("GET", path);
+  const draftCurrent = reviewedDraft.artifacts.find((item) => item.id === draft.artifact.id);
+  const review = await reviewProposal({ artifact: draftCurrent });
+  const reviewArtifact = await request("POST", `${path}/artifacts`, {
+    type: "advisory_review",
+    title: `Review of proposal ${draft.artifact.id} version ${draftCurrent.currentVersion}`,
+    content: review,
+    contentType: "application/json",
+    provenance: { sourceArtifactIds: [draft.artifact.id] },
+    risks: ["Automated evaluation is advisory and does not approve this artifact."],
+  });
+  console.log(`Advisory review artifact: ${reviewArtifact.id}`);
+  console.log(JSON.stringify(review, null, 2));
+  await decide(
+    reviewArtifact,
+    "approve",
+    "Advisory signals reviewed; proposal approval remains a separate decision.",
+  );
   await decide(revised.artifact, "approve", "Revision output accepted.");
   await decide(
     draft.artifact,
