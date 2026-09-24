@@ -18,6 +18,7 @@ import {
   renderControlledAgentRequestV1,
 } from '../packages/inference-control/dist/runtime.js';
 import { encodeSseEvent } from '../packages/streaming/dist/index.js';
+import { TypeSafeAssessorV1 } from '../packages/assessor-typesafe/dist/index.js';
 
 function entry(overrides) {
   return createContextEntryV1({
@@ -234,6 +235,143 @@ test('buffered model executor releases zero bytes when final assessment denies',
   assert.equal(result.status, 'denied');
   assert.equal(result.output, null);
   assert.equal(result.releasedBytes, 0);
+});
+
+test('TypeSafe assessor composes with the governed AgentPlat runtime through both checkpoints', async () => {
+  let providerCalls = 0;
+  const evidence = [];
+  const assessor = new TypeSafeAssessorV1({
+    assessorId: 'assessor:one',
+    assessorVersion: 1,
+    assessorBindingDigest,
+    apiKey: 'test-key',
+    model: 'jev-pinned-test',
+    timeoutMs: 1_000,
+    fetch: async () => new Response(JSON.stringify({
+      model: 'jev-1.13.0',
+      answers: { eligible: { type: 'noul', noul: 0.99 } },
+      usage: { input_tokens: 30, output_tokens: 3 },
+    }), { headers: { 'content-type': 'application/json' } }),
+    buildRequest: (request) => ({
+      state: { checkpoint: request.checkpoint, content: request.content },
+      questions: { eligible: { type: 'noul', instructions: 'Is this output acceptable?' } },
+    }),
+    mapResult: (result) => ({
+      disposition: result.answers.eligible.noul >= 0.9 ? 'allow' : 'escalate',
+      reasonCode: 'assessment_eligible',
+    }),
+    evidenceSink: (record) => { evidence.push(record); },
+  });
+  const runtime = new ControlledAgentExecutorV1({
+    provider: {
+      platform: 'simulated',
+      async run() {
+        providerCalls += 1;
+        return { status: 'completed', output: 'safe output' };
+      },
+    },
+    contextEntries: resolveEntries,
+    controlBoundary: boundary('low'),
+    mode: 'buffered',
+    outputRisk: 'low',
+    assessor,
+  });
+  const result = await runtime.run({
+    schemaVersion: 1,
+    runId: 'run:one',
+    tenantId: 'tenant:one',
+    policyId: 'policy:one',
+    policyVersion: 1,
+    capabilityHandleId: capabilityHandle.capabilityHandleId,
+    agentDefinition: {
+      schemaVersion: 1,
+      agentId: 'agent:one',
+      name: 'Assessed Agent',
+      description: null,
+      platform: 'simulated',
+      modelName: null,
+      instructionContextEntryIds: ['context:policy'],
+      config: {},
+    },
+    contextEntryIds: ['context:peer'],
+    input: 'Review this bounded input.',
+    scope: null,
+  }, { tenant: { tenantId: 'tenant:one' }, agentId: 'agent:one' });
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.output, 'safe output');
+  assert.equal(providerCalls, 1);
+  assert.deepEqual(evidence.map((record) => record.checkpoint), ['pre_run', 'post_run']);
+  assert.ok(evidence.every((record) => record.status === 'completed'));
+  assert.ok(evidence.every((record) => record.resolvedModel === 'jev-1.13.0'));
+  assert.ok(evidence.every((record) => !Object.hasOwn(record, 'content')));
+});
+
+test('a low Jev signal remains subject to the runtime policy and releases no output', async () => {
+  const evidence = [];
+  const assessor = new TypeSafeAssessorV1({
+    assessorId: 'assessor:one',
+    assessorVersion: 1,
+    assessorBindingDigest,
+    apiKey: 'test-key',
+    model: 'jev-pinned-test',
+    timeoutMs: 1_000,
+    fetch: async (_input, init) => {
+      const body = JSON.parse(init.body);
+      const probability = body.state.checkpoint === 'pre_run' ? 0.99 : 0.2;
+      return new Response(JSON.stringify({
+        model: 'jev-1.13.0',
+        answers: { eligible: { type: 'noul', noul: probability } },
+        usage: { input_tokens: 30, output_tokens: 3 },
+      }), { headers: { 'content-type': 'application/json' } });
+    },
+    buildRequest: (request) => ({
+      state: { checkpoint: request.checkpoint, content: request.content },
+      questions: { eligible: { type: 'noul', instructions: 'Is this output acceptable?' } },
+    }),
+    mapResult: (result) => ({
+      disposition: result.answers.eligible.noul >= 0.9 ? 'allow' : 'deny',
+      reasonCode: 'assessment_policy_decision',
+    }),
+    evidenceSink: (record) => { evidence.push(record); },
+  });
+  const runtime = new ControlledAgentExecutorV1({
+    provider: {
+      platform: 'simulated',
+      async run() { return { status: 'completed', output: 'do not release' }; },
+    },
+    contextEntries: resolveEntries,
+    controlBoundary: boundary('low'),
+    mode: 'buffered',
+    outputRisk: 'low',
+    assessor,
+  });
+  const result = await runtime.run({
+    schemaVersion: 1,
+    runId: 'run:one',
+    tenantId: 'tenant:one',
+    policyId: 'policy:one',
+    policyVersion: 1,
+    capabilityHandleId: capabilityHandle.capabilityHandleId,
+    agentDefinition: {
+      schemaVersion: 1,
+      agentId: 'agent:one',
+      name: 'Assessed Agent',
+      description: null,
+      platform: 'simulated',
+      modelName: null,
+      instructionContextEntryIds: ['context:policy'],
+      config: {},
+    },
+    contextEntryIds: ['context:peer'],
+    input: 'Review this bounded input.',
+    scope: null,
+  }, { tenant: { tenantId: 'tenant:one' }, agentId: 'agent:one' });
+
+  assert.equal(result.status, 'denied');
+  assert.equal(result.output, null);
+  assert.equal(result.releasedBytes, 0);
+  assert.deepEqual(evidence.map((record) => record.disposition), ['allow', 'deny']);
 });
 
 test('policy buffer limits fail closed before model or runtime output release', async () => {

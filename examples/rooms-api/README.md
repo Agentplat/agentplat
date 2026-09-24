@@ -19,6 +19,22 @@ uses the existing HTTP API; `demo:recover` interrupts a real worker and checks
 successor recovery; `demo:controls` checks explicit action controls against PostgreSQL.
 See [component maturity](../../docs/component-maturity.md) for evidence boundaries.
 
+The proposal demo also creates a version-bound advisory review artifact before
+the existing human approval. It uses deterministic local rules by default and
+does not call an external model. To opt into Jev, set
+`PROPOSAL_REVIEWER=jev` and `TYPESAFE_API_KEY`; optionally set
+`TYPESAFE_MODEL` to a pinned model identifier. The structured review records the
+source artifact version and rubric digest. It never approves the proposal.
+Applications can replace `reviewProposal` with their own evaluator while
+keeping the Room flow and human approval unchanged. In Jev mode, this example
+sends the selected proposal version and review rubric to TypeSafe; configure it
+only when that data may be sent to the provider. The demo models a separate
+human approval of the review report and of the proposal itself. Jev mode also
+requires `TYPESAFE_MAX_SPEND_USD`,
+`TYPESAFE_INPUT_PRICE_USD_PER_MILLION_TOKENS`, and
+`TYPESAFE_MAX_INPUT_TOKENS_PER_CALL`. The client reserves the configured
+worst-case input cost, including retries, before each request.
+
 ## Start with Docker
 
 Requirements: Docker Engine with Compose v2.

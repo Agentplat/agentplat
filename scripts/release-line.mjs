@@ -99,6 +99,14 @@ export const RELEASE_LINES = Object.freeze([
     trustPackageCount: 1,
     requiredPackageNames: A2A_PACKAGE_NAMES,
   }),
+  Object.freeze({
+    catalogPackageCount: 66,
+    id: "stable1-jev-source",
+    releaseVersion: "1.0.0",
+    trustPackageCount: 1,
+    requiredPackageNames: [...A2A_PACKAGE_NAMES, "@agentplat/assessor-typesafe"],
+    sourceOnlyPackageNames: ["@agentplat/assessor-typesafe"],
+  }),
 ]);
 
 /**
@@ -127,8 +135,13 @@ export async function assertReleaseLine({
         candidate.requiredPackageNames.every(
           (name) =>
             resolvedCatalog.packages.filter((entry) => entry.name === name)
-              .length === 1,
-        )),
+                .length === 1,
+        )) &&
+      (!candidate.sourceOnlyPackageNames ||
+        candidate.sourceOnlyPackageNames.every((name) => {
+          const entries = resolvedCatalog.packages.filter((entry) => entry.name === name);
+          return entries.length === 1 && !entries[0].publish && !entries[0].packSmoke;
+        })),
   );
 
   const line =
@@ -137,7 +150,7 @@ export async function assertReleaseLine({
     ) ?? matchingLines[0];
   assert.ok(
     line,
-    `Release line requires exactly 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4 packages, 33 Alpha 5 packages, 34 Beta 1 packages, 36 Beta 2 packages, 56 Beta 5 packages, 62 Beta 6/Beta 7 packages, or 65 Beta 7/Beta 8 packages with the complete A2A/Registry group and Trust exactly once`,
+    `Release line requires an explicitly supported package cohort: 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4, 33 Alpha 5, 34 Beta 1, 36 Beta 2, 56 Beta 5, 62 Beta 6/Beta 7, 65 Beta 7/Beta 8/stable 1.0.0 packages, or the 66-manifest stable 1.0.0 source cohort with @agentplat/assessor-typesafe unpublished`,
   );
 
   assert.equal(

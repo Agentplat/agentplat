@@ -18,6 +18,10 @@ rerun or freshly attest their results. See each entry before comparing numbers.
 
 ## Related evidence and planned studies
 
+- [Agent Room proposal review with Jev](jev-artifact-review/README.md):
+  runner supports deterministic rules, Jev and a structured-output LLM;
+  held-out, human-adjudicated data and explicit spend caps remain prerequisites.
+  No model comparison has been run.
 - [AgentPlat versus native multiagent coordination](native-multiagent-comparison/README.md):
   proposed Terminal-Bench 2.0 data-processing comparison for Federico's study;
   36 planned runs across individual Claude Code, Agent Teams and AgentPlat.
