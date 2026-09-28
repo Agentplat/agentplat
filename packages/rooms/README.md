@@ -335,3 +335,84 @@ const promotion = await promoteSessionToRoom(service, {
 Incomplete sessions require `allowIncomplete: true`. Promotion records source
 session, turn and timestamp metadata so consumers do not mistake the imported
 transcript for messages originally authored inside the Room lifecycle.
+
+## Agent interaction configuration (source preview)
+
+Agent Definition revisions accept an optional `interaction` binding:
+
+```ts
+const instruction = { schemaVersion: 1, interactionMode: "instruction" } as const;
+const purpose = {
+  schemaVersion: 1,
+  interactionMode: "purpose",
+  governanceId: "retention-governance-v1",
+} as const;
+// Pass either as `interaction` to AgentDefinitionRegistry.createRevision(...).
+```
+
+Omitting the field preserves legacy instruction behavior and canonical digests.
+Explicit bindings are included in the immutable definition digest. Use
+`resolveAgentInteractionBindingV1(definition)` to inspect the configured mode;
+metadata and runtime profiles cannot override it. Invalid bindings are rejected.
+
+Purpose revisions are **candidates only**: storage and publication do not verify
+the governance reference or activate execution. `resolvePublishedRevision` and
+the default coordination execution port reject purpose candidates before work is
+created. A mixed recipient batch is preflighted before dispatch. Instruction
+agents can continue in a Room containing purpose candidates.
+
+This is not a system-wide governance enforcement claim: direct `RoomService`
+tasks and custom execution integrations remain legacy APIs without a governance
+head. Do not copy a purpose candidate into an unbound participant runtime and
+interpret that as supported purpose execution. Inception recording and owner-authorized configuration are implemented in source.
+The opt-in instruction execution profile is described below; purpose activation
+now requires the qualified mission composition described below.
+See [the implementation plan](../../docs/agent-governance/implementation-plan.md).
+
+## Persisted owner governance (source preview)
+
+`AgentGovernanceServiceV1` and `InMemoryAgentGovernanceStoreV1` provide owner-only
+purpose/mode configuration, scoped expiring delegates, revision CAS, immutable
+history and two-party ownership transfer. Inject a host-verified authentication
+and authorization port; caller-supplied actor IDs cannot establish ownership.
+New configurations start suspended; admitted instruction agents can now use the
+opt-in governed execution profile described below.
+See [configuration and API usage](../../docs/agent-governance/configuration.md).
+
+## Inceptions and assessments (source preview)
+
+`AgentInceptionServiceV1` stores contributions from persisted Room messages and
+five assessment outcomes, bound to governance and scoped evidence. It provides
+append-only reassessment with CAS/idempotency and inert work proposals only.
+Use `InMemoryAgentInceptionStoreV1` with the same in-memory governance store.
+See [inception usage](../../docs/agent-governance/inceptions.md).
+
+## Attention signals (source preview)
+
+`AttentionSignalServiceV1` and `InMemoryAttentionSignalStoreV1` provide immutable
+signal/reference catalogs, authenticated observations, freshness coverage and
+bounded durable evaluation wakeups. Owner/delegate configuration uses existing
+governance; collector and worker permissions are separate. Hosts schedule ticks
+and supply an idempotent evaluation sink. See [signals](../../docs/agent-governance/signals.md).
+
+## Governed instruction execution (source preview)
+
+`AgentExecutionControllerV1`, `AgentExecutionLimitServiceV1` and
+`InMemoryAgentExecutionStoreV1` add adapter admission, immutable pending-task bindings,
+current-epoch checks, mandatory limits and cumulative reservations. Opt in through
+RoomService's `executionGovernance` and `requireGovernedExecution` options. Activation
+is owner-controlled; purpose mode requires the qualified mission composition.
+See [execution and reconciliation](../../docs/agent-governance/execution.md).
+
+## Qualified purpose mission cycle (source preview)
+
+`PurposeMissionServiceV1` wraps existing Room plans with scoped mission issuance,
+current-evidence deliberation, governed work and outcome review. Pass its `control()`
+to the execution controller and use a paired mission/execution backend. The optional
+`createPurposeRoomInputPortV1` routes ordinary messages to inceptions, never tasks.
+Purpose execution is available only through this composition; standalone publication
+still creates no authority. See [missions](../../docs/agent-governance/missions.md).
+
+See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
+
+Run the [persistent support demonstration](../../examples/agent-purpose-support/README.md) to compare instruction and purpose modes, owner correction and process restart against PostgreSQL.

@@ -1,0 +1,2 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.attention_signal_states;
+DROP TABLE __AGENTPLAT_SCHEMA__.attention_signal_catalog;

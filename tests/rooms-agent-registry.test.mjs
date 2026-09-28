@@ -6,6 +6,8 @@ import {
   InMemoryAgentDefinitionRegistryStore,
   InMemoryRoomExecutionSessionStore,
   RoomExecutionCoordinator,
+  resolveAgentInteractionBindingV1,
+  validateAgentInteractionBindingV1,
 } from '@agentplat/rooms';
 
 function registry() {
@@ -35,6 +37,9 @@ test('creates immutable content-addressed agent revisions with separate lifecycl
   });
 
   assert.equal(draft.lifecycle.status, 'draft');
+  assert.equal(draft.definition.digest, 'sha256:c16e403b92715393f8ee77dffaecfbcf316d92aa62bff2a38dd8e0399b5a50c6');
+  assert.equal(Object.hasOwn(draft.definition, 'interaction'), false);
+  assert.equal(resolveAgentInteractionBindingV1(draft.definition).interactionMode, 'instruction');
   assert.match(draft.definition.digest, /^sha256:[a-f0-9]{64}$/);
   assert.match(draft.definition.revisionId, /research-agent@1\.0\.0:sha256:/);
   assert.deepEqual(draft.definition.capabilities, ['analysis', 'search']);
@@ -61,6 +66,42 @@ test('creates immutable content-addressed agent revisions with separate lifecycl
     }),
     /version is already bound/
   );
+});
+
+test('interaction bindings reject malformed inputs instead of silently defaulting', () => {
+  for (const value of [null, [], {}, 'purpose',
+    { schemaVersion: 2, interactionMode: 'instruction' },
+    { schemaVersion: 1, interactionMode: 'unknown' },
+    { schemaVersion: 1, interactionMode: 'purpose' },
+    { schemaVersion: 1, interactionMode: 'purpose', governanceId: ' ' },
+    { schemaVersion: 1, interactionMode: 'purpose', governanceId: 1 },
+    { schemaVersion: 1, interactionMode: 'instruction', governanceId: 'g' },
+    { schemaVersion: 1, interactionMode: 'purpose', governanceId: 'g', enabled: true },
+  ]) assert.throws(() => validateAgentInteractionBindingV1(value), { code: 'VALIDATION_ERROR' });
+});
+
+test('explicit bindings are immutable digest-bound candidates and purpose cannot execute', async () => {
+  const store = new InMemoryAgentDefinitionRegistryStore();
+  const service = new AgentDefinitionRegistry(store);
+  await service.createAgent({ tenantId: 't', agentId: 'a', name: 'Agent' });
+  const base = { tenantId: 't', agentId: 'a', version: '1.0.0', instructions: 'Work', runtimeProfile: {} };
+  const interaction = { schemaVersion: 1, interactionMode: 'purpose', governanceId: 'gov-1' };
+  const candidate = await service.createRevision({ ...base, interaction });
+  interaction.governanceId = 'mutated';
+  assert.equal(candidate.definition.interaction.governanceId, 'gov-1');
+  const replay = await service.createRevision({ ...base, interaction: { governanceId: 'gov-1', interactionMode: 'purpose', schemaVersion: 1 } });
+  assert.equal(replay.definition.digest, candidate.definition.digest);
+  for (const changed of [undefined, { schemaVersion: 1, interactionMode: 'instruction' }, interaction]) {
+    await assert.rejects(service.createRevision({ ...base, interaction: changed }), /different content/);
+  }
+  await service.publishRevision('t', candidate.definition.revisionId, 0);
+  const reopened = new AgentDefinitionRegistry(store);
+  assert.equal((await reopened.getRevision('t', candidate.definition.revisionId)).definition.interaction.governanceId, 'gov-1');
+  await assert.rejects(reopened.resolvePublishedRevision('t', candidate.definition.revisionId), /qualified purpose mission execution is required/);
+  const explicit = await service.createRevision({ ...base, version: '2.0.0', interaction: { schemaVersion: 1, interactionMode: 'instruction' } });
+  await service.publishRevision('t', explicit.definition.revisionId, 0);
+  assert.equal((await service.resolvePublishedRevision('t', explicit.definition.revisionId)).interaction.interactionMode, 'instruction');
+  await assert.rejects(service.createRevision({ ...base, version: '3.0.0', interaction: null }), { code: 'VALIDATION_ERROR' });
 });
 
 test('publishes and deprecates revisions with revision-checked lifecycle transitions', async () => {

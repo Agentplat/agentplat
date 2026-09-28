@@ -13,9 +13,32 @@ import type {
 import type { Participant, RoomRun, RoomState, RoomTask } from "./models.js";
 import type { CreateTaskInput, RoomService } from "./service.js";
 import type { RoomRunCheckpointHandler } from "./checkpoint-execution.js";
+import {
+  assertAgentInteractionExecutableV1,
+  resolveAgentInteractionBindingV1,
+} from "./agent-interaction.js";
+
+export interface PurposeRoomInputPortV1 {
+  submitHandoff?(input: {
+    tenantId: string;
+    agentId: string;
+    roomId: string;
+    handoffId: string;
+  }): Promise<void>;
+  submit(input: {
+    tenantId: string;
+    agentId: string;
+    roomId: string;
+    messageId: string;
+  }): Promise<void>;
+}
 
 /** Minimal governed Room operations required by the coordination executor. */
 export interface CoordinationRoomServicePort {
+  getExecutionDefinitionRevision?(
+    tenantId: string,
+    participant: Participant,
+  ): Promise<string | undefined>;
   getRoomState(tenantId: string, roomId: string): Promise<RoomState>;
   createTask(
     tenantId: string,
@@ -45,6 +68,7 @@ export class DefaultAgentRoomCoordinationExecutionPort implements AgentRoomCoord
     private readonly executionSessions: RoomExecutionCoordinator,
     private readonly handoffs: AgentRoomHandoffCoordinator,
     private readonly checkpoints?: RoomRunCheckpointHandler,
+    private readonly purposeInputs?: PurposeRoomInputPortV1,
   ) {}
 
   async dispatchMessage(input: {
@@ -61,12 +85,32 @@ export class DefaultAgentRoomCoordinationExecutionPort implements AgentRoomCoord
     if (!message)
       throw new AgentPlatError("NOT_FOUND", "Coordination message not found");
     const runIds: string[] = [];
+    // Validate every selected definition before creating any work in a mixed batch.
+    const targets: {
+      participant: Participant;
+      revision: RegisteredAgentRevision;
+    }[] = [];
     for (const participantId of input.participantIds) {
       const participant = requireAgentParticipant(state, participantId);
       const revision = await this.publishedRevision(
         input.tenantId,
         participant,
       );
+      targets.push({ participant, revision });
+    }
+    for (const { participant, revision } of targets) {
+      if (
+        resolveAgentInteractionBindingV1(revision.definition)
+          .interactionMode === "purpose"
+      ) {
+        await this.purposeInputs!.submit({
+          tenantId: input.tenantId,
+          agentId: revision.definition.agentId,
+          roomId: input.roomId,
+          messageId: message.id,
+        });
+        continue;
+      }
       const task = await this.ensureTask({
         tenantId: input.tenantId,
         roomId: input.roomId,
@@ -113,6 +157,43 @@ export class DefaultAgentRoomCoordinationExecutionPort implements AgentRoomCoord
       state,
       handoff.targetParticipantId,
     );
+    const targetAgentId =
+      typeof participant.metadata?.agentId === "string"
+        ? participant.metadata.agentId
+        : participant.id;
+    const target = (
+      await this.definitions.listRevisions(handoff.tenantId, targetAgentId)
+    ).find(
+      (item) => item.definition.revisionId === handoff.targetAgentRevisionId,
+    );
+    if (
+      !target ||
+      target.lifecycle.status !== "published" ||
+      target.definition.digest !== handoff.targetAgentRevisionDigest
+    ) {
+      throw new AgentPlatError(
+        "CONFLICT",
+        "Handoff target revision is not available",
+      );
+    }
+    if (
+      resolveAgentInteractionBindingV1(target.definition).interactionMode ===
+      "purpose"
+    ) {
+      if (!this.purposeInputs?.submitHandoff)
+        throw new AgentPlatError(
+          "FORBIDDEN",
+          "qualified purpose mission execution is required: Handoff intake unavailable",
+        );
+      await this.purposeInputs.submitHandoff({
+        tenantId: handoff.tenantId,
+        roomId: handoff.roomId,
+        agentId: targetAgentId,
+        handoffId: handoff.handoffId,
+      });
+      return { status: "completed" as const, runIds: [] };
+    }
+    assertAgentInteractionExecutableV1(target.definition);
     const task = await this.ensureTask({
       tenantId: handoff.tenantId,
       roomId: handoff.roomId,
@@ -302,8 +383,17 @@ export class DefaultAgentRoomCoordinationExecutionPort implements AgentRoomCoord
       typeof participant.metadata?.agentId === "string"
         ? participant.metadata.agentId
         : participant.id;
+    const admittedRevision = await this.rooms.getExecutionDefinitionRevision?.(
+      tenantId,
+      participant,
+    );
     const published = (await this.definitions.listRevisions(tenantId, agentId))
-      .filter((item) => item.lifecycle.status === "published")
+      .filter(
+        (item) =>
+          item.lifecycle.status === "published" &&
+          (!admittedRevision ||
+            item.definition.revisionId === admittedRevision),
+      )
       .sort((left, right) =>
         right.definition.version.localeCompare(left.definition.version),
       );
@@ -312,6 +402,13 @@ export class DefaultAgentRoomCoordinationExecutionPort implements AgentRoomCoord
         "CONFLICT",
         "No published agent revision is available",
       );
+    }
+    if (
+      resolveAgentInteractionBindingV1(published[0].definition)
+        .interactionMode === "purpose"
+    ) {
+      if (!admittedRevision || !this.purposeInputs)
+        assertAgentInteractionExecutableV1(published[0].definition);
     }
     return published[0];
   }

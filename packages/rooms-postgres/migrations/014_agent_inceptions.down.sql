@@ -1,0 +1,3 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.agent_inception_assessments;
+DROP TABLE __AGENTPLAT_SCHEMA__.agent_inception_heads;
+DROP TABLE __AGENTPLAT_SCHEMA__.agent_inceptions;

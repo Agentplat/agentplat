@@ -7,6 +7,13 @@ AgentPlat is layered from core IDs/contracts and events through runtime, session
 Start points: `packages/core`, `packages/runtime`, `packages/rooms`, `packages/collective-runtime`, `packages/mesh`, `packages/mcp` and `examples/`. Use package READMEs for API details and ADRs for architectural decisions.
 
 Specified future evolution is kept separate from implemented package behavior.
+The [agent purpose governance design](./agent-governance/README.md) specifies
+additive instruction/purpose interaction modes, owner-governed configuration,
+signals and inceptions. Interaction configuration, persisted owner governance, inert inception assessments, bounded signal wakeups
+and execution controls are implemented in source. The qualified purpose mission
+profile composes existing Room plans, governed tasks and outcome review. Bounded
+delegation and evolution continuity retain existing authority owners; see the
+adoption guide for supported limits and source qualification evidence.
 The [Governed Durable Workflows V1 design](./workflows/README.md) defines the
 implemented core process runner, task/outcome integrity, PostgreSQL and Temporal
 adapters, the Agent Room gate bridge and progressive autonomy. Unchecked

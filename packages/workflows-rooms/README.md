@@ -29,3 +29,21 @@ work-management state never becomes execution authority by itself.
 At expiry the provider attempts the Room `requested → expired` transition. A
 provider failure or unresolved approval still takes the workflow's `expired`
 branch; expiry never approves.
+
+## Attention wakeup mapping (source preview)
+
+`attentionWakeupToProcessSignalV1(wakeup, runId)` maps a bounded Room attention
+wakeup to the existing workflow signal contract with stable identity. It neither
+persists the signal nor advances a runner; routing, capacity, current authority
+and execution gates remain the workflow owner's responsibility.
+See [signals](../../docs/agent-governance/signals.md).
+
+## Agent governance and existing Action Gateway (source preview)
+
+`agentGovernanceActionTargetDigestV1` binds the assessment target before grant issuance.
+`createAgentGovernanceActionGatewayV1` narrows the existing gateway with current
+governance and cumulative reservations. The trusted quote port supplies a stable
+logical effect ID, actual destination and upper-bound resource charges. It neither
+creates a grant nor upgrades an old approval. See [execution](../../docs/agent-governance/execution.md).
+
+See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.

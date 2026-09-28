@@ -336,6 +336,7 @@ export class AgentRoomPlannerBridge {
     tenantId: string;
     roomId: string;
     triggerEventId: string;
+    planId?: string;
   }) {
     const room = await this.rooms.getRoomState(input.tenantId, input.roomId);
     if (!room.events.some((event) => event.id === input.triggerEventId)) {
@@ -347,7 +348,7 @@ export class AgentRoomPlannerBridge {
     const plans = await this.store.list(input.tenantId, input.roomId);
     const updated: AgentRoomPlan[] = [];
     for (const plan of plans.filter((candidate) =>
-      ["active", "waiting_for_human", "materializing"].includes(
+      (!input.planId || candidate.planId === input.planId) && ["active", "waiting_for_human", "materializing"].includes(
         candidate.status,
       ),
     )) {

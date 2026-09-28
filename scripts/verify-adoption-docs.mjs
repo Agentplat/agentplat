@@ -24,6 +24,17 @@ const documents = [
   "docs/component-maturity.md",
   "docs/capability-catalog.md",
   "examples/rooms-api/README.md",
+  "docs/agent-governance/README.md",
+  "docs/agent-governance/adoption.md",
+  "docs/agent-governance/evidence.md",
+  "docs/agent-governance/configuration.md",
+  "docs/agent-governance/inceptions.md",
+  "docs/agent-governance/signals.md",
+  "docs/agent-governance/execution.md",
+  "docs/agent-governance/missions.md",
+  "docs/agent-governance/continuity.md",
+  "docs/agent-governance/implementation-plan.md",
+  "examples/agent-purpose-support/README.md",
   ...guides,
 ];
 for (const document of documents) {

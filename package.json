@@ -212,7 +212,9 @@
     "verify:discoverability": "node --test tests/discoverability-measurement.test.mjs",
     "test:a2a": "pnpm --filter @agentplat/a2a... --filter @agentplat/agent-registry-postgres... build && pnpm --filter @agentplat/agent-registry --filter @agentplat/agent-registry-postgres --filter @agentplat/a2a test",
     "example:a2a": "pnpm --filter @agentplat/a2a... build && node examples/a2a-registry/demo.mjs",
-    "verify:a2a-consumer": "node scripts/verify-a2a-consumer.mjs"
+    "verify:a2a-consumer": "node scripts/verify-a2a-consumer.mjs",
+    "verify:purpose-governance": "node scripts/verify-purpose-governance.mjs",
+    "verify:purpose-consumer": "node scripts/verify-public-consumer.mjs --purpose-governance"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

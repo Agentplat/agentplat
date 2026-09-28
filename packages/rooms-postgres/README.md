@@ -148,3 +148,46 @@ pnpm --filter @agentplat/rooms-postgres test
 The integration test applies and rolls back the migration and verifies tenant
 isolation, aggregate hydration, transactional rollback, immutable artifact
 versions, and append-only events.
+
+## Agent governance configuration (source preview)
+
+Migration 013 adds transactional governance heads and immutable operation history.
+`PostgresAgentGovernanceStoreV1(pool, { schema })` implements the Rooms governance
+store port. Changes use revision CAS and commit the head plus result journal in
+one transaction. Explicit rollback confirmation can target migration 013;
+rolling it back removes governance data and requires explicit data-loss consent.
+
+See [governance configuration](../../docs/agent-governance/configuration.md).
+Purpose execution remains disabled; this adapter persists suspended configuration.
+
+## Inception persistence (source preview)
+
+Migration 014 adds immutable intake and assessments with a separate CAS head.
+`PostgresAgentInceptionStoreV1` checks the governance fence in the same transaction
+as each write; use the same schema as the governance adapter. Explicit rollback confirmation can target 014. No evaluation result authorizes execution.
+See [inception usage](../../docs/agent-governance/inceptions.md).
+
+## Attention signal persistence (source preview)
+
+Migration 015 adds the immutable attention catalog and bounded stream state.
+`PostgresAttentionSignalStoreV1` commits observations and pending wakeups together
+under governance fencing and stream CAS. Explicit rollback confirmation can target 015. See [signal bounds and recovery](../../docs/agent-governance/signals.md).
+
+## Governed execution persistence (source preview)
+
+Migration 016 adds activation statuses, immutable limit/task bindings, budget totals
+and effect receipts. `PostgresAgentExecutionStoreV1` serializes budget admission
+with governance updates. Explicit rollback confirmation can target 016, and rollback
+refuses activation history that earlier suspended-only code cannot interpret.
+See [execution recovery](../../docs/agent-governance/execution.md).
+
+## Qualified purpose mission persistence (source preview)
+
+Migration 017 adds mission envelopes, immutable revision history and plan ownership.
+`PostgresPurposeMissionStoreV1` shares the governance serialization boundary with
+`PostgresAgentExecutionStoreV1` so canceled/stale mission work cannot be admitted.
+Migration 017 rollback refuses purpose activation history. Current rollback confirmation
+targets 018, which refuses existing governed origins.
+See [mission recovery](../../docs/agent-governance/missions.md).
+
+See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
