@@ -44,7 +44,7 @@ Passing this scenario demonstrates behavior under that schedule and the configur
 
 ## Sources
 
-- [Governed Agent Morphogenesis v1.0 results and evidence limits](../research/agent-morphogenesis-paper-v1.0-public-summary.md)
+- [Governed Agent Morphogenesis: Runtime Organizational Reconfiguration with Bounded Authority and Causal Continuity](../research/morphogenesis-paper-v1.0/README.md)
 - [Agent Morphogenesis results and evidence limits](../research/agent-morphogenesis-paper-v1.0-public-summary.md)
 - [Agent Morphogenesis V1 specification](../specification/agent-morphogenesis-v1.md)
 - [Agent Morphogenesis V2 specification](../specification/agent-morphogenesis-v2.md)

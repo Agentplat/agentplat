@@ -1,6 +1,6 @@
 # Agent Morphogenesis: resultados y límites del paper v1.0
 
-Esta página resume qué evidencia presenta el preprint v1.0 *Governed Agent Morphogenesis: Runtime Organizational Reconfiguration with Bounded Authority and Causal Continuity*, y qué conclusiones no permite extraer. Los resultados y la traza ampliada se publican en la rama de código fuente junto con los artefactos de investigación. El protocolo coordina cambios organizacionales entre subsistemas con autoridad propia; la cabeza de Morphogenesis registra una sucesión aceptada, pero no convierte esos cambios en una transacción global atómica.
+Esta página resume qué evidencia presenta el preprint v1.0 [Governed Agent Morphogenesis: Runtime Organizational Reconfiguration with Bounded Authority and Causal Continuity](./morphogenesis-paper-v1.0/README.md), y qué conclusiones no permite extraer. Los resultados y la traza ampliada se publican en la rama de código fuente junto con los artefactos de investigación. El protocolo coordina cambios organizacionales entre subsistemas con autoridad propia; la cabeza de Morphogenesis registra una sucesión aceptada, pero no convierte esos cambios en una transacción global atómica.
 
 ## Resultados principales
 
@@ -33,4 +33,4 @@ La secuencia muestra por qué “una sola cabeza ganadora” no significa “una
 
 ## Reproducir y consultar
 
-El artefacto congelado v0.5 contiene los datos, scripts y verificadores que sustentan los resultados retenidos en el preprint v1.0: [manuscrito](./morphogenesis-paper-v0.5/manuscript.md), [índice](./morphogenesis-paper-v0.5/README.md). La [especificación V1](../specification/agent-morphogenesis-v1.md) define el perfil base; los perfiles V2–V8 son extensiones optativas con sus propios límites y evidencia.
+El [índice del manuscrito v1.0](./morphogenesis-paper-v1.0/README.md) enlaza el artefacto congelado v0.5, que contiene los datos, scripts y verificadores que sustentan los resultados retenidos en el preprint v1.0: [manuscrito](./morphogenesis-paper-v0.5/manuscript.md), [índice](./morphogenesis-paper-v0.5/README.md). La [especificación V1](../specification/agent-morphogenesis-v1.md) define el perfil base; los perfiles V2–V8 son extensiones optativas con sus propios límites y evidencia.

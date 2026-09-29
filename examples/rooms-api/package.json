@@ -16,6 +16,7 @@
     "scenario": "node scripts/end-to-end.mjs",
     "scenario:restart": "node scripts/restart-recovery.mjs",
     "demo:proposal": "node scripts/proposal-demo.mjs",
+    "test:proposal-review": "node --test test/proposal-reviewer.test.mjs",
     "demo:recover": "node scripts/proposal-recovery.mjs",
     "demo:controls": "node scripts/protected-action-demo.mjs"
   },
@@ -26,6 +27,7 @@
     "@agentplat/rooms-postgres": "link:../../packages/rooms-postgres",
     "@agentplat/runtime": "link:../../packages/runtime",
     "@agentplat/runtime-mock": "link:../../packages/runtime-mock",
+    "@agentplat/assessor-typesafe": "link:../../packages/assessor-typesafe",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.5",
     "@agentplat/model-openai-compatible": "link:../../packages/model-openai-compatible"

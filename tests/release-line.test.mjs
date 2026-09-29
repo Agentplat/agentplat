@@ -83,7 +83,7 @@ test("release-line guard rejects a 56-package Beta 2 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /Release line requires exactly .*56 Beta 5 packages/i,
+    /Release line requires an explicitly supported package cohort:.*56 Beta 5/i,
   );
 });
 
@@ -109,7 +109,7 @@ test("release-line guard rejects a 31-package Alpha 4 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires an explicitly supported package cohort: 29 Alpha 3 packages/i,
   );
 });
 
@@ -122,7 +122,7 @@ test("release-line guard rejects a 30-package Alpha 3 cohort", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires an explicitly supported package cohort: 29 Alpha 3 packages/i,
   );
 });
 
@@ -174,7 +174,7 @@ test("release-line guard rejects Alpha 3 when Trust appears in the catalog", asy
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires an explicitly supported package cohort: 29 Alpha 3 packages/i,
   );
 });
 
@@ -187,7 +187,7 @@ test("release-line guard rejects Alpha 4 when Trust is absent", async (t) => {
 
   await assert.rejects(
     () => assertReleaseLine({ root }),
-    /requires exactly 29 Alpha 3 packages/i,
+    /requires an explicitly supported package cohort: 29 Alpha 3 packages/i,
   );
 });
 
@@ -356,5 +356,5 @@ test("release-line guard accepts only the complete additive A2A registry group",
   assert.equal(await assertReleaseLine({ root }), true);
   catalog.packages.find((entry) => entry.name === "@agentplat/a2a").name =
     "@agentplat/unrelated";
-  await assert.rejects(assertReleaseLine({ root, catalog }), /complete A2A/);
+  await assert.rejects(assertReleaseLine({ root, catalog }), /requires an explicitly supported package cohort/);
 });

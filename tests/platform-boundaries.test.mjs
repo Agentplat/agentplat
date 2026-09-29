@@ -9,7 +9,7 @@ import { verifyPlatformBoundaries } from "../scripts/verify-platform-boundaries.
 test("current governed workflow packages satisfy platform boundaries", async () => {
   const report = await verifyPlatformBoundaries();
   assert.equal(report.sourceRuleCount, 10);
-  assert.equal(report.adapterAdmissionCount, 5);
+  assert.equal(report.adapterAdmissionCount, 6);
   assert.equal(report.scannedSourceFiles > 0, true);
 });
 

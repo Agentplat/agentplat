@@ -124,6 +124,8 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - name: Verify optional Jev example and experiment contracts
+        run: node --test examples/rooms-api/test/proposal-reviewer.test.mjs experiments/jev-artifact-review/run.test.mjs
       - name: Verify purpose governance and packed consumers
         run: |
           pnpm run verify:purpose-governance /tmp/purpose-governance-ci
