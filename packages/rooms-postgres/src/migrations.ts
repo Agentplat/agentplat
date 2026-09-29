@@ -324,6 +324,39 @@ async function migrations(): Promise<PostgresMigration[]> {
       down: approvalExpiryDown,
       destructiveDown: true,
     },
+    {
+      version: 13,
+      name: "013_agent_governance",
+      up: await readFile(new URL("../migrations/013_agent_governance.up.sql", import.meta.url), "utf8"),
+      down: await readFile(new URL("../migrations/013_agent_governance.down.sql", import.meta.url), "utf8"),
+      destructiveDown: true,
+    },
+    {
+      version: 14,
+      name: "014_agent_inceptions",
+      up: await readFile(new URL("../migrations/014_agent_inceptions.up.sql", import.meta.url), "utf8"),
+      down: await readFile(new URL("../migrations/014_agent_inceptions.down.sql", import.meta.url), "utf8"),
+      destructiveDown: true,
+    },
+    {
+      version: 15,
+      name: "015_attention_signals",
+      up: await readFile(new URL("../migrations/015_attention_signals.up.sql", import.meta.url), "utf8"),
+      down: await readFile(new URL("../migrations/015_attention_signals.down.sql", import.meta.url), "utf8"),
+      destructiveDown: true,
+    },
+    {
+      version: 16, name: "016_agent_execution",
+      up: await readFile(new URL("../migrations/016_agent_execution.up.sql", import.meta.url), "utf8"),
+      down: await readFile(new URL("../migrations/016_agent_execution.down.sql", import.meta.url), "utf8"),
+      destructiveDown: true,
+    },
+    { version:17,name:"017_purpose_missions",
+      up:await readFile(new URL("../migrations/017_purpose_missions.up.sql",import.meta.url),"utf8"),
+      down:await readFile(new URL("../migrations/017_purpose_missions.down.sql",import.meta.url),"utf8"),destructiveDown:true },
+    { version:18,name:"018_agent_continuity",
+      up:await readFile(new URL("../migrations/018_agent_continuity.up.sql",import.meta.url),"utf8"),
+      down:await readFile(new URL("../migrations/018_agent_continuity.down.sql",import.meta.url),"utf8"),destructiveDown:true },
   ];
 }
 
@@ -355,7 +388,7 @@ export async function getMigrationStatus(
 /** Returns the exact confirmation required for one destructive rollback. */
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 12,
+  version = 18,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

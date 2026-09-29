@@ -1,0 +1,2 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.agent_governance_operations;
+DROP TABLE __AGENTPLAT_SCHEMA__.agent_governance_heads;

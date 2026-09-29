@@ -67,6 +67,14 @@ export interface RoomHandoffStore {
 export class InMemoryRoomHandoffStore implements RoomHandoffStore {
   private readonly states = new Map<string, RoomHandoff>();
 
+  executionHandoffsForRun(tenantId: string, runId: string) {
+    return [...this.states.values()]
+      .filter((h) => h.tenantId === tenantId && h.sourceRunId === runId)
+      .map((h) => structuredClone(h));
+  }
+  executionHandoff(tenantId: string, roomId: string, handoffId: string) {
+    return clone(this.states.get(key(tenantId, roomId, handoffId)));
+  }
   async load(tenantId: string, roomId: string, handoffId: string) {
     return clone(this.states.get(key(tenantId, roomId, handoffId)));
   }
@@ -410,7 +418,7 @@ export class AgentRoomHandoffCoordinator {
     return this.transition(
       current,
       input.expectedRevision,
-      "proposed",
+      current.status === "accepted" ? "accepted" : "proposed",
       "rejected",
       input.reason,
     );

@@ -145,3 +145,38 @@ With planning and participant membership configured:
 the domain service, including participants, transcript, tasks, artifacts and
 versions, approvals, policy and memory context, runs, tool calls, child rooms,
 and ordered audit events.
+
+## Agent governance endpoints (source preview)
+
+The optional `agentGovernance` service exposes configuration reads, paged history
+and controlled operations under `/agents/:agentId/governance`. It authenticates
+raw requests independently; the development tenant header is not owner identity.
+See [governance configuration](../../docs/agent-governance/configuration.md).
+
+## Inception endpoints (source preview)
+
+The optional `agentInceptions` service adds intake and assessment history beneath
+`/rooms/:roomId/agents/:agentId/inceptions`. It independently authenticates raw
+requests and distinguishes submit, assess and read permissions. These endpoints
+never dispatch tasks. See [inception usage](../../docs/agent-governance/inceptions.md).
+
+## Attention signal endpoints (source preview)
+
+The optional `attentionSignals` service exposes candidate definitions/references,
+source observations, current coverage and worker operations under
+`/agents/:agentId/attention`. Raw-request authentication distinguishes owner,
+collector and worker permissions. See [signals](../../docs/agent-governance/signals.md).
+
+## Execution limit endpoints (source preview)
+
+The optional `executionLimits` service publishes/reads immutable limit candidates
+under `/agents/:agentId/execution-limits`. Owner-only staged activation uses the
+existing authenticated governance operations endpoint. No refund or effect-settlement
+endpoint accepts unverified claims. See [execution](../../docs/agent-governance/execution.md).
+
+## Qualified purpose mission endpoints (source preview)
+
+The optional `purposeMissions` service exposes authenticated issue, revise, cancel,
+evaluate, outcome review and history under `/agents/:agentId/purpose-missions/:missionId`.
+Clients cannot supply an assessor verdict or bypass the existing effect path.
+See [missions](../../docs/agent-governance/missions.md).

@@ -30,3 +30,15 @@ export { PostgresAgentRoomPlanStore } from './plan-store.js';
 export { PostgresRoomParticipantMembershipStore } from './participant-membership-store.js';
 export { PostgresAgentRoomOperationalEventStore } from './operational-event-store.js';
 export { PostgresAgentRoomProjectionCheckpointStore } from './projection-checkpoint-store.js';
+
+export { PostgresAgentGovernanceStoreV1 } from "./agent-governance-store.js";
+
+export { PostgresAgentInceptionStoreV1 } from "./agent-inception-store.js";
+
+export { PostgresAttentionSignalStoreV1 } from "./attention-signal-store.js";
+
+export { PostgresAgentExecutionStoreV1 } from "./agent-execution-store.js";
+
+export { PostgresPurposeMissionStoreV1 } from "./purpose-mission-store.js";
+
+export { PostgresAgentContinuityStoreV1 } from "./agent-continuity-store.js";

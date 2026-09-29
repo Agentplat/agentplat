@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        12,
+        18,
       );
       const repository = new PostgresRoomRepository(pool, { schema });
       const service = new RoomService({ repository, clock: () => now });

@@ -35,6 +35,7 @@ import type {
   RoomRepositoryTransaction,
 } from "./repository.js";
 import type { AgentRoomCoordinationState } from "./coordination-runtime.js";
+import type { RoomExecutionGovernancePortV1 } from "./agent-execution.js";
 import type {
   PromoteSessionToRoomInput,
   SessionRoomPromotion,
@@ -66,6 +67,10 @@ export interface RoomServiceOptions {
   runTimeoutMs?: number;
   /** Opt-in fail-closed enforcement for tools and external writes. */
   requireProtectedActionCheckpoints?: boolean;
+  /** Explicit governed profile. Every run must bind current admitted governance. */
+  executionGovernance?: RoomExecutionGovernancePortV1;
+  /** Reject construction when a deployment requires governance but omitted its port. */
+  requireGovernedExecution?: boolean;
   automaticCoordination?: {
     coordinationId?(input: { tenantId: string; roomId: string }): string;
   };
@@ -180,6 +185,7 @@ export class RoomService {
   private readonly runTimeoutMs: number;
   private readonly runLeaseGraceMs: number;
   private readonly requireProtectedActionCheckpoints: boolean;
+  private readonly executionGovernance?: RoomExecutionGovernancePortV1;
   private readonly automaticCoordination?: RoomServiceOptions["automaticCoordination"];
   private readonly onEventPublishError: (
     error: unknown,
@@ -199,7 +205,15 @@ export class RoomService {
       new BoundedContextBuilder({ clock: this.clock });
     this.runTimeoutMs = options.runTimeoutMs ?? 300_000;
     this.requireProtectedActionCheckpoints =
-      options.requireProtectedActionCheckpoints ?? false;
+      (options.requireProtectedActionCheckpoints ?? false) ||
+      !!options.executionGovernance;
+    this.executionGovernance = options.executionGovernance;
+    if (options.requireGovernedExecution && !this.executionGovernance) {
+      throw new AgentPlatError(
+        "VALIDATION_ERROR",
+        "Governed Room execution requires a governance port",
+      );
+    }
     this.automaticCoordination = options.automaticCoordination;
     if (!Number.isInteger(this.runTimeoutMs) || this.runTimeoutMs <= 0) {
       throw new AgentPlatError(
@@ -773,6 +787,7 @@ export class RoomService {
     input: CreateTaskInput,
     actorId?: string,
   ): Promise<RoomTask> {
+    input = structuredClone(input);
     this.required(input.stepId, "stepId");
     this.required(input.instruction, "instruction");
     this.required(input.expectedOutput, "expectedOutput");
@@ -794,6 +809,18 @@ export class RoomService {
         "VALIDATION_ERROR",
         "approvalRequired must be a boolean",
       );
+    }
+    let governedTask: RoomTask | undefined;
+    if (this.executionGovernance) {
+      const state = await this.getRoomState(tenantId, roomId);
+      governedTask = this.taskDraft(tenantId, roomId, input, this.now());
+      const participant = this.resolveAgentParticipant(state, governedTask);
+      governedTask.assignedParticipantId = participant.id;
+      await this.executionGovernance.bindRoomTask({
+        tenantId,
+        participant,
+        task: governedTask,
+      });
     }
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
@@ -822,26 +849,14 @@ export class RoomService {
         }
       }
       const now = this.now();
-      const task: RoomTask = {
-        id: input.id ?? this.id(),
-        tenantId,
-        roomId,
-        stepId: input.stepId,
-        assignedParticipantId: input.assignedParticipantId,
-        assignedRole: input.assignedRole,
-        instruction: input.instruction,
-        expectedOutput: input.expectedOutput,
-        expectedArtifactKind: input.expectedArtifactKind,
-        dependencies: input.dependencies ?? [],
-        acceptanceCriteria: input.acceptanceCriteria ?? [],
-        actionLevel: input.actionLevel ?? "execute",
-        approvalRequired: input.approvalRequired ?? false,
-        toolIds: input.toolIds ?? [],
-        status: "pending",
-        metadata: input.metadata,
-        createdAt: now,
-        updatedAt: now,
-      };
+      const task = governedTask ?? this.taskDraft(tenantId, roomId, input, now);
+      if (governedTask)
+        await this.requireRoomParticipant(
+          transaction,
+          tenantId,
+          roomId,
+          governedTask.assignedParticipantId!,
+        );
       const events = [
         this.event(
           tenantId,
@@ -871,6 +886,11 @@ export class RoomService {
       await this.appendEvents(transaction, events);
       return { value: task, events };
     });
+  }
+
+  /** Select the admitted revision, rather than implicitly activating a newer publication. */
+  async getExecutionDefinitionRevision(tenantId:string, participant:Participant):Promise<string|undefined> {
+    return this.executionGovernance?.definitionForParticipant({tenantId,participant});
   }
 
   async runTask(
@@ -1081,6 +1101,23 @@ export class RoomService {
     const startedMs = this.clock().getTime();
     const abortController = new AbortController();
     try {
+      const supportsPreAction =
+        this.runtime.supportsCheckpoint?.(
+          participant.runtime?.platform ?? "mock",
+          "pre_action",
+        ) === true;
+      if (this.executionGovernance && !supportsPreAction) {
+        throw new AgentPlatError(
+          "FORBIDDEN",
+          "Governed Room execution requires pre_action support",
+        );
+      }
+      const executionGate = await this.executionGovernance?.openRoom({
+        tenantId,
+        participant,
+        task,
+        supportsPreAction,
+      });
       const protectedAction =
         task.actionLevel === "external_write" || task.toolIds.length > 0;
       if (
@@ -1112,6 +1149,12 @@ export class RoomService {
         if (!decision.allowed) {
           throw new AgentPlatError("FORBIDDEN", decision.reason);
         }
+        try {
+          await executionGate?.check(checkpointName);
+        } catch (error) {
+          abortController.abort(error);
+          throw error;
+        }
         return decision;
       };
       await hooks.onStarted?.({
@@ -1133,7 +1176,7 @@ export class RoomService {
             config: participant.runtime?.config,
           },
           {
-            input: [this.toJson(context)],
+            input: [this.toJson({...context,...(executionGate?.purposeContext?{purposeContext:executionGate.purposeContext}:{})})],
             mode: "invoke",
             metadata: {
               roomId,
@@ -1147,7 +1190,14 @@ export class RoomService {
             agentId: participant.id,
             signal: abortController.signal,
             policies: this.toJson({ policies }),
-            metadata: { roomId, taskId, contextSnapshotId: snapshotId },
+            metadata: {
+              roomId,
+              taskId,
+              contextSnapshotId: snapshotId,
+              ...(executionGate
+                ? { agentGovernance: this.toJson(executionGate.binding) }
+                : {}),
+            },
             checkpoint: (request) =>
               checkpoint(request.checkpoint, request.payload),
           },
@@ -2115,6 +2165,34 @@ export class RoomService {
       );
     }
     return participant;
+  }
+
+  private taskDraft(
+    tenantId: string,
+    roomId: string,
+    input: CreateTaskInput,
+    now: string,
+  ): RoomTask {
+    return {
+      id: input.id ?? this.id(),
+      tenantId,
+      roomId,
+      stepId: input.stepId,
+      assignedParticipantId: input.assignedParticipantId,
+      assignedRole: input.assignedRole,
+      instruction: input.instruction,
+      expectedOutput: input.expectedOutput,
+      expectedArtifactKind: input.expectedArtifactKind,
+      dependencies: input.dependencies ?? [],
+      acceptanceCriteria: input.acceptanceCriteria ?? [],
+      actionLevel: input.actionLevel ?? "execute",
+      approvalRequired: input.approvalRequired ?? false,
+      toolIds: input.toolIds ?? [],
+      status: "pending",
+      metadata: input.metadata,
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 
   private resolveAgentParticipant(

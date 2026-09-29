@@ -20,6 +20,12 @@ operational schema. Migrations are additive and must be applied in order by
 | 010     | Operational stream        | Transactional Room-scoped transition stream                                                       |
 | 011     | Projection checkpoints    | Durable projector high-water positions                                                            |
 | 012     | Approval expiry/events    | Terminal approval deadlines and full bounded Room-event payloads in the operational stream        |
+| 013     | Agent governance          | Suspended versioned configuration, atomic head/journal CAS and immutable audit history |
+| 014     | Agent inceptions          | Immutable intake/assessments, governance-fenced CAS and assessment lineage |
+| 015     | Attention signals         | Immutable definitions/references and atomic bounded observation/wakeup state |
+| 016     | Governed execution        | Activation status, immutable limits/task bindings, cumulative budgets and effect receipts |
+| 017     | Purpose missions          | Governed mission envelopes, immutable history, plan ownership and run-effect evidence lookup |
+| 018     | Governed continuity       | Parent/child consent, immutable receipts and ancestral budget enforcement |
 
 ## Before upgrading
 
@@ -46,7 +52,8 @@ underlying failure.
 
 ## Application rollout
 
-1. Deploy the coordinated package version after migration 012 is present.
+1. Deploy the coordinated package version after migration 018 is present when adopting purpose governance.
+   Existing instruction-only data is preserved by the additive upgrade.
 2. Start only one worker cohort for each coordination scope during the rollout;
    revision fencing still prevents stale workers from committing.
 3. Confirm that new messages produce both a Room domain event and coordination
@@ -66,3 +73,12 @@ Older application versions do not understand the new operational projections.
 Do not run an older worker concurrently with a new worker merely because the
 base Room tables remain readable. Database state stays authoritative; Temporal,
 SSE clients and external work-management systems are not rollback sources.
+
+## Migration 018 — governed continuity
+
+Adds current parent/child consent links and immutable operation receipts. Execution
+locks involved governance accounts in agent-ID order and reserves ancestor budgets
+atomically; native Handoff state is read under a shared row lock. Reconciliation
+refunds recorded accounts even after revocation. Rollback refuses any governed
+origin, because removing ancestry would discard enforcement state. See
+[continuity](agent-governance/continuity.md) for host wiring and bounded support.

@@ -389,3 +389,11 @@ function required(value: unknown, label: string): asserts value is string {
 function fail(message: string): never {
   throw new WorkflowValidationErrorV1(message);
 }
+
+export * from "./attention-signals.js";
+
+export * from "./agent-governance-actions.js";
+
+export * from "./governance-autonomy.js";
+
+export * from "./governance-evolution.js";

@@ -124,6 +124,17 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - name: Verify purpose governance and packed consumers
+        run: |
+          pnpm run verify:purpose-governance /tmp/purpose-governance-ci
+          pnpm run verify:purpose-consumer
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/rooms-postgres test
         env:
           AGENTPLAT_POSTGRES_TEST: "1"

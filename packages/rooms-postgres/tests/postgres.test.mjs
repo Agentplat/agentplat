@@ -459,6 +459,42 @@ test(
       }
     } finally {
       await rollbackMigrations(pool, {
+        schema,
+        expectedCurrentVersion: 18,
+        confirm: rollbackConfirmation(schema, 18),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 17,
+        schema,
+        confirm: rollbackConfirmation(schema, 17),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 16,
+        schema,
+        confirm: rollbackConfirmation(schema, 16),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 15,
+        schema,
+        confirm: rollbackConfirmation(schema, 15),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 14,
+        schema,
+        confirm: rollbackConfirmation(schema, 14),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
+        expectedCurrentVersion: 13,
+        schema,
+        confirm: rollbackConfirmation(schema, 13),
+        allowDataLoss: true,
+      });
+      await rollbackMigrations(pool, {
         expectedCurrentVersion: 12,
         schema,
         confirm: rollbackConfirmation(schema, 12),

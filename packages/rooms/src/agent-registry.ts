@@ -1,5 +1,7 @@
 import { AgentPlatError } from "@agentplat/core";
 import type { ISODateTime, JsonObject, JsonValue } from "@agentplat/core";
+import { assertAgentInteractionExecutableV1, validateAgentInteractionBindingV1 } from "./agent-interaction.js";
+import type { AgentInteractionBindingV1 } from "./agent-interaction.js";
 
 /** Lifecycle of one immutable agent definition revision. */
 export type AgentRevisionStatus = "draft" | "published" | "deprecated";
@@ -15,6 +17,7 @@ export interface RegisteredAgent {
 
 /** Immutable, content-addressed instructions and runtime configuration. */
 export interface AgentDefinitionRevision {
+  interaction?: AgentInteractionBindingV1;
   tenantId: string;
   agentId: string;
   revisionId: string;
@@ -162,6 +165,7 @@ export class InMemoryAgentDefinitionRegistryStore implements AgentDefinitionRegi
 
 /** Validated content used to create an immutable agent definition revision. */
 export interface CreateAgentDefinitionRevisionInput {
+  interaction?: AgentInteractionBindingV1;
   tenantId: string;
   agentId: string;
   version: string;
@@ -216,7 +220,11 @@ export class AgentDefinitionRegistry {
       throw new AgentPlatError("NOT_FOUND", "Registered agent not found");
     version(input.version);
     required(input.instructions, "instructions");
+    const interaction = input.interaction === undefined
+      ? undefined
+      : validateAgentInteractionBindingV1(input.interaction);
     const content = {
+      ...(interaction === undefined ? {} : { interaction }),
       schemaVersion: 1,
       agentId: input.agentId,
       version: input.version,
@@ -229,6 +237,7 @@ export class AgentDefinitionRegistry {
     } satisfies JsonObject;
     const digest = await digestJson("agent-definition-revision-v1", content);
     const revision: AgentDefinitionRevision = {
+      ...(interaction === undefined ? {} : { interaction: copy(interaction)! }),
       tenantId: input.tenantId,
       agentId: input.agentId,
       revisionId: `${input.agentId}@${input.version}:${digest}`,
@@ -333,6 +342,7 @@ export class AgentDefinitionRegistry {
     if (registered.lifecycle.status !== "published") {
       throw new AgentPlatError("CONFLICT", "Agent revision is not published");
     }
+    assertAgentInteractionExecutableV1(registered.definition);
     return registered.definition;
   }
 

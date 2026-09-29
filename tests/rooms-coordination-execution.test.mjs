@@ -114,4 +114,41 @@ test('default coordination execution creates deterministic task, run and executi
   });
   assert.deepEqual(replay.runIds, result.runIds);
   assert.equal((await rooms.getRoomState('tenant-1', room.id)).tasks.length, 1);
+  // A purpose candidate in the same Room must not be treated as another instruction agent.
+  await definitions.createAgent({ tenantId: 'tenant-1', agentId: 'purpose-agent', name: 'Purpose' });
+  const purpose = await definitions.createRevision({
+    tenantId: 'tenant-1', agentId: 'purpose-agent', version: '1.0.0',
+    instructions: 'Consider the input.', runtimeProfile: { platform: 'mock' },
+    interaction: { schemaVersion: 1, interactionMode: 'purpose', governanceId: 'gov-1' },
+  });
+  await definitions.publishRevision('tenant-1', purpose.definition.revisionId, 0);
+  const purposeParticipant = await rooms.addParticipant('tenant-1', room.id, {
+    type: 'agent', displayName: 'Purpose', role: 'worker', permissions: ['task.run'],
+    runtime: { platform: 'mock', config: { interactionMode: 'instruction' } },
+    metadata: { agentId: 'purpose-agent', interactionMode: 'instruction' },
+  });
+  await assert.rejects(execution.dispatchMessage({
+    tenantId: 'tenant-1', roomId: room.id, messageId: message.id,
+    participantIds: [purposeParticipant.id], operationId: 'purpose-attempt',
+  }), /qualified purpose mission execution is required/);
+  assert.equal((await rooms.getRoomState('tenant-1', room.id)).tasks.length, 1);
+  await assert.rejects(execution.dispatchMessage({
+    tenantId: 'tenant-1', roomId: room.id, messageId: message.id,
+    participantIds: [participant.id, purposeParticipant.id], operationId: 'mixed-attempt',
+  }), /qualified purpose mission execution is required/);
+  assert.equal((await rooms.getRoomState('tenant-1', room.id)).tasks.length, 1);
+  assert.deepEqual((await execution.dispatchMessage({
+    tenantId: 'tenant-1', roomId: room.id, messageId: message.id,
+    participantIds: [participant.id], operationId: 'coordination-1:message:item-1',
+  })).runIds, result.runIds);
+  await assert.rejects(execution.dispatchHandoff({
+    operationId: 'purpose-handoff',
+    handoff: {
+      status: 'accepted', tenantId: 'tenant-1', roomId: room.id,
+      targetParticipantId: purposeParticipant.id,
+      targetAgentRevisionId: purpose.definition.revisionId,
+      targetAgentRevisionDigest: purpose.definition.digest,
+    },
+  }), /qualified purpose mission execution is required/);
+  assert.equal((await rooms.getRoomState('tenant-1', room.id)).tasks.length, 1);
 });

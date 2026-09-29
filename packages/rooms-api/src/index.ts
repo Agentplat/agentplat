@@ -3,6 +3,11 @@ import type { JsonObject, TenantContext } from "@agentplat/core";
 import type {
   AddParticipantInput,
   AgentDefinitionRegistry,
+  AgentGovernanceServiceV1,
+  AgentInceptionServiceV1,
+  AttentionSignalServiceV1,
+  AgentExecutionLimitServiceV1,
+  PurposeMissionServiceV1,
   AgentRoomHandoffCoordinator,
   HumanContributionCoordinator,
   KnowledgeBundleRegistry,
@@ -74,6 +79,13 @@ export interface HeaderTenantAuthOptions {
 
 export interface CreateRoomsAppOptions {
   service: RoomsApiService;
+  /** Independently authenticates the raw request; development tenant headers grant no ownership. */
+  agentGovernance?: Pick<AgentGovernanceServiceV1<Request>, "get" | "history" | "execute">;
+  /** Authenticated intake and assessment records only; never dispatches execution. */
+  agentInceptions?: Pick<AgentInceptionServiceV1<Request>, "submit" | "assess" | "get" | "history">;
+  attentionSignals?: Pick<AttentionSignalServiceV1<Request>, "define" | "reference" | "catalog" | "get" | "observe" | "tick" | "claim" | "complete">;
+  executionLimits?: Pick<AgentExecutionLimitServiceV1<Request>, "define" | "get">;
+  purposeMissions?: Pick<PurposeMissionServiceV1<Request>, "issue" | "revise" | "cancel" | "evaluate" | "review" | "get" | "history" | "abandonEvaluation">;
   execution?: Pick<
     RoomExecutionCoordinator,
     "getSession" | "listSessionEvents" | "requestIntervention"
@@ -482,6 +494,132 @@ export function createRoomsApp(
         },
       );
     }
+  }
+
+  if (options.purposeMissions) {
+    const base = "/agents/:agentId/purpose-missions/:missionId";
+    app.get(base, async context => context.json({data:await options.purposeMissions!.get(context.req.raw,{agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})}));
+    app.get(`${base}/history`, async context => context.json({data:await options.purposeMissions!.history(context.req.raw,{agentId:context.req.param("agentId"),missionId:context.req.param("missionId")},Number(context.req.query("afterRevision")??-1),Number(context.req.query("limit")??100))}));
+    app.post(base, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["issue"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.issue(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+    app.post(`${base}/evaluate`, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["evaluate"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.evaluate(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+    app.post(`${base}/review`, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["review"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.review(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+    app.post(`${base}/revise`, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["revise"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.revise(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+    app.post(`${base}/cancel`, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["cancel"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.cancel(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+    app.post(`${base}/abandon-evaluation`, async context => {
+      const input=await readJsonObject<Omit<Parameters<PurposeMissionServiceV1<Request>["abandonEvaluation"]>[1],"agentId"|"missionId">>(context);
+      return context.json({data:await options.purposeMissions!.abandonEvaluation(context.req.raw,{...input,agentId:context.req.param("agentId"),missionId:context.req.param("missionId")})});
+    });
+  }
+
+  if (options.executionLimits) {
+    app.post("/agents/:agentId/execution-limits", async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AgentExecutionLimitServiceV1<Request>["define"]>[1], "agentId">>(context);
+      return context.json({ data: await options.executionLimits!.define(context.req.raw, { ...input, agentId: context.req.param("agentId") }) });
+    });
+    app.get("/agents/:agentId/execution-limits/:limitId", async (context) => {
+      return context.json({ data: await options.executionLimits!.get(context.req.raw, { agentId: context.req.param("agentId"), limitId: context.req.param("limitId") }) });
+    });
+  }
+
+  if (options.attentionSignals) {
+    app.post("/agents/:agentId/attention/definitions", async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AttentionSignalServiceV1<Request>["define"]>[1], "agentId">>(context);
+      return context.json({ data: await options.attentionSignals!.define(context.req.raw, { ...input, agentId: context.req.param("agentId") }) });
+    });
+    app.post("/agents/:agentId/attention/references", async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AttentionSignalServiceV1<Request>["reference"]>[1], "agentId">>(context);
+      return context.json({ data: await options.attentionSignals!.reference(context.req.raw, { ...input, agentId: context.req.param("agentId") }) });
+    });
+    app.get("/agents/:agentId/attention/catalog/:recordId", async (context) => {
+      return context.json({ data: await options.attentionSignals!.catalog(context.req.raw, { agentId: context.req.param("agentId"), recordId: context.req.param("recordId") }) });
+    });
+    const base = "/agents/:agentId/attention/streams/:definitionId";
+    app.get(base, async (context) => {
+      return context.json({ data: await options.attentionSignals!.get(context.req.raw, { agentId: context.req.param("agentId"), definitionId: context.req.param("definitionId") }) });
+    });
+    app.post(`${base}/observations`, async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AttentionSignalServiceV1<Request>["observe"]>[1], "agentId" | "definitionId">>(context);
+      return context.json({ data: await options.attentionSignals!.observe(context.req.raw, { ...input, agentId: context.req.param("agentId"), definitionId: context.req.param("definitionId") }) });
+    });
+    app.post(`${base}/tick`, async (context) => {
+      return context.json({ data: await options.attentionSignals!.tick(context.req.raw, { agentId: context.req.param("agentId"), definitionId: context.req.param("definitionId") }) });
+    });
+    app.post(`${base}/claim`, async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AttentionSignalServiceV1<Request>["claim"]>[1], "agentId" | "definitionId">>(context);
+      return context.json({ data: await options.attentionSignals!.claim(context.req.raw, { ...input, agentId: context.req.param("agentId"), definitionId: context.req.param("definitionId") }) });
+    });
+    app.post(`${base}/complete`, async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AttentionSignalServiceV1<Request>["complete"]>[1], "agentId" | "definitionId">>(context);
+      await options.attentionSignals!.complete(context.req.raw, { ...input, agentId: context.req.param("agentId"), definitionId: context.req.param("definitionId") });
+      return context.json({ data: { recorded: true } });
+    });
+  }
+
+  if (options.agentInceptions) {
+    const base = "/rooms/:roomId/agents/:agentId/inceptions";
+    app.post(base, async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AgentInceptionServiceV1<Request>["submit"]>[1], "agentId" | "roomId">>(context);
+      const data = await options.agentInceptions!.submit(context.req.raw, {
+        ...input, agentId: context.req.param("agentId"), roomId: context.req.param("roomId"),
+      });
+      return context.json({ data });
+    });
+    app.get(`${base}/:inceptionId`, async (context) => {
+      const data = await options.agentInceptions!.get(context.req.raw, {
+        agentId: context.req.param("agentId"), roomId: context.req.param("roomId"), inceptionId: context.req.param("inceptionId"),
+      });
+      return context.json({ data });
+    });
+    app.post(`${base}/:inceptionId/assessments`, async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AgentInceptionServiceV1<Request>["assess"]>[1], "agentId" | "roomId" | "inceptionId">>(context);
+      const data = await options.agentInceptions!.assess(context.req.raw, {
+        ...input, agentId: context.req.param("agentId"), roomId: context.req.param("roomId"), inceptionId: context.req.param("inceptionId"),
+      });
+      return context.json({ data });
+    });
+    app.get(`${base}/:inceptionId/assessments`, async (context) => {
+      const data = await options.agentInceptions!.history(context.req.raw, {
+        agentId: context.req.param("agentId"), roomId: context.req.param("roomId"), inceptionId: context.req.param("inceptionId"),
+      }, Number(context.req.query("afterRevision") ?? -1), Number(context.req.query("limit") ?? 100));
+      return context.json({ data });
+    });
+  }
+
+  if (options.agentGovernance) {
+    app.get("/agents/:agentId/governance", async (context) => {
+      const data = await options.agentGovernance!.get(context.req.raw, context.req.param("agentId"));
+      if (!data) throw new AgentPlatError("NOT_FOUND", "Agent governance not found");
+      return context.json({ data });
+    });
+    app.get("/agents/:agentId/governance/history", async (context) => {
+      const data = await options.agentGovernance!.history(
+        context.req.raw, context.req.param("agentId"),
+        Number(context.req.query("afterRevision") ?? -1), Number(context.req.query("limit") ?? 100),
+      );
+      return context.json({ data });
+    });
+    app.post("/agents/:agentId/governance/operations", async (context) => {
+      const input = await readJsonObject<Omit<Parameters<AgentGovernanceServiceV1<Request>["execute"]>[1], "agentId">>(context);
+      const data = await options.agentGovernance!.execute(context.req.raw, {
+        ...input, agentId: context.req.param("agentId"),
+      });
+      return context.json({ data });
+    });
   }
 
   if (options.agentRegistry) {

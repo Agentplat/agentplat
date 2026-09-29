@@ -10,6 +10,7 @@ export * from './event-page.js';
 export * from './execution-session.js';
 export * from './intervention-dispatcher.js';
 export * from './agent-registry.js';
+export * from './agent-interaction.js';
 export * from './room-handoff.js';
 export * from './coordination-runtime.js';
 export * from './coordination-execution.js';
@@ -24,3 +25,19 @@ export * from './participant-membership.js';
 export * from './coordination-worker.js';
 export * from './operational-events.js';
 export * from './operational-projector.js';
+
+export * from "./agent-governance.js";
+
+export * from "./agent-inception.js";
+
+export * from "./attention-signals.js";
+
+export * from "./agent-execution.js";
+
+export * from "./purpose-control.js";
+
+export * from "./purpose-missions.js";
+
+export * from "./agent-continuity.js";
+
+export * from "./governed-handoff.js";

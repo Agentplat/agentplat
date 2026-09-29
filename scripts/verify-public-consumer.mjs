@@ -7,7 +7,12 @@ import { assertPackedInternalDependencyRanges } from './packed-manifest.mjs';
 import { discoverWorkspacePackageManifests } from './public-package-catalog.mjs';
 
 const root = process.cwd();
+const purposeGovernance = process.argv.includes('--purpose-governance');
 const targets = Object.freeze([
+  ...(purposeGovernance ? [
+    '@agentplat/rooms', '@agentplat/rooms-api',
+    '@agentplat/rooms-postgres', '@agentplat/workflows-rooms',
+  ] : []),
   '@agentplat/collective-runtime',
   '@agentplat/audit',
 ]);
@@ -20,6 +25,8 @@ const records = await discoverWorkspacePackageManifests(root);
 const recordsByName = new Map(records.map((record) => [record.manifest.name, record]));
 const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
+assert.ok(!purposeGovernance || !registryRelease,
+  'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
 const registryVersion = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8'),
 ).version;
@@ -130,6 +137,44 @@ try {
       },
     },
   );
+  if (purposeGovernance) {
+    await writeFile(
+      path.join(consumerRoot, "purpose-governance.mjs"),
+      await readFile(
+        path.join(root, "scripts/pack-consumers/purpose-governance.mjs"),
+        "utf8",
+      ),
+    );
+    execFileSync(process.execPath, ["purpose-governance.mjs"], {
+      cwd: consumerRoot,
+      stdio: "inherit",
+    });
+    for (const name of [
+      "rooms-interaction",
+      "rooms-governance",
+      "rooms-inception",
+      "rooms-attention",
+      "rooms-execution",
+      "rooms-purpose",
+      "rooms-continuity",
+    ]) {
+      await writeFile(
+        path.join(consumerRoot, `${name}.mts`),
+        await readFile(
+          path.join(root, `tests/${name}-public-contracts.test.mts`),
+          "utf8",
+        ),
+      );
+    }
+    const tsconfig = JSON.parse(
+      await readFile(path.join(consumerRoot, "tsconfig.json"), "utf8"),
+    );
+    tsconfig.include.push("*.mts");
+    await writeFile(
+      path.join(consumerRoot, "tsconfig.json"),
+      JSON.stringify(tsconfig),
+    );
+  }
   execFileSync(process.execPath, ['verify-imports.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   execFileSync(
     process.execPath,
