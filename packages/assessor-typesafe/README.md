@@ -5,11 +5,12 @@ is currently available in the AgentPlat source workspace and is not yet
 published to npm. It requires a TypeSafe API key only when its assessor is
 constructed and invoked; portable AgentPlat packages do not import it.
 
-After a coordinated AgentPlat release publishes the adapter, install it only
+The adapter is included in the **unpublished 1.1.0 preparation cohort**.
+After registry publication is verified, install it only
 when the application chooses Jev:
 
 ```sh
-pnpm add @agentplat/assessor-typesafe @agentplat/inference-control
+pnpm add @agentplat/assessor-typesafe@1.1.0 @agentplat/inference-control@1.1.0
 ```
 
 The application provides the state projection, typed questions and mapping from

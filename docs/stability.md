@@ -6,8 +6,8 @@ Version 1.0.0 is the first coordinated stable release, published on npm under
 
 ## Public compatibility contract
 
-The 65 published packages in the current stable cohort share one release
-version. The source catalog may include unpublished packages under a separate
+The 65 packages published in 1.0.0 share one release version. The 1.1.0
+candidate adds the optional Jev adapter for a 66-package coordinated cohort. The source catalog may include unpublished packages under a separate
 source-only release profile; those are not part of the npm compatibility
 surface until admitted to a coordinated release.
 The supported API consists of their package.json export entry points, exported

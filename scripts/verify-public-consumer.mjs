@@ -8,7 +8,9 @@ import { discoverWorkspacePackageManifests } from './public-package-catalog.mjs'
 
 const root = process.cwd();
 const purposeGovernance = process.argv.includes('--purpose-governance');
+const optionalJev = process.argv.includes('--optional-jev');
 const targets = Object.freeze([
+  ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
     '@agentplat/rooms', '@agentplat/rooms-api',
     '@agentplat/rooms-postgres', '@agentplat/workflows-rooms',
@@ -137,6 +139,13 @@ try {
       },
     },
   );
+  if(optionalJev){
+    await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));
+    execFileSync(process.execPath,['optional-jev.mjs'],{cwd:consumerRoot,stdio:'inherit'});
+    await writeFile(path.join(consumerRoot,'jev.mts'),await readFile(path.join(root,'tests/assessor-typesafe-public-contracts.test.mts'),'utf8'));
+    const tsconfig=JSON.parse(await readFile(path.join(consumerRoot,'tsconfig.json'),'utf8'));tsconfig.include.push('jev.mts');
+    await writeFile(path.join(consumerRoot,'tsconfig.json'),JSON.stringify(tsconfig));
+  }
   if (purposeGovernance) {
     await writeFile(
       path.join(consumerRoot, "purpose-governance.mjs"),

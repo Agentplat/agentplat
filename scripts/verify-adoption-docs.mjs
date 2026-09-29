@@ -22,6 +22,7 @@ const documents = [
   "docs/discoverability/validation.md",
   "CONTRIBUTING.md",
   "docs/component-maturity.md",
+  "docs/releases/1.1.0-preparation.md",
   "docs/capability-catalog.md",
   "examples/rooms-api/README.md",
   "docs/agent-governance/README.md",

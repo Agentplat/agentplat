@@ -57,6 +57,7 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/a2a",
   "@agentplat/agent-registry",
   "@agentplat/agent-registry-postgres",
+  "@agentplat/assessor-typesafe",
   "@agentplat/audit",
   "@agentplat/audit-postgres",
   "@agentplat/auth",

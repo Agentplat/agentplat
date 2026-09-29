@@ -245,6 +245,24 @@ test("Stable 1.0 requires all 65 packages, the A2A group, and exact versions", a
   await assert.rejects(() => assertReleaseLine({ root: mixed }), /must use 1\.0\.0/);
 });
 
+test("Stable 1.1 requires 66 publishable packages including optional Jev and exact versions", async (t) => {
+  const line=RELEASE_LINES.find(x=>x.id==="stable1-1");
+  const good=await createReleaseLineFixture({line});
+  const missing=await createReleaseLineFixture({line,includeRequired:false});
+  const mixed=await createReleaseLineFixture({line,packageVersion:"1.0.0"});
+  t.after(()=>Promise.all([good,missing,mixed].map(root=>rm(root,{force:true,recursive:true}))));
+  assert.equal(await assertReleaseLine({root:good}),true);
+  await assert.rejects(()=>assertReleaseLine({root:missing}));
+  await assert.rejects(()=>assertReleaseLine({root:mixed}),/must use 1\.1\.0/);
+  const file=path.join(good,"config/public-packages.json");
+  const catalog=JSON.parse(await readFile(file,"utf8"));
+  const jev=catalog.packages.find(p=>p.name==="@agentplat/assessor-typesafe");
+  jev.publish=false;jev.packSmoke=false;
+  await assert.rejects(()=>assertReleaseLine({root:good,catalog}));
+  jev.publish=true;jev.packSmoke=true;
+  await assert.rejects(()=>assertReleaseLine({root:good,catalog,rootManifest:{version:"1.0.0"}}));
+});
+
 async function createReleaseLineFixture({
   duplicateTrust = false,
   includeRequired = true,

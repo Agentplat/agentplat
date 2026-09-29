@@ -8,6 +8,7 @@ AgentPlat is an open-source TypeScript framework for persistent human-agent coll
 
 [Website](https://agentplat.com) · [Documentation](https://doc.agentplat.com) · [GitHub](https://github.com/Agentplat/agentplat)
 
+> The source checkout prepares [1.1.0 with optional Jev](docs/releases/1.1.0-preparation.md); it is not published yet.
 > AgentPlat 1.0.0 is available on npm under `latest`. See the [verified distribution record](docs/releases/stable1-distribution-20260922.md), [stability contract](docs/stability.md) and [production guide](docs/production.md).
 
 ## A concrete use case

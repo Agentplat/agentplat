@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 1.1.0 — in preparation, not published
+
+- Add opt-in instruction/purpose governance: owner controls, inceptions, signals,
+  limits, cumulative budgets and qualified mission/outcome execution.
+- Preserve legacy instruction definitions and digests. Add migrations 013–018,
+  continuity/delegation, model replacement fences and progressive autonomy evidence.
+- Include the optional `@agentplat/assessor-typesafe` Jev adapter in the coordinated
+  66-package candidate. Jev is separately installed and is not a core dependency.
+- Add the persistent support demo, adoption guidance and compatibility gates against
+  the recorded stable 1.0.0 API/contracts; retain bounded evidence claims.
+- Coordinate dependency/security updates, including Temporal 1.24.0, Hono 4.13.9,
+  fast-uri 3.1.7, ip-address 10.5.1 and the locked Next.js 16.3.6 reference.
+- See [preparation and upgrade notes](docs/releases/1.1.0-preparation.md). Package
+  publication, tag changes and runtime deployment are not part of preparation.
+
 ## 1.0.0 — published 2026-09-22 (UTC)
 
 - Establish a public API compatibility and maintenance policy for the 65-package
