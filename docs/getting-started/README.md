@@ -24,3 +24,7 @@ and inspect [evidence for adopters](../evidence-for-adopters.md).
 See the [development validation record](validation.md) for executed checks and
 remaining environment limits. The [external developer pilot](adoption-pilot.md)
 is a separate, pending usability evaluation.
+
+## Upgrading to 1.1
+
+See [Adopting AgentPlat 1.1.0](adopting-1.1.md) to keep instruction-driven work or opt into governed purpose execution.

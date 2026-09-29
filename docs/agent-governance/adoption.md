@@ -1,9 +1,10 @@
 # Adopting instruction and purpose governance
 
-This guide covers the local source implementation of objectives 1–10. It is not
-an announcement of a published npm version or production qualification. Build a
-coordinated workspace checkout before running the examples. Do not assume that
-an installed `@agentplat/*@1.0.0` contains these unpublished additions.
+This guide covers the instruction/purpose governance composition published in
+AgentPlat 1.1.0. Start with the [brief adoption guide](../getting-started/adopting-1.1.md)
+and the [verified distribution record](../releases/stable1-1-distribution-20260929.md).
+Publication does not establish production qualification; installed 1.0.0 packages
+do not contain these additions.
 
 ## Choose the supported composition
 
