@@ -36,6 +36,12 @@ jobs:
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm run build
       - run: corepack pnpm --dir examples/rooms-api install --frozen-lockfile --ignore-workspace
+      - name: Build the locked Next.js SSE example
+        run: |
+          corepack pnpm --dir examples/next-multi-agent-sse install --frozen-lockfile --ignore-workspace --ignore-scripts
+          corepack pnpm --dir examples/next-multi-agent-sse build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
       - run: corepack pnpm run verify:adoption-docs
       - run: node --test tests/discoverability-measurement.test.mjs tests/adoption-provider.test.mjs tests/rooms-checkpoints.test.mjs
       - run: node examples/quick-run.mjs && node examples/collective-runtime.mjs
