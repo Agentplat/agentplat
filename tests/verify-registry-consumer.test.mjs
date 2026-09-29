@@ -36,7 +36,9 @@ test("registry consumer pins all 65 public packages to the exact release version
   );
   assert.deepEqual(
     REGISTRY_PACKAGES,
-    catalog.packages.map((entry) => entry.name),
+    catalog.packages
+      .filter((entry) => entry.publish)
+      .map((entry) => entry.name),
   );
   assert.equal(Object.isFrozen(manifest.dependencies), true);
   assert.throws(

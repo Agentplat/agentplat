@@ -7,6 +7,7 @@ results are retained from v0.5. This version updates the preprint version,
 author contact and availability of AgentPlat 1.0.0.
 
 - Manuscript: [manuscript.md](manuscript.md)
+- Public documentation summary: [results, supersession and evidence limits](../agent-morphogenesis-paper-v1.0-public-summary.md)
 - PDF: [agent-morphogenesis-paper-v1.0.pdf](../../../output/pdf/agent-morphogenesis-paper-v1.0.pdf)
 - Evidence and reproduction: [frozen v0.5 artifact](https://github.com/Agentplat/agentplat/tree/paper-v0.5/docs/research/morphogenesis-paper-v0.5)
 - Stable software distribution: [record](../../releases/stable1-distribution-20260922.md)
