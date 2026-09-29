@@ -120,6 +120,8 @@ jobs:
             pnpm run verify:public-consumer
           else
             pnpm run verify:pack
+            pnpm run verify:purpose-consumer
+            pnpm run verify:jev-consumer
           fi
         env:
           AGENTPLAT_PREPACKED_TARBALL_DIRECTORY: ${{ github.workspace }}/release-artifacts

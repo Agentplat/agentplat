@@ -1,12 +1,14 @@
 # Release channels
 
-AgentPlat uses one fixed version for all 65 publishable packages. **1.0.0** is
+AgentPlat uses one fixed version per coordinated release cohort. The verified
+1.0.0 cohort contains 65 published packages. **1.0.0** is
 published under npm `latest`; it replaces the unpublished beta.10 candidate.
 See the [verified distribution record](releases/stable1-distribution-20260922.md).
 
-The source catalog currently also contains `@agentplat/assessor-typesafe` as an
-unpublished source-only adapter. It is not part of the 65-package npm stable
-cohort; a later coordinated release must admit and publish it explicitly.
+The source checkout prepares **1.1.0 with 66 publishable packages**, adding the
+optional `@agentplat/assessor-typesafe` adapter. This candidate is not published;
+see [preparation and upgrade notes](releases/1.1.0-preparation.md). Jev is installed
+only by applications that choose it. The verified npm tag remains unchanged.
 
 Stable 1.x releases follow the [stability contract](stability.md). Prereleases
 use `next` and must never promote `latest`. Stable promotion requires successful

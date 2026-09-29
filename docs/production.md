@@ -26,6 +26,12 @@ supply development defaults; applications must configure their actual host.
 | Secrets and network | Supply credentials outside source, restrict database/tool access, and configure authenticated transport and peer key custody for Mesh. |
 | Capacity | Measure latency, throughput and recovery on the intended workload. Local deterministic tests do not define a production capacity limit. |
 
+## Preparing the 1.1.0 upgrade
+
+The unpublished 1.1.0 candidate includes governed purpose execution and optional
+Jev. Follow the [preparation and migration notes](releases/1.1.0-preparation.md);
+preparing tarballs does not advance npm tags or deploy an application.
+
 ## Migration from previews
 
 The 1.0.0 candidate carries the beta.9 runtime improvements and release tooling;

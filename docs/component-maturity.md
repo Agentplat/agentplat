@@ -2,8 +2,8 @@
 
 This is the editorial entry point for adoption status. Source availability,
 registry distribution, executable checks and operational evidence answer
-different questions. None implies another. The source checkout currently
-uses coordinated version 1.0.0, published under npm `latest`; see the [distribution record](releases/stable1-distribution-20260922.md). The [stability contract](stability.md) governs API compatibility independently of operational evidence.
+different questions. None implies another. The source checkout prepares the unpublished 1.1.0 candidate, including optional
+Jev. The verified 1.0.0 distribution remains under npm `latest`; see the [distribution record](releases/stable1-distribution-20260922.md). The [stability contract](stability.md) governs API compatibility independently of operational evidence.
 
 ## Source and integration map
 
