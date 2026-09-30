@@ -263,6 +263,20 @@ test("Stable 1.1 requires 66 publishable packages including optional Jev and exa
   await assert.rejects(()=>assertReleaseLine({root:good,catalog,rootManifest:{version:"1.0.0"}}));
 });
 
+test("Stable 1.2 preserves the 66-package cohort and rejects mixed or unpublished members", async (t) => {
+  const line = RELEASE_LINES.find(x => x.id === "stable1-2");
+  const good = await createReleaseLineFixture({ line });
+  const mixed = await createReleaseLineFixture({ line, packageVersion: "1.1.0" });
+  const missing = await createReleaseLineFixture({ line, includeRequired: false });
+  t.after(() => Promise.all([good, mixed, missing].map(root => rm(root, { force: true, recursive: true }))));
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(() => assertReleaseLine({ root: mixed }));
+  await assert.rejects(() => assertReleaseLine({ root: missing }));
+  const catalog = JSON.parse(await readFile(path.join(good, "config/public-packages.json"), "utf8"));
+  catalog.packages[0].publish = false;
+  await assert.rejects(() => assertReleaseLine({ root: good, catalog }));
+});
+
 async function createReleaseLineFixture({
   duplicateTrust = false,
   includeRequired = true,

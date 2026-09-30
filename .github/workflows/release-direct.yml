@@ -95,6 +95,7 @@ jobs:
             pnpm --filter @agentplat/collective-runtime --filter @agentplat/audit type-check
           else
             pnpm run check
+            pnpm run verify:action-control
             pnpm run verify:mesh-postgres-faults
             pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
             pnpm run benchmark:mesh-adapters
@@ -122,6 +123,7 @@ jobs:
             pnpm run verify:pack
             pnpm run verify:purpose-consumer
             pnpm run verify:jev-consumer
+            pnpm run verify:action-control-consumer
           fi
         env:
           AGENTPLAT_PREPACKED_TARBALL_DIRECTORY: ${{ github.workspace }}/release-artifacts
@@ -222,6 +224,11 @@ jobs:
       - name: Verify the public-consumer registry cohort
         if: ${{ inputs.scope == 'public-consumer' }}
         run: pnpm run verify:public-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+      - name: Verify standalone action-control registry entry points and types
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:action-control-consumer
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
       - name: Verify complete coordinated registry distribution

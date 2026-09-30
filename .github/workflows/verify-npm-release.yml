@@ -100,6 +100,12 @@ jobs:
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
           NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify standalone action-control registry entry points and types
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:action-control-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Verify complete coordinated public distribution
         if: ${{ inputs.scope == 'all' }}
         run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "${{ inputs.dist_tag }}"

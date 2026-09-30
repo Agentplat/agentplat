@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import semver from 'semver';
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -31,10 +32,11 @@ const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
 assert.ok(!purposeGovernance || !registryRelease,
   'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
-assert.ok(!actionControl || !registryRelease, 'Action-control additions currently require local prepared tarballs');
 const registryVersion = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8'),
 ).version;
+assert.ok(!actionControl || !registryRelease || semver.gte(registryVersion, '1.2.0'),
+  'Registry action-control consumption requires published 1.2.0 or newer');
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-public-consumer-'));
 const suppliedTarballRoot = process.env.AGENTPLAT_PREPACKED_TARBALL_DIRECTORY;
 const tarballRoot = suppliedTarballRoot

@@ -1,5 +1,9 @@
 # Coordinated delivery and publication plan
 
+Publication was authorized by the owner on 2026-09-30. The next coordinated
+candidate is 1.2.0; see ../releases/1.2.0-preparation.md. The source qualification
+record refers to the preceding 7dc725db increment, before version/workflow changes.
+
 ## Release boundary
 
 The additions are opt-in source APIs, not npm 1.1.0 functionality. Never attempt
@@ -38,7 +42,9 @@ Use the existing `scripts/set-version.mjs`, approved-source verification,
 artifact preparation and release-level deployment approval processes described
 in `docs/security/npm-direct-release.md` and `docs/security/npm-release-security.md`.
 Preserve protected main, exact staged-byte checks, OIDC and npm authentication
-boundaries. This goal does not authorize registry publication or cloud deployment.
+boundaries. The original source-support goal did not authorize publication. The subsequent
+owner request now authorizes the coordinated npm release; ACL cloud deployment
+remains outside this release.
 
 After actual publication, verify registry bytes and public consumption, then
 update ACL to the published coordinated dependency version and run its gateway
