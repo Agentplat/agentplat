@@ -1,23 +1,22 @@
 # @agentplat/inference-control
 
 Opt-in, provider-neutral control boundaries for inference, released output,
-external actions and outbound messages. Alpha 4 is a developer preview.
+external actions and outbound messages. Standalone governed-action APIs are introduced in the coordinated 1.2.0 release.
 
-## Installation (developer preview)
+## Installation
 
-Install the coordinated preview explicitly:
+Install the coordinated version after its distribution is verified:
 
 ```sh
-npm install @agentplat/inference-control@next
+npm install @agentplat/inference-control@1.2.0
 ```
 
-Keep all `@agentplat/*` packages on the same release version. npm's default
-`latest` tag can point to an older preview. See the
-[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
-for distribution status and version selection.
+Keep the AgentPlat packages you use on the same coordinated version. See the
+[1.2.0 release record](https://github.com/Agentplat/agentplat/blob/main/docs/releases/1.2.0-preparation.md)
+for current preparation/distribution status before installing.
 
 ```sh
-pnpm add @agentplat/inference-control@next
+pnpm add @agentplat/inference-control@1.2.0
 ```
 
 ## Entry points
@@ -502,3 +501,34 @@ durable idempotency, logical time, current policy binding and any model-specific
 security properties. The package exposes no scheduler or global agent graph.
 See [ADR 0042](../../docs/adr/0042-collective-capability-closure.md) and the
 [architecture and threat model](../../docs/security/collective-capability-closure-v1.md).
+
+## Preparing action grants (additive API)
+
+`createActionGrantV1` from `@agentplat/inference-control/tools` prepares an immutable
+V1 grant from a scope, binding, input, explicit assessment references, idempotency
+key and timestamps. It computes the existing scope/input/action digests and validates
+references and the existing maximum 120-second lifetime. It does not generate IDs,
+authenticate a caller, evaluate policy, approve an action or issue the grant.
+
+Trusted hosts must resolve identity and authorization, supply verified assessment
+references, then call `issueActionGrantV1` with their existing repository. The gateway
+still applies its current authority, assessment and execution checks. Manual grant
+construction and existing APIs retain their behavior. This addition requires the coordinated 1.2.0 release; it is not present in npm 1.1.0.
+
+The new opt-in `./action-approvals` entry point provides exact-target
+approval evidence and an assessment wrapper; see [standalone action control](../../docs/action-control/README.md).
+It requires 1.2.0. The composition and its bounded qualification are documented in that guide.
+
+The opt-in `./action-admission` entry point composes transactional resource
+reservations and agent/connector/organization revocation fences with the existing
+ActionGateway dispatcher. See the standalone action-control guide for trusted-host
+requirements, accounting semantics and qualification boundaries.
+
+`./action-effects` offers an explicit conditional-execution adapter contract for
+external systems that atomically enforce reviewed resource preconditions and
+retain idempotent receipts. Unsupported destinations must use a weaker, clearly
+identified profile; read-before-write is not an atomic guarantee.
+
+`recoverReservedActionGrantV1` conservatively transitions a durable reserved grant
+to indeterminate only after a trusted host verifies its original worker stopped
+or was fenced. It never reissues or redispatches. Reconciliation remains separate.

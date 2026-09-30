@@ -1,0 +1,1 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.action_admission_states_v1;

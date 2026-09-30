@@ -126,6 +126,15 @@ jobs:
           PGPASSWORD: agentplat_test
       - name: Verify optional Jev example and experiment contracts
         run: node --test examples/rooms-api/test/proposal-reviewer.test.mjs experiments/jev-artifact-review/run.test.mjs
+      - name: Verify standalone action control and independent consumers
+        run: pnpm run verify:action-control
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - name: Verify purpose governance and packed consumers
         run: |
           pnpm run verify:purpose-governance /tmp/purpose-governance-ci

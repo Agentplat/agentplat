@@ -7,6 +7,7 @@ import {
 import { ControlledModelExecutorV1 } from '@agentplat/inference-control/model';
 import { createControlledAgentSseValidatorV1 } from '@agentplat/inference-control/runtime';
 import {
+  createActionGrantV1,
   ActionGateway,
   LocalGrantLedger,
   actionDigest,
@@ -361,6 +362,17 @@ const grant = {
   ...provisionalGrant,
   actionDigest: actionDigest(provisionalGrant, binding),
 };
+const preparedGrant = createActionGrantV1({
+  grantId: provisionalGrant.grantId, scope, binding, input: {},
+  assessmentRequestId: provisionalGrant.assessmentRequestId,
+  assessmentId: provisionalGrant.assessmentId,
+  assessmentTargetDigest: provisionalGrant.assessmentTargetDigest,
+  idempotencyKey: provisionalGrant.idempotencyKey,
+  issuedAtLogicalMs: provisionalGrant.issuedAtLogicalMs,
+  expiresAtLogicalMs: provisionalGrant.expiresAtLogicalMs,
+});
+if (canonicalControlJson(preparedGrant) !== canonicalControlJson(grant))
+  throw new Error('prepared grant differs from legacy V1 bytes');
 const grantLedger = new LocalGrantLedger('gateway:packed');
 grantLedger.issue(grant);
 let actionDispatches = 0;

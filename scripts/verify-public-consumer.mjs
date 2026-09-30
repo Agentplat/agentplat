@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import semver from 'semver';
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -8,8 +9,10 @@ import { discoverWorkspacePackageManifests } from './public-package-catalog.mjs'
 
 const root = process.cwd();
 const purposeGovernance = process.argv.includes('--purpose-governance');
+const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
 const targets = Object.freeze([
+  ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
   ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
     '@agentplat/rooms', '@agentplat/rooms-api',
@@ -32,6 +35,8 @@ assert.ok(!purposeGovernance || !registryRelease,
 const registryVersion = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8'),
 ).version;
+assert.ok(!actionControl || !registryRelease || semver.gte(registryVersion, '1.2.0'),
+  'Registry action-control consumption requires published 1.2.0 or newer');
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-public-consumer-'));
 const suppliedTarballRoot = process.env.AGENTPLAT_PREPACKED_TARBALL_DIRECTORY;
 const tarballRoot = suppliedTarballRoot
@@ -139,6 +144,18 @@ try {
       },
     },
   );
+  if (actionControl) {
+    await writeFile(path.join(consumerRoot, 'action-control.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/action-control.mjs'), 'utf8'));
+    execFileSync(process.execPath, ['action-control.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+    for (const name of ['action-approvals', 'action-admission', 'action-effects']) {
+      await writeFile(path.join(consumerRoot, `${name}.mts`),
+        await readFile(path.join(root, `tests/inference-control-${name}.test.mts`), 'utf8'));
+    }
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('*.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+  }
   if(optionalJev){
     await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));
     execFileSync(process.execPath,['optional-jev.mjs'],{cwd:consumerRoot,stdio:'inherit'});

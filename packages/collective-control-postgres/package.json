@@ -1,6 +1,6 @@
 {
   "name": "@agentplat/collective-control-postgres",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "PostgreSQL repositories and migrations for Agentplat collective control.",
   "type": "module",
   "license": "Apache-2.0",
@@ -11,6 +11,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./action-approvals": {
+      "types": "./dist/action-approvals.d.ts",
+      "import": "./dist/action-approvals.js"
+    },
+    "./action-admission": {
+      "types": "./dist/action-admission.d.ts",
+      "import": "./dist/action-admission.js"
     }
   },
   "files": [

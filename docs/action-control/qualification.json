@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "0142d6e607eec75c0464c13949df8c2d95b48f1e",
+  "node": "24.20.0",
+  "pnpm": "11.25.0",
+  "status": "source-qualified-unpublished",
+  "focused": {
+    "passed": 46,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "unit": {
+    "passed": 1480,
+    "failed": 0,
+    "skipped": 1,
+    "todo": 6
+  },
+  "adapters": {
+    "passed": 380,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0,
+    "groups": 31
+  },
+  "checks": {
+    "build": "passed",
+    "types": "passed",
+    "publicAudit": "passed",
+    "stableCompatibility": "passed",
+    "platform": "passed",
+    "specification": "passed",
+    "independentTarballs": "passed"
+  },
+  "sourceSha256": {
+    "package.json": "a0cd195fc98ae7645046ea5e406bd4c31475a0383ee91a36891d911212361256",
+    "packages/collective-control-postgres/migrations/001_action_admission.down.sql": "1682c8f878368333fb62b6f1e7bb36a6ae24fc26790a83f5c80dd8e381a97c97",
+    "packages/collective-control-postgres/migrations/001_action_admission.up.sql": "3a429d1c8569768ba4b7036441ccc07fe560bbf09da817dfab39d0ccf3018da4",
+    "packages/collective-control-postgres/migrations/001_action_approvals.down.sql": "fe0735882478e9a06868657d11a90860c1f2c8169be73b5bfa0b6515348804fa",
+    "packages/collective-control-postgres/migrations/001_action_approvals.up.sql": "f58ded8765a66d254784ef8a76172a42970cb83ffed4d37b3994dacd494a8d82",
+    "packages/collective-control-postgres/package.json": "dee781cf28228cc7df43afb88a4955c0e05bbeb5fec85fba9ea6043039ddabc2",
+    "packages/collective-control-postgres/src/action-admission.ts": "719cfd08a0427bda5c215754022af64499486d997c33475b14535057ea8542f4",
+    "packages/collective-control-postgres/src/action-approvals.ts": "577b22cf7b11f51bdc27accf79c267df0539a8dfdfb0316e15907c9ef2176f32",
+    "packages/inference-control/package.json": "a81ee47207621e06bffd20f83068d6f191caf932361aed65093b0a5ddd852bfb",
+    "packages/inference-control/src/action-admission.ts": "4f76518c9f5bfd8e1d65aae19906ae1831ac0ec9feba33dbe2f9c62f32f9bde5",
+    "packages/inference-control/src/action-approvals.ts": "128e16a1fa581a9a7893d3bbc842ce2d05739646ba9fff6ee837b13289158f20",
+    "packages/inference-control/src/action-effects.ts": "9a1b572011d536dbb838d3e79bc7de093a1a903f1d3bcb83e49fbbd2934ddbe5",
+    "packages/inference-control/src/tools.ts": "c9ad2a574512a95b3bcae2f213e5328565e450c3a616b9a38bb516249580c02a",
+    "scripts/pack-consumers/action-control.mjs": "53c5463d6f2811a8e6b5fbb20e043899e0ba22ca648adefc58068935a4c5b1f7",
+    "scripts/pack-consumers/inference-control-alpha3.mjs": "484e285cbe508bb4e3352f010ad4c15d24ce2b0a6a79d271adc1f3d2a5d4a881",
+    "scripts/verify-action-control.mjs": "eff1816656c81a6ec2ee8e1965df67767fb8983db7f2bd32272d3a6c284c1214",
+    "scripts/verify-public-consumer.mjs": "4610aa136ff4ccbcd9a52cd7829f12da7a258e1f65be1682875713261b6e411f",
+    "tests/helpers/action-admission-scenarios.mjs": "93992af4b234cb87a2dcd5f13cd68fddc7506b3131af44149232cc6f9eca7b17",
+    "tests/helpers/action-approval-fixtures.mjs": "9348c92d6497189ac3341682d3b34a90aad9c3ab583c929f470a23871a7965d1",
+    "tests/helpers/action-control-crash-worker.mjs": "336228a98adf012cfec5fd3b5d24613392418b1e328a18d61185b4251709454a",
+    "tests/helpers/action-control-fixtures.mjs": "a88345c34ae9f6ad64ce27249afa94ac69c84ae111dd7df2ef511b2c9b42337c",
+    "tests/inference-control-action-admission-postgres.test.mjs": "72b963c79dda099c4ddda09fb12fd3a7bdd96d450ad8909607d349940d0336d0",
+    "tests/inference-control-action-admission.test.mjs": "ebe893a515ecd3859daa1dc9d9540db641e07251a53f6ad3fd4e75d4b7caca7b",
+    "tests/inference-control-action-admission.test.mts": "26ccc98da41b928247f9fa58e0a299011b8ad5a93cf6ad6fef0aadad018f6fa5",
+    "tests/inference-control-action-approvals-postgres.test.mjs": "adade88608e8218b456754f1863aed857a2d4441731ec50d82222940b7b00cbd",
+    "tests/inference-control-action-approvals.test.mjs": "ceb9092ea0f98820edac850251faf4e0013b2218c682dcb5035a200a3ac4e582",
+    "tests/inference-control-action-approvals.test.mts": "88785d9ee90d328dbb6d14eb1388449ec6491e6147a733b2eac1627619e425c0",
+    "tests/inference-control-action-control-postgres.test.mjs": "4792c47fd75807a01172d24789dd76f797f2887dd02d2ae7eb79d6d926761da5",
+    "tests/inference-control-action-effects.test.mjs": "f3aaf85ab259d2c9866e24b7c60c0391a191183bd09aa83c9e485a8fe8c7d005",
+    "tests/inference-control-action-effects.test.mts": "6a8f6aed7aa4fa08ef4130e62dd8852ccacc4d01b9fc4470851d299ce6120cbb",
+    "tests/inference-control-gateways.test.mts": "064eaf9a07a78d221ec34f8f3019a8d0b0d669d075dd316b1c245f3dc395c60a",
+    "tests/inference-control-grant-builder.test.mjs": "931efc054cca583333da55508ee98b09694a6326e669c8d4654d1c162987f8c0"
+  },
+  "logSha256": {
+    "build": "71f13d691eb01b99d5a8591bab1341c0698e60d11d8a47e622dfb0e2bb1afe75",
+    "types": "d41ac6d17429427750f5dfde0112b1628aaff5bb88166a2415d8c4656fcbfd8f",
+    "qualification": "b4bc7c4649060b16dce076ec768483c6f9a119a436e5005d3f83c3b4f3e95fd2",
+    "consumer": "7520e904a8d64108c36f12b1a5d11309eec644a5afdeec531d8f7c198930448c",
+    "unit-isolated": "935a3205da1f48b17abe7b480c54b175f99f821ead4385f262a4354b225694f7",
+    "adapters": "5bb89f95388eb0e1eea0518b8a6845378e559081075d020c905381bad8a76503",
+    "public-audit": "9d299c1d2ba8f06f01812c550dc22fc2c011de999b880512f75bac3e6decf383"
+  }
+}

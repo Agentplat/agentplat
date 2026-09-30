@@ -228,6 +228,64 @@ export function actionDigest(
   });
 }
 
+/** Host-supplied references to an already authorized assessment. */
+export interface CreateActionGrantInputV1 {
+  readonly grantId: string;
+  readonly scope: ActionScope;
+  readonly binding: ActionBinding;
+  readonly input: ControlJsonObject;
+  readonly assessmentRequestId: string;
+  readonly assessmentId: string;
+  readonly assessmentTargetDigest: string;
+  readonly idempotencyKey: string;
+  readonly issuedAtLogicalMs: number;
+  readonly expiresAtLogicalMs: number;
+}
+
+/**
+ * Prepares an immutable grant using the existing V1 digest format.
+ * Does not authenticate, assess, persist or authorize execution. Trusted hosts
+ * must supply verified assessment references and issue through their repository.
+ */
+export function createActionGrantV1(options: CreateActionGrantInputV1): ActionGrant {
+  if (!isActionScopeV1(options.scope))
+    throw new TypeError("Invalid Action Grant scope");
+  const binding = options.binding;
+  if (
+    binding.schemaVersion !== 1 ||
+    ![binding.actionBindingId, binding.namespace, binding.toolId,
+      binding.operation, binding.dispatcherId, binding.contextResolverId]
+      .every(nonEmptyString) ||
+    ![binding.actionBindingVersion, binding.dispatcherVersion,
+      binding.contextResolverVersion].every(positiveInteger) ||
+    !isDigest(binding.handlerDigest) ||
+    !["local_only", "downstream_atomic"].includes(binding.fencingMode) ||
+    !nonEmptyString(options.assessmentRequestId) ||
+    !nonEmptyString(options.assessmentId) ||
+    !isDigest(options.assessmentTargetDigest)
+  ) throw new TypeError("Invalid Action Grant binding or assessment references");
+  const input = freezeControlJsonObject(options.input, MAX_ACTION_INPUT_BYTES_V1);
+  const scope = freezeScope(options.scope);
+  const provisional: ActionGrant = {
+    schemaVersion: 1, grantId: options.grantId, stateGeneration: 1,
+    scope, scopeDigest: scopeDigest(scope),
+    namespace: binding.namespace, toolId: binding.toolId,
+    operation: binding.operation, actionBindingId: binding.actionBindingId,
+    actionBindingVersion: binding.actionBindingVersion,
+    handlerDigest: binding.handlerDigest, inputDigest: actionInputDigest(input),
+    actionDigest: "", assessmentRequestId: options.assessmentRequestId,
+    assessmentId: options.assessmentId,
+    assessmentTargetDigest: options.assessmentTargetDigest,
+    idempotencyKey: options.idempotencyKey,
+    issuedAtLogicalMs: options.issuedAtLogicalMs,
+    expiresAtLogicalMs: options.expiresAtLogicalMs,
+    singleUse: true, status: "issued", reservation: null,
+  };
+  const grant = { ...provisional, actionDigest: actionDigest(provisional, binding) };
+  assertIssuableGrant(grant);
+  return freezeGrant(grant);
+}
+
 function freezeGrant(grant: ActionGrant): ActionGrant {
   return Object.freeze({
     ...grant,
@@ -521,6 +579,30 @@ export async function issueActionGrantV1(
     throw new Error("state_conflict");
   }
   return result.grant;
+}
+
+/**
+ * Conservatively recovers a durable reservation after its worker stopped or was
+ * fenced. Never reissues or redispatches. The host verifier must establish that
+ * the original attempt cannot perform further effects before reconciliation.
+ */
+export async function recoverReservedActionGrantV1(
+  repository: ActionGrantRepository,
+  input: { readonly grantId: string; readonly reservationId: string; readonly dispatchAttemptId: string },
+  verifyStoppedOrFenced: (grant: ActionGrant) => Promise<boolean>,
+): Promise<ActionGrant> {
+  const grant = await repository.loadGrant(input.grantId);
+  if (!grant) throw new Error("grant_missing");
+  assertGrantSnapshot(grant, Number.MAX_SAFE_INTEGER);
+  if (grant.reservation?.reservationId !== input.reservationId ||
+      grant.reservation.dispatchAttemptId !== input.dispatchAttemptId)
+    throw new Error("state_conflict");
+  if (grant.status === "indeterminate") return grant;
+  if (grant.status !== "reserved" || !(await verifyStoppedOrFenced(freezeGrant(grant))))
+    throw new Error("grant_recovery_unverified");
+  const next = freezeGrant({ ...grant, stateGeneration: grant.stateGeneration + 1, status: "indeterminate" });
+  if (!(await compareAndSwapGrantState(repository, grant, next))) throw new Error("state_conflict");
+  return next;
 }
 
 /** Resolves an indeterminate grant only from an explicit authoritative proof. */
