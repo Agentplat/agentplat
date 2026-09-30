@@ -3,18 +3,17 @@
 Explicit PostgreSQL durability for `@agentplat/collective-control` authority,
 execution, Action Grant and evidence repositories.
 
-## Installation (developer preview)
+## Installation
 
-Install the coordinated preview explicitly:
+Install the coordinated version after its distribution is verified:
 
 ```sh
-npm install @agentplat/collective-control-postgres@next
+npm install @agentplat/collective-control-postgres@1.2.0
 ```
 
-Keep all `@agentplat/*` packages on the same release version. npm's default
-`latest` tag can point to an older preview. See the
-[release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
-for distribution status and version selection.
+Keep the AgentPlat packages you use on the same coordinated version. See the
+[1.2.0 release record](https://github.com/Agentplat/agentplat/blob/main/docs/releases/1.2.0-preparation.md)
+for current preparation/distribution status before installing.
 
 The adapter owns no policy transitions. Applications run the additive migration
 explicitly, initialize scoped repositories, and use the portable reducers for
