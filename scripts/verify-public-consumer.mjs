@@ -8,8 +8,10 @@ import { discoverWorkspacePackageManifests } from './public-package-catalog.mjs'
 
 const root = process.cwd();
 const purposeGovernance = process.argv.includes('--purpose-governance');
+const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
 const targets = Object.freeze([
+  ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
   ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
     '@agentplat/rooms', '@agentplat/rooms-api',
@@ -29,6 +31,7 @@ const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
 assert.ok(!purposeGovernance || !registryRelease,
   'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
+assert.ok(!actionControl || !registryRelease, 'Action-control additions currently require local prepared tarballs');
 const registryVersion = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8'),
 ).version;
@@ -139,6 +142,18 @@ try {
       },
     },
   );
+  if (actionControl) {
+    await writeFile(path.join(consumerRoot, 'action-control.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/action-control.mjs'), 'utf8'));
+    execFileSync(process.execPath, ['action-control.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+    for (const name of ['action-approvals', 'action-admission', 'action-effects']) {
+      await writeFile(path.join(consumerRoot, `${name}.mts`),
+        await readFile(path.join(root, `tests/inference-control-${name}.test.mts`), 'utf8'));
+    }
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('*.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+  }
   if(optionalJev){
     await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));
     execFileSync(process.execPath,['optional-jev.mjs'],{cwd:consumerRoot,stdio:'inherit'});

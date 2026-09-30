@@ -502,3 +502,35 @@ durable idempotency, logical time, current policy binding and any model-specific
 security properties. The package exposes no scheduler or global agent graph.
 See [ADR 0042](../../docs/adr/0042-collective-capability-closure.md) and the
 [architecture and threat model](../../docs/security/collective-capability-closure-v1.md).
+
+## Preparing action grants (additive source API)
+
+`createActionGrantV1` from `@agentplat/inference-control/tools` prepares an immutable
+V1 grant from a scope, binding, input, explicit assessment references, idempotency
+key and timestamps. It computes the existing scope/input/action digests and validates
+references and the existing maximum 120-second lifetime. It does not generate IDs,
+authenticate a caller, evaluate policy, approve an action or issue the grant.
+
+Trusted hosts must resolve identity and authorization, supply verified assessment
+references, then call `issueActionGrantV1` with their existing repository. The gateway
+still applies its current authority, assessment and execution checks. Manual grant
+construction and existing APIs retain their behavior. This addition is source-only
+until included in a published coordinated release; it is not present in npm 1.1.0.
+
+The new opt-in `./action-approvals` source entry point provides exact-target
+approval evidence and an assessment wrapper; see [standalone action control](../../docs/action-control/README.md).
+It is not part of published npm 1.1.0. The composed profile remains in progress.
+
+The opt-in `./action-admission` source entry point composes transactional resource
+reservations and agent/connector/organization revocation fences with the existing
+ActionGateway dispatcher. See the standalone action-control guide for trusted-host
+requirements, accounting semantics and remaining qualification.
+
+`./action-effects` offers an explicit conditional-execution adapter contract for
+external systems that atomically enforce reviewed resource preconditions and
+retain idempotent receipts. Unsupported destinations must use a weaker, clearly
+identified profile; read-before-write is not an atomic guarantee.
+
+`recoverReservedActionGrantV1` conservatively transitions a durable reserved grant
+to indeterminate only after a trusted host verifies its original worker stopped
+or was fenced. It never reissues or redispatches. Reconciliation remains separate.

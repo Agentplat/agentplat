@@ -24,3 +24,14 @@ worker and creates no timer. Caller-owned pools are never closed.
 Migration rollback is destructive and requires the exact confirmation token.
 Before rollback, `getCollectiveRollbackReadinessV1` must report no active work,
 reserved/dispatching permits, active grants or indeterminate effects.
+
+## Optional standalone action approvals (unpublished source)
+
+`./action-approvals` provides a tenant-scoped approval repository and a separately
+invoked migration. Existing migrations and grant repositories retain their behavior.
+See [standalone action control](../../docs/action-control/README.md) for guarantees,
+verification and remaining composition requirements.
+
+`./action-admission` adds an opt-in tenant-serialized PostgreSQL store and separate
+migration for revocation fences, shared budget accounts and effect receipts. This
+reference adapter does not claim production-scale throughput or bounded history.
