@@ -1,7 +1,7 @@
 # Integrating standalone governed actions
 
-The optional source additions are not yet on npm. Install a coordinated published
-version when available. No Agent Rooms, Agent Mesh or remote ACL service is required.
+The optional additions require the coordinated 1.2.0 release. Consult its
+release record and install only after distribution is verified. No Agent Rooms, Agent Mesh or remote ACL service is required.
 
 ## Composition and owners
 

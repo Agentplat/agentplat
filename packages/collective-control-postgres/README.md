@@ -25,7 +25,7 @@ Migration rollback is destructive and requires the exact confirmation token.
 Before rollback, `getCollectiveRollbackReadinessV1` must report no active work,
 reserved/dispatching permits, active grants or indeterminate effects.
 
-## Optional standalone action approvals (unpublished source)
+## Optional standalone action approvals (1.2.0)
 
 `./action-approvals` provides a tenant-scoped approval repository and a separately
 invoked migration. Existing migrations and grant repositories retain their behavior.
