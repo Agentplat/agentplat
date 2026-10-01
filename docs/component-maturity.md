@@ -2,8 +2,10 @@
 
 This is the editorial entry point for adoption status. Source availability,
 registry distribution, executable checks and operational evidence answer
-different questions. None implies another. The source checkout prepares the unpublished 1.1.0 candidate, including optional
-Jev. The verified 1.0.0 distribution remains under npm `latest`; see the [distribution record](releases/stable1-distribution-20260922.md). The [stability contract](stability.md) governs API compatibility independently of operational evidence.
+different questions. None implies another. All 66 packages are published at 1.2.0
+under latest; see the [distribution record](releases/stable1-2-distribution-20260930.md).
+The [stability contract](stability.md) governs API compatibility independently of
+operational evidence.
 
 ## Source and integration map
 
@@ -15,6 +17,7 @@ Jev. The verified 1.0.0 distribution remains under npm `latest`; see the [distri
 | Collective Runtime / planning         | Public local collective and opt-in coordination controllers                                        | `example:collective`, capability and evidence catalog verifiers | Frozen baseline separates source completion from empirical and operational validation                  |
 | Agent Mesh                            | Mesh, crypto, protocol, HTTP and PostgreSQL adapters                                               | `example:mesh-multiprocess`, Mesh conformance checks            | Four-peer example is bounded; deployment owns key custody, transport and membership                    |
 | Inference Control / Trust             | Opt-in public controls and explicit integration subpaths                                           | Inference-control and Trust scenario verifiers                  | Direct calls outside the integration path are not controlled; configure policies and assessor inputs   |
+| Standalone governed actions | Optional exact-target approval, transactional budgets/fences and PostgreSQL stores | `verify:action-control`, independent registry consumers | Bounded software evidence; trusted host ports, destination guarantees and tenant-state scaling remain deployment obligations |
 | Agent Morphogenesis                   | Opt-in Collective Runtime composition with host persistence                                        | Existing Morphogenesis release/readiness verifiers              | Signed Beta 1 local/staging profile only; not general production readiness or security certification   |
 | A2A / Agent Registry | Opt-in A2A 1.0 client/server, registry and PostgreSQL; Room/Mesh/Morphogenesis bridges | `test:a2a`, `example:a2a`, `verify:a2a-consumer` | Local SDK/PostgreSQL integration evidence; host supplies identity, execution owners and network policy |
 | Memory, tools, events, audit and auth | Public contracts and package-specific adapters                                                     | Package tests and public consumer checks                        | In-memory implementations are not durable; choose adapters and define retention, identity and delivery |

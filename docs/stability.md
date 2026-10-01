@@ -1,13 +1,13 @@
 # Stability and maintenance
 
-Version 1.0.0 is the first coordinated stable release, published on npm under
-`latest`. This policy applies to published 1.x versions. See the
+Version 1.0.0 was the first coordinated stable release. The current latest
+release is [1.2.0](releases/stable1-2-distribution-20260930.md). This policy applies to published 1.x versions. See the
 [verified distribution record](releases/stable1-distribution-20260922.md).
 
 ## Public compatibility contract
 
-The 65 packages published in 1.0.0 share one release version. The 1.1.0
-candidate adds the optional Jev adapter for a 66-package coordinated cohort. The source catalog may include unpublished packages under a separate
+The 65 packages published in 1.0.0 share one release version. Version 1.1.0
+added optional Jev; 1.2.0 retains that 66-package coordinated cohort. The source catalog may include unpublished packages under a separate
 source-only release profile; those are not part of the npm compatibility
 surface until admitted to a coordinated release.
 The supported API consists of their package.json export entry points, exported
