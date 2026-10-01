@@ -28,3 +28,8 @@ is a separate, pending usability evaluation.
 ## Upgrading to 1.1
 
 See [Adopting AgentPlat 1.1.0](adopting-1.1.md) to keep instruction-driven work or opt into governed purpose execution.
+
+## Upgrading to 1.2
+
+See [Adopting AgentPlat 1.2.0](adopting-1.2.md) for optional standalone action
+approvals, reservations, revocation and recovery. Existing behavior stays configured.

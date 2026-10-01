@@ -2,7 +2,7 @@
 
 **Status:** additive, opt-in source profile; qualification passed in an isolated
 checkout on 2026-09-30. Introduced by the coordinated 1.2.0 release; consult the release record for
-publication status. Operational obligations and release
+publication status ([verified distribution](../releases/stable1-2-distribution-20260930.md)). Operational obligations and release
 steps remain explicit; no production-scale or universal external guarantee is claimed.
 
 This profile supports hosts such as The Agent Control without requiring Agent Rooms.

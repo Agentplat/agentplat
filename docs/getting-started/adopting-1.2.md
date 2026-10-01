@@ -1,6 +1,7 @@
 # Adopting AgentPlat 1.2.0
 
-Status: release candidate; install from npm only after verified distribution.
+Status: published and verified on 2026-09-30. All 66 packages are available at
+1.2.0 under latest; see the [distribution record](../releases/stable1-2-distribution-20260930.md).
 
 1. Upgrade the AgentPlat packages your application uses together to 1.2.0 and keep
    a lockfile. Existing applications retain their configured behavior.

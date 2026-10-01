@@ -1,24 +1,24 @@
 # Release channels
 
-AgentPlat uses one fixed version per coordinated release cohort. The verified
-1.0.0 cohort contains 65 published packages. **1.0.0** is
-published under npm `latest`; it replaces the unpublished beta.10 candidate.
-See the [verified distribution record](releases/stable1-distribution-20260922.md).
+AgentPlat uses one fixed version per coordinated release cohort. **1.2.0** is
+published under npm latest for all 66 coordinated packages; see the
+[verified distribution record](releases/stable1-2-distribution-20260930.md) and
+[adoption guide](getting-started/adopting-1.2.md).
 
-The source checkout prepares **1.1.0 with 66 publishable packages**, adding the
-optional `@agentplat/assessor-typesafe` adapter. This candidate is not published;
-see [preparation and upgrade notes](releases/1.1.0-preparation.md). Jev is installed
-only by applications that choose it. The verified npm tag remains unchanged.
+The historical 1.0.0 cohort contained 65 packages. Version 1.1 added optional Jev,
+and 1.2 adds opt-in standalone action controls without adding package names.
+Jev remains installed only by applications that choose it. Source availability,
+distribution and operational maturity remain separate evidence boundaries.
 
 Stable 1.x releases follow the [stability contract](stability.md). Prereleases
 use `next` and must never promote `latest`. Stable promotion requires successful
 public checks, exact artifact verification, reference integration validation,
 and clean registry consumers for the entire coordinated release.
 
-After the 1.0.0 distribution record is verified, install exact versions:
+Install exact coordinated versions:
 
 ```sh
-pnpm add @agentplat/framework@1.0.0 @agentplat/sessions@1.0.0
+pnpm add @agentplat/framework@1.2.0 @agentplat/sessions@1.2.0
 ```
 
 See the [production and migration guide](production.md). Historical observations
