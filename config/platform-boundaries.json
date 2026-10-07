@@ -2,6 +2,23 @@
   "schemaVersion": 1,
   "sourceRules": [
     {
+      "id": "runner-portable",
+      "paths": [
+        "packages/runner/src"
+      ],
+      "exclude": [],
+      "forbiddenImports": [
+        "node:",
+        "pg",
+        "ws",
+        "hono",
+        "@agentplat/postgres",
+        "@agentplat/runner-hub",
+        "apps/",
+        "examples/"
+      ]
+    },
+    {
       "id": "agent-registry-portable",
       "paths": [
         "packages/agent-registry/src"
@@ -20,7 +37,9 @@
     },
     {
       "id": "workflows-portable-root",
-      "paths": ["packages/workflows/src"],
+      "paths": [
+        "packages/workflows/src"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -67,7 +86,9 @@
     },
     {
       "id": "morphogenesis-host-composition",
-      "paths": ["packages/collective-host/src/morphogenesis.ts"],
+      "paths": [
+        "packages/collective-host/src/morphogenesis.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -85,7 +106,9 @@
     },
     {
       "id": "morphogenesis-collective-agreement-adapter",
-      "paths": ["packages/collective-quorum/src/morphogenesis.ts"],
+      "paths": [
+        "packages/collective-quorum/src/morphogenesis.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -103,7 +126,9 @@
     },
     {
       "id": "morphogenesis-room-mesh-projections",
-      "paths": ["packages/rooms-mesh/src/morphogenesis.ts"],
+      "paths": [
+        "packages/rooms-mesh/src/morphogenesis.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/postgres",
@@ -119,7 +144,9 @@
     },
     {
       "id": "morphogenesis-postgres-adapter",
-      "paths": ["packages/collective-host-postgres/src/morphogenesis.ts"],
+      "paths": [
+        "packages/collective-host-postgres/src/morphogenesis.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -157,7 +184,9 @@
     },
     {
       "id": "autonomy-actions-boundary",
-      "paths": ["packages/autonomy/src/actions.ts"],
+      "paths": [
+        "packages/autonomy/src/actions.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -173,7 +202,9 @@
     },
     {
       "id": "autonomy-workflow-evidence-boundary",
-      "paths": ["packages/autonomy/src/workflows.ts"],
+      "paths": [
+        "packages/autonomy/src/workflows.ts"
+      ],
       "exclude": [],
       "forbiddenImports": [
         "@agentplat/rooms",
@@ -209,6 +240,16 @@
         "@temporalio/",
         "pg",
         "hono"
+      ]
+    },
+    {
+      "package": "@agentplat/runner",
+      "forbiddenDependencies": [
+        "pg",
+        "ws",
+        "hono",
+        "@agentplat/postgres",
+        "@agentplat/runner-hub"
       ]
     }
   ],
@@ -288,6 +329,13 @@
       "package": "@agentplat/workflows-temporal",
       "portPackage": "@agentplat/workflows",
       "providerSpecific": true,
+      "domainSemantics": false,
+      "agentplatAuthoritative": true
+    },
+    {
+      "package": "@agentplat/runner-hub",
+      "portPackage": "@agentplat/runner",
+      "providerSpecific": false,
       "domainSemantics": false,
       "agentplatAuthoritative": true
     }

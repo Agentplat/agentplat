@@ -19,7 +19,7 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from "../scripts/verify-registry-consumer.mjs";
 
-test("registry consumer pins all 66 public packages to the exact release version", async () => {
+test("registry consumer pins all 68 public packages to the exact release version", async () => {
   const manifest = registryConsumerManifest("0.3.0-alpha.1");
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -27,7 +27,7 @@ test("registry consumer pins all 66 public packages to the exact release version
     new Set(["0.3.0-alpha.1"]),
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 66);
+  assert.equal(REGISTRY_PACKAGES.length, 68);
   const catalog = JSON.parse(
     await readFile(
       new URL("../config/public-packages.json", import.meta.url),

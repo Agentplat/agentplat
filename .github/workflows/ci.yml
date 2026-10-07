@@ -170,6 +170,14 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - name: Verify runner leases and packed external consumer
+        run: |
+          pnpm run test:runner
+          pnpm run verify:runner-consumer
+        env:
+          RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - run: pnpm --filter @agentplat/workflows-temporal test:real
         env:
           TEMPORAL_ADDRESS: 127.0.0.1:7233

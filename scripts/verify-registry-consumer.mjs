@@ -107,6 +107,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/rooms-mesh",
   "@agentplat/rooms-postgres",
   "@agentplat/rooms-temporal",
+  "@agentplat/runner",
+  "@agentplat/runner-hub",
   "@agentplat/runtime",
   "@agentplat/runtime-mock",
   "@agentplat/sessions",

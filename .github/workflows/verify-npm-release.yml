@@ -106,6 +106,15 @@ jobs:
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
           NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify runner registry consumers against PostgreSQL
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:runner-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+          RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release_verify
+          PGUSER: agentplat_release_verify
+          PGPASSWORD: agentplat_release_verify
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Verify complete coordinated public distribution
         if: ${{ inputs.scope == 'all' }}
         run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "${{ inputs.dist_tag }}"

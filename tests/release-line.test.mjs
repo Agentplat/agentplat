@@ -390,3 +390,38 @@ test("release-line guard accepts only the complete additive A2A registry group",
     "@agentplat/unrelated";
   await assert.rejects(assertReleaseLine({ root, catalog }), /requires an explicitly supported package cohort/);
 });
+
+test("Stable 1.3 requires both runner packages, all 68 publishable manifests and exact versions", async (t) => {
+  const line = RELEASE_LINES.find((entry) => entry.id === "stable1-3");
+  const good = await createReleaseLineFixture({ line });
+  const missing = await createReleaseLineFixture({
+    line,
+    includeRequired: false,
+  });
+  const mixed = await createReleaseLineFixture({
+    line,
+    packageVersion: "1.2.0",
+  });
+  t.after(() =>
+    Promise.all(
+      [good, missing, mixed].map((root) =>
+        rm(root, { force: true, recursive: true }),
+      ),
+    ),
+  );
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(() => assertReleaseLine({ root: missing }));
+  await assert.rejects(
+    () => assertReleaseLine({ root: mixed }),
+    /must use 1\.3\.0/,
+  );
+  const catalog = JSON.parse(
+    await readFile(path.join(good, "config/public-packages.json"), "utf8"),
+  );
+  const runner = catalog.packages.find(
+    (entry) => entry.name === "@agentplat/runner",
+  );
+  runner.publish = false;
+  runner.packSmoke = false;
+  await assert.rejects(() => assertReleaseLine({ root: good, catalog }));
+});
