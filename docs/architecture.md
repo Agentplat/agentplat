@@ -76,3 +76,11 @@ ownership; Morphogenesis uses Capability State Fusion and its existing Candidate
 Discovery port to produce advisory recruitment proposals. See
 [ADR 0053](adr/0053-a2a-agent-registry.md) and the
 [integration guide](interop/a2a-agent-registry.md).
+
+The opt-in Edge Runner Hub (`packages/runner-hub`) dispatches tenant-scoped tasks
+to external WebSocket workers, using PostgreSQL leases and session fencing.
+`packages/runner` provides the portable client. The Hub attaches to an existing
+Node HTTP server, and its authenticated routes can be mounted through
+`createRoomsApp({ runnerRoutes })`. Execution policy and external-effect
+idempotency remain application responsibilities; see the
+[Hub integration guide](../packages/runner-hub/README.md).

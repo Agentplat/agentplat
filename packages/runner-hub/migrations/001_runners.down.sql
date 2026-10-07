@@ -1,0 +1,2 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.agentplat_runner_tasks;
+DROP TABLE __AGENTPLAT_SCHEMA__.agentplat_runners;

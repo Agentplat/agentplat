@@ -1,6 +1,6 @@
 {
   "name": "agentplat",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Open-source TypeScript framework for persistent human-agent collaboration, with shared artifacts, human approvals and controlled execution on your infrastructure.",
   "keywords": [
@@ -218,7 +218,9 @@
     "verify:stable1-compatibility": "node scripts/verify-stable1-compatibility.mjs",
     "verify:jev-consumer": "node scripts/verify-public-consumer.mjs --optional-jev",
     "verify:action-control-consumer": "node scripts/verify-public-consumer.mjs --action-control",
-    "verify:action-control": "node scripts/verify-action-control.mjs"
+    "verify:action-control": "node scripts/verify-action-control.mjs",
+    "verify:runner-consumer": "node scripts/verify-runner-consumer.mjs",
+    "test:runner": "pnpm --filter @agentplat/runner-hub... build && pnpm --filter @agentplat/runner-hub test"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

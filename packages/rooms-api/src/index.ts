@@ -79,6 +79,8 @@ export interface HeaderTenantAuthOptions {
 
 export interface CreateRoomsAppOptions {
   service: RoomsApiService;
+  /** Opt-in authenticated runner task routes, mounted on the same HTTP app. */
+  runnerRoutes?: Hono<{ Variables: { tenant: string } }>;
   /** Independently authenticates the raw request; development tenant headers grant no ownership. */
   agentGovernance?: Pick<AgentGovernanceServiceV1<Request>, "get" | "history" | "execute">;
   /** Authenticated intake and assessment records only; never dispatches execution. */
@@ -181,6 +183,8 @@ export function createRoomsApp(
   app.onError((error, context) =>
     errorResponse(context, error, options.exposeErrorDetails ?? false),
   );
+
+  if (options.runnerRoutes) app.route("/", options.runnerRoutes);
 
   app.get("/health", (context) => context.json({ status: "ok" }));
 

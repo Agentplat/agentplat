@@ -116,6 +116,14 @@ export const RELEASE_LINES = Object.freeze([
     allPackagesPublishable: true,
   }),
   Object.freeze({
+    catalogPackageCount: 68,
+    id: "stable1-3",
+    releaseVersion: "1.3.0",
+    trustPackageCount: 1,
+    requiredPackageNames: [...A2A_PACKAGE_NAMES, "@agentplat/assessor-typesafe", "@agentplat/runner", "@agentplat/runner-hub"],
+    allPackagesPublishable: true,
+  }),
+  Object.freeze({
     catalogPackageCount: 66,
     id: "stable1-jev-source",
     releaseVersion: "1.0.0",
@@ -167,7 +175,7 @@ export async function assertReleaseLine({
     ) ?? matchingLines[0];
   assert.ok(
     line,
-    `Release line requires an explicitly supported package cohort: 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4, 33 Alpha 5, 34 Beta 1, 36 Beta 2, 56 Beta 5, 62 Beta 6/Beta 7, 65 Beta 7/Beta 8/stable 1.0.0 packages, or the 66-manifest stable 1.0.0 source cohort with @agentplat/assessor-typesafe unpublished, or the 66-package stable 1.1.0/1.2.0 cohorts including optional Jev`,
+    `Release line requires an explicitly supported package cohort: 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4, 33 Alpha 5, 34 Beta 1, 36 Beta 2, 56 Beta 5, 62 Beta 6/Beta 7, 65 Beta 7/Beta 8/stable 1.0.0 packages, or the 66-manifest stable 1.0.0 source cohort with @agentplat/assessor-typesafe unpublished, or the 66-package stable 1.1.0/1.2.0 cohorts including optional Jev, or the 68-package stable 1.3.0 cohort including Edge Runner Hub`,
   );
 
   assert.equal(

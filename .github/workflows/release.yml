@@ -88,12 +88,14 @@ jobs:
           else
             pnpm run check
             pnpm run verify:action-control
+            pnpm run test:runner
             pnpm run verify:mesh-postgres-faults
             pnpm run verify:mesh-soak -- --messages 9 --repetitions 2
             pnpm run benchmark:mesh-adapters
           fi
         env:
           AGENTPLAT_POSTGRES_TEST: "1"
+          RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release
           NPM_CONFIG_USERCONFIG: /dev/null
           PGHOST: 127.0.0.1
           PGPORT: "5432"
@@ -115,9 +117,13 @@ jobs:
           else
             pnpm run verify:pack
             pnpm run verify:action-control-consumer
+            pnpm run verify:runner-consumer
           fi
         env:
           AGENTPLAT_PREPACKED_TARBALL_DIRECTORY: ${{ github.workspace }}/release-artifacts
+          RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release
+          PGUSER: agentplat_release
+          PGPASSWORD: agentplat_release
           NPM_CONFIG_USERCONFIG: /dev/null
       - name: Upload immutable npm release artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

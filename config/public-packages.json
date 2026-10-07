@@ -627,6 +627,27 @@
       "packSmoke": true
     },
     {
+      "name": "@agentplat/runner",
+      "directory": "packages/runner",
+      "layer": "transport",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        ".",
+        "./client"
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/runner-hub",
+      "directory": "packages/runner-hub",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/runtime",
       "directory": "packages/runtime",
       "layer": "runtime",
