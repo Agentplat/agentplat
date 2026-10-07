@@ -24,3 +24,18 @@ Create tasks through `POST /api/runner-tasks` using `X-Tenant-ID` and `x-agentpl
 ```
 
 This example does not create a client handler or execute application actions. Shutdown releases active leases and closes the database pool. Tasks remain in the database across restarts. Refer to the [Hub integration guide](../../packages/runner-hub/README.md) for protocol, delivery semantics and verification.
+
+## Diagnostic fallback worker
+
+After a browser runner with the `diagnostic` capability connects, start a second
+worker for reassignment tests:
+
+```sh
+AGENTPLAT_RUNNER_TENANT=test-tenant \
+AGENTPLAT_RUNNER_KEY=REPLACE_WITH_YOUR_LOCAL_TEST_CREDENTIAL \
+node examples/runner-hub/worker.mjs
+```
+
+This Node worker advertises only `diagnostic` and handles `runner.probe`. It does
+not claim browser capabilities. If the browser receives a delayed diagnostic and
+disconnects before its receipt, the Hub can reassign that lease to this worker.
