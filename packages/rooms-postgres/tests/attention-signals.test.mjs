@@ -1,3 +1,4 @@
+import { rollbackMigrations } from './planner-migration-head.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
@@ -8,7 +9,6 @@ import {
   PostgresAgentGovernanceStoreV1,
   PostgresAttentionSignalStoreV1,
   runMigrations,
-  rollbackMigrations,
   rollbackConfirmation,
 } from "../dist/index.js";
 import { attentionSignalScenarios } from "../../../tests/helpers/attention-signal-scenarios.mjs";
@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        18,
+        19,
       );
       const result = await attentionSignalScenarios({
         store: new PostgresAttentionSignalStoreV1(pool, { schema }),
@@ -115,7 +115,7 @@ test(
         ).currentVersion,
         14,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 18);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await pool.end();

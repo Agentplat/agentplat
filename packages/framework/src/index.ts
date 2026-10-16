@@ -608,3 +608,12 @@ function textOutput(result: AgentRunResult): string {
   }
   return result.output;
 }
+
+export {
+  createAgentRoomPlanner, AgentRoomPlanner, InMemoryRoomPlannerStore, roomPlannerBudget,
+  createRuntimeRoomPlannerReasoner, priceRoomPlannerUsage,
+} from '@agentplat/rooms';
+export type {
+  RoomPlannerPorts, RoomPlannerReasoner, RoomPlannerProposal, RoomPlannerState,
+  RoomPlannerObjective, RoomPlannerStore,
+} from '@agentplat/rooms';

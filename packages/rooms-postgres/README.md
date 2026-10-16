@@ -191,3 +191,10 @@ targets 018, which refuses existing governed origins.
 See [mission recovery](../../docs/agent-governance/missions.md).
 
 See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
+
+## Room Planner source preview
+
+Migration 019 adds CAS Room Planner state, revision history and workflow result receipts.
+`PostgresRoomPlannerStore` and `PostgresRoomPlannerCallResults` perform no constructor I/O.
+Apply migrations through the existing ledger. See [Room Planner](../../docs/planner/README.md)
+for budget, recovery, retention and source-distribution boundaries.
