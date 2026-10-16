@@ -41,3 +41,6 @@ export * from "./purpose-missions.js";
 export * from "./agent-continuity.js";
 
 export * from "./governed-handoff.js";
+
+export * from './room-planner.js';
+export * from './room-planner-runtime.js';

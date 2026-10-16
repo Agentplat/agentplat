@@ -1,3 +1,5 @@
+import { rollbackMigrations } from './planner-migration-head.mjs';
+import { randomUUID } from 'node:crypto';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RoomService } from "@agentplat/rooms";
@@ -6,7 +8,6 @@ import {
   PostgresRoomExecutionSessionStore,
   PostgresRoomRepository,
   rollbackConfirmation,
-  rollbackMigrations,
   runMigrations,
 } from "../dist/index.js";
 
@@ -20,7 +21,7 @@ test(
       : "set AGENTPLAT_POSTGRES_TEST=1 for PostgreSQL integration tests",
   },
   async () => {
-    const schema = process.env.AGENTPLAT_POSTGRES_TEST_SCHEMA ?? "public";
+    const schema = process.env.AGENTPLAT_POSTGRES_TEST_SCHEMA ?? `rooms_${randomUUID().replaceAll("-", "")}`;
     const pool = createPostgresPool({ options: "-c search_path=pg_catalog" });
     const searchPath = await pool.query("SHOW search_path");
     assert.equal(searchPath.rows[0].search_path, "pg_catalog");

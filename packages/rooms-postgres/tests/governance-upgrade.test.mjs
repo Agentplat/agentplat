@@ -1,3 +1,4 @@
+import { rollbackMigrations } from './planner-migration-head.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -5,21 +6,20 @@ import { RoomService, AgentDefinitionRegistry } from "@agentplat/rooms";
 import {
   createPostgresPool,
   runMigrations,
-  rollbackMigrations,
   rollbackConfirmation,
   getMigrationStatus,
   PostgresRoomRepository,
   PostgresAgentDefinitionRegistryStore,
 } from "../dist/index.js";
 test(
-  "upgrade 012 to 018 preserves legacy Room data, revision digests and instruction execution",
+  "upgrade 012 to 019 preserves legacy Room data, revision digests and instruction execution",
   { skip: process.env.AGENTPLAT_POSTGRES_TEST !== "1" },
   async () => {
     const schema = `upgrade_${randomUUID().replaceAll("-", "")}`,
       pool = createPostgresPool({ options: "-c search_path=pg_catalog" });
     try {
       await runMigrations(pool, { schema, createSchema: true });
-      for (let version = 18; version > 12; version--)
+      for (let version = 19; version > 12; version--)
         await rollbackMigrations(pool, {
           schema,
           expectedCurrentVersion: version,
@@ -95,8 +95,8 @@ test(
           definition.definition.revisionId,
         );
       assert.equal(revision.definition.interaction, undefined);
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 18);
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 18);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
       assert.deepEqual(await rooms.getRoomState("legacy", room.id), before);
       assert.deepEqual(
         await registry.getRevision("legacy", definition.definition.revisionId),

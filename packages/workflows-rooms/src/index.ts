@@ -397,3 +397,5 @@ export * from "./agent-governance-actions.js";
 export * from "./governance-autonomy.js";
 
 export * from "./governance-evolution.js";
+
+export * from "./room-planner.js";

@@ -1,6 +1,7 @@
 import { AgentPlatError } from "@agentplat/core";
 import type { AgentPlatID, JsonObject, JsonValue } from "@agentplat/core";
 import type { EventPublisher } from "@agentplat/events";
+import { canonicalPlannerJson } from "./planner-json.js";
 import type {
   AgentRuntime,
   RuntimeCheckpoint,
@@ -728,6 +729,8 @@ export class RoomService {
     roomId: string,
     input: {
       id?: string;
+      /** Exact replay returns the persisted message; requires an explicit id. */
+      idempotent?: boolean;
       authorParticipantId?: string;
       role: RoomMessage["role"];
       content: string;
@@ -735,6 +738,7 @@ export class RoomService {
     },
   ): Promise<RoomMessage> {
     this.required(input.content, "content");
+    if (input.idempotent) this.required(input.id ?? "", "id");
     if (!messageRoles.has(input.role)) {
       throw new AgentPlatError(
         "VALIDATION_ERROR",
@@ -769,7 +773,19 @@ export class RoomService {
         { roomId, messageId: message.id, role: message.role },
         input.authorParticipantId,
       );
-      await transaction.insertMessage(message);
+      if (input.idempotent) {
+        if (!transaction.insertMessageIfAbsent)
+          throw new AgentPlatError("ADAPTER_ERROR", "Repository does not support idempotent message intake");
+        const persisted = await transaction.insertMessageIfAbsent(message);
+        if (!persisted.inserted) {
+          const old = persisted.message;
+          if (old.roomId !== message.roomId || old.role !== message.role ||
+              old.authorParticipantId !== message.authorParticipantId || old.content !== message.content ||
+              canonicalPlannerJson(old.metadata ?? {}) !== canonicalPlannerJson(message.metadata ?? {}))
+            throw new AgentPlatError("CONFLICT", "Message identity has different content or provenance");
+          return { value: old, events: [] };
+        }
+      } else await transaction.insertMessage(message);
       await transaction.appendEvent(event);
       if (
         this.automaticCoordination &&

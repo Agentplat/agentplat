@@ -47,3 +47,10 @@ logical effect ID, actual destination and upper-bound resource charges. It neith
 creates a grant nor upgrades an old approval. See [execution](../../docs/agent-governance/execution.md).
 
 See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
+
+## Room Planner source preview
+
+`RoomPlannerWorkflowCalls` wraps reserved Planner operations in the existing V1 runner,
+with persisted result receipts, lease checks and cooperative cancellation. Ambiguous calls
+require reconciliation; they are not automatically replayed. Inject a durable workflow
+store and result store for recovery. See [Room Planner](../../docs/planner/README.md).
