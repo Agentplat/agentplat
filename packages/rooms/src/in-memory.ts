@@ -247,6 +247,14 @@ class InMemoryTransaction implements RoomRepositoryTransaction {
     this.state.messages.push(message);
   }
 
+  async insertMessageIfAbsent(message: RoomMessage) {
+    this.assertTenant(message.tenantId);
+    const old = this.state.messages.find(m => m.tenantId === message.tenantId && m.id === message.id);
+    if (old) return { message: structuredClone(old), inserted: false };
+    await this.insertMessage(message);
+    return { message, inserted: true };
+  }
+
   async insertTask(task: RoomTask): Promise<void> {
     this.assertTenant(task.tenantId);
     this.assertUnique(this.state.tasks, task.tenantId, task.id, 'Task');

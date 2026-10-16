@@ -66,6 +66,8 @@ export interface RoomRepositoryTransaction extends RoomRepositoryReader {
   insertParticipant(participant: Participant): Promise<void>;
   addRoomParticipant(link: RoomParticipant): Promise<void>;
   insertMessage(message: RoomMessage): Promise<void>;
+  /** Atomic insert-or-read for replayable event bridges; optional for legacy adapters. */
+  insertMessageIfAbsent?(message: RoomMessage): Promise<{ message: RoomMessage; inserted: boolean }>;
   insertTask(task: RoomTask): Promise<void>;
   updateTask(task: RoomTask): Promise<void>;
   insertArtifact(artifact: Artifact, version: ArtifactVersion): Promise<void>;

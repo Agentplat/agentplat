@@ -32,6 +32,41 @@ test(
           goal: "Verify",
         }),
         scope = { tenantId: "t", roomId: room.id };
+      const message = {
+        id: "nonce",
+        idempotent: true,
+        role: "human",
+        content: "Research once",
+        metadata: { b: 2, a: 1 },
+      };
+      const sent = await Promise.all([
+        rooms.sendMessage("t", room.id, message),
+        rooms.sendMessage("t", room.id, message),
+      ]);
+      assert.deepEqual(sent[0], sent[1]);
+      const reopenedRooms = new RoomService({
+        repository: new PostgresRoomRepository(pool, { schema }),
+      });
+      assert.deepEqual(
+        await reopenedRooms.sendMessage("t", room.id, {
+          ...message,
+          metadata: { a: 1, b: 2 },
+        }),
+        sent[0],
+      );
+      await assert.rejects(
+        reopenedRooms.sendMessage("t", room.id, {
+          ...message,
+          content: "Changed",
+        }),
+        (e) => e.code === "CONFLICT",
+      );
+      assert.equal(
+        (await reopenedRooms.listEvents("t", room.id)).filter(
+          (e) => e.type === "message_created",
+        ).length,
+        1,
+      );
       const store = new PostgresRoomPlannerStore(pool, { schema });
       const planner = createAgentRoomPlanner({
         store,

@@ -18,6 +18,11 @@ by this source change.
 - `@agentplat/workflows-rooms`: the existing durable runner owns attempts, leases and
   recovery. The Planner does not introduce a competing attempt scheduler.
 
+Explicit idempotent message intake is an additive Room service option. The built-in
+repositories atomically insert or read the same tenant-scoped identity; replay rejects
+changed content, author, Room or metadata and emits no second message event. Legacy
+repositories can retain ordinary intake; the opt-in path fails closed when unsupported.
+
 The source was separated from other local event-ingress, action-control, Runner and
 research work. The bounded canonical JSON comparison was isolated as a private Rooms
 utility; it does not require the unmerged event-ingress API. Current public contracts
