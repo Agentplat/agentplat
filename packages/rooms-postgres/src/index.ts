@@ -42,3 +42,5 @@ export { PostgresAgentExecutionStoreV1 } from "./agent-execution-store.js";
 export { PostgresPurposeMissionStoreV1 } from "./purpose-mission-store.js";
 
 export { PostgresAgentContinuityStoreV1 } from "./agent-continuity-store.js";
+
+export * from './memory-revision-store.js';

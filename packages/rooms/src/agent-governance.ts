@@ -72,6 +72,15 @@ export interface AgentGovernanceHeadV1 {
   } | null;
   updatedAt: string;
 }
+/** Immutable review coordinates bound into the existing governance operation digest. */
+export interface AgentGovernanceReviewBindingV1 {
+  roomId: string;
+  artifactId: string;
+  artifactVersion: number;
+  approvalId: string;
+  evaluationRef: string;
+  proposalDigest: string;
+}
 export type AgentGovernanceCommandV1 =
   | {
       kind: "create";
@@ -84,7 +93,11 @@ export type AgentGovernanceCommandV1 =
   | { kind: "purpose"; purpose: string }
   | { kind: "signals" | "references" | "limits"; refs: string[] }
   | { kind: "delegations"; delegations: AgentGovernanceDelegationV1[] }
-  | { kind: "mode"; definitionRevisionId: string }
+  | {
+      kind: "mode";
+      definitionRevisionId: string;
+      review?: AgentGovernanceReviewBindingV1;
+    }
   | { kind: "suspend" }
   | { kind: "prepare_activation" | "activate" }
   | { kind: "transfer_start"; targetOwnerId: string; expiresAt: string }
@@ -98,6 +111,7 @@ export interface AgentGovernanceOperationV1 {
   kind: AgentGovernanceCommandV1["kind"];
   requestDigest: string;
   expectedRevision: number | null;
+  review?: AgentGovernanceReviewBindingV1;
   /** Immutable result snapshot is also the audit record and configuration history. */
   result: AgentGovernanceHeadV1;
 }
@@ -436,6 +450,9 @@ export class AgentGovernanceServiceV1<Context> {
       kind: command.kind,
       requestDigest,
       expectedRevision: request.expectedRevision,
+      ...(command.kind === "mode" && command.review
+        ? { review: clone(command.review) }
+        : {}),
       result: next,
     };
     if (!(await this.store.commit(operation))) {
@@ -530,6 +547,10 @@ export function validateGovernanceCommitV1(
   id(op.tenantId);
   id(op.agentId);
   id(op.operationId);
+  if (op.review !== undefined) {
+    if (op.kind !== "mode") invalid();
+    validateReviewBinding(op.review);
+  }
   if (op.result.status === "active") {
     const admission = op.result.executionAdmission;
     if (
@@ -566,7 +587,12 @@ function validateCommand(command: AgentGovernanceCommandV1) {
     references: ["refs"],
     limits: ["refs"],
     delegations: ["delegations"],
-    mode: ["definitionRevisionId"],
+    mode: [
+      "definitionRevisionId",
+      ...(command.kind === "mode" && command.review !== undefined
+        ? ["review"]
+        : []),
+    ],
     suspend: [],
     prepare_activation: [],
     activate: [],
@@ -591,6 +617,8 @@ function validateCommand(command: AgentGovernanceCommandV1) {
   }
   if (command.kind === "create" || command.kind === "mode")
     id(command.definitionRevisionId);
+  if (command.kind === "mode" && command.review !== undefined)
+    validateReviewBinding(command.review);
   if (
     command.kind === "signals" ||
     command.kind === "references" ||
@@ -634,6 +662,28 @@ function validateCommand(command: AgentGovernanceCommandV1) {
   }
   if (command.kind === "transfer_accept" || command.kind === "transfer_cancel")
     id(command.transferId);
+}
+function validateReviewBinding(review: AgentGovernanceReviewBindingV1) {
+  exact(review, [
+    "roomId",
+    "artifactId",
+    "artifactVersion",
+    "approvalId",
+    "evaluationRef",
+    "proposalDigest",
+  ]);
+  id(review.roomId);
+  id(review.artifactId);
+  id(review.approvalId);
+  if (
+    typeof review.evaluationRef !== "string" ||
+    !review.evaluationRef.trim() ||
+    review.evaluationRef.length > 1024 ||
+    !Number.isSafeInteger(review.artifactVersion) ||
+    review.artifactVersion < 1 ||
+    !/^sha256:[0-9a-f]{64}$/u.test(review.proposalDigest)
+  )
+    invalid();
 }
 function exact(value: object, keys: string[]) {
   if (

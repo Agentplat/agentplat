@@ -191,3 +191,10 @@ targets 018, which refuses existing governed origins.
 See [mission recovery](../../docs/agent-governance/missions.md).
 
 See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
+
+## Versioned memory (opt-in source profile)
+
+`PostgresMemoryRevisionStoreV1` persists immutable memory revisions/audit and their
+CAS head atomically. Initialize explicitly with `runMemoryRevisionMigrations`;
+this uses a separate ledger and does not advance the legacy Room migration head.
+See [integration, retention and rollback boundaries](../../docs/architecture/persistent-agent-learning-implementation.md).

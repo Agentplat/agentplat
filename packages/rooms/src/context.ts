@@ -63,16 +63,9 @@ export class BoundedContextBuilder {
           contentType: current?.contentType,
         };
       });
-    const memory = state.memory
-      .filter((entry) => this.canReadMemory(entry, participant, state))
-      .filter(
-        (entry) =>
-          entry.retention !== 'until' ||
-          !entry.retainUntil ||
-          new Date(entry.retainUntil).getTime() > this.clock().getTime()
-      )
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
-      .slice(this.startFor(this.memoryLimit));
+    const memory = readableRoomMemory(state, participant, this.clock()).slice(
+      this.startFor(this.memoryLimit)
+    );
 
     return {
       agentIdentity: {
@@ -101,35 +94,6 @@ export class BoundedContextBuilder {
     };
   }
 
-  private canReadMemory(
-    entry: MemoryEntry,
-    participant: Participant,
-    state: RoomState
-  ): boolean {
-    const scope = entry.scope;
-
-    const targetsParticipant =
-      (scope === 'ephemeral' || scope === 'room') &&
-      (!entry.scopeId || entry.scopeId === state.room.id)
-        ? true
-        : scope === 'agent'
-          ? entry.scopeId === participant.id
-          : scope === 'role'
-            ? entry.scopeId === participant.role
-            : scope === 'artifact'
-              ? state.artifacts.some(
-                  (artifact) => artifact.id === entry.scopeId
-                )
-              : scope === 'organization';
-    if (!targetsParticipant) return false;
-    if (scope === 'ephemeral' || scope === 'room') return true;
-    if (scope === participant.memoryScope) return true;
-
-    return state.policies.some((policy) =>
-      policy.memoryAccessRules.includes(scope as never)
-    );
-  }
-
   private validLimit(value: number, name: string): number {
     if (!Number.isInteger(value) || value < 0) {
       throw new AgentPlatError(
@@ -143,4 +107,54 @@ export class BoundedContextBuilder {
   private startFor(limit: number): number {
     return limit === 0 ? Number.POSITIVE_INFINITY : -limit;
   }
+}
+
+/** Shared legacy memory view for context assembly and tool retrieval. */
+export function readableRoomMemory(
+  state: RoomState,
+  participant: Participant,
+  now: Date = new Date()
+): MemoryEntry[] {
+  if (
+    participant.tenantId !== state.room.tenantId ||
+    !state.participants.some(
+      (p) => p.id === participant.id && p.tenantId === participant.tenantId
+    )
+  ) {
+    throw new AgentPlatError(
+      'FORBIDDEN',
+      'Memory reader is not a Room participant'
+    );
+  }
+  return state.memory
+    .filter((entry) => {
+      if (entry.tenantId !== state.room.tenantId) return false;
+      if (
+        entry.retention === 'until' &&
+        (!entry.retainUntil ||
+          !Number.isFinite(Date.parse(entry.retainUntil)) ||
+          Date.parse(entry.retainUntil) <= now.getTime())
+      )
+        return false;
+      const scope = entry.scope;
+      const target =
+        scope === 'ephemeral' || scope === 'room'
+          ? !entry.scopeId || entry.scopeId === state.room.id
+          : scope === 'agent'
+            ? entry.scopeId === participant.id
+            : scope === 'role'
+              ? entry.scopeId === participant.role
+              : scope === 'artifact'
+                ? state.artifacts.some((a) => a.id === entry.scopeId)
+                : scope === 'organization' &&
+                  entry.scopeId === state.room.tenantId;
+      return (
+        target &&
+        (scope === 'ephemeral' ||
+          scope === 'room' ||
+          scope === participant.memoryScope ||
+          state.policies.some((p) => p.memoryAccessRules.includes(scope)))
+      );
+    })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
