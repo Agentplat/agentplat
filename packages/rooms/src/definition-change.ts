@@ -148,16 +148,19 @@ export class AgentDefinitionChangeServiceV1<Context> {
       candidate.lifecycle.status !== "published"
     )
       fail("Definition change bytes or publication mismatch");
-    const evidence = await this.options.evaluations.verify({
-      tenantId: head.tenantId,
-      change: structuredClone(change),
-    });
+    const evidence = structuredClone(
+      await this.options.evaluations.verify({
+        tenantId: head.tenantId,
+        change: structuredClone(change),
+      }),
+    );
     if (
       evidence.passed !== true ||
       evidence.baseDigest !== change.baseDigest ||
       evidence.candidateDigest !== change.candidateDigest ||
       evidence.evaluationRef !== change.evaluationRef ||
       !Number.isFinite(Date.parse(evidence.expiresAt)) ||
+      new Date(evidence.expiresAt).toISOString() !== evidence.expiresAt ||
       evidence.expiresAt <= (this.options.clock?.() ?? new Date()).toISOString()
     )
       fail("Current exact evaluation evidence required");

@@ -125,3 +125,14 @@ test("approval expiring during evaluation cannot select a definition", async () 
   await assert.rejects(f.service.apply("owner", p.request), /expired/i);
   assert.equal((await f.governance.get("owner", "a")).revision, 0);
 });
+
+test("evaluator expiry must be canonical UTC rather than lexically compared offsets", async () => {
+  const f = await fixture({
+    clock: () => new Date("2026-10-17T13:00:00.000Z"),
+    expiresAt: "2026-10-17T14:00:00+02:00",
+  });
+  const p = await f.proposal(...f.revisions, 0, "offset-expiry");
+  await p.approve();
+  await assert.rejects(f.service.apply("owner", p.request), /evaluation/i);
+  assert.equal((await f.governance.get("owner", "a")).revision, 0);
+});
