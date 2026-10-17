@@ -67,7 +67,7 @@ Retirement removes the record from current retrieval; history remains available
 under policy until retention expires. Retention filtering is not physical erasure.
 The host owns deletion, backup retention and historical execution-snapshot policy.
 
-`resolve` is bounded to 128 unique IDs, each record to 64 KiB, and evidence lists
+`resolve` is bounded to 128 unique IDs, each append input to 64 KiB, and evidence lists
 to 64 entries. Discovery/indexing belongs to the host; the service does not expose
 an unfiltered cross-user list or vector search. Resolution is per record, not a
 transactional snapshot across all IDs. Store exact returned revision references.
@@ -164,3 +164,6 @@ validated isolated/frozen consumer installation, exact packaged bytes, strict
 public types and a PostgreSQL cross-conversation fixture. Follow the
 [consumer integration and migration guide](../getting-started/persistent-memory-consumer.md)
 for the bundle format, replay command, error semantics and remaining host work.
+
+The [contract review and clean-commit npm/pnpm verification](../reviews/persistent-memory-20261017.md)
+records the latest fixes, scoped branch and reproducible bundle.

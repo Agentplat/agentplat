@@ -1,5 +1,7 @@
 # Persistent memory source preview — 2026-10-17
 
+Superseded for adoption by the [reviewed clean-commit bundle](../reviews/persistent-memory-20261017.md).
+
 Status: unpublished local integration evidence. No npm publication, application
 migration or deployment occurred. AgentPlat files only; Agents Grishen files and
 its database were not modified.

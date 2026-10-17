@@ -1,5 +1,8 @@
 # Consume the persistent-memory source preview
 
+See the [reviewed clean-commit bundle](../reviews/persistent-memory-20261017.md)
+for the current verified cohort and npm ci evidence.
+
 This guide covers AgentPlat artifacts and integration contracts. The consumer
 owns identity, membership, UI and deployment. The preview is local, unpublished
 and distinct from the registry packages carrying the same version number.
