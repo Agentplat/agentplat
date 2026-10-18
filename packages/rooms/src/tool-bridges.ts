@@ -1,3 +1,4 @@
+import { readableRoomMemory } from "./context.js";
 import { AgentPlatError } from "@agentplat/core";
 import type { JsonObject, JsonValue } from "@agentplat/core";
 import type {
@@ -22,6 +23,7 @@ export const AGENT_ROOM_TOOL_IDS = {
 
 /** Governed domain services and optional Handoff support exposed to tools. */
 export interface AgentRoomToolBridgeOptions {
+  clock?: () => Date;
   registry: ToolRegistry;
   rooms: Pick<RoomService, "getRoomState" | "createArtifact" | "writeMemory">;
   knowledge: KnowledgeBundleRegistry;
@@ -154,12 +156,9 @@ export async function registerAgentRoomToolBridges(
       );
       const query = text(input.query, "query").toLowerCase();
       const participantId = participant(context);
-      const matches = state.memory
-        .filter(
-          (entry) =>
-            entry.scope === "room" ||
-            (entry.scope === "agent" && entry.scopeId === participantId),
-        )
+      const reader = state.participants.find(p => p.id === participantId);
+      if (!reader) throw new AgentPlatError("FORBIDDEN", "Memory reader is not a Room participant");
+      const matches = readableRoomMemory(state, reader, options.clock?.() ?? new Date())
         .filter((entry) =>
           JSON.stringify(entry.content).toLowerCase().includes(query),
         )

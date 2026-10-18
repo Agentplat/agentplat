@@ -416,3 +416,12 @@ still creates no authority. See [missions](../../docs/agent-governance/missions.
 See [governed continuity](../../docs/agent-governance/continuity.md) for objective 8: ancestry budgets, mixed-mode Handoffs, model replacement and qualified evolution receipts.
 
 Run the [persistent support demonstration](../../examples/agent-purpose-support/README.md) to compare instruction and purpose modes, owner correction and process restart against PostgreSQL.
+
+## Versioned memory and controlled definition changes (source profile)
+
+`MemoryRevisionServiceV1` adds opt-in personal/shared revisioned memory with
+verified access ports, validity, retirement and immutable history.
+`resolveMemoryRevisionSnapshotV1` and `registerMemoryRevisionReadToolV1` share its
+authorized view. `AgentDefinitionChangeServiceV1` composes existing Room approval,
+evaluation evidence and governance for reviewed definition selection/reversal.
+See [integration and limits](../../docs/architecture/persistent-agent-learning-implementation.md).

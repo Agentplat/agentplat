@@ -84,3 +84,9 @@ Node HTTP server, and its authenticated routes can be mounted through
 `createRoomsApp({ runnerRoutes })`. Execution policy and external-effect
 idempotency remain application responsibilities; see the
 [Hub integration guide](../packages/runner-hub/README.md).
+
+The opt-in [persistent agent composition](architecture/persistent-agent-learning-implementation.md)
+adds revisioned personal/shared memory under Rooms, a PostgreSQL adapter with an
+independent migration ledger, exact memory snapshots and reviewed definition
+selection through existing governance. Workflows, outcomes and external
+notification ownership retain their existing boundaries.
