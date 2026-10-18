@@ -186,3 +186,21 @@ digest alone does not attest that a remote provider actually executed those byte
 - Qualify application restart/concurrency behavior, backup/restore and deployment
   separately. The local PostgreSQL fixture is bounded integration evidence, not a
   production-readiness claim.
+
+## Verify an immutable prepared release
+
+The full-scope release workflows run the same consumer against their prepared
+artifacts before upload. For a local/test replay of an official prepared cohort:
+
+```sh
+AGENTPLAT_POSTGRES_TEST=1 PGDATABASE=postgres NPM_DIST_TAG=latest \
+  AGENTPLAT_PREPACKED_TARBALL_DIRECTORY=/absolute/path/to/prepared-release \
+  pnpm run verify:memory-consumer
+```
+
+The release manifest must match the checkout commit, coordinated version, full
+catalog and requested tag. All archive sizes and SHA-512 values are verified
+before the memory subset is copied. This mode performs no replacement build or
+pack; proof output goes under `dependency-audit/memory-consumer` so the immutable
+release directory is not polluted by consumer evidence. The standalone source
+preview remains available when the prepared-artifact variable is absent.
