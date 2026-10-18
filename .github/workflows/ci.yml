@@ -146,6 +146,26 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - name: Verify persistent memory npm and pnpm consumers
+        run: |
+          pnpm run verify:memory-consumer
+          memory_receipt=$(find release-artifacts/memory-preview -name bundle.json -print -quit)
+          test -n "$memory_receipt"
+          MEMORY_PREVIEW_BUNDLE="$(dirname "$memory_receipt")" node --test tests/memory-preview-integrity.test.mjs
+        env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
+      - name: Retain verified persistent memory preview
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: persistent-memory-preview-${{ github.sha }}
+          path: release-artifacts/memory-preview/
+          if-no-files-found: error
+          retention-days: 14
       - run: pnpm --filter @agentplat/rooms-postgres test
         env:
           AGENTPLAT_POSTGRES_TEST: "1"

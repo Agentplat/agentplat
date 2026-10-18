@@ -1,7 +1,12 @@
 # Persistent memory review and consumer verification — 2026-10-17
 
-Disposition: ready for code review on local branch `codex/persistent-memory-review`.
-No remote PR, package publication, merge or deployment was performed.
+Disposition: prepared for PR review on `codex/persistent-memory-review`, updated
+onto the 1.3.0 preparation at `f74520d4`. Required CI now builds and verifies a
+fresh npm/pnpm memory cohort and retains the qualified artifacts for 14 days.
+No package publication, merge or deployment is part of this change.
+
+The records below describe the earlier local 1.1.0 proof. Its hashes are historical;
+use the PR's current CI artifacts for the rebased 1.3.0 candidate.
 
 ## Scoped change
 
