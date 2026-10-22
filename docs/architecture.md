@@ -90,3 +90,21 @@ adds revisioned personal/shared memory under Rooms, a PostgreSQL adapter with an
 independent migration ledger, exact memory snapshots and reviewed definition
 selection through existing governance. Workflows, outcomes and external
 notification ownership retain their existing boundaries.
+
+The opt-in `@agentplat/artifacts` package provides tenant-scoped durable work
+products, immutable content revisions, compare-and-set updates and reference
+events. Applications register its create/read/update tools explicitly through
+the existing runtime `ToolRegistry`. The PostgreSQL adapter persists artifact
+heads and revisions; event delivery uses a transactional outbox. HTML remains
+inert and consumers isolate previews. See the
+[package guide](../packages/artifacts/README.md) and
+[PostgreSQL adapter](../packages/artifacts-postgres/README.md).
+
+The opt-in `@agentplat/artifacts` package provides tenant-scoped durable work
+products, immutable content revisions, compare-and-set updates and reference
+events. Applications register its create/read/update tools explicitly through
+the existing runtime `ToolRegistry`. The PostgreSQL adapter persists artifact
+heads and revisions; event delivery uses a transactional outbox. HTML remains
+inert and consumers isolate previews. See the
+[package guide](../packages/artifacts/README.md) and
+[PostgreSQL adapter](../packages/artifacts-postgres/README.md).

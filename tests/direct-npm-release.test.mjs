@@ -438,6 +438,11 @@ test("the workflow keeps preparation unprivileged, publication gated and registr
   assert.doesNotMatch(prepare, /id-token: write/);
   assert.match(prepare, /pnpm run check/);
   assert.match(prepare, /pnpm run verify:pack/);
+  const exact = prepare.split('      - name: Verify the exact release artifacts')[1];
+  assert.match(exact, /pnpm run verify:memory-consumer/);
+  assert.match(exact, /AGENTPLAT_PREPACKED_TARBALL_DIRECTORY/);
+  assert.match(exact, /AGENTPLAT_POSTGRES_TEST: "1"/);
+  assert.match(exact, /PGDATABASE: agentplat_release/);
   assert.match(publish, /needs: prepare/);
   assert.match(publish, /environment: npm-release/);
   assert.match(publish, /AGENTPLAT_NPM_DIRECT_PUBLISH_CONFIRMED/);

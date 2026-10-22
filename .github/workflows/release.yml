@@ -118,8 +118,16 @@ jobs:
             pnpm run verify:pack
             pnpm run verify:action-control-consumer
             pnpm run verify:runner-consumer
+            pnpm run verify:memory-consumer
+            pnpm run verify:planner-consumer
+            pnpm run verify:artifacts-consumer
           fi
         env:
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_release
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
           AGENTPLAT_PREPACKED_TARBALL_DIRECTORY: ${{ github.workspace }}/release-artifacts
           RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release
           PGUSER: agentplat_release

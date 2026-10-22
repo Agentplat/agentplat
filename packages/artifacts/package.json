@@ -1,0 +1,39 @@
+{
+  "name": "@agentplat/artifacts",
+  "version": "1.4.0",
+  "description": "Tenant-scoped durable artifact contracts and agent tools for AgentPlat.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "pnpm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@agentplat/core": "workspace:^",
+    "@agentplat/tools": "workspace:^",
+    "@agentplat/events": "workspace:^"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agentplat/agentplat.git",
+    "directory": "packages/artifacts"
+  }
+}

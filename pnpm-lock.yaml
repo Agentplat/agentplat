@@ -20,6 +20,12 @@ importers:
 
   .:
     devDependencies:
+      '@agentplat/artifacts':
+        specifier: workspace:*
+        version: link:packages/artifacts
+      '@agentplat/artifacts-postgres':
+        specifier: workspace:*
+        version: link:packages/artifacts-postgres
       '@agentplat/assessor-typesafe':
         specifier: workspace:*
         version: link:packages/assessor-typesafe
@@ -251,6 +257,40 @@ importers:
       '@agentplat/agent-registry':
         specifier: workspace:^
         version: link:../agent-registry
+      '@agentplat/postgres':
+        specifier: workspace:^
+        version: link:../postgres
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.3
+        version: 26.6.3
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+
+  packages/artifacts:
+    dependencies:
+      '@agentplat/core':
+        specifier: workspace:^
+        version: link:../core
+      '@agentplat/events':
+        specifier: workspace:^
+        version: link:../events
+      '@agentplat/tools':
+        specifier: workspace:^
+        version: link:../tools
+
+  packages/artifacts-postgres:
+    dependencies:
+      '@agentplat/artifacts':
+        specifier: workspace:^
+        version: link:../artifacts
+      '@agentplat/events':
+        specifier: workspace:^
+        version: link:../events
       '@agentplat/postgres':
         specifier: workspace:^
         version: link:../postgres

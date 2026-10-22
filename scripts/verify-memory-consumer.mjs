@@ -17,6 +17,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertPackedInternalDependencyRanges } from "./packed-manifest.mjs";
+import { loadPublicPackageCatalog } from "./public-package-catalog.mjs";
+import { selectPublishablePackages } from "./publish-packages.mjs";
+import { RELEASE_ARTIFACT_MANIFEST } from "./prepare-npm-release-artifacts.mjs";
+import {
+  validateReleaseArtifactManifest,
+  verifyReleaseArtifactFiles,
+} from "./stage-npm-release-artifacts.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
@@ -313,6 +320,40 @@ try {
       "@agentplat/workflows-rooms",
     ];
     for (const name of roots) select(name);
+    const suppliedArtifacts = process.env.AGENTPLAT_PREPACKED_TARBALL_DIRECTORY;
+    let preparedManifest;
+    if (suppliedArtifacts) {
+      preparedManifest = await readJson(
+        path.join(suppliedArtifacts, RELEASE_ARTIFACT_MANIFEST),
+      );
+      const catalog = await loadPublicPackageCatalog(root);
+      const expectedNames = selectPublishablePackages({
+        catalog,
+        root,
+        scope: "all",
+      })
+        .map((p) => p.name)
+        .sort();
+      assert.equal(
+        preparedManifest.scope,
+        "all",
+        "Memory requires the full prepared cohort",
+      );
+      validateReleaseArtifactManifest(preparedManifest, {
+        expectedCommit: run("git", ["rev-parse", "HEAD"]).trim(),
+        expectedDistTag: process.env.NPM_DIST_TAG ?? "next",
+        expectedPackageNames: expectedNames,
+      });
+      assert.equal(
+        preparedManifest.releaseVersion,
+        (await readJson(path.join(root, "package.json"))).version,
+      );
+      await verifyReleaseArtifactFiles({
+        artifactDirectory: path.resolve(suppliedArtifacts),
+        manifest: preparedManifest,
+        environment: process.env,
+      });
+    }
     const names = [...selected].sort();
     const versions = new Set(
       names.map((name) => manifests.get(name).manifest.version),
@@ -346,8 +387,9 @@ try {
       sourceDigest = sha(JSON.stringify(sourceFiles));
     const bundle = path.join(
       root,
-      "release-artifacts",
-      "memory-preview",
+      ...(suppliedArtifacts
+        ? ["dependency-audit", "memory-consumer"]
+        : ["release-artifacts", "memory-preview"]),
       new Date().toISOString().replaceAll(":", "-") +
         "-" +
         sourceDigest.slice(0, 12),
@@ -355,31 +397,50 @@ try {
     await mkdir(path.join(bundle, "tarballs"), { recursive: true });
     await mkdir(path.join(bundle, "consumer"));
     console.log(
-      "Building and packing " + names.length + " coordinated packages...",
+      (suppliedArtifacts ? "Consuming prepared" : "Building and packing") +
+        " " +
+        names.length +
+        " coordinated packages...",
     );
-    run("pnpm", [
-      ...roots.flatMap((name) => ["--filter", name + "..."]),
-      "build",
-    ]);
+    if (!suppliedArtifacts)
+      run("pnpm", [
+        ...roots.flatMap((name) => ["--filter", name + "..."]),
+        "build",
+      ]);
     const packages = [];
     for (const name of names) {
       const { directory, manifest } = manifests.get(name);
-      run(
-        "pnpm",
-        ["pack", "--pack-destination", path.join(bundle, "tarballs")],
-        directory,
-      );
+      if (!suppliedArtifacts)
+        run(
+          "pnpm",
+          ["pack", "--pack-destination", path.join(bundle, "tarballs")],
+          directory,
+        );
       const filename =
         name.replace("@", "").replace("/", "-") +
         "-" +
         manifest.version +
         ".tgz";
       const archive = path.join(bundle, "tarballs", filename);
+      if (suppliedArtifacts)
+        await copyFile(path.join(suppliedArtifacts, filename), archive);
       const packed = JSON.parse(
         run("tar", ["-xOf", archive, "package/package.json"]),
       );
       assertPackedInternalDependencyRanges(packed);
       const bytes = await readFile(archive);
+      if (preparedManifest) {
+        const expected = preparedManifest.artifacts.find(
+          (a) => a.name === name,
+        );
+        assert.equal(bytes.length, expected.size);
+        assert.equal(
+          "sha512-" + createHash("sha512").update(bytes).digest("base64"),
+          expected.integrity,
+          "Copied memory input must match prepared release bytes",
+        );
+        assert.equal(packed.version, expected.version);
+      }
       packages.push({
         name,
         version: packed.version,
@@ -493,6 +554,17 @@ try {
       kind: "persistent-memory-source-preview",
       published: false,
       sourceCommit: run("git", ["rev-parse", "HEAD"]).trim(),
+      ...(preparedManifest
+        ? {
+            inputRelease: {
+              manifestDigest: preparedManifest.manifestDigest,
+              sourceCommit: preparedManifest.sourceCommit,
+              releaseVersion: preparedManifest.releaseVersion,
+              distTag: preparedManifest.distTag,
+              scope: preparedManifest.scope,
+            },
+          }
+        : {}),
       workingTreeDirty: !!run("git", ["status", "--porcelain"]).trim(),
       sourceDigest,
       sourceFiles,

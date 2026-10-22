@@ -31,6 +31,26 @@
       "packSmoke": true
     },
     {
+      "name": "@agentplat/artifacts",
+      "directory": "packages/artifacts",
+      "layer": "collaboration",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [
+        "."
+      ],
+      "packSmoke": true
+    },
+    {
+      "name": "@agentplat/artifacts-postgres",
+      "directory": "packages/artifacts-postgres",
+      "layer": "adapter",
+      "publish": true,
+      "providerNeutral": true,
+      "browserEntrypoints": [],
+      "packSmoke": true
+    },
+    {
       "name": "@agentplat/assessor-typesafe",
       "directory": "packages/assessor-typesafe",
       "layer": "adapter",

@@ -224,8 +224,8 @@ test("public package catalog is the ordered allowlist for release and pack smoke
     catalog.packages.map((entry) => entry.name),
     expectedPublicNames,
   );
-  assert.equal(expectedPublicPackageCount, 68);
-  assert.equal(publishable.length, 68);
+  assert.equal(expectedPublicPackageCount, 70);
+  assert.equal(publishable.length, 70);
   assert.deepEqual(
     catalog.packages
       .filter((entry) => !entry.publish)
@@ -242,6 +242,8 @@ test("public package catalog is the ordered allowlist for release and pack smoke
     ["@agentplat/a2a", "adapter", []],
     ["@agentplat/agent-registry", "collaboration", ["."]],
     ["@agentplat/agent-registry-postgres", "adapter", []],
+    ["@agentplat/artifacts", "collaboration", ["."]],
+    ["@agentplat/artifacts-postgres", "adapter", []],
   ]) {
     assert.deepEqual(
       catalog.packages.find((entry) => entry.name === name),
