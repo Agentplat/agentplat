@@ -192,8 +192,14 @@ test("publishes only exact tarballs, dependencies first, from a credential-free 
     assert(c.args.includes("--ignore-scripts"));
     assert(c.args.includes("--provenance"));
     assert(c.args.includes("--registry=https://registry.npmjs.org/"));
-    assert.equal(c.opts.environment.NPM_CONFIG_USERCONFIG, path.join(c.opts.cwd, "user.npmrc"));
-    assert.equal(c.opts.environment.NPM_CONFIG_GLOBALCONFIG, path.join(c.opts.cwd, "global.npmrc"));
+    assert.equal(
+      c.opts.environment.NPM_CONFIG_USERCONFIG,
+      path.join(c.opts.cwd, "user.npmrc"),
+    );
+    assert.equal(
+      c.opts.environment.NPM_CONFIG_GLOBALCONFIG,
+      path.join(c.opts.cwd, "global.npmrc"),
+    );
     assert.notEqual(c.opts.cwd, f.root);
     assert.notEqual(c.opts.cwd, f.dir);
   }
@@ -429,7 +435,9 @@ test("the workflow keeps preparation unprivileged, publication gated and registr
   );
   const prepare = text.split("\n  prepare:")[1].split("\n  publish:")[0];
   const publish = text.split("\n  publish:")[1].split("\n  verify:")[0];
-  const verify = text.split("\n  verify:")[1];
+  const verify = text
+    .split("\n  verify:")[1]
+    .split("\n  validate-artifact-oidc:")[0];
   assert.match(text, /dry_run:[\s\S]*?default: true/);
   assert.match(
     prepare,
@@ -438,7 +446,9 @@ test("the workflow keeps preparation unprivileged, publication gated and registr
   assert.doesNotMatch(prepare, /id-token: write/);
   assert.match(prepare, /pnpm run check/);
   assert.match(prepare, /pnpm run verify:pack/);
-  const exact = prepare.split('      - name: Verify the exact release artifacts')[1];
+  const exact = prepare.split(
+    "      - name: Verify the exact release artifacts",
+  )[1];
   assert.match(exact, /pnpm run verify:memory-consumer/);
   assert.match(exact, /AGENTPLAT_PREPACKED_TARBALL_DIRECTORY/);
   assert.match(exact, /AGENTPLAT_POSTGRES_TEST: "1"/);
@@ -454,7 +464,7 @@ test("the workflow keeps preparation unprivileged, publication gated and registr
   assert.match(verify, /node-version: 22\.22\.0/);
 });
 
- test("real npm loads the isolated publication configuration", async (t) => {
+test("real npm loads the isolated publication configuration", async (t) => {
   const f = await fixture(t);
   await publishDirectNpmRelease({
     ...f,
