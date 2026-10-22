@@ -666,6 +666,10 @@ record](../docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/collective-sync-postgres`       | Durable causal sync and execution-checkpoint evidence in PostgreSQL.                                                       |
 | `@agentplat/planning-artifacts`             | Signed planning artifacts with source-first and certified multi-source availability.                                       |
 | `@agentplat/planning-artifacts-postgres`    | Immutable artifact and replication-evidence persistence in PostgreSQL.                                                     |
+| `@agentplat/artifacts`                      | Tenant-scoped durable application artifacts, revisioned writes, agent tools and reference events.                          |
+| `@agentplat/artifacts-postgres`              | PostgreSQL artifact heads and immutable revisions with transactional compare-and-set writes.                               |
+| `@agentplat/artifacts`                      | Tenant-scoped durable application artifacts, revisioned writes, agent tools and reference events.                          |
+| `@agentplat/artifacts-postgres`              | PostgreSQL artifact heads and immutable revisions with transactional compare-and-set writes.                               |
 | `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.                                                          |
 | `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                                                                               |
 | `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                                                                           |

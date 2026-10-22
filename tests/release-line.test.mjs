@@ -441,3 +441,12 @@ test("Stable 1.4 requires one complete 68-package cohort and rejects mixed 1.3 v
   assert.equal(await assertReleaseLine({ root: good }), true);
   await assert.rejects(assertReleaseLine({ root: mixed }), /must use 1\.4\.0/);
 });
+
+test("Stable 1.4 artifacts cohort includes Planner packages and preserves all published package requirements", async (t) => {
+  const line = RELEASE_LINES.find((entry) => entry.id === "stable1-4-artifacts");
+  const good = await createReleaseLineFixture({ line });
+  const missing = await createReleaseLineFixture({ line, includeRequired: false });
+  t.after(() => Promise.all([good, missing].map((root) => rm(root, { force: true, recursive: true }))));
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(() => assertReleaseLine({ root: missing }));
+});

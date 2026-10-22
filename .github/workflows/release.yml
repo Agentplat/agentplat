@@ -120,6 +120,7 @@ jobs:
             pnpm run verify:runner-consumer
             pnpm run verify:memory-consumer
             pnpm run verify:planner-consumer
+            pnpm run verify:artifacts-consumer
           fi
         env:
           AGENTPLAT_POSTGRES_TEST: "1"

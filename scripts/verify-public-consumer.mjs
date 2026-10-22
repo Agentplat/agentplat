@@ -12,10 +12,14 @@ const purposeGovernance = process.argv.includes('--purpose-governance');
 const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
 const roomPlanner = process.argv.includes('--room-planner');
+const artifactsConsumer = process.argv.includes('--artifacts');
 if (roomPlanner) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Room Planner consumer verification requires an isolated PostgreSQL test database');
+if (artifactsConsumer) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
+  'Artifacts consumer verification requires an isolated PostgreSQL test database');
 const targets = Object.freeze([
   ...(roomPlanner ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
+  ...(artifactsConsumer ? ['@agentplat/artifacts', '@agentplat/artifacts-postgres'] : []),
   ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
   ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
@@ -87,9 +91,10 @@ try {
         version: '1.0.0',
         private: true,
         type: 'module',
-        dependencies: Object.fromEntries(
-          [...tarballs].sort(([left], [right]) => left.localeCompare(right)),
-        ),
+        dependencies: Object.fromEntries([
+          ...[...tarballs].sort(([left], [right]) => left.localeCompare(right)),
+          ...(artifactsConsumer ? [['pg', '^8.23.0']] : []),
+        ]),
       },
       null,
       2,
@@ -169,6 +174,52 @@ try {
     config.include.push('room-planner.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
     execFileSync(process.execPath, ['room-planner.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+  }
+  if (artifactsConsumer) {
+    await writeFile(path.join(consumerRoot, 'artifacts.mjs'), `import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { Pool } from 'pg';
+import { ArtifactError, ArtifactService, drainArtifactOutbox } from '@agentplat/artifacts';
+import { PostgresArtifactStore, getMigrationStatus, runMigrations } from '@agentplat/artifacts-postgres';
+
+const pool = new Pool({ host: process.env.PGHOST, port: Number(process.env.PGPORT || 5432), database: process.env.PGDATABASE, user: process.env.PGUSER, password: process.env.PGPASSWORD });
+const schema = 'artifact_consumer_' + randomUUID().replaceAll('-', '');
+try {
+  assert.equal((await runMigrations(pool, { schema, createSchema: true })).currentVersion, 2);
+  assert.deepEqual((await getMigrationStatus(pool, { schema })).pendingVersions, []);
+  const store = new PostgresArtifactStore(pool, schema);
+  const delivered = [];
+  let failOnce = true;
+  const publisher = { publish: async (event) => { if (failOnce) { failOnce = false; throw new Error('temporary delivery failure'); } delivered.push(event); } };
+  const service = new ArtifactService({ store, events: publisher, maximumContentBytes: 4096 });
+  const owner = { tenantId: 'consumer-tenant', actor: { actorId: 'consumer-owner', actorType: 'human' } };
+  const created = await service.create(owner, { name: 'view.html', format: 'html', content: '<h1>inert</h1>', roomId: 'room-1' });
+  await assert.rejects(service.read({ tenantId: 'other-tenant', actor: owner.actor }, created.id), (error) => error instanceof ArtifactError && error.code === 'not_found');
+  assert.equal((await service.read(owner, created.id)).revision.content, '<h1>inert</h1>');
+  assert.equal(await drainArtifactOutbox(store, publisher), 1);
+  assert.equal(delivered[0].type, 'artifact.created');
+  const updates = await Promise.allSettled([
+    service.update(owner, { artifactId: created.id, expectedRevision: 1, content: '<h1>revision two</h1>' }),
+    service.update(owner, { artifactId: created.id, expectedRevision: 1, content: '<h1>stale</h1>' }),
+  ]);
+  assert.equal(updates.filter((item) => item.status === 'fulfilled').length, 1);
+  assert.equal(updates.filter((item) => item.status === 'rejected' && item.reason.code === 'conflict').length, 1);
+  const restarted = new PostgresArtifactStore(pool, schema);
+  assert.equal((await restarted.get(owner.tenantId, created.id)).artifact.revision, 2);
+  assert.deepEqual((await restarted.listRevisions(owner.tenantId, created.id)).map((item) => item.revision), [1, 2]);
+  assert.equal(delivered.filter((event) => event.type === 'artifact.updated').length, 1);
+  console.log('Packed artifacts consumer passed PostgreSQL migrations, tenant isolation, revision CAS and outbox retry.');
+} finally {
+  await pool.query('DROP SCHEMA IF EXISTS "' + schema + '" CASCADE').catch(() => undefined);
+  await pool.end();
+}
+`);
+    await writeFile(path.join(consumerRoot, 'artifacts.mts'),
+      await readFile(path.join(root, 'tests/artifacts-public-contracts.test.mts'), 'utf8'));
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('artifacts.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+    execFileSync(process.execPath, ['artifacts.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }
   if(optionalJev){
     await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));

@@ -1,7 +1,7 @@
 # Agent Room Planner 1.4.0 adoption
 
 Status: coordinated release preparation. Publication is complete only when the
-protected workflow verifies the full 68-package registry cohort and its exact
+protected workflow verifies the full 70-package registry cohort and its exact
 artifact manifest. This guide does not authorize production migrations or flags.
 
 ## Cohort and verification
@@ -12,7 +12,7 @@ replaced in npm. The new 1.4.0 cohort combines the reviewed current main baselin
 its opt-in memory profile and the Planner source from PR #221. Local uncommitted
 Event intake, research and other unrelated changes are excluded.
 
-All 68 packages must use the same release version. The Grishen dependency closure
+All 70 packages must use the same release version. The Grishen dependency closure
 is a consumer verification set, not a partial substitute for the coordinated
 release. Preserve published 1.3.0 and the historical 1.1.0 model-study manifests.
 The historical synthetic qualification does not qualify new package bytes or

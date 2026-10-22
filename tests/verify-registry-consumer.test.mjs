@@ -6,6 +6,7 @@ import {
   registryConsumerEnvironments,
   registryConsumerManifest,
   REGISTRY_ALPHA5_PACKAGES,
+  REGISTRY_ARTIFACT_PACKAGES,
   REGISTRY_COLLECTIVE_PLANNING_PACKAGE,
   REGISTRY_COLLECTIVE_QUORUM_PACKAGES,
   REGISTRY_COLLECTIVE_RUNTIME_PACKAGE,
@@ -19,7 +20,7 @@ import {
   REGISTRY_TRUST_PACKAGE,
 } from "../scripts/verify-registry-consumer.mjs";
 
-test("registry consumer pins all 68 public packages to the exact release version", async () => {
+test("registry consumer pins all 70 public packages to the exact release version", async () => {
   const manifest = registryConsumerManifest("0.3.0-alpha.1");
   assert.deepEqual(Object.keys(manifest.dependencies), [...REGISTRY_PACKAGES]);
   assert.deepEqual(
@@ -27,7 +28,7 @@ test("registry consumer pins all 68 public packages to the exact release version
     new Set(["0.3.0-alpha.1"]),
   );
   assert.equal(manifest.private, true);
-  assert.equal(REGISTRY_PACKAGES.length, 68);
+  assert.equal(REGISTRY_PACKAGES.length, 70);
   const catalog = JSON.parse(
     await readFile(
       new URL("../config/public-packages.json", import.meta.url),
@@ -69,6 +70,17 @@ test("registry consumer includes planning artifacts and durable storage", () => 
     REGISTRY_PLANNING_ARTIFACT_PACKAGES.every((name) =>
       REGISTRY_PACKAGES.includes(name),
     ),
+    true,
+  );
+});
+
+test("registry consumer includes application artifacts and PostgreSQL storage", () => {
+  assert.deepEqual(REGISTRY_ARTIFACT_PACKAGES, [
+    "@agentplat/artifacts",
+    "@agentplat/artifacts-postgres",
+  ]);
+  assert.equal(
+    REGISTRY_ARTIFACT_PACKAGES.every((name) => REGISTRY_PACKAGES.includes(name)),
     true,
   );
 });

@@ -47,6 +47,10 @@ export const REGISTRY_PLANNING_ARTIFACT_PACKAGES = Object.freeze([
   "@agentplat/planning-artifacts",
   "@agentplat/planning-artifacts-postgres",
 ]);
+export const REGISTRY_ARTIFACT_PACKAGES = Object.freeze([
+  "@agentplat/artifacts",
+  "@agentplat/artifacts-postgres",
+]);
 export const REGISTRY_TRUST_PACKAGE = "@agentplat/trust";
 export const REGISTRY_ALPHA5_PACKAGES = Object.freeze([
   "@agentplat/mesh-http",
@@ -57,6 +61,8 @@ export const REGISTRY_PACKAGES = Object.freeze([
   "@agentplat/a2a",
   "@agentplat/agent-registry",
   "@agentplat/agent-registry-postgres",
+  "@agentplat/artifacts",
+  "@agentplat/artifacts-postgres",
   "@agentplat/assessor-typesafe",
   "@agentplat/audit",
   "@agentplat/audit-postgres",
