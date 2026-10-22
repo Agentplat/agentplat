@@ -1,3 +1,4 @@
+import { rollbackMigrations } from './planner-migration-head.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
@@ -8,7 +9,6 @@ import {
   PostgresAgentGovernanceStoreV1,
   PostgresAgentExecutionStoreV1,
   runMigrations,
-  rollbackMigrations,
   rollbackConfirmation,
 } from "../dist/index.js";
 import { executionScenarios } from "../../../tests/helpers/agent-execution-scenarios.mjs";
@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        18,
+        19,
       );
       await rollbackMigrations(pool, {
         schema,
@@ -48,7 +48,7 @@ test(
         ).currentVersion,
         15,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 18);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
       const result = await executionScenarios({
         store: new PostgresAgentExecutionStoreV1(pool, { schema }),
         governance: new PostgresAgentGovernanceStoreV1(pool, { schema }),

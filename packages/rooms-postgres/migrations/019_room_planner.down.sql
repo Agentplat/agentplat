@@ -1,0 +1,3 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.room_planner_call_results;
+DROP TABLE __AGENTPLAT_SCHEMA__.room_planner_history;
+DROP TABLE __AGENTPLAT_SCHEMA__.room_planner_states;

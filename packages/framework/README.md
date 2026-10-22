@@ -154,3 +154,10 @@ Use the package root (`@agentplat/framework`) only in server code or shared
 code that does not enter a Client Component graph. `@agentplat/rooms`,
 `@agentplat/rooms-postgres` and `@agentplat/rooms-api` are server-side
 entrypoints and must never be imported by browser bundles.
+
+## Room Planner source preview
+
+`createAgentRoomPlanner` composes opt-in persistent Room objectives, specialist delegation,
+shared budgets and outcome review. `createRuntimeRoomPlannerReasoner` supplies a model
+adapter; execution authority remains in the injected Room/workflow boundaries. See the
+[Planner integration and evidence limits](../../docs/planner/README.md).

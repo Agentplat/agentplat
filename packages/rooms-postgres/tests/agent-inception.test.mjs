@@ -1,3 +1,4 @@
+import { rollbackMigrations } from './planner-migration-head.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
@@ -9,7 +10,6 @@ import {
   PostgresAgentInceptionStoreV1,
   PostgresRoomRepository,
   runMigrations,
-  rollbackMigrations,
   rollbackConfirmation,
 } from "../dist/index.js";
 import { inceptionScenarios } from "../../../tests/helpers/agent-inception-scenarios.mjs";
@@ -24,7 +24,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        18,
+        19,
       );
       const result = await inceptionScenarios({
         governance: new PostgresAgentGovernanceStoreV1(pool, { schema }),
@@ -115,7 +115,7 @@ test(
         ).currentVersion,
         13,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 18);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await pool.end();

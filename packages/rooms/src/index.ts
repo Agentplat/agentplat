@@ -42,6 +42,9 @@ export * from "./agent-continuity.js";
 
 export * from "./governed-handoff.js";
 
+export * from './room-planner.js';
+export * from './room-planner-runtime.js';
+
 export * from './memory-revisions.js';
 export * from './memory-revision-tools.js';
 export * from './definition-change.js';
