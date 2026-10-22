@@ -221,7 +221,8 @@
     "verify:action-control": "node scripts/verify-action-control.mjs",
     "verify:runner-consumer": "node scripts/verify-runner-consumer.mjs",
     "test:runner": "pnpm --filter @agentplat/runner-hub... build && pnpm --filter @agentplat/runner-hub test",
-    "verify:memory-consumer": "node scripts/verify-memory-consumer.mjs"
+    "verify:memory-consumer": "node scripts/verify-memory-consumer.mjs",
+    "verify:planner-consumer": "node scripts/verify-public-consumer.mjs --room-planner"
   },
   "devDependencies": {
     "@agentplat/audit": "workspace:*",

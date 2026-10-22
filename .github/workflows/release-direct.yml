@@ -128,6 +128,7 @@ jobs:
             pnpm run verify:action-control-consumer
             pnpm run verify:runner-consumer
             pnpm run verify:memory-consumer
+            pnpm run verify:planner-consumer
           fi
         env:
           AGENTPLAT_POSTGRES_TEST: "1"
@@ -251,6 +252,18 @@ jobs:
           RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release_verify
           PGUSER: agentplat_release_verify
           PGPASSWORD: agentplat_release_verify
+      - name: Verify Room Planner registry APIs and coordinated migrations
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:planner-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_release_verify
+          PGUSER: agentplat_release_verify
+          PGPASSWORD: agentplat_release_verify
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Verify complete coordinated registry distribution
         if: ${{ inputs.scope == 'all' }}
         run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "$NPM_DIST_TAG"

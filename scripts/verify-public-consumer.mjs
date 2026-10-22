@@ -11,7 +11,11 @@ const root = process.cwd();
 const purposeGovernance = process.argv.includes('--purpose-governance');
 const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
+const roomPlanner = process.argv.includes('--room-planner');
+if (roomPlanner) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
+  'Room Planner consumer verification requires an isolated PostgreSQL test database');
 const targets = Object.freeze([
+  ...(roomPlanner ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
   ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
   ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
@@ -155,6 +159,16 @@ try {
     const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
     config.include.push('*.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+  }
+  if (roomPlanner) {
+    await writeFile(path.join(consumerRoot, 'room-planner.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/room-planner.mjs'), 'utf8'));
+    await writeFile(path.join(consumerRoot, 'room-planner.mts'),
+      await readFile(path.join(root, 'tests/rooms-room-planner-public-contracts.test.mts'), 'utf8'));
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('room-planner.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+    execFileSync(process.execPath, ['room-planner.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }
   if(optionalJev){
     await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));

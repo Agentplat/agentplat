@@ -119,6 +119,7 @@ jobs:
             pnpm run verify:action-control-consumer
             pnpm run verify:runner-consumer
             pnpm run verify:memory-consumer
+            pnpm run verify:planner-consumer
           fi
         env:
           AGENTPLAT_POSTGRES_TEST: "1"

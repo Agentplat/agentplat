@@ -115,6 +115,18 @@ jobs:
           PGUSER: agentplat_release_verify
           PGPASSWORD: agentplat_release_verify
           NPM_CONFIG_USERCONFIG: /dev/null
+      - name: Verify Room Planner registry APIs and coordinated migrations
+        if: ${{ inputs.scope == 'all' }}
+        run: pnpm run verify:planner-consumer
+        env:
+          AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
+          AGENTPLAT_POSTGRES_TEST: "1"
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGDATABASE: agentplat_release_verify
+          PGUSER: agentplat_release_verify
+          PGPASSWORD: agentplat_release_verify
+          NPM_CONFIG_USERCONFIG: /dev/null
       - name: Verify complete coordinated public distribution
         if: ${{ inputs.scope == 'all' }}
         run: node scripts/npm-distribution-readiness.mjs --require-complete --tag "${{ inputs.dist_tag }}"
