@@ -1,3 +1,4 @@
+import { canonicalPlannerJson } from "./planner-json.js";
 import { AgentPlatError } from "@agentplat/core";
 import type { JsonObject } from "@agentplat/core";
 import type { HumanContributionCoordinator } from "./human-contribution.js";
@@ -52,6 +53,8 @@ export interface AgentRoomPlan {
   planId: string;
   planVersion: number;
   predecessorPlanId?: string;
+  /** Stable objective namespace for reusable task identities across plan versions. */
+  taskIdentityPrefix?: string;
   replanTrigger?: { eventId: string; eventType: string };
   objective: string;
   steps: AgentRoomPlanStep[];
@@ -143,11 +146,22 @@ export class AgentRoomPlannerBridge {
     planId: string;
     planVersion?: number;
     predecessorPlanId?: string;
+    taskIdentityPrefix?: string;
     replanTrigger?: { eventId: string; eventType: string };
     objective: string;
     steps: AgentRoomPlanStep[];
   }) {
     validateSteps(input.steps);
+    if (
+      input.taskIdentityPrefix !== undefined &&
+      (typeof input.taskIdentityPrefix !== "string" ||
+        !input.taskIdentityPrefix.trim() ||
+        input.taskIdentityPrefix.length > 512)
+    )
+      throw new AgentPlatError(
+        "VALIDATION_ERROR",
+        "Task identity prefix must be bounded nonempty text",
+      );
     if (input.predecessorPlanId) {
       const predecessor = await this.get({
         tenantId: input.tenantId,
@@ -176,7 +190,18 @@ export class AgentRoomPlannerBridge {
     };
     if (!(await this.store.compareAndSet({ expectedRevision: null, state }))) {
       const existing = await this.get(input);
-      if (JSON.stringify(existing.steps) === JSON.stringify(state.steps))
+      const definition = (plan: AgentRoomPlan) => ({
+        steps: plan.steps,
+        objective: plan.objective,
+        planVersion: plan.planVersion,
+        predecessorPlanId: plan.predecessorPlanId,
+        taskIdentityPrefix: plan.taskIdentityPrefix,
+        replanTrigger: plan.replanTrigger,
+      });
+      if (
+        canonicalPlannerJson(definition(existing)) ===
+        canonicalPlannerJson(definition(state))
+      )
         return existing;
       throw new AgentPlatError("CONFLICT", "Agent Room plan already exists");
     }
@@ -204,9 +229,22 @@ export class AgentRoomPlannerBridge {
         )
       )
         continue;
-      const id = `plan:${current.planId}:${step.stepId}`;
+      const id = `plan:${current.taskIdentityPrefix ?? current.planId}:${current.taskIdentityPrefix ? encodeURIComponent(step.stepId) : step.stepId}`;
       if (step.kind === "agent_task") {
         const existing = room.tasks.find((task) => task.id === id);
+        if (
+          existing &&
+          current.taskIdentityPrefix &&
+          (existing.assignedParticipantId !== step.participantId ||
+            existing.instruction !== step.instruction ||
+            existing.expectedOutput !== step.expectedOutput ||
+            existing.expectedArtifactKind !== step.expectedArtifactKind ||
+            existing.actionLevel !== (step.actionLevel ?? "draft"))
+        )
+          throw new AgentPlatError(
+            "CONFLICT",
+            "Reusable plan task has different content or assignment",
+          );
         const task =
           existing ??
           (await this.rooms.createTask(input.tenantId, input.roomId, {
@@ -230,6 +268,8 @@ export class AgentRoomPlannerBridge {
             metadata: { planId: current.planId, planStepId: step.stepId },
           }));
         materialized[step.stepId] = task.id;
+        if (task.status === "completed")
+          current.stepStatuses[step.stepId] = "completed";
       } else if (step.kind === "human_contribution") {
         const contribution = await this.contributions.request({
           tenantId: input.tenantId,
@@ -347,10 +387,12 @@ export class AgentRoomPlannerBridge {
     }
     const plans = await this.store.list(input.tenantId, input.roomId);
     const updated: AgentRoomPlan[] = [];
-    for (const plan of plans.filter((candidate) =>
-      (!input.planId || candidate.planId === input.planId) && ["active", "waiting_for_human", "materializing"].includes(
-        candidate.status,
-      ),
+    for (const plan of plans.filter(
+      (candidate) =>
+        (!input.planId || candidate.planId === input.planId) &&
+        ["active", "waiting_for_human", "materializing"].includes(
+          candidate.status,
+        ),
     )) {
       const stepStatuses = { ...plan.stepStatuses };
       for (const step of plan.steps) {

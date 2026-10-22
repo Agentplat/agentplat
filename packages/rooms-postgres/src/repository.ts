@@ -771,6 +771,20 @@ class PostgresRoomTransaction
     );
   }
 
+  async insertMessageIfAbsent(message: RoomMessage) {
+    this.assertEntityTenant(message);
+    const inserted = await this.database.query(
+      `INSERT INTO public.messages (tenant_id,id,room_id,author_participant_id,role,content,metadata,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8) ON CONFLICT (tenant_id,id) DO NOTHING RETURNING *`,
+      [message.tenantId,message.id,message.roomId,message.authorParticipantId ?? null,message.role,
+       message.content,json(message.metadata ?? {}),message.createdAt],
+    );
+    if (inserted.rows[0]) return { message: mapMessage(inserted.rows[0]), inserted: true };
+    const old = await this.database.query(`SELECT * FROM public.messages WHERE tenant_id=$1 AND id=$2`, [message.tenantId,message.id]);
+    if (!old.rows[0]) throw new AgentPlatError("CONFLICT", "Message insert conflict; retry");
+    return { message: mapMessage(old.rows[0]), inserted: false };
+  }
+
   async insertTask(task: RoomTask): Promise<void> {
     this.assertEntityTenant(task);
     await this.database.query(
