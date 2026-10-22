@@ -1,0 +1,2 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.memory_revisions;
+DROP TABLE __AGENTPLAT_SCHEMA__.memory_revision_heads;

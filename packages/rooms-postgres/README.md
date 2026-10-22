@@ -198,3 +198,10 @@ Migration 019 adds CAS Room Planner state, revision history and workflow result 
 `PostgresRoomPlannerStore` and `PostgresRoomPlannerCallResults` perform no constructor I/O.
 Apply migrations through the existing ledger. See [Room Planner](../../docs/planner/README.md)
 for budget, recovery, retention and source-distribution boundaries.
+
+## Versioned memory (opt-in source profile)
+
+`PostgresMemoryRevisionStoreV1` persists immutable memory revisions/audit and their
+CAS head atomically. Initialize explicitly with `runMemoryRevisionMigrations`;
+this uses a separate ledger and does not advance the legacy Room migration head.
+See [integration, retention and rollback boundaries](../../docs/architecture/persistent-agent-learning-implementation.md).

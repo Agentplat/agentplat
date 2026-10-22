@@ -44,3 +44,5 @@ export { PostgresPurposeMissionStoreV1 } from "./purpose-mission-store.js";
 export { PostgresAgentContinuityStoreV1 } from "./agent-continuity-store.js";
 
 export { PostgresRoomPlannerStore, PostgresRoomPlannerCallResults } from './room-planner-store.js';
+
+export * from './memory-revision-store.js';
