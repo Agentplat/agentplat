@@ -145,3 +145,24 @@ test("validation dispatch cannot fall through into release preparation or public
   assert.match(validationJob, /id-token: write/);
   assert(!validationJob.includes("publish-direct-npm-release.mjs"));
 });
+
+test("accepts live npm responses without optional timestamp metadata", async () => {
+  let calls = 0;
+  const report = await validateArtifactNpmOidc({
+    environment,
+    now,
+    fetchImplementation: async () =>
+      ++calls === 1
+        ? { status: 200, json: async () => ({ value: "id-secret" }) }
+        : {
+            status: 201,
+            json: async () => ({ token_type: "oidc", token: "npm-secret" }),
+          },
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(
+    report.packages,
+    OIDC_VALIDATION_PACKAGES.map((name) => ({ name, exchange: "accepted" })),
+  );
+  assert(!JSON.stringify(report).includes("secret"));
+});
