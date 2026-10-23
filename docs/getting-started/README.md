@@ -29,7 +29,15 @@ is a separate, pending usability evaluation.
 
 See [Adopting AgentPlat 1.1.0](adopting-1.1.md) to keep instruction-driven work or opt into governed purpose execution.
 
+## Historical upgrade: 1.2
+
+The following guide records the 1.2.0 standalone action-controls release. For current package selection see the 1.4.0 release notes.
+
 ## Upgrading to 1.2
 
-See [Adopting AgentPlat 1.2.0](adopting-1.2.md) for optional standalone action
-approvals, reservations, revocation and recovery. Existing behavior stays configured.
+See [Adopting AgentPlat 1.2.0](adopting-1.2.md) for its historical standalone action-control upgrade notes. The current package release is 1.4.0; see the section below.
+
+
+## Upgrading to 1.4
+
+See the [verified 1.4.0 distribution and adoption notes](../releases/1.4.0-distribution.md), [Planner migration and activation guide](../releases/room-planner-1.4.0-adoption.md), and [persistent-memory consumer guide](persistent-memory-consumer.md). Planner, memory and artifact profiles are opt-in and require explicit migrations where applicable.

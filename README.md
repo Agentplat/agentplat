@@ -8,7 +8,7 @@ AgentPlat is an open-source TypeScript framework for persistent human-agent coll
 
 [Website](https://agentplat.com) · [Documentation](https://doc.agentplat.com) · [GitHub](https://github.com/Agentplat/agentplat)
 
-> AgentPlat **1.2.0** is available on npm under `latest`, adding opt-in standalone governed actions while preserving existing behavior. See the [verified distribution record](docs/releases/stable1-2-distribution-20260930.md), [1.2 adoption guide](docs/getting-started/adopting-1.2.md), [stability contract](docs/stability.md) and [production guide](docs/production.md).
+> AgentPlat **1.4.0** is published on npm under `latest` across 70 coordinated packages. The release adds opt-in Agent Room Planner, persistent memory/reviewed definitions and optional versioned artifacts. See the [verified release record](docs/releases/1.4.0-distribution.md), [Planner adoption guide](docs/releases/room-planner-1.4.0-adoption.md), [persistent-memory consumer guide](docs/getting-started/persistent-memory-consumer.md), [package catalog](docs/capability-catalog.md) and [production guide](docs/production.md). Consumer checks establish bounded integration, not production-scale validation.
 
 ## A concrete use case
 
@@ -129,6 +129,7 @@ Technical architecture designed by [Grishen](https://grishen.com/). Agent Rooms 
 <a id="verified-benchmark-registry-and-leaderboard-v1"></a>
 <a id="evidence-and-trust-alpha-4"></a>
 <a id="inference-control-alpha-3"></a>
+<a id="agentplat-140-additions"></a>
 <a id="packages"></a>
 <a id="agent-room-quickstart"></a>
 <a id="use-as-packages"></a>

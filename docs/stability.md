@@ -1,15 +1,10 @@
 # Stability and maintenance
 
-Version 1.0.0 was the first coordinated stable release. The current latest
-release is [1.2.0](releases/stable1-2-distribution-20260930.md). This policy applies to published 1.x versions. See the
-[verified distribution record](releases/stable1-distribution-20260922.md).
+Version 1.0.0 was the first coordinated stable release. The current latest release is [1.4.0](releases/1.4.0-distribution.md), with 70 packages sharing its version. This policy applies to published 1.x versions.
 
 ## Public compatibility contract
 
-The 65 packages published in 1.0.0 share one release version. Version 1.1.0
-added optional Jev; 1.2.0 retains that 66-package coordinated cohort. The source catalog may include unpublished packages under a separate
-source-only release profile; those are not part of the npm compatibility
-surface until admitted to a coordinated release.
+The 70 packages published in 1.4.0 share one release version. The source catalog may evolve, but only packages admitted to the coordinated release form the npm compatibility surface.
 The supported API consists of their package.json export entry points, exported
 TypeScript contracts and documented behavior. Internal source paths, examples,
 research scripts and undocumented implementation details are outside that API.

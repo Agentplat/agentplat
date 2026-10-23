@@ -1,18 +1,12 @@
 # Agent Room Planner 1.4.0 adoption
 
-Status: coordinated release preparation. Publication is complete only when the
-protected workflow verifies the full 70-package registry cohort and its exact
-artifact manifest. This guide does not authorize production migrations or flags.
+Status: the 1.4.0 package cohort is published and verified; see the [distribution record](1.4.0-distribution.md). This guide describes safe adoption sequencing and does not itself authorize production migrations or feature flags.
 
 ## Cohort and verification
 
-AgentPlat 1.3.0 is already published and does not contain Room Planner. The old
-Grishen preview used different 1.3.0 source tarballs; those artifacts cannot be
-replaced in npm. The new 1.4.0 cohort combines the reviewed current main baseline,
-its opt-in memory profile and the Planner source from PR #221. Local uncommitted
-Event intake, research and other unrelated changes are excluded.
+AgentPlat 1.3.0 is already published and does not contain Room Planner. A prior consumer preview used different 1.3.0 source tarballs; those artifacts cannot be replaced in npm. The published 1.4.0 cohort includes the reviewed baseline, opt-in memory profile and Planner from PR #221. Other uncommitted or unrelated source work is not part of the published package cohort.
 
-All 70 packages must use the same release version. The Grishen dependency closure
+All 70 packages must use the same release version. The consumer dependency closure
 is a consumer verification set, not a partial substitute for the coordinated
 release. Preserve published 1.3.0 and the historical 1.1.0 model-study manifests.
 The historical synthetic qualification does not qualify new package bytes or
@@ -35,16 +29,10 @@ With `AGENTPLAT_PREPACKED_TARBALL_DIRECTORY`, it consumes the already prepared
 archives. With `AGENTPLAT_PUBLIC_CONSUMER_SOURCE=registry`, it installs the exact
 release version from npm and repeats the same assertions and public type check.
 
-## Safe order for Grishen Agents
+## Safe order for a consuming application
 
-1. Complete required source CI and the protected full-scope release dry-run.
-   Review the artifact manifest and exact tarballs, publish through the protected
-   OIDC workflow, then require registry byte/signature/provenance/tag verification
-   and clean registry consumers before changing Grishen's dependency pins.
-2. Update Grishen's exact AgentPlat versions and npm lockfile to the verified
-   cohort. Remove its CI source-preview installation. Run a clean `npm ci`, types,
-   build, policy/PWA regressions and both PostgreSQL Planner integrations. Keep
-   production enablement absent or false.
+1. Confirm the application is consuming the verified published cohort: review its exact package lock, npm registry resolution and required adapter set before changing production pins.
+2. Update exact AgentPlat package versions and the application lockfile to 1.4.0. Run a clean `npm ci`, types, build and application-specific policy and PostgreSQL integration checks. Keep production enablement absent or false during verification.
 3. Rehearse the intended upgrade on a non-production database restored from an
    appropriate backup. Confirm the target schema and the two distinct application
    ledgers. Check existing Room/workflow reads, idempotent nonce recovery and
@@ -79,6 +67,4 @@ Never delete ledger rows or use destructive down migrations as an ordinary
 application rollback. Restore the tested compatible database/application pair
 through the approved recovery procedure when necessary.
 
-Publication and deterministic PostgreSQL tests establish distribution and bounded
-integration behavior. They do not authorize production changes or qualify model
-judgment on new briefs and sources.
+Publication and deterministic PostgreSQL consumer tests establish distribution and bounded integration behavior. They do not authorize production changes or qualify model judgment on new briefs and sources.

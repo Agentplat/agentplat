@@ -1,7 +1,6 @@
 # Agent interaction and purpose governance
 
-Status: objectives 2–10 are implemented in source, including a qualified Room
-purpose mission profile. Bounded autonomy, delegation and evolution continuity are included; the persistent support demonstration is available; the bounded adoption profile is qualified locally; this source increment has not been published to npm.
+Status: the coordinated 1.4.0 release publishes the qualified opt-in governance, persistent memory and reviewed-definition surfaces. Bounded consumer checks and local qualification do not establish production-scale reliability or model judgment quality.
 
 This work translates owner-governed purpose, signals, references, limits and
 inceptions into additive AgentPlat contracts. Instruction-driven agents remain

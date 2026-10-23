@@ -2,8 +2,8 @@
 
 This is the editorial entry point for adoption status. Source availability,
 registry distribution, executable checks and operational evidence answer
-different questions. None implies another. All 66 packages are published at 1.2.0
-under latest; see the [distribution record](releases/stable1-2-distribution-20260930.md).
+different questions. None implies another. All 70 packages are published at 1.4.0
+under npm `latest`; see the [verified distribution record](releases/1.4.0-distribution.md).
 The [stability contract](stability.md) governs API compatibility independently of
 operational evidence.
 
@@ -12,7 +12,9 @@ operational evidence.
 | Component                             | Source / available integration                                                                     | Reproducible checks                                             | Operational evidence / adopter obligations                                                             |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Framework, model adapters, sessions   | Public facade, mock and real-model adapters; optional Redis sessions                               | `example:quick`, `example:sessions`, framework DX tests         | Local examples; choose model endpoint, credentials and session persistence                             |
-| Agent Rooms                           | RoomService, Rooms API and PostgreSQL repository; versioned artifacts, approvals and contributions | Proposal demo, `demo:recover`, `demo:controls`, Room tests      | Bounded local scenarios; supply verified identity, actor authorization, backups and effect controls    |
+| Agent Rooms and Planner | Rooms, PostgreSQL persistence, Planner objectives/reports/budgets/review and workflow bridge | Published registry consumers for Planner and PostgreSQL | Opt-in; explicit Rooms 019/workflows 001 migrations; host owns identity, admission, prices and operational recovery |
+| Persistent memory and reviewed definitions | Stable-agent memory revisions, reviewed definition coordinates and optional PostgreSQL ledger | Published npm consumer, strict public types and isolated PostgreSQL scenarios | Separate opt-in memory ledger; host owns identity mapping, audience authorization, retention and private snapshot handling |
+| Application artifacts | Tenant-scoped immutable revisions, PostgreSQL CAS/outbox and optional agent tools | Published registry consumer, migrations, CAS and outbox retry | Tools are opt-in; host owns authorization, delivery, retention and HTML isolation. No PDF/XLSX/PPTX generator is published |
 | Governed Durable Workflows            | Core runner, PostgreSQL, Rooms and Temporal adapters exist                                         | Workflow public contract tests, conformance and adapter checks  | In-memory runner has no restart guarantee; configure durable stores, timers and effect reconciliation  |
 | Collective Runtime / planning         | Public local collective and opt-in coordination controllers                                        | `example:collective`, capability and evidence catalog verifiers | Frozen baseline separates source completion from empirical and operational validation                  |
 | Agent Mesh                            | Mesh, crypto, protocol, HTTP and PostgreSQL adapters                                               | `example:mesh-multiprocess`, Mesh conformance checks            | Four-peer example is bounded; deployment owns key custody, transport and membership                    |
@@ -29,53 +31,19 @@ export or every combination of adapters.
 
 ## Distribution
 
-On 2026-09-14 (UTC), all 65 catalog packages were publicly available at
-`0.3.0-beta.8` with `next` aligned. The complete approved-release workflow
-passed registry byte comparison, signatures, provenance and tags, plus clean
-pnpm portable, pnpm PostgreSQL and npm Node 22.22.0 consumers. See the
-[Beta 8 distribution record](releases/beta8-distribution-20260914.md) for the
-exact source and workflow. `latest` was not promoted. This updates distribution
-evidence without expanding the operational evidence or frozen baseline.
+The protected 1.4.0 workflow published 70/70 packages under `latest`. It published
+68 through OIDC and verified two interactive bootstrap packages. Byte, signature,
+provenance and registry-consumer checks passed, including Planner and artifacts
+with PostgreSQL, portable/durable consumers and npm on Node 22. See the
+[workflow run](https://github.com/Agentplat/agentplat/actions/runs/39893775787)
+and [release record](releases/1.4.0-distribution.md). Consumer checks establish
+bounded integration, not validation at production scale or general readiness.
 
-### Beta 7 observation
+The `@agentplat/artifacts` packages support inert Markdown, text, code, CSV, HTML
+and syntactically validated JSON. They do not generate PDF, XLSX or PPTX.
 
-On 2026-09-09, all 65 catalog packages were publicly available at
-`0.3.0-beta.7` with `next` aligned. Registry integrity, signatures, provenance
-and tags passed the release verification job. Independent clean pnpm portable,
-pnpm PostgreSQL and npm Node 22.22.0 consumers passed for all 65 packages and
-216 export subpaths using the corrected registry-consumer cohort. See the
-[Beta 7 distribution record](releases/beta7-distribution-20260909.md) for source,
-artifact and verification boundaries. This does not establish production-scale
-operational validation.
-
-### Historical observation
-
-Read-only public npm checks on 2026-09-07 returned:
-
-| Package                         | Observed distribution                            | Interpretation                                                |
-| ------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
-| `@agentplat/framework`          | `next`: `0.3.0-beta.5`; `latest`: `0.2.0-beta.1` | Registry preview exists; not proof of current checkout parity |
-| `@agentplat/rooms`              | `next`: `0.3.0-beta.5`; `latest`: `0.2.0-beta.1` | Registry preview exists; current source may be ahead          |
-| `@agentplat/workflows-postgres` | Public registry request returned E404            | No public package verified; use source for this integration   |
-| Other packages                  | Not checked in this adoption pass                | Verify selected package and exact version before installation |
-
-Commands below reproduce the queries; tags are mutable and this is a dated
-observation, not a release attestation. An E404 is recorded as the observed
-public result, not a claim about private registry access.
-
-[Release channels](release-channels.md) describes the intended coordinated
-preview channel. Verify distribution at adoption time:
-
-```sh
-npm view @agentplat/framework dist-tags --json
-npm view @agentplat/rooms dist-tags --json
-npm view @agentplat/workflows-postgres dist-tags --json
-```
-
-Until those commands succeed for the selected packages, distribution is
-**unverified**, even when source and exports exist. Match exact versions across
-packages and run the existing registry consumer verification before release.
-Source-clone paths do not depend on registry availability of AgentPlat packages.
+Historical Beta distribution observations below are retained as historical evidence.
+They do not supersede the stable 1.4.0 release record.
 
 ## Evidence sources and maintenance
 

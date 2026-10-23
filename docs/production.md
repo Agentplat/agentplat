@@ -5,8 +5,9 @@ production. This is a maintainer-reported deployment statement, not a published
 customer study: package versions, workload, observation period and incident
 metrics have not yet been recorded here. It does not expand the paper's evidence.
 
-Version 1.0.0 is published on npm under `latest`. See the
-[verified distribution record](releases/stable1-distribution-20260922.md).
+AgentPlat 1.4.0 is published on npm under `latest` across 70 packages. See the
+[verified 1.4.0 distribution record](releases/1.4.0-distribution.md). The published
+consumer checks demonstrate bounded integration, not production-scale validation.
 
 ## Supported application boundaries
 
@@ -26,11 +27,15 @@ supply development defaults; applications must configure their actual host.
 | Secrets and network | Supply credentials outside source, restrict database/tool access, and configure authenticated transport and peer key custody for Mesh. |
 | Capacity | Measure latency, throughput and recovery on the intended workload. Local deterministic tests do not define a production capacity limit. |
 
-## Preparing the 1.1.0 upgrade
+## Adopting the current release
 
-The unpublished 1.1.0 candidate includes governed purpose execution and optional
-Jev. Follow the [preparation and migration notes](releases/1.1.0-preparation.md);
-preparing tarballs does not advance npm tags or deploy an application.
+Select the exact 1.4.0 versions for the AgentPlat packages your application uses
+and retain its lockfile. Review the [Planner migration guide](releases/room-planner-1.4.0-adoption.md)
+and [persistent-memory consumer guide](getting-started/persistent-memory-consumer.md)
+when enabling those optional profiles. Package installation does not apply schema
+migrations or enable optional capabilities. Rehearse migration, backup/restore and
+recovery on the application's own non-production environment before a separately
+authorized production rollout.
 
 ## Migration from previews
 

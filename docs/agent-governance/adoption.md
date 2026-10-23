@@ -1,10 +1,6 @@
 # Adopting instruction and purpose governance
 
-This guide covers the instruction/purpose governance composition published in
-AgentPlat 1.1.0. Start with the [brief adoption guide](../getting-started/adopting-1.1.md)
-and the [verified distribution record](../releases/stable1-1-distribution-20260929.md).
-Publication does not establish production qualification; installed 1.0.0 packages
-do not contain these additions.
+This guide covers the instruction/purpose governance composition across the published AgentPlat 1.4.0 cohort. See the [verified 1.4.0 distribution record](../releases/1.4.0-distribution.md) and [memory consumer guide](../getting-started/persistent-memory-consumer.md). Publication and bounded consumer checks do not establish production qualification.
 
 ## Choose the supported composition
 

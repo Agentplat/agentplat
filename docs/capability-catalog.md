@@ -649,6 +649,17 @@ checklist](../docs/inference-control/alpha-3-acceptance-checklist.md), [threat
 model](../docs/security/inference-control-threat-model.md) and [design review
 record](../docs/inference-control/alpha-3-design-review.md).
 
+## AgentPlat 1.4.0 additions
+
+The verified 1.4.0 cohort adds an opt-in [Agent Room Planner](planner/README.md)
+with concurrent objectives, shared budgets, versioned reports, governed review and
+a `workflows-rooms` bridge. It also publishes [persistent memory](getting-started/persistent-memory-consumer.md)
+with stable-agent subjects, independently authorized personal/shared audiences,
+immutable revisions and exact execution references, plus optional
+`@agentplat/artifacts` and `@agentplat/artifacts-postgres` packages. Artifact
+formats are inert Markdown, text, code, CSV, HTML and syntax-validated JSON; these
+packages do not generate PDF, XLSX or PPTX. See the [verified 1.4.0 release](releases/1.4.0-distribution.md).
+
 ## Packages
 
 | Package                                     | Current public capability                                                                                                  |
@@ -666,15 +677,13 @@ record](../docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/collective-sync-postgres`       | Durable causal sync and execution-checkpoint evidence in PostgreSQL.                                                       |
 | `@agentplat/planning-artifacts`             | Signed planning artifacts with source-first and certified multi-source availability.                                       |
 | `@agentplat/planning-artifacts-postgres`    | Immutable artifact and replication-evidence persistence in PostgreSQL.                                                     |
-| `@agentplat/artifacts`                      | Tenant-scoped durable application artifacts, revisioned writes, agent tools and reference events.                          |
-| `@agentplat/artifacts-postgres`              | PostgreSQL artifact heads and immutable revisions with transactional compare-and-set writes.                               |
-| `@agentplat/artifacts`                      | Tenant-scoped durable application artifacts, revisioned writes, agent tools and reference events.                          |
-| `@agentplat/artifacts-postgres`              | PostgreSQL artifact heads and immutable revisions with transactional compare-and-set writes.                               |
+| `@agentplat/artifacts`                      | Optional tenant-scoped immutable revisions, inert text formats and opt-in agent tools.                                      |
+| `@agentplat/artifacts-postgres`              | PostgreSQL immutable revisions, tenant-scoped CAS and transactional event outbox.                                            |
 | `@agentplat/model`                          | Provider-neutral direct model generation and streaming contracts.                                                          |
 | `@agentplat/model-anthropic`                | Dependency-light Anthropic Messages adapter.                                                                               |
 | `@agentplat/model-gemini`                   | Dependency-light Gemini generateContent adapter.                                                                           |
 | `@agentplat/model-openai-compatible`        | Dependency-light Chat Completions adapter for compatible servers.                                                          |
-| `@agentplat/rooms`                          | Agent Room domain, lifecycle, policy, context and repository contracts.                                                    |
+| `@agentplat/rooms`                          | Agent Room domain, lifecycle, policy, context, repository contracts and opt-in Agent Room Planner.                          |
 | `@agentplat/rooms-postgres`                 | Durable PostgreSQL repository, migrations and transactional events.                                                        |
 | `@agentplat/rooms-temporal`                 | Optional Temporal wakeup, activity retry and rollover adapter for durable Room coordination.                               |
 | `@agentplat/postgres`                       | Shared pool health, schema safety and versioned migration primitives.                                                      |
@@ -689,7 +698,7 @@ record](../docs/inference-control/alpha-3-design-review.md).
 | `@agentplat/workflows`                      | Governed process/task DAGs, in-memory runner, task integrity, usage and delayed outcomes.                                  |
 | `@agentplat/workflows-conformance`          | Shared compatibility suite for workflow runners, stores, outcomes and durable restart.                                     |
 | `@agentplat/workflows-postgres`             | Durable workflow definitions, CAS runs, signals, task attempts, transition journal and outcomes in PostgreSQL.             |
-| `@agentplat/workflows-rooms`                | Version-bound Agent Room approval gates, revision chains, expiry and replay-safe workflow wakeups.                         |
+| `@agentplat/workflows-rooms`                | Version-bound Room approval gates, replay-safe wakeups and durable Planner workflow calls.                                   |
 | `@agentplat/workflows-temporal`             | Optional Temporal wakeups, activity retry, durable timers, notification recovery and history rollover.                     |
 | `@agentplat/work-management-asana`          | OAuth-backed Asana projection for durable human contributions with external-identity recovery.                             |
 | `@agentplat/memory`                         | Session/retrieval contracts and a tenant-isolated in-memory store.                                                         |
