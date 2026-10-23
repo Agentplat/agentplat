@@ -13,7 +13,6 @@ export const OIDC_VALIDATION_PACKAGES = Object.freeze([
 export async function validateArtifactNpmOidc({
   environment = process.env,
   fetchImplementation = fetch,
-  now = Date.now,
 } = {}) {
   assertDirectReleaseContext(environment);
   const requestUrl = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL);
@@ -57,24 +56,9 @@ export async function validateArtifactNpmOidc({
       typeof credential.token === "string" && credential.token.length > 0,
       "npm credential missing",
     );
-    // npm CLI requires the exchanged token, not optional timestamp metadata.
-    // Validate timestamps when supplied; npm may omit them in live responses.
-    if (credential.created !== undefined) {
-      assert(
-        Number.isFinite(Date.parse(credential.created)),
-        "Invalid npm credential creation",
-      );
-    }
-    if (credential.expires !== undefined) {
-      assert(Date.parse(credential.expires) > now(), "npm credential expired");
-    }
-    results.push({
-      name,
-      exchange: "accepted",
-      ...(credential.expires === undefined
-        ? {}
-        : { expires: new Date(credential.expires).toISOString() }),
-    });
+    // Match npm CLI's exchange contract: use the token, ignore timestamp metadata.
+    // Do not serialize any fields from the credential response into evidence.
+    results.push({ name, exchange: "accepted" });
   }
   return {
     sourceCommit: environment.GITHUB_SHA,

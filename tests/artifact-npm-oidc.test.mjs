@@ -106,13 +106,8 @@ test("rejected exchange fails closed without reading or exposing its response bo
   );
   assert.equal(calls, 2);
 });
-test("expired or malformed npm credentials are rejected", async () => {
-  for (const change of [
-    { token_type: "other" },
-    { token: "" },
-    { created: "invalid" },
-    { expires: "2020-01-01" },
-  ]) {
+test("malformed npm credentials are rejected", async () => {
+  for (const change of [{ token_type: "other" }, { token: "" }]) {
     let calls = 0;
     await assert.rejects(
       validateArtifactNpmOidc({
@@ -157,6 +152,31 @@ test("accepts live npm responses without optional timestamp metadata", async () 
         : {
             status: 201,
             json: async () => ({ token_type: "oidc", token: "npm-secret" }),
+          },
+  });
+  assert.equal(calls, 3);
+  assert.deepEqual(
+    report.packages,
+    OIDC_VALIDATION_PACKAGES.map((name) => ({ name, exchange: "accepted" })),
+  );
+  assert(!JSON.stringify(report).includes("secret"));
+});
+
+test("ignores npm timestamp metadata and excludes it from retained evidence", async () => {
+  let calls = 0;
+  const report = await validateArtifactNpmOidc({
+    environment,
+    fetchImplementation: async () =>
+      ++calls === 1
+        ? { status: 200, json: async () => ({ value: "id-secret" }) }
+        : {
+            status: 201,
+            json: async () => ({
+              token_type: "oidc",
+              token: "npm-secret",
+              created: null,
+              expires: "provider-specific-secret",
+            }),
           },
   });
   assert.equal(calls, 3);
