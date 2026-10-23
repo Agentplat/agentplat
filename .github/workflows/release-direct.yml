@@ -160,7 +160,7 @@ jobs:
           include-hidden-files: false
 
   publish:
-    if: ${{ !inputs.validate_artifact_oidc && !inputs.dry_run && vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED == 'true' }}
+    if: ${{ !inputs.dry_run && !inputs.validate_artifact_oidc && vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED == 'true' }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30

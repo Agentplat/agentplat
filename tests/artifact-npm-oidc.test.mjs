@@ -137,7 +137,7 @@ test("validation dispatch cannot fall through into release preparation or public
   );
   assert.match(
     workflow,
-    /publish:\n    if: \$\{\{ !inputs.validate_artifact_oidc && !inputs.dry_run/,
+    /publish:\n    if: \$\{\{ !inputs.dry_run && !inputs.validate_artifact_oidc/,
   );
   assert.match(workflow, /inputs.validate_artifact_oidc && inputs.dry_run &&/);
   const validationJob = workflow.split("  validate-artifact-oidc:")[1];
