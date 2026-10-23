@@ -20,6 +20,8 @@ import {
 } from "./npm-registry-artifact.mjs";
 import { validateRegistryPackageEvidence } from "./verify-npm-release-provenance.mjs";
 
+import { isInteractiveBootstrapEvidence } from "./npm-bootstrap-evidence.mjs";
+
 export const DIRECT_WORKFLOW = ".github/workflows/release-direct.yml";
 export function assertDirectReleaseContext(e) {
   assert.equal(
@@ -90,6 +92,23 @@ export async function inspectPublishedArtifact({
     { redirect: "error" },
   );
   assert(keysResponse.ok, "Unable to read npm signing keys");
+  if (
+    isInteractiveBootstrapEvidence({
+      artifact,
+      dist: v.dist,
+      distributionTags: packument["dist-tags"],
+      expectedDistTag: manifest.distTag,
+      expectedWorkflowPath: DIRECT_WORKFLOW,
+    })
+  ) {
+    await verifyRegistryArtifact({
+      artifact,
+      dist: v.dist,
+      keys: await keysResponse.json(),
+      fetchImplementation,
+    });
+    return true;
+  }
   const attest = await fetchImplementation(
     publicRegistryUrl(v.dist?.attestations?.url),
     { redirect: "error" },
