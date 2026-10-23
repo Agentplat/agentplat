@@ -57,12 +57,24 @@ export async function validateArtifactNpmOidc({
       typeof credential.token === "string" && credential.token.length > 0,
       "npm credential missing",
     );
-    assert(
-      Number.isFinite(Date.parse(credential.created)),
-      "npm credential creation missing",
-    );
-    assert(Date.parse(credential.expires) > now(), "npm credential expired");
-    results.push({ name, exchange: "accepted", expires: credential.expires });
+    // npm CLI requires the exchanged token, not optional timestamp metadata.
+    // Validate timestamps when supplied; npm may omit them in live responses.
+    if (credential.created !== undefined) {
+      assert(
+        Number.isFinite(Date.parse(credential.created)),
+        "Invalid npm credential creation",
+      );
+    }
+    if (credential.expires !== undefined) {
+      assert(Date.parse(credential.expires) > now(), "npm credential expired");
+    }
+    results.push({
+      name,
+      exchange: "accepted",
+      ...(credential.expires === undefined
+        ? {}
+        : { expires: new Date(credential.expires).toISOString() }),
+    });
   }
   return {
     sourceCommit: environment.GITHUB_SHA,
