@@ -121,3 +121,18 @@ also checked read-only against already-public beta.9 packages.
 - [npm trusted publishing and allowed actions](https://docs.npmjs.com/trusted-publishers/)
 - [npm staged publishing](https://docs.npmjs.com/staged-publishing/)
 - [npm registry signature format](https://docs.npmjs.com/about-registry-signatures/)
+
+## Artifact package authentication probe
+
+Dispatch `release-direct.yml` on protected `main` with
+`validate_artifact_oidc=true`, `dry_run=true` and `dist_tag=latest` to exchange
+GitHub OIDC for only `@agentplat/artifacts` and `@agentplat/artifacts-postgres`.
+This mode skips preparation and publication, retains the `npm-release` approval,
+and requires the same owner identity and enablement guards as direct release.
+The fixed package list cannot be expanded by dispatch inputs. Credentials stay
+in process memory and are excluded from logs and the retained JSON report.
+
+A successful exchange proves npm accepts the workflow/environment identity for
+these packages. It does not prove direct-publish permission, provenance generation,
+or a successful publication, and does not test the separate stage-only publisher.
+The interactive bootstrap versions remain immutable and are not republished.

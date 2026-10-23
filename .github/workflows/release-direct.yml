@@ -16,6 +16,11 @@ on:
         required: false
         default: true
         type: boolean
+      validate_artifact_oidc:
+        description: Exchange OIDC for the two artifact packages only; never publish
+        required: false
+        default: false
+        type: boolean
       scope:
         description: Publication cohort
         required: true
@@ -35,6 +40,7 @@ concurrency:
 jobs:
   prepare:
     if: >-
+      !inputs.validate_artifact_oidc &&
       github.ref == 'refs/heads/main' &&
       github.actor_id == '207043696' &&
       github.actor == 'douglas-grishen' &&
@@ -154,7 +160,7 @@ jobs:
           include-hidden-files: false
 
   publish:
-    if: ${{ !inputs.dry_run && vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED == 'true' }}
+    if: ${{ !inputs.dry_run && !inputs.validate_artifact_oidc && vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED == 'true' }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -309,3 +315,39 @@ jobs:
         env:
           AGENTPLAT_REGISTRY_CONSUMER_PM: npm
           AGENTPLAT_REGISTRY_CONSUMER_PROFILE: portable
+
+  validate-artifact-oidc:
+    if: >-
+      inputs.validate_artifact_oidc && inputs.dry_run &&
+      github.ref == 'refs/heads/main' &&
+      github.actor_id == '207043696' &&
+      github.actor == 'douglas-grishen' &&
+      github.triggering_actor == 'douglas-grishen' &&
+      vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.20.0
+          package-manager-cache: false
+      - name: Validate artifact package OIDC exchanges without publishing
+        run: node scripts/validate-artifact-npm-oidc.mjs
+        env:
+          AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED: ${{ vars.AGENTPLAT_NPM_DIRECT_RELEASE_ENABLED }}
+          AGENTPLAT_NPM_DIRECT_PUBLISH_CONFIRMED: ${{ vars.AGENTPLAT_NPM_DIRECT_PUBLISH_CONFIRMED }}
+          NPM_DIST_TAG: ${{ inputs.dist_tag }}
+      - name: Retain credential-free validation evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: artifact-npm-oidc-${{ github.run_id }}
+          path: artifact-npm-oidc-report.json
+          if-no-files-found: error
+          retention-days: 30
