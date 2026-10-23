@@ -136,3 +136,26 @@ A successful exchange proves npm accepts the workflow/environment identity for
 these packages. It does not prove direct-publish permission, provenance generation,
 or a successful publication, and does not test the separate stage-only publisher.
 The interactive bootstrap versions remain immutable and are not republished.
+
+## 1.4.0 interactive bootstrap evidence
+
+The owner authorized the initial `@agentplat/artifacts@1.4.0` and
+`@agentplat/artifacts-postgres@1.4.0` publications from the exact tarballs of
+protected dry-run [39854878760](https://github.com/Agentplat/agentplat/actions/runs/39854878760),
+source `acb64cad435987484eab7835d8674681ee2e7c75`, manifest digest
+`sha256-e2WzUPN6jmUwA0YUyNjBKfbhipDAQKL8ORAWWj8KjLM=`. Both were published
+interactively with owner 2FA because new package names require bootstrap.
+
+`scripts/npm-bootstrap-evidence.mjs` pins only these two exact versions, sizes
+and SHA-512 values. The direct publisher and verifier may recognize this evidence
+instead of CI provenance only when the fresh cohort contains those identical
+bytes and npm still serves `latest=1.4.0`. ECDSA registry signature and downloaded
+byte checks remain mandatory. Different package names, versions, bytes, tags,
+and stage-only verification never receive this exception. Any supplied attestation
+must pass normal provenance checks. There is no environment override or wildcard.
+
+These two packages are recorded as interactive bootstrap publications, never as
+CI-provenance publications. All remaining 1.4.0 packages must be published through
+the protected OIDC workflow and retain its normal source/provenance checks.
+The owner subsequently authorized publication of the remaining full 1.4.0 cohort,
+including AgentPlat Planner. No existing package version is overwritten.

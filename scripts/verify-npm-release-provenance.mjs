@@ -11,6 +11,8 @@ import { selectPublishablePackages } from "./publish-packages.mjs";
 import { RELEASE_ARTIFACT_MANIFEST } from "./prepare-npm-release-artifacts.mjs";
 import { validateReleaseArtifactManifest } from "./stage-npm-release-artifacts.mjs";
 
+import { isInteractiveBootstrapEvidence } from "./npm-bootstrap-evidence.mjs";
+
 export async function verifyNpmReleaseProvenance({
   root = process.cwd(),
   environment = process.env,
@@ -46,6 +48,7 @@ export async function verifyNpmReleaseProvenance({
   );
   assert.ok(keyResponse.ok, "Unable to read npm registry signing keys");
   const keys = await keyResponse.json();
+  let bootstrapCount = 0;
   for (const artifact of manifest.artifacts) {
     const packumentResponse = await fetchImplementation(
       `https://registry.npmjs.org/${encodeURIComponent(artifact.name)}`,
@@ -55,6 +58,24 @@ export async function verifyNpmReleaseProvenance({
     const packument = await packumentResponse.json();
     const version = packument.versions?.[artifact.version];
     assert.ok(version, `${artifact.name}@${artifact.version} is not published`);
+    if (
+      isInteractiveBootstrapEvidence({
+        artifact,
+        dist: version.dist,
+        distributionTags: packument["dist-tags"],
+        expectedDistTag: manifest.distTag,
+        expectedWorkflowPath: environment.AGENTPLAT_RELEASE_WORKFLOW_PATH,
+      })
+    ) {
+      await verifyRegistryArtifact({
+        artifact,
+        dist: version.dist,
+        keys,
+        fetchImplementation,
+      });
+      bootstrapCount += 1;
+      continue;
+    }
     const attestationResponse = await fetchImplementation(
       publicRegistryUrl(version.dist?.attestations?.url),
       { redirect: "error" },
@@ -81,7 +102,7 @@ export async function verifyNpmReleaseProvenance({
     });
   }
   console.log(
-    `Verified registry integrity, signatures, provenance and ${manifest.distTag} for ${manifest.artifacts.length} packages from ${manifest.sourceCommit}.`,
+    `Verified registry bytes, signatures and ${manifest.distTag} for ${manifest.artifacts.length} packages from ${manifest.sourceCommit}: ${manifest.artifacts.length - bootstrapCount} with CI provenance, ${bootstrapCount} with pinned interactive bootstrap evidence.`,
   );
 }
 
