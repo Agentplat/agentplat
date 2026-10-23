@@ -1,14 +1,15 @@
 # Release channels
 
-AgentPlat uses one fixed version per coordinated release cohort. **1.2.0** is
-published under npm latest for all 66 coordinated packages; see the
-[verified distribution record](releases/stable1-2-distribution-20260930.md) and
-[adoption guide](getting-started/adopting-1.2.md).
+AgentPlat uses one fixed version per coordinated release cohort. **1.4.0** is
+published under npm `latest` for all 70 coordinated packages; see the
+[verified distribution record](releases/1.4.0-distribution.md) and the
+[adoption notes](getting-started/README.md).
 
-The historical 1.0.0 cohort contained 65 packages. Version 1.1 added optional Jev,
-and 1.2 adds opt-in standalone action controls without adding package names.
-Jev remains installed only by applications that choose it. Source availability,
-distribution and operational maturity remain separate evidence boundaries.
+Version 1.4 adds the opt-in Agent Room Planner, persistent memory and reviewed
+definitions, and optional versioned artifacts. Applications select a consistent
+set of packages at the same exact version; installing a package does not activate
+its optional capability. Source availability, distribution and operational
+maturity remain separate evidence boundaries.
 
 Stable 1.x releases follow the [stability contract](stability.md). Prereleases
 use `next` and must never promote `latest`. Stable promotion requires successful
@@ -18,7 +19,7 @@ and clean registry consumers for the entire coordinated release.
 Install exact coordinated versions:
 
 ```sh
-pnpm add @agentplat/framework@1.2.0 @agentplat/sessions@1.2.0
+npm install --save-exact @agentplat/framework@1.4.0 @agentplat/rooms@1.4.0 @agentplat/rooms-postgres@1.4.0
 ```
 
 See the [production and migration guide](production.md). Historical observations

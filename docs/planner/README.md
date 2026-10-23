@@ -1,9 +1,6 @@
 # AgentPlat Planner for Agent Rooms
 
-Source preview: opt-in Room coordination, with multiple objectives, a visible coordinator,
-versioned plans, specialist proposals, source-bound reviews and a shared budget.
-This profile is separate from the frozen Collective Capability Baseline V1. Functional
-and PostgreSQL tests do not establish model judgment quality or production readiness.
+Published in AgentPlat 1.4.0 as an opt-in Room coordination profile with multiple objectives, a visible coordinator, versioned plans, specialist proposals, source-bound reviews and a shared budget. This profile is separate from the frozen Collective Capability Baseline V1. Published consumer checks establish bounded integration, not model judgment quality or production readiness.
 
 ## Ownership and composition
 
@@ -63,37 +60,17 @@ exact report reference, version and source set and covers every criterion once w
 `met`, `unmet` or `unknown`. A successful provider response is insufficient. Model review
 checks the supplied evidence; it does not independently authenticate web sources.
 
-## Grishen pilot
+## Host adoption boundary
 
-The source integration lives in Grishen's `Admin/web` app. It provides per-Room observation,
-execution and drain modes, a Planner participant, concurrent objectives, report versions,
-pause/resume/cancel/priority controls and shared budget display. Observation preserves
-legacy response execution. Execute mode admits idempotent user messages to Planner.
-The existing PWA worker advances Planner work and delivers generic completion/blocker
-alerts through the existing notification outbox. Reports retain specialist authorship.
+A consuming application must independently implement identity and authorization, user-facing controls, source connectors, notifications, model/tool configuration, prices and production rollout. Planner is disabled unless the host explicitly enables it after qualifying the published package set and migrations. The 1.4.0 consumer fixture checks public APIs/types, Rooms migration 019, workflows migration 001 and recovery of completed workflow calls in an isolated PostgreSQL schema; it uses no production database or model credentials. This is bounded package integration evidence, not production-scale qualification.
 
-Development validation uses packed packages from one identified checkout, including
-SHA-256 tarball receipts. The app's `planner:preview` script accepts the AgentPlat checkout
-path. The packages' declared version is not proof that these new exports are published.
-Before deployment qualify and pin a published cohort containing this profile, review the
-beta.5-to-current migration, and run both Room and workflow migration checks. Flags stay
-off by default; source preview installation is not deployment qualification.
-
-Required configuration and commands are documented in the Grishen pilot guide. A real
-read-only research connector and explicit model prices are required for live execution.
-Model/tool/credential choice, verified user identity and source authentication remain host
-responsibilities. Context and state histories contain private work: apply the deployment's
-backup, access, retention and deletion policies before operational adoption. This initial
-aggregate store retains history; it makes no unbounded-history scaling claim.
+Any named consumer application integration, including Agents.Grishen, is separate work and is not included or claimed by the 1.4.0 package publication.
 
 ## Qualification
 
 - Core: `node --test tests/rooms-room-planner.test.mjs tests/rooms-planner-bridge.test.mjs`.
 - Workflow calls: `pnpm --filter @agentplat/workflows-rooms test`.
 - PostgreSQL: `AGENTPLAT_POSTGRES_TEST=1 PGDATABASE=... pnpm --filter @agentplat/rooms-postgres test` against an isolated local test database.
-- Grishen: type-check, PWA regression tests, policy tests and the deterministic PostgreSQL
-  pilot integration test. The latter produces two reports with distinct reviewers and
-  reconstructs the coordinator before checking that tasks were not duplicated.
 - Comparative evaluation: run legacy sessions, selective routing and Planner with matching
   model/tool/permission/budget configurations. Use independent criterion evidence and
   the trace evaluator to compare completion, false completion, human corrections,
@@ -101,7 +78,7 @@ aggregate store retains history; it makes no unbounded-history scaling claim.
 
 The capability wish list informs extension boundaries, not immediate implementation of
 all sixteen capabilities. General external attention, cross-task lesson promotion, Mesh,
-Morphogenesis and dynamic team formation are outside this source pilot. Basic memory
+Morphogenesis and dynamic team formation are outside this published opt-in profile. Basic memory
 provenance and corrections are supported; automatic learning remains disabled.
 
 ## Qualification hardening
@@ -119,7 +96,7 @@ ready under the accepted plan. A real user wait/pause and actual blocked work re
 control boundary. Internal receipts for terminal objectives are recorded as consumed without
 new inference. Only actual owner messages enter the owner-correction history.
 
-The source qualifier compares legacy sessions, selective routing and the durable Grishen
+A separate application-level qualifier compares legacy sessions, selective routing and a host-owned consumer
 composition using the same model and supplied corpus. Before holdout it freezes package
 and critical consumer-file hashes. Budget reservations persist across processes and all
 campaigns share the owner's USD 5 ceiling. See the dated qualification report for measured
