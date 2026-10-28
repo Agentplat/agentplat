@@ -811,7 +811,30 @@ export class IncrementalEvidenceServiceV1<Context> {
         );
       return prior;
     }
-    const current = await this.assertCurrent(context, claim);
+    let current: EvidenceReceiptV1;
+    try {
+      current = await this.assertCurrent(context, claim);
+    } catch (error) {
+      if (!(error instanceof AgentPlatError) || error.code !== "CONFLICT")
+        throw error;
+      // Another completion can win between the initial replay read and the lease read.
+      const raced = await this.read(context, claim);
+      if (
+        raced?.status !== "completed" ||
+        raced.generation !== claim.generation ||
+        !same(raced.lease, claim.lease) ||
+        raced.resultDigest !== digest
+      )
+        throw error;
+      const p = await this.principal(context);
+      await this.allow(p, "settle", claim, { evidence: claim });
+      if (p.tenantId !== claim.tenantId || p.actorId !== raced.lease?.actorId)
+        throw new AgentPlatError(
+          "FORBIDDEN",
+          "Claim belongs to another worker",
+        );
+      return raced;
+    }
     const next: EvidenceReceiptV1 = {
       ...current,
       revision: current.revision + 1,

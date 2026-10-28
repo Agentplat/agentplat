@@ -116,6 +116,40 @@ export class AgentRoomPlanner {
       throw new AgentPlatError("NOT_FOUND", "Planner is not configured");
     return state;
   }
+  /** Use this same fence from workflow heartbeats and every protected effect sink. */
+  async assertCurrent(scope: RoomPlannerScope, operationId: string) {
+    let current = await this.get(scope),
+      operation = current.operations.find((op) => op.id === operationId);
+    if (!operation) conflict();
+    await this.ports.authorize(scope, "execute", operation.objectiveId);
+    await this.assertConversation(scope, operation);
+    this.assertBudgetBinding(current);
+    if (operation.sharedBudget)
+      await this.ports.sharedBudget!.assertCurrent(scope, operation);
+    current = await this.get(scope);
+    operation = current.operations.find((op) => op.id === operationId);
+    this.assertBudgetBinding(current);
+    if (
+      !operation ||
+      operation.status !== "running" ||
+      operation.expiresAt <= this.now() ||
+      current.mode === "drain" ||
+      (operation.admissionMode && current.mode !== operation.admissionMode) ||
+      (current.sharedBudgetBinding &&
+        (!operation.sharedBudget || operation.sharedBudgetPending)) ||
+      (operation.kind !== "reason" && current.mode !== "execute")
+    )
+      conflict();
+    if (operation.objectiveId) {
+      const objective = this.objective(current, operation.objectiveId);
+      if (
+        objective.status !== "active" ||
+        objective.controlRevision !== operation.controlRevision ||
+        objective.activePlanId !== operation.planId
+      )
+        conflict();
+    }
+  }
   async configure(
     scope: RoomPlannerScope,
     input: {
@@ -136,8 +170,35 @@ export class AgentRoomPlanner {
     )
       fail("Invalid Planner configuration");
     const old = await this.ports.store.load(scope);
+    if (this.ports.sharedBudget) text(this.ports.sharedBudget.bindingId);
+    if (
+      old?.sharedBudgetBinding &&
+      old.sharedBudgetBinding !== this.ports.sharedBudget?.bindingId
+    )
+      fail("The persisted shared budget binding must remain connected");
+    if (
+      old &&
+      !old.sharedBudgetBinding &&
+      this.ports.sharedBudget &&
+      old.operations.some((op) => ["running", "uncertain"].includes(op.status))
+    )
+      fail("Reconcile existing calls before attaching a shared budget");
     if (old) {
       return this.change(scope, (state) => {
+        // Recheck on every CAS retry: a legacy call can start after the initial read.
+        if (
+          state.sharedBudgetBinding &&
+          state.sharedBudgetBinding !== this.ports.sharedBudget?.bindingId
+        )
+          fail("The persisted shared budget binding must remain connected");
+        if (
+          !state.sharedBudgetBinding &&
+          this.ports.sharedBudget &&
+          state.operations.some((op) =>
+            ["running", "uncertain"].includes(op.status),
+          )
+        )
+          fail("Reconcile existing calls before attaching a shared budget");
         const budget = roomPlannerBudget(state);
         if (
           input.budgetLimitMicros <
@@ -147,6 +208,8 @@ export class AgentRoomPlanner {
         state.mode = input.mode;
         state.budgetLimitMicros = input.budgetLimitMicros;
         state.concurrency = concurrency;
+        if (this.ports.sharedBudget)
+          state.sharedBudgetBinding = this.ports.sharedBudget.bindingId;
       });
     }
     const state: RoomPlannerState = {
@@ -156,6 +219,9 @@ export class AgentRoomPlanner {
       mode: input.mode,
       concurrency,
       budgetLimitMicros: input.budgetLimitMicros,
+      ...(this.ports.sharedBudget
+        ? { sharedBudgetBinding: this.ports.sharedBudget.bindingId }
+        : {}),
       objectives: [],
       events: [],
       operations: [],
@@ -303,6 +369,7 @@ export class AgentRoomPlanner {
   async runOnce(scope: RoomPlannerScope, signal?: AbortSignal) {
     await this.ports.authorize(scope, "advance");
     let state = await this.get(scope);
+    this.assertBudgetBinding(state);
     // Recovery never silently repeats an ambiguous model/tool call.
     for (const op of state.operations.filter(
       (op) =>
@@ -311,11 +378,14 @@ export class AgentRoomPlanner {
     )) {
       const recovered = await this.ports.reconcile?.(scope, op);
       if (recovered) await this.settle(scope, op.id, recovered);
-      else
+      else {
+        if (op.sharedBudget || op.sharedBudgetPending)
+          await this.ports.sharedBudget!.uncertain(scope, op);
         await this.change(scope, (s) => {
           const current = s.operations.find((x) => x.id === op.id)!;
           if (current.status === "running") current.status = "uncertain";
         });
+      }
     }
     state = await this.get(scope);
     for (const note of state.notifications.filter((n) => !n.delivered)) {
@@ -663,6 +733,7 @@ export class AgentRoomPlanner {
       retryableReasoning?: boolean;
     }>,
   ) {
+    this.assertBudgetBinding(await this.get(scope));
     let claimed = false;
     await this.change(
       scope,
@@ -718,6 +789,7 @@ export class AgentRoomPlanner {
           expiresAt: new Date(
             Date.parse(this.now()) + (this.ports.leaseMs ?? 300_000),
           ).toISOString(),
+          ...(this.ports.sharedBudget ? { sharedBudgetPending: true } : {}),
         });
         if (input.objectiveId) s.lastScheduledObjectiveId = input.objectiveId;
         claimed = true;
@@ -728,32 +800,42 @@ export class AgentRoomPlanner {
     );
     if (!claimed) return;
     try {
+      if (this.ports.sharedBudget) {
+        const local = (await this.get(scope)).operations.find(
+          (op) => op.id === input.id,
+        )!;
+        const admitted = await this.ports.sharedBudget.admit(scope, local);
+        if (!admitted.admitted) {
+          await this.change(scope, (s) => {
+            const op = s.operations.find((op) => op.id === input.id)!;
+            if (op.status !== "running" || !op.sharedBudgetPending) return;
+            if (admitted.reason === "already_admitted") {
+              op.status = "uncertain";
+              op.error = "Shared admission already exists; recover its result";
+              if (admitted.reservation) op.sharedBudget = admitted.reservation;
+            } else {
+              // No shared admission exists and this invocation has not reached any effect.
+              s.operations = s.operations.filter((op) => op.id !== input.id);
+              s.sharedBudgetBlock = { reason: admitted.reason, at: this.now() };
+            }
+          });
+          return;
+        }
+        await this.change(scope, (s) => {
+          const op = s.operations.find((op) => op.id === input.id)!;
+          if (op.status !== "running" || !op.sharedBudgetPending) conflict();
+          op.sharedBudget = admitted.reservation;
+          op.sharedBudgetPending = false;
+          delete s.sharedBudgetBlock;
+        });
+      }
       const call: RoomPlannerCall = {
         operationId: input.id,
         ...conversationReference(input),
         signal,
         assertCurrent: async () => {
           if (signal?.aborted) throw new Error("Planner interrupted");
-          await this.ports.authorize(scope, "execute", input.objectiveId);
-          await this.assertConversation(scope, input);
-          const current = await this.get(scope),
-            op = current.operations.find((op) => op.id === input.id)!;
-          if (
-            current.mode !==
-              (input.kind === "reason" ? current.mode : "execute") ||
-            current.mode === "drain" ||
-            op.status !== "running"
-          )
-            conflict();
-          if (input.objectiveId) {
-            const o = this.objective(current, input.objectiveId);
-            if (
-              o.status !== "active" ||
-              o.controlRevision !== input.controlRevision ||
-              o.activePlanId !== input.planId
-            )
-              conflict();
-          }
+          await this.assertCurrent(scope, input.id);
         },
       };
       await call.assertCurrent();
@@ -768,6 +850,14 @@ export class AgentRoomPlanner {
         });
         return;
       }
+      const operation = (await this.get(scope)).operations.find(
+        (op) => op.id === input.id,
+      );
+      if (
+        operation &&
+        (operation.sharedBudget || operation.sharedBudgetPending)
+      )
+        await this.ports.sharedBudget!.uncertain(scope, operation);
       await this.change(scope, (s) => {
         const op = s.operations.find((op) => op.id === input.id)!;
         if (op.status === "running") {
@@ -792,6 +882,13 @@ export class AgentRoomPlanner {
   ) {
     for (const key of ["costMicros", "inputTokens", "outputTokens"] as const)
       integer(output.usage?.[key]);
+    const operation = (await this.get(scope)).operations.find(
+      (op) => op.id === id,
+    )!;
+    if (operation.sharedBudget || operation.sharedBudgetPending) {
+      this.assertBudgetBinding(await this.get(scope));
+      await this.ports.sharedBudget!.settle(scope, operation, output.usage);
+    }
     let admissionError: string | undefined;
     let retryablePlan = output.retryableReasoning === true;
     if (output.proposal?.kind === "plan") {
@@ -1287,6 +1384,12 @@ export class AgentRoomPlanner {
     const o = state.objectives.find((o) => o.id === id);
     if (!o) fail("Objective not found");
     return o;
+  }
+  private assertBudgetBinding(state: RoomPlannerState) {
+    if (state.sharedBudgetBinding !== this.ports.sharedBudget?.bindingId)
+      fail(
+        "Shared budget configuration is missing or changed; configure the Planner before execution",
+      );
   }
   private async change(
     scope: RoomPlannerScope,

@@ -63,6 +63,56 @@ export function evidenceFixture(store) {
 
 export async function incrementalEvidenceScenarios(t, setup) {
   const scenarios = {
+    async "completion winning during the lease recheck replays its immutable result"(
+      f,
+    ) {
+      await f.service.receiveBatch(f.collector, f.batch("lease-race"));
+      const claim = await f.service.claim(f.worker, {
+        ...scope,
+        workerId: "a",
+      });
+      let reached,
+        release,
+        reads = 0;
+      const checking = new Promise((r) => {
+          reached = r;
+        }),
+        continueRead = new Promise((r) => {
+          release = r;
+        });
+      const delayed = new Proxy(f.store, {
+        get(target, prop) {
+          if (prop === "get")
+            return async (key) => {
+              reads++;
+              if (reads === 2) {
+                reached();
+                await continueRead;
+              }
+              return target.get(key);
+            };
+          const value = Reflect.get(target, prop);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+      const result = { known: true };
+      const waiting = f
+        .reopen(delayed)
+        .complete(f.worker, claim, result, "analysis:lease-race");
+      await checking;
+      const winner = await f.service.complete(
+        f.worker,
+        claim,
+        result,
+        "analysis:lease-race",
+      );
+      release();
+      assert.equal((await waiting).resultDigest, winner.resultDigest);
+      assert.equal(
+        (await f.service.read(f.owner, f.key("lease-race"))).revision,
+        winner.revision,
+      );
+    },
     async "concurrent completions and projection acknowledgements replay the same known result"(
       f,
     ) {

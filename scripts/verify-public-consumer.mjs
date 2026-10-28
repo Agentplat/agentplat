@@ -13,14 +13,18 @@ const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
 const roomPlanner = process.argv.includes('--room-planner');
 const followup = process.argv.includes('--followup');
+const plannerOperations = process.argv.includes('--planner-operations');
 const artifactsConsumer = process.argv.includes('--artifacts');
 if (roomPlanner) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Room Planner consumer verification requires an isolated PostgreSQL test database');
 if (followup) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Follow-up consumer verification requires an isolated PostgreSQL test database');
+if (plannerOperations) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
+  'Planner operations consumer verification requires an isolated PostgreSQL test database');
 if (artifactsConsumer) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Artifacts consumer verification requires an isolated PostgreSQL test database');
 const targets = Object.freeze([
+  ...(plannerOperations ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
   ...(followup ? ['@agentplat/framework', '@agentplat/events', '@agentplat/rooms-postgres'] : []),
   ...(roomPlanner ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
   ...(artifactsConsumer ? ['@agentplat/artifacts', '@agentplat/artifacts-postgres'] : []),
@@ -44,6 +48,8 @@ const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
 assert.ok(!followup || !registryRelease,
   'Incremental follow-up currently verifies local tarballs, not an unpublished registry surface');
+assert.ok(!plannerOperations || !registryRelease,
+  'Planner operations currently verifies local tarballs, not an unpublished registry surface');
 assert.ok(!purposeGovernance || !registryRelease,
   'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
 const registryVersion = JSON.parse(
@@ -198,6 +204,16 @@ try {
     config.include.push('followup.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), `${JSON.stringify(config, null, 2)}\n`);
     execFileSync(process.execPath, ['followup.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+  }
+  if (plannerOperations) {
+    await writeFile(path.join(consumerRoot, 'planner-operations.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/planner-operations.mjs'), 'utf8'));
+    await writeFile(path.join(consumerRoot, 'planner-operations.mts'),
+      await readFile(path.join(root, 'tests/planner-operations-public-contracts.test.mts'), 'utf8'));
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('planner-operations.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
+    execFileSync(process.execPath, ['planner-operations.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }
   if (artifactsConsumer) {
     await writeFile(path.join(consumerRoot, 'artifacts.mjs'), `import assert from 'node:assert/strict';

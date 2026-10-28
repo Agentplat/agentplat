@@ -434,3 +434,12 @@ verified access ports, validity, retirement and immutable history.
 authorized view. `AgentDefinitionChangeServiceV1` composes existing Room approval,
 evaluation evidence and governance for reviewed definition selection/reversal.
 See [integration and limits](../../docs/architecture/persistent-agent-learning-implementation.md).
+### Shared periodic budgets and scheduled follow-up
+
+Opt-in source APIs add a shared account across Planner/reason/task/review/direct
+calls and other model jobs, plus timestamp intents and prepared notice delivery.
+They reuse existing workflow result ownership and preserve unknown cost/delivery
+outcomes for reconciliation. Hosts supply verified identity, calendar/urgency
+policy, prices and transport adapters. See the [guide](../../docs/planner/shared-budgets-and-notices.md)
+and [two-consumer example](../../examples/planner-operations.mjs). Distribution is
+pending; these source APIs do not install workers or contact providers.

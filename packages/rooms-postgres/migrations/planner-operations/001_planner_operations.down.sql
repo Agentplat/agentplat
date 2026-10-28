@@ -1,0 +1,7 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.scheduled_followup_operations;
+DROP TABLE __AGENTPLAT_SCHEMA__.scheduled_deliveries;
+DROP TABLE __AGENTPLAT_SCHEMA__.scheduled_activations;
+DROP TABLE __AGENTPLAT_SCHEMA__.scheduled_followup_heads;
+DROP TABLE __AGENTPLAT_SCHEMA__.shared_budget_configurations;
+DROP TABLE __AGENTPLAT_SCHEMA__.shared_budget_reservations;
+DROP TABLE __AGENTPLAT_SCHEMA__.shared_budget_periods;

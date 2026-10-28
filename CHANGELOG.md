@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add shared periodic cost accounts, atomic total/category reservations and
+  usage reconciliation across Planner and specialist calls, with workflow/evidence
+  composition and persisted binding/fencing.
+- Add revision-bound timestamp activations, prepared notices and a shared delivery
+  outbox with adapter receipts and explicit uncertainty recovery. Memory and
+  PostgreSQL adapters include an independent operations migration ledger.
+  See [shared budgets and notices](docs/planner/shared-budgets-and-notices.md).
+
 - Add indexed incremental-evidence receipts with atomic source checkpoints,
   fenced analysis, recoverable projections and payload compaction that retains
   deduplication identities.

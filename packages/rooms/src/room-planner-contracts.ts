@@ -1,6 +1,10 @@
 import type { JsonObject } from "@agentplat/core";
 import type { AgentRoomPlanStep } from "./planner-bridge.js";
 import type { RoomConversationReference } from "./conversations.js";
+import type {
+  SharedBudgetAdmissionV1,
+  SharedBudgetReservationV1,
+} from "./shared-budgets.js";
 
 export interface RoomPlannerScope {
   tenantId: string;
@@ -167,6 +171,9 @@ export interface RoomPlannerOperation extends RoomConversationReference {
   proposal?: RoomPlannerProposal;
   error?: string;
   retryablePlan?: boolean;
+  /** Admission preparation survives a crash without guessing that inference did not run. */
+  sharedBudgetPending?: boolean;
+  sharedBudget?: SharedBudgetReservationV1;
 }
 export interface RoomPlannerDecision {
   id: string;
@@ -181,6 +188,9 @@ export interface RoomPlannerState extends RoomPlannerScope {
   mode: "observe" | "execute" | "drain";
   concurrency: number;
   budgetLimitMicros: number;
+  /** Once configured, this host budget binding must remain connected before calls can run. */
+  sharedBudgetBinding?: string;
+  sharedBudgetBlock?: { reason: string; at: string };
   objectives: RoomPlannerObjective[];
   events: RoomPlannerEvent[];
   /** Internal receipts already made obsolete by a terminal objective; payloads remain immutable. */
@@ -209,6 +219,7 @@ export interface RoomPlannerStore {
 }
 export interface RoomPlannerPorts {
   store: RoomPlannerStore;
+  sharedBudget?: RoomPlannerSharedBudgetPortV1;
   reasoner: RoomPlannerReasoner;
   /** Validate whole-plan constraints before creating any objective or work. */
   admitPlan?(
@@ -284,6 +295,27 @@ export interface RoomPlannerPorts {
     direct: number;
   };
   leaseMs?: number;
+}
+
+export interface RoomPlannerSharedBudgetPortV1 {
+  bindingId: string;
+  admit(
+    scope: RoomPlannerScope,
+    operation: RoomPlannerOperation,
+  ): Promise<SharedBudgetAdmissionV1>;
+  assertCurrent(
+    scope: RoomPlannerScope,
+    operation: RoomPlannerOperation,
+  ): Promise<void>;
+  settle(
+    scope: RoomPlannerScope,
+    operation: RoomPlannerOperation,
+    usage: RoomPlannerUsage,
+  ): Promise<void>;
+  uncertain(
+    scope: RoomPlannerScope,
+    operation: RoomPlannerOperation,
+  ): Promise<void>;
 }
 
 /** Optional future extension. Lessons remain advisory and cannot alter authority. */
