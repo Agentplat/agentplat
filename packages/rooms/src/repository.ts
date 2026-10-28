@@ -17,8 +17,21 @@ import type {
   ToolCall,
 } from "./models.js";
 import type { AgentRoomCoordinationState } from "./coordination-runtime.js";
+import type { RoomMessagePage, RoomMessagePageInput } from "./conversations.js";
 
 export interface RoomRepositoryReader {
+  /** Opt-in support: legacy adapters must not silently drop native conversation fields. */
+  readonly conversationVersion?: 1;
+  getMessage?(
+    tenantId: AgentPlatID,
+    roomId: AgentPlatID,
+    messageId: AgentPlatID,
+  ): Promise<RoomMessage | undefined>;
+  listMessages?(
+    tenantId: AgentPlatID,
+    roomId: AgentPlatID,
+    input?: RoomMessagePageInput,
+  ): Promise<RoomMessagePage>;
   getRoom(
     tenantId: AgentPlatID,
     roomId: AgentPlatID,

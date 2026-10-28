@@ -360,6 +360,22 @@ async function migrations(): Promise<PostgresMigration[]> {
     { version:19,name:"019_room_planner",
       up:await readFile(new URL("../migrations/019_room_planner.up.sql",import.meta.url),"utf8"),
       down:await readFile(new URL("../migrations/019_room_planner.down.sql",import.meta.url),"utf8"),destructiveDown:true },
+    {
+      version: 20,
+      name: "020_room_conversations",
+      up: await readFile(
+        new URL("../migrations/020_room_conversations.up.sql", import.meta.url),
+        "utf8",
+      ),
+      down: await readFile(
+        new URL(
+          "../migrations/020_room_conversations.down.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+      destructiveDown: true,
+    },
   ];
 }
 
@@ -391,7 +407,7 @@ export async function getMigrationStatus(
 /** Returns the exact confirmation required for one destructive rollback. */
 export function rollbackConfirmation(
   schema = defaultPostgresSchema,
-  version = 19,
+  version = 20,
 ): string {
   return postgresRollbackConfirmation(applicationId, schema, version);
 }

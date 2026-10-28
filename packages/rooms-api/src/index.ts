@@ -79,6 +79,8 @@ export interface HeaderTenantAuthOptions {
 
 export interface CreateRoomsAppOptions {
   service: RoomsApiService;
+  /** Opt-in native message lookup and indexed thread pagination. Host auth still controls Room access. */
+  conversations?: Pick<RoomService, "getMessage" | "listMessages">;
   /** Opt-in authenticated runner task routes, mounted on the same HTTP app. */
   runnerRoutes?: Hono<{ Variables: { tenant: string } }>;
   /** Independently authenticates the raw request; development tenant headers grant no ownership. */
@@ -311,6 +313,42 @@ export function createRoomsApp(
     );
     return context.json({ data: message }, 201);
   });
+
+  if (options.conversations) {
+    const conversations = options.conversations;
+    app.get("/rooms/:roomId/messages", async (context) => {
+      const rootsOnly = context.req.query("rootsOnly");
+      if (
+        rootsOnly !== undefined &&
+        rootsOnly !== "true" &&
+        rootsOnly !== "false"
+      )
+        throw new AgentPlatError("VALIDATION_ERROR", "Invalid rootsOnly");
+      const page = await conversations.listMessages(
+        tenantId(context),
+        context.req.param("roomId"),
+        {
+          threadId: context.req.query("threadId"),
+          cursor: context.req.query("cursor"),
+          limit:
+            context.req.query("limit") === undefined
+              ? undefined
+              : Number(context.req.query("limit")),
+          rootsOnly: rootsOnly === undefined ? undefined : rootsOnly === "true",
+        },
+      );
+      return context.json({ data: page });
+    });
+    app.get("/rooms/:roomId/messages/:messageId", async (context) => {
+      return context.json({
+        data: await conversations.getMessage(
+          tenantId(context),
+          context.req.param("roomId"),
+          context.req.param("messageId"),
+        ),
+      });
+    });
+  }
 
   app.post("/rooms/:roomId/tasks", async (context) => {
     const input = await readJsonObject<CreateTaskInput & { actorId?: string }>(

@@ -24,7 +24,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        19,
+        20,
       );
       const result = await inceptionScenarios({
         governance: new PostgresAgentGovernanceStoreV1(pool, { schema }),
@@ -115,7 +115,7 @@ test(
         ).currentVersion,
         13,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await pool.end();

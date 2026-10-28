@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        19,
+        20,
       );
       const store = new PostgresAgentGovernanceStoreV1(pool, { schema });
       const definitions = new AgentDefinitionRegistry(
@@ -114,7 +114,7 @@ test(
         ).currentVersion,
         12,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await pool.end();

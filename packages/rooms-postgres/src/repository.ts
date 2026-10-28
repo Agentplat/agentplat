@@ -1,4 +1,6 @@
 import { AgentPlatError } from "@agentplat/core";
+import { prepareRoomMessagePage, roomMessagePage } from "@agentplat/rooms";
+import type { RoomMessagePageInput } from "@agentplat/rooms";
 import type {
   AgentPlatID,
   JsonObject,
@@ -120,6 +122,13 @@ function mapMessage(row: Row): RoomMessage {
     authorParticipantId: optionalString(row.author_participant_id),
     role: row.role as RoomMessage["role"],
     content: String(row.content),
+    ...(row.thread_id != null ? { threadId: String(row.thread_id) } : {}),
+    ...(row.reply_to_message_id != null
+      ? { replyToMessageId: String(row.reply_to_message_id) }
+      : {}),
+    ...(row.target_participant_id != null
+      ? { targetParticipantId: String(row.target_participant_id) }
+      : {}),
     metadata: metadata(row),
     createdAt: iso(row.created_at),
   };
@@ -131,6 +140,10 @@ function mapTask(row: Row): RoomTask {
     id: String(row.id),
     roomId: String(row.room_id),
     stepId: String(row.step_id),
+    ...(row.thread_id != null ? { threadId: String(row.thread_id) } : {}),
+    ...(row.reply_to_message_id != null
+      ? { replyToMessageId: String(row.reply_to_message_id) }
+      : {}),
     assignedParticipantId: optionalString(row.assigned_participant_id),
     assignedRole: optionalString(row.assigned_role),
     instruction: String(row.instruction),
@@ -340,6 +353,7 @@ function translatePostgresError(error: unknown): unknown {
 }
 
 class PostgresRoomReader {
+  readonly conversationVersion = 1 as const;
   constructor(
     protected readonly database: Database,
     private readonly transactionTenantId?: AgentPlatID,
@@ -382,6 +396,51 @@ class PostgresRoomReader {
       [tenantId],
     );
     return result.rows.map(mapRoom);
+  }
+
+  async getMessage(tenantId: string, roomId: string, messageId: string) {
+    this.assertTenant(tenantId);
+    const result = await this.database.query<Row>(
+      `SELECT * FROM public.messages WHERE tenant_id=$1 AND room_id=$2 AND id=$3`,
+      [tenantId, roomId, messageId],
+    );
+    return result.rows[0] ? mapMessage(result.rows[0]) : undefined;
+  }
+
+  async listMessages(
+    tenantId: string,
+    roomId: string,
+    input: RoomMessagePageInput = {},
+  ) {
+    this.assertTenant(tenantId);
+    const page = prepareRoomMessagePage(tenantId, roomId, input);
+    const conditions = ["tenant_id=$1", "room_id=$2"];
+    const values: unknown[] = [tenantId, roomId];
+    if (page.threadId) {
+      values.push(page.threadId);
+      conditions.push(`(thread_id=$${values.length} OR id=$${values.length})`);
+    }
+    if (page.rootsOnly)
+      conditions.push(
+        "(reply_to_message_id IS NULL AND (thread_id IS NULL OR thread_id=id))",
+      );
+    if (page.after) {
+      values.push(page.after.createdAt, page.after.id);
+      conditions.push(
+        `(created_at, id COLLATE "C") > ($${values.length - 1}::timestamptz, $${values.length}::text COLLATE "C")`,
+      );
+    }
+    values.push(page.limit + 1);
+    const result = await this.database.query<Row>(
+      `SELECT * FROM public.messages WHERE ${conditions.join(" AND ")} ORDER BY created_at, id COLLATE "C" LIMIT $${values.length}`,
+      values,
+    );
+    return roomMessagePage(
+      tenantId,
+      roomId,
+      result.rows.map(mapMessage),
+      input,
+    );
   }
 
   async getParticipant(
@@ -753,11 +812,15 @@ class PostgresRoomTransaction
 
   async insertMessage(message: RoomMessage): Promise<void> {
     this.assertEntityTenant(message);
+    const native =
+      message.threadId !== undefined ||
+      message.replyToMessageId !== undefined ||
+      message.targetParticipantId !== undefined;
     await this.database.query(
       `INSERT INTO public.messages (
          tenant_id, id, room_id, author_participant_id, role,
-         content, metadata, created_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`,
+         content, metadata, created_at${native ? ", thread_id, reply_to_message_id, target_participant_id" : ""}
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8${native ? ",$9,$10,$11" : ""})`,
       [
         message.tenantId,
         message.id,
@@ -767,17 +830,43 @@ class PostgresRoomTransaction
         message.content,
         json(message.metadata ?? {}),
         message.createdAt,
+        ...(native
+          ? [
+              message.threadId ?? null,
+              message.replyToMessageId ?? null,
+              message.targetParticipantId ?? null,
+            ]
+          : []),
       ],
     );
   }
 
   async insertMessageIfAbsent(message: RoomMessage) {
     this.assertEntityTenant(message);
+    const native =
+      message.threadId !== undefined ||
+      message.replyToMessageId !== undefined ||
+      message.targetParticipantId !== undefined;
     const inserted = await this.database.query(
-      `INSERT INTO public.messages (tenant_id,id,room_id,author_participant_id,role,content,metadata,created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8) ON CONFLICT (tenant_id,id) DO NOTHING RETURNING *`,
-      [message.tenantId,message.id,message.roomId,message.authorParticipantId ?? null,message.role,
-       message.content,json(message.metadata ?? {}),message.createdAt],
+      `INSERT INTO public.messages (tenant_id,id,room_id,author_participant_id,role,content,metadata,created_at${native ? ",thread_id,reply_to_message_id,target_participant_id" : ""})
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8${native ? ",$9,$10,$11" : ""}) ON CONFLICT (tenant_id,id) DO NOTHING RETURNING *`,
+      [
+        message.tenantId,
+        message.id,
+        message.roomId,
+        message.authorParticipantId ?? null,
+        message.role,
+        message.content,
+        json(message.metadata ?? {}),
+        message.createdAt,
+        ...(native
+          ? [
+              message.threadId ?? null,
+              message.replyToMessageId ?? null,
+              message.targetParticipantId ?? null,
+            ]
+          : []),
+      ],
     );
     if (inserted.rows[0]) return { message: mapMessage(inserted.rows[0]), inserted: true };
     const old = await this.database.query(`SELECT * FROM public.messages WHERE tenant_id=$1 AND id=$2`, [message.tenantId,message.id]);
@@ -787,16 +876,18 @@ class PostgresRoomTransaction
 
   async insertTask(task: RoomTask): Promise<void> {
     this.assertEntityTenant(task);
+    const native =
+      task.threadId !== undefined || task.replyToMessageId !== undefined;
     await this.database.query(
       `INSERT INTO public.tasks (
          tenant_id, id, room_id, step_id, assigned_participant_id,
          assigned_role, instruction, expected_output, expected_artifact_kind,
          dependencies, acceptance_criteria, action_level, approval_required,
          tool_ids, status, error_message, metadata, created_at, updated_at,
-         completed_at
+         completed_at${native ? ", thread_id, reply_to_message_id" : ""}
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,
-         $14::jsonb,$15,$16,$17::jsonb,$18,$19,$20
+         $14::jsonb,$15,$16,$17::jsonb,$18,$19,$20${native ? ",$21,$22" : ""}
        )`,
       this.taskValues(task),
     );
@@ -804,6 +895,8 @@ class PostgresRoomTransaction
 
   async updateTask(task: RoomTask): Promise<void> {
     this.assertEntityTenant(task);
+    const native =
+      task.threadId !== undefined || task.replyToMessageId !== undefined;
     const values = this.taskValues(task);
     const result = await this.database.query(
       `UPDATE public.tasks SET
@@ -813,7 +906,7 @@ class PostgresRoomTransaction
          acceptance_criteria = $11::jsonb, action_level = $12,
          approval_required = $13, tool_ids = $14::jsonb, status = $15,
          error_message = $16, metadata = $17::jsonb, created_at = $18,
-         updated_at = $19, completed_at = $20
+         updated_at = $19, completed_at = $20${native ? ", thread_id = $21, reply_to_message_id = $22" : ""}
        WHERE tenant_id = $1 AND id = $2`,
       values,
     );
@@ -842,6 +935,9 @@ class PostgresRoomTransaction
       task.createdAt,
       task.updatedAt,
       task.completedAt ?? null,
+      ...(task.threadId !== undefined || task.replyToMessageId !== undefined
+        ? [task.threadId ?? null, task.replyToMessageId ?? null]
+        : []),
     ];
   }
 

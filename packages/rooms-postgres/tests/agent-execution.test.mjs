@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        19,
+        20,
       );
       await rollbackMigrations(pool, {
         schema,
@@ -48,7 +48,7 @@ test(
         ).currentVersion,
         15,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
       const result = await executionScenarios({
         store: new PostgresAgentExecutionStoreV1(pool, { schema }),
         governance: new PostgresAgentGovernanceStoreV1(pool, { schema }),

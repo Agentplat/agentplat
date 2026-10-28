@@ -18,6 +18,16 @@ import type {
 } from '@agentplat/model-openai-compatible';
 import { RoomService } from '@agentplat/rooms';
 import type { RoomServiceOptions } from '@agentplat/rooms';
+export {
+  conversationReference,
+  resolveRoomConversation,
+} from '@agentplat/rooms';
+export type {
+  RoomConversationReference,
+  RoomMessagePageInput,
+  RoomMessagePage,
+  RoomContextSelection,
+} from '@agentplat/rooms';
 import {
   createMultiAgentSession,
   buildScenarioInput,

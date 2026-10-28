@@ -172,6 +172,14 @@ try {
       await readFile(path.join(root, 'tests/rooms-room-planner-public-contracts.test.mts'), 'utf8'));
     const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
     config.include.push('room-planner.mts');
+    await writeFile(
+      path.join(consumerRoot, 'room-conversations.mts'),
+      await readFile(
+        path.join(root, 'tests/rooms-conversations-public-contracts.test.mts'),
+        'utf8',
+      ),
+    );
+    config.include.push('room-conversations.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
     execFileSync(process.execPath, ['room-planner.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }

@@ -8,6 +8,16 @@ import type {
   RuntimeCheckpointDecision,
 } from "@agentplat/runtime";
 import { BoundedContextBuilder } from "./context.js";
+import {
+  conversationReference,
+  resolveRoomConversation,
+  prepareRoomMessagePage,
+} from "./conversations.js";
+import type {
+  RoomConversationReference,
+  RoomMessagePageInput,
+  RoomMessagePage,
+} from "./conversations.js";
 import { roomEventPage } from "./event-page.js";
 import type { RoomEventPage, RoomEventPageInput } from "./event-page.js";
 import type {
@@ -33,6 +43,7 @@ import type {
 import { BasicPolicyEngine } from "./policy.js";
 import type {
   RoomRepository,
+  RoomRepositoryReader,
   RoomRepositoryTransaction,
 } from "./repository.js";
 import type { AgentRoomCoordinationState } from "./coordination-runtime.js";
@@ -100,7 +111,7 @@ export interface AddParticipantInput {
   metadata?: Participant["metadata"];
 }
 
-export interface CreateTaskInput {
+export interface CreateTaskInput extends RoomConversationReference {
   id?: AgentPlatID;
   stepId: string;
   assignedParticipantId?: AgentPlatID;
@@ -732,11 +743,16 @@ export class RoomService {
       /** Exact replay returns the persisted message; requires an explicit id. */
       idempotent?: boolean;
       authorParticipantId?: string;
+      startThread?: boolean;
+      threadId?: string;
+      replyToMessageId?: string;
+      targetParticipantId?: string;
       role: RoomMessage["role"];
       content: string;
       metadata?: RoomMessage["metadata"];
     },
   ): Promise<RoomMessage> {
+    input = structuredClone(input);
     this.required(input.content, "content");
     if (input.idempotent) this.required(input.id ?? "", "id");
     if (!messageRoles.has(input.role)) {
@@ -756,11 +772,37 @@ export class RoomService {
           input.authorParticipantId,
         );
       }
+      if (input.targetParticipantId !== undefined) {
+        this.required(input.targetParticipantId, "targetParticipantId");
+        if (transaction.conversationVersion !== 1)
+          throw new AgentPlatError(
+            "ADAPTER_ERROR",
+            "Repository does not support direct message recipients",
+          );
+        await this.requireRoomParticipant(
+          transaction,
+          tenantId,
+          roomId,
+          input.targetParticipantId,
+        );
+      }
+      const messageId = input.id ?? this.id();
+      const conversation = await resolveRoomConversation(
+        transaction,
+        tenantId,
+        roomId,
+        input,
+        { id: messageId, startThread: input.startThread },
+      );
       const message: RoomMessage = {
-        id: input.id ?? this.id(),
+        id: messageId,
         tenantId,
         roomId,
         authorParticipantId: input.authorParticipantId,
+        ...conversation,
+        ...(input.targetParticipantId !== undefined
+          ? { targetParticipantId: input.targetParticipantId }
+          : {}),
         role: input.role,
         content: input.content,
         metadata: input.metadata,
@@ -770,7 +812,15 @@ export class RoomService {
         tenantId,
         roomId,
         "message_created",
-        { roomId, messageId: message.id, role: message.role },
+        {
+          roomId,
+          messageId: message.id,
+          role: message.role,
+          ...conversation,
+          ...(message.targetParticipantId
+            ? { targetParticipantId: message.targetParticipantId }
+            : {}),
+        },
         input.authorParticipantId,
       );
       if (input.idempotent) {
@@ -779,10 +829,21 @@ export class RoomService {
         const persisted = await transaction.insertMessageIfAbsent(message);
         if (!persisted.inserted) {
           const old = persisted.message;
-          if (old.roomId !== message.roomId || old.role !== message.role ||
-              old.authorParticipantId !== message.authorParticipantId || old.content !== message.content ||
-              canonicalPlannerJson(old.metadata ?? {}) !== canonicalPlannerJson(message.metadata ?? {}))
-            throw new AgentPlatError("CONFLICT", "Message identity has different content or provenance");
+          if (
+            old.roomId !== message.roomId ||
+            old.role !== message.role ||
+            old.authorParticipantId !== message.authorParticipantId ||
+            old.content !== message.content ||
+            old.threadId !== message.threadId ||
+            old.replyToMessageId !== message.replyToMessageId ||
+            old.targetParticipantId !== message.targetParticipantId ||
+            canonicalPlannerJson(old.metadata ?? {}) !==
+              canonicalPlannerJson(message.metadata ?? {})
+          )
+            throw new AgentPlatError(
+              "CONFLICT",
+              "Message identity has different content or provenance",
+            );
           return { value: old, events: [] };
         }
       } else await transaction.insertMessage(message);
@@ -795,6 +856,48 @@ export class RoomService {
       }
       return { value: message, events: [event] };
     });
+  }
+
+  /** Application authentication/Room authorization remains the host's responsibility. */
+  async getMessage(
+    tenantId: string,
+    roomId: string,
+    messageId: string,
+  ): Promise<RoomMessage> {
+    await this.requireRoom(this.repository, tenantId, roomId);
+    if (!this.repository.getMessage)
+      throw new AgentPlatError(
+        "ADAPTER_ERROR",
+        "Repository does not support message lookup",
+      );
+    const message = await this.repository.getMessage(
+      tenantId,
+      roomId,
+      messageId,
+    );
+    if (!message)
+      throw new AgentPlatError("NOT_FOUND", "Message not found in this Room");
+    return message;
+  }
+
+  async listMessages(
+    tenantId: string,
+    roomId: string,
+    input: RoomMessagePageInput = {},
+  ): Promise<RoomMessagePage> {
+    input = structuredClone(input);
+    prepareRoomMessagePage(tenantId, roomId, input);
+    await this.requireRoom(this.repository, tenantId, roomId);
+    if (!this.repository.listMessages)
+      throw new AgentPlatError(
+        "ADAPTER_ERROR",
+        "Repository does not support message pages",
+      );
+    if (input.threadId)
+      await resolveRoomConversation(this.repository, tenantId, roomId, {
+        threadId: input.threadId,
+      });
+    return this.repository.listMessages(tenantId, roomId, input);
   }
 
   async createTask(
@@ -811,6 +914,10 @@ export class RoomService {
     this.stringArray(input.dependencies, "dependencies");
     this.stringArray(input.acceptanceCriteria, "acceptanceCriteria");
     this.stringArray(input.toolIds, "toolIds");
+    Object.assign(
+      input,
+      await resolveRoomConversation(this.repository, tenantId, roomId, input),
+    );
     if (input.actionLevel && !actionLevels.has(input.actionLevel)) {
       throw new AgentPlatError(
         "VALIDATION_ERROR",
@@ -841,6 +948,7 @@ export class RoomService {
     return this.mutate(tenantId, async (transaction) => {
       const room = await this.requireRoom(transaction, tenantId, roomId);
       this.assertRoomWritable(room);
+      await resolveRoomConversation(transaction, tenantId, roomId, input);
       if (input.assignedParticipantId) {
         const assignedParticipant = await this.requireRoomParticipant(
           transaction,
@@ -2155,7 +2263,7 @@ export class RoomService {
   }
 
   private async requireRoom(
-    transaction: RoomRepositoryTransaction,
+    transaction: RoomRepositoryReader,
     tenantId: string,
     roomId: string,
   ): Promise<Room> {
@@ -2194,6 +2302,7 @@ export class RoomService {
       tenantId,
       roomId,
       stepId: input.stepId,
+      ...conversationReference(input),
       assignedParticipantId: input.assignedParticipantId,
       assignedRole: input.assignedRole,
       instruction: input.instruction,

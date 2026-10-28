@@ -7,6 +7,7 @@ import type {
   ProposeRoomHandoffInput,
 } from "./room-handoff.js";
 import type { RoomService } from "./service.js";
+import { conversationReference } from "./conversations.js";
 
 /** One typed, dependency-aware step in an AgentPlat Agent Room plan. */
 export type AgentRoomPlanStep =
@@ -20,6 +21,8 @@ export type AgentRoomPlanStep =
       dependencies?: string[];
       actionLevel?: "read" | "draft" | "execute" | "external_write";
       toolIds?: string[];
+      threadId?: string;
+      replyToMessageId?: string;
     }
   | {
       stepId: string;
@@ -239,6 +242,8 @@ export class AgentRoomPlannerBridge {
             existing.instruction !== step.instruction ||
             existing.expectedOutput !== step.expectedOutput ||
             existing.expectedArtifactKind !== step.expectedArtifactKind ||
+            existing.threadId !== step.threadId ||
+            existing.replyToMessageId !== step.replyToMessageId ||
             existing.actionLevel !== (step.actionLevel ?? "draft"))
         )
           throw new AgentPlatError(
@@ -250,6 +255,7 @@ export class AgentRoomPlannerBridge {
           (await this.rooms.createTask(input.tenantId, input.roomId, {
             id,
             stepId: id,
+            ...conversationReference(step),
             assignedParticipantId: step.participantId,
             instruction: step.instruction,
             expectedOutput: step.expectedOutput,

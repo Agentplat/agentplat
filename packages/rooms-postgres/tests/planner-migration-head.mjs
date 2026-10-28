@@ -3,19 +3,18 @@ import {
   rollbackMigrations as rollbackAtVersion,
   rollbackConfirmation,
 } from "../dist/index.js";
-/** Legacy governance tests target a particular historical rollback. First remove the additive Planner schema. */
+/** Legacy governance tests target a historical rollback after removing newer additive schemas. */
 export async function rollbackMigrations(pool, options) {
-  if (
-    options.expectedCurrentVersion === 18 &&
-    (await getMigrationStatus(pool, { schema: options.schema }))
-      .currentVersion === 19
-  ) {
+  let current = (await getMigrationStatus(pool, { schema: options.schema }))
+    .currentVersion;
+  while (current > options.expectedCurrentVersion && current >= 19) {
     await rollbackAtVersion(pool, {
       schema: options.schema,
-      expectedCurrentVersion: 19,
-      confirm: rollbackConfirmation(options.schema, 19),
+      expectedCurrentVersion: current,
+      confirm: rollbackConfirmation(options.schema, current),
       allowDataLoss: true,
     });
+    current--;
   }
   return rollbackAtVersion(pool, options);
 }

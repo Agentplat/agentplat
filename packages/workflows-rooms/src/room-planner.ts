@@ -7,6 +7,7 @@ import {
   type WorkflowStoreV1,
 } from "@agentplat/workflows";
 import type { RoomPlannerCall, RoomPlannerScope } from "@agentplat/rooms";
+import { conversationReference } from "@agentplat/rooms";
 
 /** Persisted result owner. put must be idempotent, reject conflicting values and honor the workflow fence. */
 export interface RoomPlannerWorkflowResultStore {
@@ -64,6 +65,7 @@ export class RoomPlannerWorkflowCalls {
           try {
             const call: RoomPlannerCall = {
               operationId: id,
+              ...conversationReference(input),
               signal: AbortSignal.any([request.signal, abort.signal]),
               assertCurrent: check,
             };
@@ -102,14 +104,31 @@ export class RoomPlannerWorkflowCalls {
     call: RoomPlannerCall,
     payload: JsonObject,
   ): Promise<JsonObject> {
-    const saved = await this.options.results.get(scope, call.operationId);
-    if (saved) return saved;
+    const input = {
+      roomId: scope.roomId,
+      operationId: call.operationId,
+      ...conversationReference(call),
+      payload,
+    };
+    const existing = await this.runner.describe({
+      tenantId: scope.tenantId,
+      runId: this.runId(scope, call.operationId),
+    });
     if (
-      await this.runner.describe({
-        tenantId: scope.tenantId,
-        runId: this.runId(scope, call.operationId),
-      })
+      existing &&
+      digestWorkflowJsonV1("room-planner-input", existing.input ?? null) !==
+        digestWorkflowJsonV1("room-planner-input", input)
     )
+      throw new Error(
+        "Workflow operation identity has different input or conversation",
+      );
+    const saved = await this.options.results.get(scope, call.operationId);
+    if (saved && call.threadId && !existing)
+      throw new Error(
+        "Threaded workflow result has no persisted conversation binding",
+      );
+    if (saved) return saved;
+    if (existing)
       throw new Error(
         "Existing workflow requires reconciliation; no automatic model replay",
       );
@@ -151,7 +170,7 @@ export class RoomPlannerWorkflowCalls {
       operationId: `start:${runId}`,
       idempotencyKey: `start:${runId}`,
       logicalTime: this.now(),
-      input: { roomId: scope.roomId, operationId: call.operationId, payload },
+      input,
     });
     await call.assertCurrent();
     await this.runner.advance({

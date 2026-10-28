@@ -23,7 +23,7 @@ test(
       assert.equal(
         (await runMigrations(pool, { schema, createSchema: true }))
           .currentVersion,
-        19,
+        20,
       );
       const result = await attentionSignalScenarios({
         store: new PostgresAttentionSignalStoreV1(pool, { schema }),
@@ -115,7 +115,7 @@ test(
         ).currentVersion,
         14,
       );
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
     } finally {
       await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
       await pool.end();

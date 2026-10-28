@@ -12,7 +12,7 @@ import {
   PostgresAgentDefinitionRegistryStore,
 } from "../dist/index.js";
 test(
-  "upgrade 012 to 019 preserves legacy Room data, revision digests and instruction execution",
+  "upgrade 012 to 020 preserves legacy Room data, revision digests and instruction execution",
   { skip: process.env.AGENTPLAT_POSTGRES_TEST !== "1" },
   async () => {
     const schema = `upgrade_${randomUUID().replaceAll("-", "")}`,
@@ -95,8 +95,8 @@ test(
           definition.definition.revisionId,
         );
       assert.equal(revision.definition.interaction, undefined);
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
-      assert.equal((await runMigrations(pool, { schema })).currentVersion, 19);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
+      assert.equal((await runMigrations(pool, { schema })).currentVersion, 20);
       assert.deepEqual(await rooms.getRoomState("legacy", room.id), before);
       assert.deepEqual(
         await registry.getRevision("legacy", definition.definition.revisionId),

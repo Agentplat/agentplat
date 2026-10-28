@@ -1,5 +1,6 @@
 import type { JsonObject } from "@agentplat/core";
 import type { AgentRoomPlanStep } from "./planner-bridge.js";
+import type { RoomConversationReference } from "./conversations.js";
 
 export interface RoomPlannerScope {
   tenantId: string;
@@ -19,7 +20,7 @@ export interface RoomPlannerCriterion {
   id: string;
   description: string;
 }
-export interface RoomPlannerTask {
+export interface RoomPlannerTask extends RoomConversationReference {
   id: string;
   participantId: string;
   instruction: string;
@@ -27,14 +28,14 @@ export interface RoomPlannerTask {
   dependencies: string[];
   actionLevel: "read" | "draft";
 }
-export interface RoomPlannerPlan {
+export interface RoomPlannerPlan extends RoomConversationReference {
   id: string;
   version: number;
   predecessorId?: string;
   tasks: RoomPlannerTask[];
   sourceEventId: string;
 }
-export interface RoomPlannerObjective {
+export interface RoomPlannerObjective extends RoomConversationReference {
   id: string;
   revision: number;
   controlRevision: number;
@@ -64,9 +65,13 @@ export interface RoomPlannerReview {
     explanation: string;
   }[];
 }
-export interface RoomPlannerEvent {
+export interface RoomPlannerEvent extends RoomConversationReference {
   id: string;
-  kind: "message" | "result" | "specialist" | "resume";
+  kind: "message" | "result" | "specialist" | "resume" | "external" | "timer";
+  /** Actual persisted message ID, if event identity differs; required for threaded human messages. */
+  messageId?: string;
+  /** Connector/timer provenance is evidence, never an owner instruction or execution grant. */
+  provenance?: { source: string; eventId: string; occurredAt: string };
   actorId: string;
   content: string;
   objectiveId?: string;
@@ -122,7 +127,7 @@ export interface RoomPlannerContext {
   /** Bounded feedback from rejected interpretations of this same persisted user event. */
   feedback?: { proposal?: RoomPlannerProposal; reason: string }[];
 }
-export interface RoomPlannerCall {
+export interface RoomPlannerCall extends RoomConversationReference {
   operationId: string;
   signal?: AbortSignal;
   /** Recheck immediately before each protected effect; hosts must connect this at the effect sink. */
@@ -134,7 +139,7 @@ export interface RoomPlannerReasoner {
     call: RoomPlannerCall,
   ): Promise<{ proposal: RoomPlannerProposal; usage: RoomPlannerUsage }>;
 }
-export interface RoomPlannerOperation {
+export interface RoomPlannerOperation extends RoomConversationReference {
   id: string;
   kind: "reason" | "task" | "review" | "direct";
   status: "running" | "completed" | "uncertain" | "rejected";
@@ -189,6 +194,8 @@ export interface RoomPlannerState extends RoomPlannerScope {
     objectiveId?: string;
     participantId?: string;
     delivered: boolean;
+    threadId?: string;
+    replyToMessageId?: string;
   }[];
   lastScheduledObjectiveId?: string;
 }
@@ -220,6 +227,11 @@ export interface RoomPlannerPorts {
     scope: RoomPlannerScope,
     eventId: string,
   ): Promise<RoomPlannerEvent>;
+  /** Required for native conversation references; resolve and authorize them from owned storage. */
+  resolveConversation?(
+    scope: RoomPlannerScope,
+    reference: RoomConversationReference,
+  ): Promise<RoomConversationReference>;
   context(
     scope: RoomPlannerScope,
     event: RoomPlannerEvent,

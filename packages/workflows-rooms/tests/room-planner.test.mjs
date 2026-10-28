@@ -53,6 +53,28 @@ test("workflow attempts persist receipts and never repeat a completed model call
     "completed",
   );
 });
+
+test("conversation bindings reach workflow calls and reject a replay into another thread", async () => {
+  const seen = [];
+  const f = fixture(async (_, __, call) => {
+    seen.push({
+      threadId: call.threadId,
+      replyToMessageId: call.replyToMessageId,
+    });
+    return { usage: { costMicros: 1 }, result: { content: "Report" } };
+  });
+  const call = { ...f.call, threadId: "root", replyToMessageId: "prompt" };
+  await f.calls.run(scope, call, { kind: "task" });
+  assert.deepEqual(seen, [{ threadId: "root", replyToMessageId: "prompt" }]);
+  await new RoomPlannerWorkflowCalls(f.options).run(scope, call, {
+    kind: "task",
+  });
+  await assert.rejects(
+    f.calls.run(scope, { ...call, threadId: "other" }, { kind: "task" }),
+    /different input or conversation/,
+  );
+  assert.equal(f.invocations, 1);
+});
 test("ambiguous model failure remains indeterminate and cannot be replayed", async () => {
   const f = fixture(async () => {
     throw Error("Disconnected after model invocation");
