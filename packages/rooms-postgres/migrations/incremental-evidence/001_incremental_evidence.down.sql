@@ -1,0 +1,4 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.evidence_intake_batches;
+DROP TABLE __AGENTPLAT_SCHEMA__.evidence_checkpoints;
+DROP TABLE __AGENTPLAT_SCHEMA__.evidence_receipts;
+DROP TABLE __AGENTPLAT_SCHEMA__.evidence_events;

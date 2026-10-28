@@ -6,6 +6,8 @@ import type {
   ResourceRef,
   TenantScoped,
 } from '@agentplat/core';
+export * from './record-utils.js';
+export * from './evidence-processing.js';
 
 export interface AgentPlatEvent<
   TPayload extends JsonObject = JsonObject,

@@ -12,12 +12,16 @@ const purposeGovernance = process.argv.includes('--purpose-governance');
 const actionControl = process.argv.includes('--action-control');
 const optionalJev = process.argv.includes('--optional-jev');
 const roomPlanner = process.argv.includes('--room-planner');
+const followup = process.argv.includes('--followup');
 const artifactsConsumer = process.argv.includes('--artifacts');
 if (roomPlanner) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Room Planner consumer verification requires an isolated PostgreSQL test database');
+if (followup) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
+  'Follow-up consumer verification requires an isolated PostgreSQL test database');
 if (artifactsConsumer) assert.equal(process.env.AGENTPLAT_POSTGRES_TEST, '1',
   'Artifacts consumer verification requires an isolated PostgreSQL test database');
 const targets = Object.freeze([
+  ...(followup ? ['@agentplat/framework', '@agentplat/events', '@agentplat/rooms-postgres'] : []),
   ...(roomPlanner ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
   ...(artifactsConsumer ? ['@agentplat/artifacts', '@agentplat/artifacts-postgres'] : []),
   ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
@@ -38,6 +42,8 @@ const records = await discoverWorkspacePackageManifests(root);
 const recordsByName = new Map(records.map((record) => [record.manifest.name, record]));
 const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
+assert.ok(!followup || !registryRelease,
+  'Incremental follow-up currently verifies local tarballs, not an unpublished registry surface');
 assert.ok(!purposeGovernance || !registryRelease,
   'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
 const registryVersion = JSON.parse(
@@ -182,6 +188,16 @@ try {
     config.include.push('room-conversations.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
     execFileSync(process.execPath, ['room-planner.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+  }
+  if (followup) {
+    await writeFile(path.join(consumerRoot, 'followup.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/followup.mjs'), 'utf8'));
+    await writeFile(path.join(consumerRoot, 'followup.mts'),
+      await readFile(path.join(root, 'tests/followup-public-contracts.test.mts'), 'utf8'));
+    const config = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    config.include.push('followup.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), `${JSON.stringify(config, null, 2)}\n`);
+    execFileSync(process.execPath, ['followup.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }
   if (artifactsConsumer) {
     await writeFile(path.join(consumerRoot, 'artifacts.mjs'), `import assert from 'node:assert/strict';

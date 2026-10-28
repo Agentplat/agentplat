@@ -627,3 +627,5 @@ export type {
   RoomPlannerPorts, RoomPlannerReasoner, RoomPlannerProposal, RoomPlannerState,
   RoomPlannerObjective, RoomPlannerStore,
 } from '@agentplat/rooms';
+export { RoomSituationServiceV1, InMemoryRoomSituationStoreV1, MemoryProposalServiceV1, InMemoryMemoryProposalStoreV1 } from '@agentplat/rooms';
+export type { RoomSituationV1, RoomSituationStatusV1, RoomSituationChangeV1, SituationLinkV1, SituationCauseV1, RoomSituationContentV1, RoomSituationAccessV1, RoomSituationStoreV1, ApplySituationInputV1, MemoryProposalV1, MemoryProposalInputV1, MemoryProposalDecisionV1, MemoryProposalAccessV1, MemoryProposalStoreV1 } from '@agentplat/rooms';
