@@ -1,10 +1,10 @@
 # Stability and maintenance
 
-Version 1.0.0 was the first coordinated stable release. The current latest release is [1.4.0](releases/1.4.0-distribution.md), with 70 packages sharing its version. This policy applies to published 1.x versions.
+Version 1.0.0 was the first coordinated stable release. The current latest release is [1.5.0](releases/1.5.0-distribution.md), with 70 packages sharing its version. This policy applies to published 1.x versions.
 
 ## Public compatibility contract
 
-The 70 packages published in 1.4.0 share one release version. The source catalog may evolve, but only packages admitted to the coordinated release form the npm compatibility surface.
+The 70 packages published in 1.5.0 share one release version. The source catalog may evolve, but only packages admitted to the coordinated release form the npm compatibility surface.
 The supported API consists of their package.json export entry points, exported
 TypeScript contracts and documented behavior. Internal source paths, examples,
 research scripts and undocumented implementation details are outside that API.
