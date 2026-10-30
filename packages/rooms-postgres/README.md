@@ -212,3 +212,13 @@ links and requires the existing explicit destructive rollback procedure. See
 CAS head atomically. Initialize explicitly with `runMemoryRevisionMigrations`;
 this uses a separate ledger and does not advance the legacy Room migration head.
 See [integration, retention and rollback boundaries](../../docs/architecture/persistent-agent-learning-implementation.md).
+
+## Incremental evidence and reviewed follow-up source APIs
+
+`PostgresIncrementalEvidenceStoreV1` uses indexed events/receipts and atomic
+source checkpoints. `PostgresRoomSituationStoreV1` and
+`PostgresMemoryProposalStoreV1` share a revision journal while accepted memories
+remain in `PostgresMemoryRevisionStoreV1`. Constructors perform no I/O.
+Run `runIncrementalEvidenceMigrations` and `runRoomFollowupMigrations` explicitly;
+their ledgers do not change the base Room migration head or the memory ledger.
+See [scope, recovery, retention and consumer verification](../../docs/planner/incremental-followup.md).

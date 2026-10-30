@@ -2,6 +2,10 @@
 
 Infrastructure-neutral Agent Room domain contracts and lifecycle services.
 
+Opt-in follow-up source additions provide versioned situations, authorized
+multi-Room change feeds and human-reviewed learning proposals around the existing
+memory ledger. See [incremental follow-up](../../docs/planner/incremental-followup.md).
+
 Native conversation source additions provide rooted threads, replies, direct
 recipients and message pages. Threaded tasks default to selective context;
 Planner/workflow calls and notifications preserve their conversation identity.

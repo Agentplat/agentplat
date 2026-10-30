@@ -49,3 +49,7 @@ export * from './room-planner-runtime.js';
 export * from './memory-revisions.js';
 export * from './memory-revision-tools.js';
 export * from './definition-change.js';
+export type { FollowupRevisionV1, FollowupRevisionStoreV1 } from './followup-records.js';
+export { validateFollowupRevisionV1, followupRevisionFollowsV1 } from './followup-records.js';
+export * from './situations.js';
+export * from './memory-proposals.js';

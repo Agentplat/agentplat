@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add indexed incremental-evidence receipts with atomic source checkpoints,
+  fenced analysis, recoverable projections and payload compaction that retains
+  deduplication identities.
+- Add versioned Room situations and reviewed memory proposals. Accepted learning
+  reuses the memory ledger; new PostgreSQL ledgers remain independent of Room
+  migration 020. See [incremental follow-up](docs/planner/incremental-followup.md).
+
 - Add opt-in native Room threads/replies, indexed message pages and selective
   task context, with PostgreSQL migration 020 and compatible legacy inputs.
 - Preserve conversation identity through Planner delegation, workflow recovery

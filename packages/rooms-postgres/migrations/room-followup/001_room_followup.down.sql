@@ -1,0 +1,2 @@
+DROP TABLE __AGENTPLAT_SCHEMA__.followup_revisions;
+DROP TABLE __AGENTPLAT_SCHEMA__.followup_heads;

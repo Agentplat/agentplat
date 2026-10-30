@@ -18,3 +18,8 @@ for distribution status and version selection.
 This package defines event envelopes, publishers, subscribers and webhook sinks. Use it to connect runtime activity, workflow state, audit pipelines and operational integrations.
 
 `InMemoryEventBus` supports typed and wildcard subscriptions for local development and tests.
+
+The opt-in incremental-evidence source API adds atomic event/evidence/checkpoint
+intake, fenced analysis receipts, recovery of unapplied results and compaction
+with retained deduplication identities. It does not connect providers or invoke
+models. See [contracts, authorization and SQL adoption](../../docs/planner/incremental-followup.md).
