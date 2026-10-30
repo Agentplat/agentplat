@@ -1,6 +1,6 @@
 # Shared periodic budgets, timestamp activations and prepared notices
 
-Status: opt-in source increment, pending coordinated package distribution. These
+Status: opt-in capability in the [verified 1.5.0 cohort](../releases/1.5.0-distribution.md). These
 APIs connect the native Room Planner and existing workflow call receipts to a
 shared cost account and a persistent delivery outbox. They do not install a
 worker, select personal urgency, invoke models or send device notifications.
@@ -184,6 +184,6 @@ boundaries, sublimits, known/uncertain costs, admission/projection crash windows
 cancellation, horizon extension and lost delivery acknowledgements. These tests
 establish software behavior, not provider reliability or production-scale evidence.
 
-Next: coordinated distribution/adoption, then application integration. Personal
+Next: application adoption and integration. Personal
 priorities, actual model prices, calendar policy, Gmail/Pub/Sub, Web Push devices
 and the Master Room UI remain host application work.

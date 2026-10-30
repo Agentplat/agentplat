@@ -1,6 +1,6 @@
 # Native Room conversations and selective Planner context
 
-This additive implementation extends AgentPlat 1.4.0 source. It is not a published release until a compatible package cohort has been distributed and verified. It supplies conversation primitives, not a user interface or a provider connector.
+This additive implementation is available in the [verified AgentPlat 1.5.0 cohort](../releases/1.5.0-distribution.md). It supplies conversation primitives, not a user interface or a provider connector.
 
 ## Messages and replies
 

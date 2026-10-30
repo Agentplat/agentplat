@@ -1,6 +1,6 @@
 # Incremental evidence, situations and reviewed learning
 
-Status: opt-in source increment on top of native Room conversations, pending coordinated package distribution. These APIs do not install a worker, invoke a model, connect a provider or create execution authority. The host owns verified identity, source access, extraction quality, relevance rules and user interaction.
+Status: opt-in capability distributed in the [verified 1.5.0 cohort](../releases/1.5.0-distribution.md), on top of native Room conversations. These APIs do not install a worker, invoke a model, connect a provider or create execution authority. The host owns verified identity, source access, extraction quality, relevance rules and user interaction.
 
 ## Evidence intake and analysis
 
@@ -77,4 +77,4 @@ PostgreSQL adapters are in `@agentplat/rooms-postgres`, with an explicit direct 
 
 Run `node examples/incremental-followup.mjs` after building to exercise personal-mail and support-ticket consumers with the same APIs, simulated analysis and a deliberate partial-projection crash. No provider or paid model is used. Shared memory/SQL scenarios cover exact retries, source/cursor races, uncertainty, retained identities, more than 1,024 events, compaction, multi-Room cursors, proposal decisions and retirement. New-pool integration tests recover a stored analysis, its partially written situation and accepted memory together. These establish bounded software behavior, not extraction quality or production provider reliability.
 
-Shared periodic budgets, timestamp activations and prepared notice delivery are now implemented as an opt-in [source increment](shared-budgets-and-notices.md). Coordinated package distribution/adoption is next. Provider integrations, user-specific importance, the Master UI and delivery channels remain application work.
+Shared periodic budgets, timestamp activations and prepared notice delivery are now implemented as an opt-in [capability](shared-budgets-and-notices.md). Application adoption and activation remain explicit next steps. Provider integrations, user-specific importance, the Master UI and delivery channels remain application work.
