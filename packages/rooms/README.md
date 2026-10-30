@@ -2,6 +2,11 @@
 
 Infrastructure-neutral Agent Room domain contracts and lifecycle services.
 
+Native conversation source additions provide rooted threads, replies, direct
+recipients and message pages. Threaded tasks default to selective context;
+Planner/workflow calls and notifications preserve their conversation identity.
+See [contracts, authorization and adoption](../../docs/planner/conversations.md).
+
 ## Installation (developer preview)
 
 Install the coordinated preview explicitly:

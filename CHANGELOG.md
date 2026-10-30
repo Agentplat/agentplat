@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add opt-in native Room threads/replies, indexed message pages and selective
+  task context, with PostgreSQL migration 020 and compatible legacy inputs.
+- Preserve conversation identity through Planner delegation, workflow recovery
+  and notifications; accept attributed external/timer events without granting
+  owner authority. See [conversation adoption](docs/planner/conversations.md).
+
 ## 1.1.0 — in preparation, not published
 
 - Add opt-in instruction/purpose governance: owner controls, inceptions, signals,

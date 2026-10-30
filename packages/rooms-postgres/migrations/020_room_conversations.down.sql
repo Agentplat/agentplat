@@ -1,0 +1,14 @@
+ALTER TABLE __AGENTPLAT_SCHEMA__.tasks
+  DROP COLUMN reply_to_message_id,
+  DROP COLUMN thread_id;
+DROP INDEX __AGENTPLAT_SCHEMA__.messages_roots_page;
+DROP INDEX __AGENTPLAT_SCHEMA__.messages_thread_page;
+ALTER TABLE __AGENTPLAT_SCHEMA__.messages
+  DROP CONSTRAINT messages_reply_room_fk,
+  DROP CONSTRAINT messages_thread_room_fk,
+  DROP CONSTRAINT messages_target_room_fk,
+  DROP CONSTRAINT messages_conversation_shape,
+  DROP CONSTRAINT messages_room_identity,
+  DROP COLUMN target_participant_id,
+  DROP COLUMN reply_to_message_id,
+  DROP COLUMN thread_id;

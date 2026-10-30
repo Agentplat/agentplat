@@ -22,6 +22,8 @@ import type {
   RoomRepositoryTransaction,
 } from './repository.js';
 import type { AgentRoomCoordinationState } from './coordination-runtime.js';
+import { roomMessagePage } from './conversations.js';
+import type { RoomMessagePageInput } from './conversations.js';
 
 interface MemoryState {
   rooms: Room[];
@@ -60,6 +62,7 @@ const emptyState = (): MemoryState => ({
 });
 
 class InMemoryTransaction implements RoomRepositoryTransaction {
+  readonly conversationVersion = 1 as const;
   constructor(
     private readonly state: MemoryState,
     private readonly transactionTenantId?: AgentPlatID
@@ -83,6 +86,25 @@ class InMemoryTransaction implements RoomRepositoryTransaction {
     return this.state.rooms.find(
       (item) => item.tenantId === tenantId && item.id === roomId
     );
+  }
+
+  async getMessage(tenantId: string, roomId: string, messageId: string) {
+    this.assertTenant(tenantId);
+    return this.state.messages.find(
+      (message) =>
+        message.tenantId === tenantId &&
+        message.roomId === roomId &&
+        message.id === messageId,
+    );
+  }
+
+  async listMessages(
+    tenantId: string,
+    roomId: string,
+    input: RoomMessagePageInput = {},
+  ) {
+    this.assertTenant(tenantId);
+    return roomMessagePage(tenantId, roomId, this.state.messages, input);
   }
 
   async listRooms(tenantId: string): Promise<Room[]> {
@@ -533,6 +555,7 @@ class InMemoryTransaction implements RoomRepositoryTransaction {
 }
 
 export class InMemoryRoomRepository implements RoomRepository {
+  readonly conversationVersion = 1 as const;
   private state: MemoryState = emptyState();
   private transactionTail: Promise<void> = Promise.resolve();
 
@@ -562,6 +585,28 @@ export class InMemoryRoomRepository implements RoomRepository {
   async getRoom(tenantId: string, roomId: string): Promise<Room | undefined> {
     return structuredClone(
       await new InMemoryTransaction(this.state).getRoom(tenantId, roomId)
+    );
+  }
+  async getMessage(tenantId: string, roomId: string, messageId: string) {
+    return structuredClone(
+      await new InMemoryTransaction(this.state).getMessage(
+        tenantId,
+        roomId,
+        messageId,
+      ),
+    );
+  }
+  async listMessages(
+    tenantId: string,
+    roomId: string,
+    input: RoomMessagePageInput = {},
+  ) {
+    return structuredClone(
+      await new InMemoryTransaction(this.state).listMessages(
+        tenantId,
+        roomId,
+        input,
+      ),
     );
   }
   async listRooms(tenantId: string): Promise<Room[]> {

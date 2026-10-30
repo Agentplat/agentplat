@@ -66,7 +66,7 @@ test("legacy context and tool retrieval use identical scoped, unexpired memory",
   );
   const context = new BoundedContextBuilder({ clock: () => now }).build(
     state,
-    { id: "task", roomId: "r", acceptanceCriteria: [] },
+    { id: "task", tenantId: "t", roomId: "r", acceptanceCriteria: [] },
     participant,
   );
   const registry = new InMemoryToolRegistry();

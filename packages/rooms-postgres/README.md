@@ -199,6 +199,13 @@ Migration 019 adds CAS Room Planner state, revision history and workflow result 
 Apply migrations through the existing ledger. See [Room Planner](../../docs/planner/README.md)
 for budget, recovery, retention and source-distribution boundaries.
 
+Migration 020 adds optional conversation references to messages/tasks, same-Room
+foreign keys, direct recipients and keyset pagination indexes. Run it explicitly
+before native thread operations. Historical rows retain their original shape;
+legacy writes do not require the new columns. Removing 020 loses conversation
+links and requires the existing explicit destructive rollback procedure. See
+[native conversations](../../docs/planner/conversations.md).
+
 ## Versioned memory (opt-in source profile)
 
 `PostgresMemoryRevisionStoreV1` persists immutable memory revisions/audit and their

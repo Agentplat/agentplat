@@ -7,6 +7,7 @@ import type {
   TenantScoped,
 } from "@agentplat/core";
 import type { AgentPlatEvent } from "@agentplat/events";
+import type { RoomConversationReference } from "./conversations.js";
 
 export type RoomStatus = "active" | "paused" | "completed" | "archived";
 export type ParticipantType = "human" | "agent";
@@ -61,17 +62,19 @@ export interface RoomParticipant extends TenantScoped {
   joinedAt: ISODateTime;
 }
 
-export interface RoomMessage extends TenantScoped {
+export interface RoomMessage extends TenantScoped, RoomConversationReference {
   id: AgentPlatID;
   roomId: AgentPlatID;
   authorParticipantId?: AgentPlatID;
+  /** Direct recipient; replying does not implicitly change the recipient. */
+  targetParticipantId?: AgentPlatID;
   role: "human" | "agent" | "system" | "tool";
   content: string;
   metadata?: Metadata;
   createdAt: ISODateTime;
 }
 
-export interface RoomTask extends TenantScoped {
+export interface RoomTask extends TenantScoped, RoomConversationReference {
   id: AgentPlatID;
   roomId: AgentPlatID;
   stepId: string;
@@ -188,6 +191,8 @@ export interface AssembledTaskContext {
     instruction: string;
     expectedOutput: string;
     acceptanceCriteria: string[];
+    threadId?: AgentPlatID;
+    replyToMessageId?: AgentPlatID;
   };
   transcript: RoomMessage[];
   artifacts: Array<
@@ -202,6 +207,8 @@ export interface AssembledTaskContext {
     messageIds: AgentPlatID[];
     artifactIds: AgentPlatID[];
     memoryIds: AgentPlatID[];
+    threadId?: AgentPlatID;
+    omittedMessageCount?: number;
   };
 }
 

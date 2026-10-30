@@ -1,6 +1,11 @@
 import { canonicalPlannerJson } from "./planner-json.js";
 import { RoomPlannerCallError } from "./room-planner-contracts.js";
 import { AgentPlatError } from "@agentplat/core";
+import {
+  conversationReference,
+  validateConversationReference,
+} from "./conversations.js";
+import type { RoomConversationReference } from "./conversations.js";
 import type {
   RoomPlannerScope,
   RoomPlannerState,
@@ -45,6 +50,13 @@ function text(s: string) {
 }
 function same(a: unknown, b: unknown) {
   return canonicalPlannerJson(a) === canonicalPlannerJson(b);
+}
+function responseConversation(
+  event: RoomPlannerEvent,
+): RoomConversationReference {
+  return event.kind === "message" && event.threadId && event.messageId
+    ? { threadId: event.threadId, replyToMessageId: event.messageId }
+    : conversationReference(event);
 }
 export function roomPlannerBudget(state: RoomPlannerState) {
   const spentMicros = state.operations.reduce(
@@ -155,17 +167,82 @@ export class AgentRoomPlanner {
   }
   async acceptEvent(scope: RoomPlannerScope, eventId: string) {
     await this.ports.authorize(scope, "acceptEvent");
-    const event = await this.ports.resolveEvent(scope, eventId);
+    const event = structuredClone(
+      await this.ports.resolveEvent(scope, eventId),
+    );
     if (event.id !== eventId) fail("Event identity mismatch");
     text(event.id);
     text(event.actorId);
     text(event.content);
+    if (
+      ![
+        "message",
+        "result",
+        "specialist",
+        "resume",
+        "external",
+        "timer",
+      ].includes(event.kind)
+    )
+      fail("Invalid Planner event kind");
+    validateConversationReference(event);
+    if (event.messageId !== undefined) text(event.messageId);
+    if (event.kind === "message" && event.threadId && !event.messageId)
+      fail("Threaded messages require a persisted messageId");
+    if (event.targetParticipantIds !== undefined) {
+      if (
+        !Array.isArray(event.targetParticipantIds) ||
+        (event.kind !== "message" && event.targetParticipantIds.length > 0) ||
+        event.targetParticipantIds.length > 16 ||
+        new Set(event.targetParticipantIds).size !==
+          event.targetParticipantIds.length
+      )
+        fail("Only owner messages can directly address participants");
+      event.targetParticipantIds.forEach(text);
+    }
+    if (["external", "timer"].includes(event.kind) && !event.provenance)
+      fail("External and timer events require provenance");
+    if (event.provenance) {
+      text(event.provenance.source);
+      text(event.provenance.eventId);
+      if (
+        typeof event.provenance.occurredAt !== "string" ||
+        !Number.isFinite(Date.parse(event.provenance.occurredAt))
+      )
+        fail("Invalid event occurrence time");
+    }
+    await this.assertConversation(scope, event);
+    if (event.kind === "message" && event.threadId && event.messageId)
+      await this.assertConversation(scope, {
+        threadId: event.threadId,
+        replyToMessageId: event.messageId,
+      });
     return this.change(scope, (state) => {
       const prior = state.events.find((e) => e.id === event.id);
       if (prior && !same(prior, event))
         fail("Event identity reused with different content");
       if (!prior) state.events.push(structuredClone(event));
     });
+  }
+  private async assertConversation(
+    scope: RoomPlannerScope,
+    reference: RoomConversationReference,
+  ) {
+    if (!reference.threadId && !reference.replyToMessageId) return;
+    if (!reference.threadId)
+      fail("Planner conversations require an explicit threadId");
+    if (!this.ports.resolveConversation)
+      fail("Planner conversation resolver is required");
+    const resolved = await this.ports.resolveConversation(
+      scope,
+      conversationReference(reference),
+    );
+    if (
+      resolved.threadId !== reference.threadId ||
+      (reference.replyToMessageId &&
+        resolved.replyToMessageId !== reference.replyToMessageId)
+    )
+      fail("Planner conversation reference does not match persisted messages");
   }
   async recordSpecialistProposal(scope: RoomPlannerScope, eventId: string) {
     const event = await this.ports.resolveEvent(scope, eventId);
@@ -207,6 +284,7 @@ export class AgentRoomPlanner {
           kind: "resume",
           actorId: "owner",
           objectiveId: o.id,
+          ...conversationReference(o),
           content:
             "Resume the existing objective; reconcile prior work and revise only if necessary.",
         });
@@ -290,7 +368,17 @@ export class AgentRoomPlanner {
           (current.handledEventIds ??= []).push(pending.id);
       });
     } else if (pending) {
-      const targets = await this.ports.route(scope, pending);
+      const targets = await this.ports.route(scope, structuredClone(pending));
+      if (
+        !Array.isArray(targets) ||
+        targets.length > 16 ||
+        new Set(targets).size !== targets.length
+      )
+        fail("Invalid direct route");
+      targets.forEach(text);
+      if (targets.length && pending.kind !== "message")
+        fail("External and specialist events cannot use direct routing");
+      for (const id of targets) await this.ports.authorize(scope, "direct", id);
       if (targets.length && state.mode === "observe") {
         await this.change(scope, (s) => {
           for (const participantId of targets) {
@@ -303,6 +391,7 @@ export class AgentRoomPlanner {
               admissionMode: "observe",
               eventId: pending!.id,
               participantId,
+              ...responseConversation(pending),
               reservedMicros: 0,
               usage: { costMicros: 0, inputTokens: 0, outputTokens: 0 },
               startedAt: this.now(),
@@ -330,6 +419,7 @@ export class AgentRoomPlanner {
               expectedOutput: "Answer the user directly",
               dependencies: [],
               actionLevel: "draft",
+              ...responseConversation(pending),
             };
             await this.call(
               scope,
@@ -338,6 +428,7 @@ export class AgentRoomPlanner {
                 kind: "direct",
                 eventId: pending.id,
                 participantId,
+                ...responseConversation(pending),
               },
               signal,
               (call) => this.ports.execute(scope, task, undefined, call),
@@ -358,6 +449,7 @@ export class AgentRoomPlanner {
             id: `reason:${encodeURIComponent(pending.id)}:attempt:${state.operations.filter((op) => op.kind === "reason" && op.eventId === pending.id).length + 1}`,
             kind: "reason",
             eventId: pending.id,
+            ...responseConversation(pending),
             objectiveBindings: state.objectives.map((o) => ({
               objectiveId: o.id,
               revision: o.revision,
@@ -477,6 +569,7 @@ export class AgentRoomPlanner {
                 planId: plan.id,
                 controlRevision: o.controlRevision,
                 objectiveRevision: o.revision,
+                ...conversationReference(o),
               },
               signal,
               (call) =>
@@ -510,6 +603,7 @@ export class AgentRoomPlanner {
                 participantId: task.participantId,
                 controlRevision: o.controlRevision,
                 objectiveRevision: o.revision,
+                ...conversationReference(task),
               },
               signal,
               async (call) => {
@@ -526,6 +620,7 @@ export class AgentRoomPlanner {
                     expectedArtifactKind: "report",
                     dependencies: t.dependencies,
                     actionLevel: t.actionLevel,
+                    ...conversationReference(t),
                   })),
                 );
                 return this.ports.execute(scope, task, o, call);
@@ -635,10 +730,12 @@ export class AgentRoomPlanner {
     try {
       const call: RoomPlannerCall = {
         operationId: input.id,
+        ...conversationReference(input),
         signal,
         assertCurrent: async () => {
           if (signal?.aborted) throw new Error("Planner interrupted");
           await this.ports.authorize(scope, "execute", input.objectiveId);
+          await this.assertConversation(scope, input);
           const current = await this.get(scope),
             op = current.operations.find((op) => op.id === input.id)!;
           if (
@@ -828,6 +925,7 @@ export class AgentRoomPlanner {
             if (canRepair)
               s.events.push({
                 id: `review-result:${id}`,
+                ...conversationReference(op),
                 kind: "result",
                 actorId: review.reviewerParticipantId,
                 objectiveId: o.id,
@@ -849,6 +947,7 @@ export class AgentRoomPlanner {
                     ? `Completed: ${o.title}`
                     : `Review needs attention: ${o.title}`,
                 delivered: false,
+                ...conversationReference(o),
               });
           } else if (
             output.result?.kind === "result" &&
@@ -862,6 +961,7 @@ export class AgentRoomPlanner {
           if (output.result)
             s.events.push({
               id: `result:${id}`,
+              ...conversationReference(op),
               kind: "result",
               actorId: op.participantId ?? "specialist",
               objectiveId: o.id,
@@ -871,6 +971,7 @@ export class AgentRoomPlanner {
         } else if (output.result)
           s.notifications.push({
             id: `notice:${id}`,
+            ...conversationReference(op),
             content: output.result.content,
             participantId: op.participantId,
             delivered: false,
@@ -907,6 +1008,7 @@ export class AgentRoomPlanner {
             if (objective.noProgressCycles >= 3) objective.status = "waiting";
             s.events.push({
               id: `rejected:${id}`,
+              ...conversationReference(op),
               kind: "result",
               actorId: op.participantId ?? "specialist",
               objectiveId: op.objectiveId,
@@ -931,6 +1033,7 @@ export class AgentRoomPlanner {
         if (!op.retryablePlan || attempts >= 3)
           s.notifications.push({
             id: `rejected:${id}`,
+            ...conversationReference(op),
             content: `Planner needs attention: ${op.error}`,
             objectiveId: op.objectiveId,
             delivered: false,
@@ -945,6 +1048,26 @@ export class AgentRoomPlanner {
   ) {
     validateRoomPlannerProposal(proposal);
     const event = s.events.find((e) => e.id === op.eventId)!;
+    proposal = structuredClone(proposal);
+    if (proposal.kind === "plan") {
+      const prior = s.objectives.find((o) => o.id === proposal.objectiveId);
+      if (prior && prior.threadId !== op.threadId)
+        fail("An objective cannot be redirected into another conversation");
+      proposal.tasks = proposal.tasks.map((task) => {
+        const old = prior?.plans
+          .flatMap((plan) => plan.tasks)
+          .find((t) => t.id === task.id);
+        // Conversation bindings are host-owned. The model cannot widen or redirect a task.
+        const {
+          threadId: ignoredThread,
+          replyToMessageId: ignoredReply,
+          ...definition
+        } = task;
+        void ignoredThread;
+        void ignoredReply;
+        return { ...definition, ...conversationReference(old ?? op) };
+      });
+    }
     if (s.mode === "observe") {
       s.decisions.push({
         id: op.id,
@@ -959,6 +1082,8 @@ export class AgentRoomPlanner {
     if (targetObjectiveId) {
       const current = s.objectives.find((o) => o.id === targetObjectiveId);
       if (current) {
+        if (current.threadId !== op.threadId)
+          fail("An objective cannot be controlled from another conversation");
         const binding = op.objectiveBindings?.find(
           (b) => b.objectiveId === current.id,
         );
@@ -1006,6 +1131,7 @@ export class AgentRoomPlanner {
       if (!o) {
         o = {
           id: proposal.objectiveId,
+          ...conversationReference(op),
           revision: 0,
           controlRevision: 0,
           originalRequest: event.content,
@@ -1058,6 +1184,7 @@ export class AgentRoomPlanner {
             );
         }
         o.revision++;
+        Object.assign(o, conversationReference(op));
         o.controlRevision++;
         if (event.kind === "message")
           o.corrections.push({ eventId: event.id, instruction: event.content });
@@ -1073,6 +1200,7 @@ export class AgentRoomPlanner {
         predecessorId,
         tasks: structuredClone(proposal.tasks),
         sourceEventId: event.id,
+        ...conversationReference(op),
       };
       o.plans.push(plan);
       o.activePlanId = plan.id;
@@ -1149,6 +1277,7 @@ export class AgentRoomPlanner {
     if (proposal.content)
       s.notifications.push({
         id: `notice:${op.id}`,
+        ...conversationReference(op),
         content: proposal.content,
         objectiveId: proposal.objectiveId,
         delivered: false,
