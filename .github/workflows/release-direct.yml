@@ -134,7 +134,7 @@ jobs:
             pnpm run verify:action-control-consumer
             pnpm run verify:runner-consumer
             pnpm run verify:memory-consumer
-            pnpm run verify:planner-consumer
+            pnpm run verify:planner-operations-consumer
             pnpm run verify:artifacts-consumer
           fi
         env:
@@ -259,9 +259,9 @@ jobs:
           RUNNER_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_release_verify
           PGUSER: agentplat_release_verify
           PGPASSWORD: agentplat_release_verify
-      - name: Verify Room Planner registry APIs and coordinated migrations
+      - name: Verify Room Planner, follow-up and operations registry APIs
         if: ${{ inputs.scope == 'all' }}
-        run: pnpm run verify:planner-consumer
+        run: pnpm run verify:planner-operations-consumer
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
 
