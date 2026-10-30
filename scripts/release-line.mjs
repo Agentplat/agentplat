@@ -154,6 +154,21 @@ export const RELEASE_LINES = Object.freeze([
     requiredPackageNames: [...A2A_PACKAGE_NAMES, "@agentplat/assessor-typesafe"],
     sourceOnlyPackageNames: ["@agentplat/assessor-typesafe"],
   }),
+  Object.freeze({
+    catalogPackageCount: 70,
+    id: "stable1-5",
+    releaseVersion: "1.5.0",
+    trustPackageCount: 1,
+    requiredPackageNames: [
+      ...A2A_PACKAGE_NAMES,
+      "@agentplat/assessor-typesafe",
+      "@agentplat/artifacts",
+      "@agentplat/artifacts-postgres",
+      "@agentplat/runner",
+      "@agentplat/runner-hub",
+    ],
+    allPackagesPublishable: true,
+  }),
 ]);
 
 /**
@@ -198,7 +213,7 @@ export async function assertReleaseLine({
     ) ?? matchingLines[0];
   assert.ok(
     line,
-    `Release line requires an explicitly supported package cohort: 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4, 33 Alpha 5, 34 Beta 1, 36 Beta 2, 56 Beta 5, 62 Beta 6/Beta 7, 65 Beta 7/Beta 8/stable 1.0.0 packages, the 66-manifest stable 1.0.0 source cohort with @agentplat/assessor-typesafe unpublished, the 66-package stable 1.1.0/1.2.0 cohorts including optional Jev, the 68-package stable 1.3.0/1.4.0 cohorts including Edge Runner Hub and persistent memory, or the 70-package stable 1.4.0 cohort including Room Planner, memory and artifacts`,
+    `Release line requires an explicitly supported package cohort: 29 Alpha 3 packages without ${TRUST_PACKAGE_NAME}, 30 Alpha 4, 33 Alpha 5, 34 Beta 1, 36 Beta 2, 56 Beta 5, 62 Beta 6/Beta 7, 65 Beta 7/Beta 8/stable 1.0.0 packages, the 66-manifest stable 1.0.0 source cohort with @agentplat/assessor-typesafe unpublished, the 66-package stable 1.1.0/1.2.0 cohorts including optional Jev, the 68-package stable 1.3.0/1.4.0 cohorts including Edge Runner Hub and persistent memory, or the 70-package stable 1.4.0/1.5.0 cohorts including Room Planner, memory, artifacts and incremental follow-up`,
   );
 
   assert.equal(

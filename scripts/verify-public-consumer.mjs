@@ -46,15 +46,15 @@ const records = await discoverWorkspacePackageManifests(root);
 const recordsByName = new Map(records.map((record) => [record.manifest.name, record]));
 const required = collectInternalClosure(targets, recordsByName);
 const registryRelease = process.env.AGENTPLAT_PUBLIC_CONSUMER_SOURCE === 'registry';
-assert.ok(!followup || !registryRelease,
-  'Incremental follow-up currently verifies local tarballs, not an unpublished registry surface');
-assert.ok(!plannerOperations || !registryRelease,
-  'Planner operations currently verifies local tarballs, not an unpublished registry surface');
 assert.ok(!purposeGovernance || !registryRelease,
   'Purpose governance currently verifies local tarballs, not an unpublished registry surface');
 const registryVersion = JSON.parse(
   await readFile(path.join(root, 'package.json'), 'utf8'),
 ).version;
+assert.ok(!followup || !registryRelease || semver.gte(registryVersion, '1.5.0'),
+  'Registry incremental follow-up consumption requires published 1.5.0 or newer');
+assert.ok(!plannerOperations || !registryRelease || semver.gte(registryVersion, '1.5.0'),
+  'Registry Planner operations consumption requires published 1.5.0 or newer');
 assert.ok(!actionControl || !registryRelease || semver.gte(registryVersion, '1.2.0'),
   'Registry action-control consumption requires published 1.2.0 or newer');
 const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'agentplat-public-consumer-'));

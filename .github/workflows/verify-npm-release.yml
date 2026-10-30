@@ -115,9 +115,9 @@ jobs:
           PGUSER: agentplat_release_verify
           PGPASSWORD: agentplat_release_verify
           NPM_CONFIG_USERCONFIG: /dev/null
-      - name: Verify Room Planner registry APIs and coordinated migrations
+      - name: Verify Room Planner, follow-up and operations registry APIs
         if: ${{ inputs.scope == 'all' }}
-        run: pnpm run verify:planner-consumer
+        run: pnpm run verify:planner-operations-consumer
         env:
           AGENTPLAT_PUBLIC_CONSUMER_SOURCE: registry
 
