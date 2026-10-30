@@ -222,3 +222,13 @@ remain in `PostgresMemoryRevisionStoreV1`. Constructors perform no I/O.
 Run `runIncrementalEvidenceMigrations` and `runRoomFollowupMigrations` explicitly;
 their ledgers do not change the base Room migration head or the memory ledger.
 See [scope, recovery, retention and consumer verification](../../docs/planner/incremental-followup.md).
+### Planner operations (opt-in source increment)
+
+`PostgresSharedBudgetStoreV1` serializes shared account admissions/settlements;
+`PostgresScheduledFollowupStoreV1` stores dated intents and delivery receipts.
+Initialize explicitly with `runPlannerOperationsMigrations`; inspect with
+`getPlannerOperationsMigrationStatus`. The independent ledger coexists with
+Room 020, workflow and follow-up/memory ledgers. Destructive rollback requires
+`plannerOperationsRollbackConfirmation` and explicit data-loss authorization.
+See [shared budgets and notices](../../docs/planner/shared-budgets-and-notices.md)
+for authority, recovery and adapter requirements. Constructors perform no I/O.

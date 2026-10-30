@@ -191,6 +191,7 @@
     "verify:pack": "node scripts/pack-smoke.mjs",
     "verify:public-consumer": "node scripts/verify-public-consumer.mjs",
     "verify:followup-consumer": "node scripts/verify-public-consumer.mjs --room-planner --followup",
+    "verify:planner-operations-consumer": "node scripts/verify-public-consumer.mjs --room-planner --followup --planner-operations",
     "verify:collective-planning-closed-loop": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop.mjs",
     "verify:collective-closed-loop-resilience": "pnpm --filter @agentplat/mesh-sim build && node scripts/pack-consumers/collective-planning-closed-loop-resilience.mjs",
     "verify:team-formation-pack": "node scripts/pack-consumers/team-formation.mjs",

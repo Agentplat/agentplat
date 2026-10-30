@@ -166,8 +166,8 @@ jobs:
           path: release-artifacts/memory-preview/
           if-no-files-found: error
           retention-days: 14
-      - name: Verify Planner and incremental follow-up packed consumers
-        run: pnpm run verify:followup-consumer
+      - name: Verify Planner, incremental follow-up and operations packed consumers
+        run: pnpm run verify:planner-operations-consumer
         env:
           AGENTPLAT_POSTGRES_TEST: "1"
           PGHOST: 127.0.0.1
