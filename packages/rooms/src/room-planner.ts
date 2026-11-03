@@ -381,10 +381,13 @@ export class AgentRoomPlanner {
       else {
         if (op.sharedBudget || op.sharedBudgetPending)
           await this.ports.sharedBudget!.uncertain(scope, op);
-        await this.change(scope, (s) => {
-          const current = s.operations.find((x) => x.id === op.id)!;
-          if (current.status === "running") current.status = "uncertain";
-        });
+        // Retain uncertainty without appending a full-state history revision on
+        // every recovery poll. Reconciliation still runs on subsequent ticks.
+        if (op.status === "running")
+          await this.change(scope, (s) => {
+            const current = s.operations.find((x) => x.id === op.id)!;
+            if (current.status === "running") current.status = "uncertain";
+          });
       }
     }
     state = await this.get(scope);

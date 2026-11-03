@@ -1095,3 +1095,33 @@ test("a reviewer completing concurrently does not consume and lose a queued owne
   assert.equal((await f.planner.get(scope)).objectives[0].plans.length, 2);
   assert.equal(calls, 2);
 });
+
+test("unresolved recovery polls retain reservations without appending state history", async () => {
+  let calls = 0, reconciliations = 0;
+  const f = fixture({
+    execute: async () => { calls++; throw new Error("Unknown provider outcome"); },
+    reconcile: async () => { reconciliations++; return undefined; },
+  });
+  await f.init(10);
+  await f.message("pending", { targetParticipantIds: ["one"] });
+  await f.planner.runOnce(scope);
+  f.advance(400_000);
+  await f.planner.runOnce(scope);
+  const before = await f.planner.get(scope);
+  assert.equal(before.operations[0].status, "uncertain");
+  let writes = 0;
+  const original = f.store.compareAndSet.bind(f.store);
+  f.store.compareAndSet = async (...args) => { writes++; return original(...args); };
+  for (let tick = 0; tick < 10; tick++) await createAgentRoomPlanner(f.ports).runOnce(scope);
+  const after = await f.planner.get(scope);
+  assert.equal(writes, 0);
+  assert.deepEqual(after, before);
+  assert.equal(calls, 1);
+  assert.ok(reconciliations >= 10);
+  assert.equal(roomPlannerBudget(after).reservedMicros, 10);
+  // New proof remains usable; the optimization must not disable reconciliation.
+  f.ports.reconcile = async () => ({ usage, result: {kind:"result", content:"Recovered", evidence:[]} });
+  await createAgentRoomPlanner(f.ports).runOnce(scope);
+  assert.equal((await f.planner.get(scope)).operations[0].status, "completed");
+  assert.ok(writes > 0);
+});
