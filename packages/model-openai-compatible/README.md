@@ -4,16 +4,17 @@ A dependency-light `ModelAdapter` for servers that implement the OpenAI Chat
 Completions wire format. It uses the platform `fetch` implementation and does
 not install an OpenAI SDK.
 
-## Installation (developer preview)
+## Installation
 
-Install the coordinated preview explicitly:
+The Groq, Mistral, Azure and Bedrock presets require AgentPlat 1.6.0 or newer.
+Install the coordinated stable release explicitly:
 
 ```sh
-npm install @agentplat/model-openai-compatible@next
+npm install --save-exact @agentplat/model-openai-compatible@1.6.0
 ```
 
-Keep all `@agentplat/*` packages on the same release version. npm's default
-`latest` tag can point to an older preview. See the
+Keep all `@agentplat/*` packages on the same release version. The `next` tag
+may point to a historical preview without these presets. See the
 [release channels](https://github.com/Agentplat/agentplat/blob/main/docs/release-channels.md)
 for distribution status and version selection.
 
