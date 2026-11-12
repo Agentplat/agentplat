@@ -199,6 +199,21 @@ export const RELEASE_LINES = Object.freeze([
     ],
     allPackagesPublishable: true,
   }),
+  Object.freeze({
+    catalogPackageCount: 70,
+    id: "stable1-7",
+    releaseVersion: "1.7.0",
+    trustPackageCount: 1,
+    requiredPackageNames: [
+      ...A2A_PACKAGE_NAMES,
+      "@agentplat/assessor-typesafe",
+      "@agentplat/artifacts",
+      "@agentplat/artifacts-postgres",
+      "@agentplat/runner",
+      "@agentplat/runner-hub",
+    ],
+    allPackagesPublishable: true,
+  }),
 ]);
 
 /**

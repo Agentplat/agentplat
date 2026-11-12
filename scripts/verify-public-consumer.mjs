@@ -27,7 +27,7 @@ const targets = Object.freeze([
   ...(plannerOperations ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
   ...(followup ? ['@agentplat/framework', '@agentplat/events', '@agentplat/rooms-postgres'] : []),
   ...(roomPlanner ? ['@agentplat/framework', '@agentplat/rooms-postgres', '@agentplat/workflows-postgres', '@agentplat/workflows-rooms'] : []),
-  ...(artifactsConsumer ? ['@agentplat/artifacts', '@agentplat/artifacts-postgres'] : []),
+  ...(artifactsConsumer ? ['@agentplat/artifacts', '@agentplat/artifacts-postgres', '@agentplat/rooms', '@agentplat/rooms-postgres'] : []),
   ...(actionControl ? ['@agentplat/inference-control', '@agentplat/collective-control-postgres'] : []),
   ...(optionalJev ? ['@agentplat/assessor-typesafe'] : []),
   ...(purposeGovernance ? [
@@ -260,6 +260,23 @@ try {
     config.include.push('artifacts.mts');
     await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(config));
     execFileSync(process.execPath, ['artifacts.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
+    for (const [file, source] of [
+      ['actor-conversation-scenarios.mjs', 'tests/helpers/actor-conversation-scenarios.mjs'],
+      ['artifact-room-access-scenarios.mjs', 'tests/helpers/artifact-room-access-scenarios.mjs'],
+    ]) {
+      const text = (await readFile(path.join(root, source), 'utf8'))
+        .replace('../../packages/rooms/dist/index.js', '@agentplat/rooms')
+        .replace('../../packages/artifacts/dist/index.js', '@agentplat/artifacts');
+      await writeFile(path.join(consumerRoot, file), text);
+    }
+    await writeFile(path.join(consumerRoot, 'actor-conversations.mjs'),
+      await readFile(path.join(root, 'scripts/pack-consumers/actor-conversations.mjs'), 'utf8'));
+    await writeFile(path.join(consumerRoot, 'actor-conversations.mts'),
+      await readFile(path.join(root, 'tests/rooms-actor-conversations-public-contracts.test.mts'), 'utf8'));
+    const actorConfig = JSON.parse(await readFile(path.join(consumerRoot, 'tsconfig.json'), 'utf8'));
+    actorConfig.include.push('actor-conversations.mts');
+    await writeFile(path.join(consumerRoot, 'tsconfig.json'), JSON.stringify(actorConfig));
+    execFileSync(process.execPath, ['actor-conversations.mjs'], { cwd: consumerRoot, stdio: 'inherit' });
   }
   if(optionalJev){
     await writeFile(path.join(consumerRoot,'optional-jev.mjs'),await readFile(path.join(root,'scripts/pack-consumers/optional-jev.mjs'),'utf8'));
