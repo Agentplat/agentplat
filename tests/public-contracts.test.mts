@@ -86,3 +86,33 @@ void parserOptions;
 void personaBuilder;
 void sessionReducer;
 void sessionRecord;
+
+// Compatible provider presets remain available through the typed facade.
+const groqAgent = AgentPlat.configure({
+  provider: 'groq',
+  model: 'test-model',
+  instructions: 'Be concise.',
+});
+const mistralAgent = AgentPlat.configure({
+  provider: 'mistral',
+  model: 'test-model',
+  instructions: 'Be concise.',
+});
+void groqAgent;
+void mistralAgent;
+
+const azureAgent = AgentPlat.configure({
+  provider: 'azure',
+  baseURL: 'https://resource.openai.azure.com/openai/v1',
+  model: 'deployment-name',
+  instructions: 'Be concise.',
+  apiKeyResolver: async () => 'execution-token',
+});
+const bedrockAgent = AgentPlat.configure({
+  provider: 'bedrock',
+  baseURL: 'https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1',
+  model: 'model-id',
+  instructions: 'Be concise.',
+});
+void azureAgent;
+void bedrockAgent;

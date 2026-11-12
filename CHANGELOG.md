@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add Groq and Mistral endpoint presets and explicit-endpoint Azure OpenAI /
+  Microsoft Foundry and Amazon Bedrock Chat Completions presets to the existing
+  model adapter. Add shared contract tests and an opt-in joint provider smoke
+  command; Bedrock bearer authentication does not implement Converse or SigV4.
+- Prepare the coordinated 70-package 1.6.0 cohort; see
+  [release preparation](docs/releases/1.6.0-preparation.md).
+
 - Add shared periodic cost accounts, atomic total/category reservations and
   usage reconciliation across Planner and specialist calls, with workflow/evidence
   composition and persisted binding/fencing.
