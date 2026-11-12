@@ -470,3 +470,29 @@ test('MockAgentProvider supports ordered responses and scripted token streams', 
 test('encodeSseEvent rejects invalid sequence numbers', () => {
   assert.throws(() => encodeSseEvent({ type: 'started' }, 0), /positive/);
 });
+
+for (const [provider, baseURL] of [
+  ['azure', 'https://resource.openai.azure.com/openai/v1'],
+  ['bedrock', 'https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1'],
+]) {
+  test(`AgentPlat.ask supports the ${provider} deployment preset`, async () => {
+    const answer = await AgentPlat.ask({
+      provider,
+      baseURL,
+      apiKey: 'deployment-key',
+      model: 'deployment-model',
+      prompt: 'Hello',
+      fetch: async (url, init) => {
+        assert.equal(url, `${baseURL}/chat/completions`);
+        assert.equal(init.headers.Authorization, 'Bearer deployment-key');
+        assert.equal(JSON.parse(init.body).model, 'deployment-model');
+        return Response.json({
+          choices: [
+            { message: { content: 'Deployment answer' }, finish_reason: 'stop' },
+          ],
+        });
+      },
+    });
+    assert.equal(answer, 'Deployment answer');
+  });
+}

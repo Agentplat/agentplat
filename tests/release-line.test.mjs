@@ -489,3 +489,19 @@ test("Stable 1.5.1 preserves the full cohort and rejects mixed patch versions", 
   assert.equal(await assertReleaseLine({ root: good }), true);
   await assert.rejects(assertReleaseLine({ root: mixed }), /must use 1\.5\.1/);
 });
+
+test("Stable 1.6.0 preserves the full cohort and rejects mixed provider release versions", async (t) => {
+  const line = RELEASE_LINES.find((entry) => entry.id === "stable1-6");
+  const good = await createReleaseLineFixture({ line });
+  const mixed = await createReleaseLineFixture({
+    line,
+    packageVersion: "1.5.1",
+  });
+  t.after(() =>
+    Promise.all(
+      [good, mixed].map((root) => rm(root, { force: true, recursive: true })),
+    ),
+  );
+  assert.equal(await assertReleaseLine({ root: good }), true);
+  await assert.rejects(assertReleaseLine({ root: mixed }), /must use 1\.6\.0/);
+});

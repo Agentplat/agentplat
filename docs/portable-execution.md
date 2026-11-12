@@ -41,7 +41,10 @@ const answer = await AgentPlat.ask({
 ```
 
 `ask` returns a `string` and supports the `openai`, `gemini`, `ollama`,
-`openrouter` and `compatible` presets. It is still one ephemeral model call:
+`openrouter`, `groq`, `mistral`, `azure`, `bedrock` and `compatible` presets.
+Azure and Bedrock require an explicit `baseURL`; see the
+[provider configuration guide](../packages/model-openai-compatible/README.md).
+It is still one ephemeral model call:
 it does not create a Room or durable audit record.
 
 Use `quickRun` below when the caller needs normalized usage, finish reason or

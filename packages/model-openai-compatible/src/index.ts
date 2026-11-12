@@ -35,7 +35,15 @@ export interface OpenAICompatibleModelAdapterOptions {
 
 /** Well-known OpenAI Chat Completions-compatible endpoints. */
 export type ChatModelProvider =
-  'openai' | 'gemini' | 'ollama' | 'openrouter' | 'compatible';
+  | 'openai'
+  | 'gemini'
+  | 'ollama'
+  | 'openrouter'
+  | 'groq'
+  | 'mistral'
+  | 'azure'
+  | 'bedrock'
+  | 'compatible';
 
 /**
  * A concise configuration for a Chat Completions-compatible model.
@@ -50,6 +58,7 @@ export interface ChatModelOptions extends Omit<
   'baseURL' | 'requireApiKey'
 > {
   provider: ChatModelProvider;
+  /** Required for azure, bedrock and compatible; include the API version path. */
   baseURL?: string;
   requireApiKey?: boolean;
 }
@@ -255,18 +264,21 @@ export function openAICompatible(
 /**
  * Create a model adapter from a named provider preset.
  *
- * This is the recommended quickstart API for OpenAI, Gemini, Ollama and
- * OpenRouter. It has no SDK dependency and callers can always override the
- * endpoint or headers when their deployment requires it.
+ * This SDK-free factory selects Chat Completions endpoints and authentication
+ * defaults. Azure and Bedrock require an explicit deployment/region base URL.
+ * Callers can override the endpoint or headers for their deployment.
  */
 export function chatModel(
   options: ChatModelOptions
 ): OpenAICompatibleModelAdapter {
   const preset = chatModelPreset(options.provider);
-  if (options.provider === 'compatible' && !options.baseURL?.trim()) {
+  if (
+    ['compatible', 'azure', 'bedrock'].includes(options.provider) &&
+    !options.baseURL?.trim()
+  ) {
     throw new AgentPlatError(
       'VALIDATION_ERROR',
-      'baseURL is required when provider is "compatible"'
+      `baseURL is required when provider is "${options.provider}"`
     );
   }
   return openAICompatible({
@@ -292,6 +304,13 @@ function chatModelPreset(provider: ChatModelProvider): {
       return { baseURL: 'http://localhost:11434/v1', requireApiKey: false };
     case 'openrouter':
       return { baseURL: 'https://openrouter.ai/api/v1', requireApiKey: true };
+    case 'groq':
+      return { baseURL: 'https://api.groq.com/openai/v1', requireApiKey: true };
+    case 'mistral':
+      return { baseURL: 'https://api.mistral.ai/v1', requireApiKey: true };
+    case 'azure':
+    case 'bedrock':
+      return { baseURL: '', requireApiKey: true };
     case 'compatible':
       return { baseURL: '', requireApiKey: false };
   }
