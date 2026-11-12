@@ -91,7 +91,16 @@ export interface ArtifactStore {
     options?: { limit?: number },
   ): Promise<number>;
 }
+/** Host checks current membership and permission; creator receives no Room bypass. */
+export type ArtifactRoomAccessPolicy = (input: {
+  readonly tenantId: string;
+  readonly roomId: string;
+  readonly actorId: string;
+  readonly action: "read" | "write";
+  readonly artifactId?: string;
+}) => Promise<boolean>;
 export interface ArtifactServiceOptions {
+  readonly roomAccess?: ArtifactRoomAccessPolicy;
   readonly store: ArtifactStore;
   readonly events?: EventPublisher;
   readonly maximumContentBytes?: number;
@@ -275,12 +284,14 @@ export class InMemoryArtifactStore implements ArtifactStore {
 }
 
 export class ArtifactService {
+  readonly #roomAccess?: ArtifactRoomAccessPolicy;
   readonly #store: ArtifactStore;
   readonly #events?: EventPublisher;
   readonly #max: number;
   readonly #id: () => string;
   readonly #now: () => Date;
   constructor(options: ArtifactServiceOptions) {
+    this.#roomAccess = options.roomAccess;
     this.#store = options.store;
     this.#events = options.events;
     this.#max = options.maximumContentBytes ?? 1_000_000;
@@ -310,6 +321,7 @@ export class ArtifactService {
       throw new ArtifactError("invalid", "mime_type_does_not_match_format");
     const d = await digest(input.content);
     const links = linkFields(input);
+    await this.#authorize(context, links.roomId, "write");
     const artifact: Artifact = {
       id,
       tenantId: context.tenantId,
@@ -353,8 +365,41 @@ export class ArtifactService {
   ): Promise<ArtifactDocument> {
     const doc = await this.#store.get(context.tenantId, id, revision);
     if (!doc) throw new ArtifactError("not_found");
-    authorizeOwner(context, doc.artifact);
+    await this.#authorize(
+      context,
+      doc.artifact.links.roomId,
+      "read",
+      doc.artifact,
+    );
+    if (this.#roomAccess && revision !== undefined) {
+      const head = await this.#store.get(context.tenantId, id);
+      if (!head) throw new ArtifactError("not_found");
+      await this.#authorize(
+        context,
+        head.artifact.links.roomId,
+        "read",
+        head.artifact,
+      );
+      if (head.artifact.links.roomId !== doc.artifact.links.roomId)
+        throw new ArtifactError(
+          "forbidden",
+          "artifact_revision_room_scope_mismatch",
+        );
+    }
     return doc;
+  }
+  async listRevisions(
+    context: TenantContext,
+    id: string,
+  ): Promise<ArtifactRevision[]> {
+    await this.read(context, id);
+    const revisions = await this.#store.listRevisions(context.tenantId, id);
+    return Promise.all(
+      revisions.map(
+        async (revision) =>
+          (await this.read(context, id, revision.revision)).revision,
+      ),
+    );
   }
   async update(
     context: TenantContext,
@@ -362,7 +407,18 @@ export class ArtifactService {
   ): Promise<ArtifactReference> {
     const current = await this.#store.get(context.tenantId, input.artifactId);
     if (!current) throw new ArtifactError("not_found");
-    authorizeOwner(context, current.artifact);
+    await this.#authorize(
+      context,
+      current.artifact.links.roomId,
+      "write",
+      current.artifact,
+    );
+    if (
+      this.#roomAccess &&
+      input.roomId !== undefined &&
+      input.roomId !== current.artifact.links.roomId
+    )
+      throw new ArtifactError("forbidden", "artifact_room_scope_immutable");
     if (
       !Number.isSafeInteger(input.expectedRevision) ||
       input.expectedRevision < 1 ||
@@ -413,6 +469,27 @@ export class ArtifactService {
     await this.#deliver(event);
     return reference(doc);
   }
+  async #authorize(
+    context: TenantContext,
+    roomId: string | undefined,
+    action: "read" | "write",
+    artifact?: Artifact,
+  ): Promise<void> {
+    const actorId = context.actor?.actorId;
+    if (!actorId) throw new ArtifactError("forbidden");
+    if (roomId && this.#roomAccess) {
+      if (
+        !(await this.#roomAccess({
+          tenantId: context.tenantId,
+          roomId,
+          actorId,
+          action,
+          artifactId: artifact?.id,
+        }))
+      )
+        throw new ArtifactError("forbidden");
+    } else if (artifact) authorizeOwner(context, artifact);
+  }
   #event(
     tenantId: string,
     type: string,
@@ -426,7 +503,12 @@ export class ArtifactService {
       type,
       source: "@agentplat/artifacts",
       subject: { type: "artifact", id: a.id, tenantId },
-      payload: { reference: reference(doc) as unknown as JsonValue },
+      payload: {
+        reference: reference(doc) as unknown as JsonValue,
+        creatorId: a.ownerId,
+        actorId: doc.revision.authorId,
+        roomId: a.links.roomId ?? null,
+      },
       occurredAt: this.#now().toISOString(),
     };
   }

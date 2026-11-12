@@ -443,3 +443,10 @@ outcomes for reconciliation. Hosts supply verified identity, calendar/urgency
 policy, prices and transport adapters. See the [guide](../../docs/planner/shared-budgets-and-notices.md)
 and [two-consumer example](../../examples/planner-operations.mjs). Distribution is
 pending; these source APIs do not install workers or contact providers.
+
+### Actor-private conversations (source preview)
+
+Use `ActorRoomConversations` with a `RoomConversationStore` and live host
+`RoomAccessPolicy` for multi-human Rooms. Legacy Room APIs are trusted internal
+surfaces and do not enforce human conversation isolation. See the
+[integration contract](../../docs/rooms/actor-private-conversations.md) before enabling sharing.

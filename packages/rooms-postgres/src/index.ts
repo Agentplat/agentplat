@@ -49,3 +49,5 @@ export * from './memory-revision-store.js';
 export * from './evidence-processing-store.js';
 export * from './followup-store.js';
 export * from './planner-operations-store.js';
+
+export * from './actor-conversation-store.js';

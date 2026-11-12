@@ -101,3 +101,11 @@ change.
 
 Run `pnpm --filter @agentplat/artifacts test` for focused tests and
 `node examples/artifacts-agent/demo.mjs` after building this package.
+
+### Room access (source preview)
+
+Configure `ArtifactServiceOptions.roomAccess` to authorize read/write of linked
+artifacts by Room membership. The creator receives no bypass; revisions preserve
+the actual writer, `listRevisions` is authorized, and update cannot change Room
+scope. Unlinked artifacts retain owner access. Bind the policy to the verified
+request Room and actor. See [integration](../../docs/rooms/actor-private-conversations.md).

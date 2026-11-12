@@ -232,3 +232,13 @@ Room 020, workflow and follow-up/memory ledgers. Destructive rollback requires
 `plannerOperationsRollbackConfirmation` and explicit data-loss authorization.
 See [shared budgets and notices](../../docs/planner/shared-budgets-and-notices.md)
 for authority, recovery and adapter requirements. Constructors perform no I/O.
+
+### Actor-private conversation ledger (source preview)
+
+`runRoomConversationMigrations(pool, { schema, createSchema })` installs the
+independent `@agentplat/rooms-postgres/actor-conversations` V1 ledger;
+`getRoomConversationMigrationStatus` inspects it. `PostgresRoomConversationStore`
+implements the trusted CAS persistence port for `ActorRoomConversations`.
+Existing Room migrations and transcripts are unchanged. Import only legacy
+conversation groups with verified human ownership through the explicit backfill
+API. See [integration and migration](../../docs/rooms/actor-private-conversations.md).
