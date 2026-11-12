@@ -18,7 +18,9 @@
     "demo:proposal": "node scripts/proposal-demo.mjs",
     "test:proposal-review": "node --test test/proposal-reviewer.test.mjs",
     "demo:recover": "node scripts/proposal-recovery.mjs",
-    "demo:controls": "node scripts/protected-action-demo.mjs"
+    "demo:controls": "node scripts/protected-action-demo.mjs",
+    "test:a2ui": "node --test test/a2ui-*.test.mjs test/lifecycle.test.mjs",
+    "test:a2ui:postgres": "node --test test/a2ui-postgres.test.mjs"
   },
   "dependencies": {
     "@agentplat/events": "link:../../packages/events",
