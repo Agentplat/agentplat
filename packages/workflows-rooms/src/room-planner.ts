@@ -31,6 +31,11 @@ export class RoomPlannerWorkflowCalls {
         scope: RoomPlannerScope,
         operationId: string,
       ): Promise<void>;
+      /** Rehydrate engine-owned initiative grants and read claims from the persisted operation. */
+      bindCall?(
+        scope: RoomPlannerScope,
+        operationId: string,
+      ): Promise<RoomPlannerCall>;
       clock?: () => Date;
     },
   ) {
@@ -49,11 +54,13 @@ export class RoomPlannerWorkflowCalls {
           if (previous) return { status: "completed", resultReference: id };
           const abort = new AbortController();
           let checking: Promise<void> = Promise.resolve();
+          let bound: RoomPlannerCall | undefined;
           const check = () => {
             checking = checking.then(async () => {
               if (request.signal.aborted || abort.signal.aborted)
                 throw new Error("Workflow aborted");
               await options.assertCurrent(scope, id);
+              await bound?.assertCurrent();
               if (!(await request.heartbeat({ logicalTime: this.now() })))
                 throw new Error("Workflow lease lost");
             });
@@ -63,8 +70,40 @@ export class RoomPlannerWorkflowCalls {
             void check().catch((error) => abort.abort(error));
           }, 1000);
           try {
+            bound = await options.bindCall?.(scope, id);
+            if (
+              input.initiative &&
+              (!bound?.initiative ||
+                !bound.assertRead ||
+                !bound.assertModelCall ||
+                digestWorkflowJsonV1("planner-initiative", input.initiative) !==
+                  digestWorkflowJsonV1(
+                    "planner-initiative",
+                    bound.initiative as unknown as JsonObject,
+                  ))
+            )
+              throw new Error(
+                "Workflow initiative requires matching persisted native authority",
+              );
+            if (bound?.initiative && !input.initiative)
+              throw new Error("Workflow cannot shed its initiative binding");
             const call: RoomPlannerCall = {
               operationId: id,
+              ...(bound?.initiative
+                ? {
+                    initiative: bound.initiative,
+                    assertModelCall: async () => {
+                      await check();
+                      await bound!.assertModelCall!();
+                      await check();
+                    },
+                    assertRead: async (tool: string, roomId: string) => {
+                      await check();
+                      await bound!.assertRead!(tool, roomId);
+                      await check();
+                    },
+                  }
+                : {}),
               ...conversationReference(input),
               signal: AbortSignal.any([request.signal, abort.signal]),
               assertCurrent: check,
@@ -107,6 +146,9 @@ export class RoomPlannerWorkflowCalls {
     const input = {
       roomId: scope.roomId,
       operationId: call.operationId,
+      ...(call.initiative
+        ? { initiative: call.initiative as unknown as JsonObject }
+        : {}),
       ...conversationReference(call),
       payload,
     };

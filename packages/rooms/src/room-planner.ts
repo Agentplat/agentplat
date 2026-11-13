@@ -18,6 +18,8 @@ import type {
   RoomPlannerUsage,
   RoomPlannerCall,
   RoomPlannerEvent,
+  PlannerInitiativeAdmissionV1,
+  PlannerInitiativeObservationV1,
 } from "./room-planner-contracts.js";
 export * from "./room-planner-contracts.js";
 
@@ -123,6 +125,12 @@ export class AgentRoomPlanner {
     if (!operation) conflict();
     await this.ports.authorize(scope, "execute", operation.objectiveId);
     await this.assertConversation(scope, operation);
+    if (operation.initiativeId)
+      await this.assertInitiative(
+        scope,
+        this.initiative(current, operation.initiativeId),
+        "call",
+      );
     this.assertBudgetBinding(current);
     if (operation.sharedBudget)
       await this.ports.sharedBudget!.assertCurrent(scope, operation);
@@ -149,6 +157,335 @@ export class AgentRoomPlanner {
       )
         conflict();
     }
+  }
+  /** Zero-inference observation. No event is enqueued until explicit cohort selection. */
+  async observeInitiative(scope: RoomPlannerScope, id: string) {
+    await this.ports.authorize(scope, "observeInitiative", id);
+    text(id);
+    if (!this.ports.initiatives) fail("Initiative host port is required");
+    const existing = await this.get(scope);
+    // ID-only replays return the original authority snapshot. Reconnecting a source must not mint a new grant.
+    if (existing.initiatives?.some((item) => item.id === id)) return existing;
+    const input = structuredClone(
+      await this.ports.initiatives.resolve(scope, id),
+    );
+    if (input.id !== id) fail("Initiative identity mismatch");
+    text(input.reason);
+    if (typeof input.eligible !== "boolean")
+      fail("Invalid initiative eligibility");
+    this.validateInitiative(scope, input.admission);
+    return this.change(scope, (state) => {
+      const prior = state.initiatives?.find((item) => item.id === id);
+      if (prior) return; // A concurrent ID-only observation already owns the immutable snapshot.
+      const items = (state.initiatives ??= []);
+      for (const older of items) {
+        if (
+          older.status === "eligible" &&
+          older.admission.ownerId === input.admission.ownerId &&
+          older.admission.subject.id === input.admission.subject.id &&
+          older.admission.subject.revision < input.admission.subject.revision
+        ) {
+          older.status = "suppressed";
+          older.stopReason = "superseded_revision";
+        }
+      }
+      items.push({
+        ...input,
+        observedAt: this.now(),
+        status: input.eligible ? "eligible" : "suppressed",
+        readClaims: [],
+      });
+    });
+  }
+  /** Explicitly select a recorded eligible cohort; changing Planner mode never selects history. */
+  async selectInitiative(scope: RoomPlannerScope, id: string) {
+    await this.ports.authorize(scope, "selectInitiative", id);
+    const state = await this.get(scope);
+    const item = state.initiatives?.find((candidate) => candidate.id === id);
+    if (!item) fail("Initiative observation is required");
+    if (item.status === "selected") return state;
+    if (item.status !== "eligible" || !item.eligible) return state;
+    if (state.mode !== "execute")
+      fail("Initiative selection requires execute mode");
+    try {
+      await this.assertInitiative(scope, item, "admit");
+    } catch (error) {
+      return this.change(scope, (current) => {
+        const blocked = current.initiatives!.find(
+          (candidate) => candidate.id === id,
+        )!;
+        if (blocked.status !== "eligible") return;
+        blocked.status = "suppressed";
+        blocked.stopReason =
+          blocked.admission.scope.expiresAt <= this.now()
+            ? "expired_trigger"
+            : error instanceof Error
+              ? error.message
+              : "Initiative admission denied";
+      });
+    }
+    const event = structuredClone(
+      await this.ports.resolveEvent(scope, item.admission.trigger.eventId),
+    );
+    if (
+      !event ||
+      event.id !== item.admission.trigger.eventId ||
+      !["external", "timer"].includes(event.kind) ||
+      !event.provenance ||
+      event.initiativeId ||
+      event.targetParticipantIds?.length ||
+      (event.objectiveId && event.objectiveId !== `initiative:${id}`)
+    )
+      fail(
+        "Initiatives require a host-resolved external or timer event without authority",
+      );
+    text(event.actorId);
+    text(event.content);
+    text(event.provenance.source);
+    text(event.provenance.eventId);
+    if (!Number.isFinite(Date.parse(event.provenance.occurredAt)))
+      fail("Invalid event occurrence time");
+    validateConversationReference(event);
+    await this.assertConversation(scope, event);
+    event.initiativeId = id;
+    event.objectiveId = `initiative:${id}`;
+    return this.change(scope, (current) => {
+      const selected = current.initiatives?.find(
+        (candidate) => candidate.id === id,
+      )!;
+      if (selected.status === "selected") return;
+      if (
+        selected.status !== "eligible" ||
+        current.mode !== "execute" ||
+        selected.admission.scope.expiresAt <= this.now()
+      )
+        conflict();
+      const prior = current.events.find(
+        (candidate) => candidate.id === event.id,
+      );
+      if (prior && !same(prior, event))
+        fail(
+          "Initiative event identity already belongs to another inbox record",
+        );
+      if (!prior) current.events.push(event);
+      selected.status = "selected";
+      selected.selectedAt = this.now();
+    });
+  }
+  /** Publication fence for versioned host artifacts after durable result persistence. */
+  async assertInitiativePublication(scope: RoomPlannerScope, id: string) {
+    await this.ports.authorize(scope, "publishInitiative", id);
+    const state = await this.get(scope);
+    if (state.mode !== "execute")
+      fail("Initiative publication requires execute mode");
+    const item = this.initiative(state, id);
+    await this.assertInitiative(scope, item, "publish");
+    return structuredClone(item.admission);
+  }
+  private validateInitiative(
+    scope: RoomPlannerScope,
+    admission: PlannerInitiativeAdmissionV1,
+  ) {
+    text(admission.ownerId);
+    text(admission.policyRef);
+    integer(admission.policyRevision, true);
+    text(admission.subject.id);
+    integer(admission.subject.revision, true);
+    text(admission.trigger.eventId);
+    if (
+      !["new", "changed", "deadline", "blocked"].includes(
+        admission.trigger.kind,
+      ) ||
+      admission.output !== "evidence_and_action_draft"
+    )
+      fail("Invalid initiative admission");
+    if (admission.trigger.milestone !== undefined)
+      text(admission.trigger.milestone);
+    for (const list of [
+      admission.evidenceRefs,
+      admission.scope.roomIds,
+      admission.scope.allowedReadTools,
+    ]) {
+      if (
+        !Array.isArray(list) ||
+        list.length > 64 ||
+        new Set(list).size !== list.length
+      )
+        fail("Invalid initiative scope list");
+      list.forEach(text);
+    }
+    if (
+      !admission.scope.roomIds.includes(scope.roomId) ||
+      !admission.evidenceRefs.length
+    )
+      fail("Initiative requires Room scope and persisted evidence");
+    integer(admission.scope.maximumCalls, true);
+    integer(admission.scope.maximumReadCalls);
+    integer(admission.scope.maximumCostMicros, true);
+    integer(admission.scope.maximumDurationMs, true);
+    if (
+      admission.scope.maximumCalls > 64 ||
+      admission.scope.maximumReadCalls > 64 ||
+      admission.scope.maximumDurationMs > 86_400_000 ||
+      !Number.isFinite(Date.parse(admission.scope.expiresAt))
+    )
+      fail("Invalid initiative ceilings");
+    // Require canonical UTC timestamps because all journal expiry comparisons are lexical.
+    if (
+      new Date(admission.scope.expiresAt).toISOString() !==
+      admission.scope.expiresAt
+    )
+      fail("Initiative expiry must be canonical UTC");
+    canonicalPlannerJson(admission);
+  }
+  private async assertInitiative(
+    scope: RoomPlannerScope,
+    item: PlannerInitiativeObservationV1,
+    phase: "admit" | "call" | "read" | "publish",
+  ) {
+    if (!this.ports.initiatives)
+      fail("The persisted initiative host port must remain connected");
+    const state = await this.get(scope);
+    const objective = state.objectives.find(
+      (candidate) => candidate.initiativeId === item.id,
+    );
+    if (state.mode !== "execute")
+      fail("Initiative execution and publication require execute mode");
+    if (objective && ["paused", "canceled"].includes(objective.status))
+      fail("Initiative objective was paused or canceled by its owner");
+    if (phase !== "publish" && objective?.status === "waiting")
+      fail("Initiative objective is waiting for an owner decision");
+    if (item.status === "suppressed" || item.stopReason)
+      fail(item.stopReason ?? "Initiative suppressed");
+    if (
+      item.executionExpiresAt
+        ? item.executionExpiresAt <= this.now()
+        : item.admission.scope.expiresAt <= this.now()
+    )
+      fail("Initiative expired; explicit renewal is required");
+    await this.ports.initiatives.assertCurrent(
+      scope,
+      structuredClone(item.admission),
+      phase,
+    );
+  }
+  private stopInitiative(state: RoomPlannerState, id: string, reason: string) {
+    const item = this.initiative(state, id);
+    item.stopReason ??= reason;
+    const objective = state.objectives.find((o) => o.initiativeId === id);
+    if (objective?.status === "active") {
+      objective.status = "waiting";
+      objective.revision++;
+      objective.controlRevision++;
+    }
+    for (const event of state.events)
+      if (
+        event.initiativeId === id &&
+        !state.handledEventIds?.includes(event.id)
+      )
+        (state.handledEventIds ??= []).push(event.id);
+  }
+  private initiative(state: RoomPlannerState, id: string) {
+    const item = state.initiatives?.find((candidate) => candidate.id === id);
+    if (!item || item.status !== "selected")
+      fail("Missing selected initiative binding");
+    return item;
+  }
+  /** Rebind persisted authority at durable workflow/effect boundaries; never deserialize a grant from payload. */
+  async operationCall(
+    scope: RoomPlannerScope,
+    operationId: string,
+    signal?: AbortSignal,
+  ): Promise<RoomPlannerCall> {
+    await this.assertCurrent(scope, operationId);
+    const state = await this.get(scope);
+    const operation = state.operations.find((op) => op.id === operationId)!;
+    const item = operation.initiativeId
+      ? this.initiative(state, operation.initiativeId)
+      : undefined;
+    return {
+      operationId,
+      ...conversationReference(operation),
+      signal,
+      ...(item
+        ? {
+            initiative: structuredClone(item.admission),
+            assertRead: (tool: string, roomId: string) =>
+              this.claimRead(scope, operationId, tool, roomId),
+            assertModelCall: () => this.claimModel(scope, operationId),
+          }
+        : {}),
+      assertCurrent: async () => {
+        if (signal?.aborted) throw new Error("Planner interrupted");
+        await this.assertCurrent(scope, operationId);
+      },
+    };
+  }
+  private async claimModel(scope: RoomPlannerScope, operationId: string) {
+    await this.assertCurrent(scope, operationId);
+    await this.change(scope, (state) => {
+      const operation = state.operations.find((op) => op.id === operationId)!;
+      if (
+        !operation.initiativeId ||
+        operation.status !== "running" ||
+        operation.modelClaimedAt
+      )
+        fail("Initiative model dispatch already claimed or unavailable");
+      const item = this.initiative(state, operation.initiativeId);
+      if (item.stopReason || item.executionExpiresAt! <= this.now())
+        fail("Initiative expired or stopped");
+      operation.modelClaimedAt = this.now();
+    });
+    await this.assertCurrent(scope, operationId);
+  }
+  private async claimRead(
+    scope: RoomPlannerScope,
+    operationId: string,
+    tool: string,
+    roomId: string,
+  ) {
+    text(tool);
+    text(roomId);
+    await this.assertCurrent(scope, operationId);
+    const state = await this.get(scope);
+    const operation = state.operations.find((op) => op.id === operationId)!;
+    if (!operation.initiativeId)
+      fail("Source-read claim requires an initiative operation");
+    await this.assertInitiative(
+      scope,
+      this.initiative(state, operation.initiativeId),
+      "read",
+    );
+    let denied = false;
+    await this.change(
+      scope,
+      (current) => {
+        const op = current.operations.find(
+          (candidate) => candidate.id === operationId,
+        )!;
+        const item = this.initiative(current, op.initiativeId!);
+        if (
+          op.status !== "running" ||
+          item.stopReason ||
+          item.executionExpiresAt! <= this.now() ||
+          !item.admission.scope.roomIds.includes(roomId) ||
+          !item.admission.scope.allowedReadTools.includes(tool)
+        )
+          fail("Initiative source read exceeds its current grant or allowance");
+        if (item.readClaims.length >= item.admission.scope.maximumReadCalls) {
+          this.stopInitiative(current, item.id, "read_call_ceiling");
+          denied = true;
+          return;
+        }
+        item.readClaims.push({ operationId, tool, roomId, at: this.now() });
+      },
+      () => {
+        denied = false;
+      },
+    );
+    if (denied) fail("Initiative source read exceeds its allowance");
+    // A revocation racing the atomic claim still prevents dispatch. Its claim is retained.
+    await this.assertCurrent(scope, operationId);
   }
   async configure(
     scope: RoomPlannerScope,
@@ -237,6 +574,8 @@ export class AgentRoomPlanner {
       await this.ports.resolveEvent(scope, eventId),
     );
     if (event.id !== eventId) fail("Event identity mismatch");
+    if (event.initiativeId !== undefined)
+      fail("Initiative authority cannot be supplied in an event");
     text(event.id);
     text(event.actorId);
     text(event.content);
@@ -284,10 +623,24 @@ export class AgentRoomPlanner {
         replyToMessageId: event.messageId,
       });
     return this.change(scope, (state) => {
+      // An event referencing an existing initiative inherits its engine-owned grant;
+      // it cannot reach generic reasoning and acquire fresh interactive allowance.
+      const objective = event.objectiveId
+        ? state.objectives.find(
+            (candidate) => candidate.id === event.objectiveId,
+          )
+        : undefined;
+      if (objective?.initiativeId && event.targetParticipantIds?.length)
+        fail(
+          "Initiative objective events cannot use unrestricted direct routing",
+        );
+      const boundEvent = objective?.initiativeId
+        ? { ...event, initiativeId: objective.initiativeId }
+        : event;
       const prior = state.events.find((e) => e.id === event.id);
-      if (prior && !same(prior, event))
+      if (prior && !same(prior, boundEvent))
         fail("Event identity reused with different content");
-      if (!prior) state.events.push(structuredClone(event));
+      if (!prior) state.events.push(structuredClone(boundEvent));
     });
   }
   private async assertConversation(
@@ -348,6 +701,7 @@ export class AgentRoomPlanner {
         s.events.push({
           id: `resume:${o.id}:${o.revision}`,
           kind: "resume",
+          ...(o.initiativeId ? { initiativeId: o.initiativeId } : {}),
           actorId: "owner",
           objectiveId: o.id,
           ...conversationReference(o),
@@ -391,7 +745,54 @@ export class AgentRoomPlanner {
       }
     }
     state = await this.get(scope);
+    // Persist terminal permission/expiry stops, rather than throwing on every worker tick.
+    for (const item of state.initiatives ?? []) {
+      if (
+        item.status !== "selected" ||
+        state.mode !== "execute" ||
+        item.stopReason ||
+        state.objectives.some(
+          (objective) =>
+            objective.initiativeId === item.id &&
+            ["completed", "paused"].includes(objective.status),
+        )
+      )
+        continue;
+      try {
+        await this.assertInitiative(scope, item, "call");
+      } catch (error) {
+        await this.change(scope, (current) =>
+          this.stopInitiative(
+            current,
+            item.id,
+            error instanceof Error
+              ? error.message
+              : "Initiative no longer authorized",
+          ),
+        );
+      }
+    }
+    state = await this.get(scope);
     for (const note of state.notifications.filter((n) => !n.delivered)) {
+      if (note.initiativeId) {
+        try {
+          await this.assertInitiative(
+            scope,
+            this.initiative(await this.get(scope), note.initiativeId),
+            "publish",
+          );
+        } catch (error) {
+          await this.change(scope, (current) => {
+            const stored = current.notifications.find((n) => n.id === note.id)!;
+            stored.delivered = true;
+            stored.suppressedReason =
+              error instanceof Error
+                ? error.message
+                : "Initiative publication denied";
+          });
+          continue;
+        }
+      }
       await this.ports.authorize(scope, "deliver");
       await this.ports.deliver(scope, note);
       await this.change(scope, (s) => {
@@ -401,6 +802,16 @@ export class AgentRoomPlanner {
     if (state.mode === "drain" || signal?.aborted) return this.get(scope);
     const pending = state.events.find((event) => {
       if (state.handledEventIds?.includes(event.id)) return false;
+      if (event.initiativeId && state.mode !== "execute") return false;
+      if (
+        event.initiativeId &&
+        state.objectives.some(
+          (objective) =>
+            objective.initiativeId === event.initiativeId &&
+            objective.status === "paused",
+        )
+      )
+        return false;
       if (event.targetParticipantIds?.length)
         return event.targetParticipantIds.some(
           (id) =>
@@ -515,15 +926,29 @@ export class AgentRoomPlanner {
             ["running", "uncertain"].includes(op.status),
         )
       ) {
+        if (pending.initiativeId)
+          await this.assertInitiative(
+            scope,
+            this.initiative(state, pending.initiativeId),
+            "call",
+          );
         const context = await this.ports.context(scope, pending);
+        const reasonObjectives = pending.initiativeId
+          ? state.objectives.filter(
+              (objective) => objective.initiativeId === pending.initiativeId,
+            )
+          : state.objectives;
         await this.call(
           scope,
           {
             id: `reason:${encodeURIComponent(pending.id)}:attempt:${state.operations.filter((op) => op.kind === "reason" && op.eventId === pending.id).length + 1}`,
             kind: "reason",
+            ...(pending.initiativeId
+              ? { initiativeId: pending.initiativeId }
+              : {}),
             eventId: pending.id,
             ...responseConversation(pending),
-            objectiveBindings: state.objectives.map((o) => ({
+            objectiveBindings: reasonObjectives.map((o) => ({
               objectiveId: o.id,
               revision: o.revision,
               controlRevision: o.controlRevision,
@@ -532,16 +957,20 @@ export class AgentRoomPlanner {
           },
           signal,
           (call) =>
-            this.ports.reasoner.propose(
+            (pending.initiativeId
+              ? this.ports.initiatives!.propose.bind(this.ports.initiatives!)
+              : this.ports.reasoner.propose.bind(this.ports.reasoner))(
               {
                 scope,
                 event: pending!,
-                objectives: state.objectives,
+                objectives: reasonObjectives,
                 authorizedContext: context,
                 reviews: state.operations
                   .filter(
                     (operation) =>
                       operation.kind === "review" &&
+                      (!pending.initiativeId ||
+                        operation.initiativeId === pending.initiativeId) &&
                       operation.status === "completed" &&
                       operation.review,
                   )
@@ -551,7 +980,7 @@ export class AgentRoomPlanner {
                     planId: operation.planId!,
                     review: operation.review!,
                   })),
-                progress: state.objectives.flatMap((o) =>
+                progress: reasonObjectives.flatMap((o) =>
                   o.plans
                     .find((p) => p.id === o.activePlanId)!
                     .tasks.map((task) => {
@@ -638,6 +1067,7 @@ export class AgentRoomPlanner {
               {
                 id: reviewId,
                 kind: "review",
+                ...(o.initiativeId ? { initiativeId: o.initiativeId } : {}),
                 objectiveId: o.id,
                 planId: plan.id,
                 controlRevision: o.controlRevision,
@@ -646,7 +1076,9 @@ export class AgentRoomPlanner {
               },
               signal,
               (call) =>
-                this.ports.verify(
+                (o.initiativeId
+                  ? this.ports.initiatives!.verify.bind(this.ports.initiatives!)
+                  : this.ports.verify.bind(this.ports))(
                   scope,
                   o,
                   results as RoomPlannerOperation[],
@@ -670,6 +1102,7 @@ export class AgentRoomPlanner {
               {
                 id: `task:${encodeURIComponent(o.id)}:${encodeURIComponent(task.id)}`,
                 kind: "task",
+                ...(o.initiativeId ? { initiativeId: o.initiativeId } : {}),
                 objectiveId: o.id,
                 planId: plan.id,
                 taskId: task.id,
@@ -680,23 +1113,26 @@ export class AgentRoomPlanner {
               },
               signal,
               async (call) => {
-                await this.ports.materialize?.(
-                  scope,
-                  o,
-                  plan,
-                  tasks.map((t) => ({
-                    stepId: t.id,
-                    kind: "agent_task",
-                    participantId: t.participantId,
-                    instruction: t.instruction,
-                    expectedOutput: t.expectedOutput,
-                    expectedArtifactKind: "report",
-                    dependencies: t.dependencies,
-                    actionLevel: t.actionLevel,
-                    ...conversationReference(t),
-                  })),
-                );
-                return this.ports.execute(scope, task, o, call);
+                if (!o.initiativeId)
+                  await this.ports.materialize?.(
+                    scope,
+                    o,
+                    plan,
+                    tasks.map((t) => ({
+                      stepId: t.id,
+                      kind: "agent_task",
+                      participantId: t.participantId,
+                      instruction: t.instruction,
+                      expectedOutput: t.expectedOutput,
+                      expectedArtifactKind: "report",
+                      dependencies: t.dependencies,
+                      actionLevel: t.actionLevel,
+                      ...conversationReference(t),
+                    })),
+                  );
+                return o.initiativeId
+                  ? this.ports.initiatives!.execute(scope, task, o, call)
+                  : this.ports.execute(scope, task, o, call);
               },
             ),
           );
@@ -744,6 +1180,7 @@ export class AgentRoomPlanner {
         if (s.operations.some((op) => op.id === input.id) || s.mode === "drain")
           return;
         if (s.mode === "observe" && input.kind !== "reason") return;
+        if (input.initiativeId && s.mode !== "execute") return;
         if (
           s.operations.filter((op) =>
             ["running", "uncertain"].includes(op.status),
@@ -769,7 +1206,57 @@ export class AgentRoomPlanner {
             return;
         }
         const reserve = this.ports.reservationMicros[input.kind];
+        if (input.initiativeId) {
+          const item = this.initiative(s, input.initiativeId);
+          const operations = s.operations.filter(
+            (op) => op.initiativeId === item.id,
+          );
+          const ceiling = item.admission.scope;
+          const committed = operations.reduce(
+            (total, op) =>
+              total +
+              (op.usage?.costMicros ?? 0) +
+              (["running", "uncertain"].includes(op.status)
+                ? op.reservedMicros
+                : 0),
+            0,
+          );
+          let reason = item.stopReason;
+          if (
+            !reason &&
+            (item.executionExpiresAt ?? ceiling.expiresAt) <= this.now()
+          )
+            reason = "expired";
+          if (!reason && operations.length >= ceiling.maximumCalls)
+            reason = "model_call_ceiling";
+          if (!reason && committed + reserve > ceiling.maximumCostMicros)
+            reason = "cost_ceiling";
+          if (reason) {
+            this.stopInitiative(s, item.id, reason);
+            return;
+          }
+          // One investigation per Room, including another replica's ambiguous provider dispatch.
+          if (
+            s.operations.some(
+              (op) =>
+                op.initiativeId &&
+                op.initiativeId !== item.id &&
+                ["running", "uncertain"].includes(op.status),
+            ) ||
+            s.initiatives?.some(
+              (other) =>
+                other.id !== item.id &&
+                other.startedAt &&
+                !other.stopReason &&
+                s.objectives.some(
+                  (o) => o.initiativeId === other.id && o.status === "active",
+                ),
+            )
+          )
+            return;
+        }
         if (roomPlannerBudget(s).availableMicros < reserve) {
+          if (input.initiativeId) return;
           const id = `budget:${s.budgetLimitMicros}`;
           if (
             !s.operations.some((op) => op.status === "running") &&
@@ -832,8 +1319,33 @@ export class AgentRoomPlanner {
           delete s.sharedBudgetBlock;
         });
       }
+      if (input.initiativeId) {
+        await this.change(scope, (current) => {
+          const item = this.initiative(current, input.initiativeId!);
+          if (!item.startedAt) {
+            if (item.admission.scope.expiresAt <= this.now())
+              fail("Initiative trigger expired before admission");
+            item.startedAt = this.now();
+            item.executionExpiresAt = new Date(
+              Date.parse(item.startedAt) +
+                item.admission.scope.maximumDurationMs,
+            ).toISOString();
+          }
+        });
+      }
+      const initiative = input.initiativeId
+        ? this.initiative(await this.get(scope), input.initiativeId)
+        : undefined;
       const call: RoomPlannerCall = {
         operationId: input.id,
+        ...(initiative
+          ? {
+              initiative: structuredClone(initiative.admission),
+              assertRead: (tool: string, roomId: string) =>
+                this.claimRead(scope, input.id, tool, roomId),
+              assertModelCall: () => this.claimModel(scope, input.id),
+            }
+          : {}),
         ...conversationReference(input),
         signal,
         assertCurrent: async () => {
@@ -893,6 +1405,18 @@ export class AgentRoomPlanner {
       await this.ports.sharedBudget!.settle(scope, operation, output.usage);
     }
     let admissionError: string | undefined;
+    if (operation.initiativeId) {
+      try {
+        await this.assertInitiative(
+          scope,
+          this.initiative(await this.get(scope), operation.initiativeId),
+          "publish",
+        );
+      } catch (error) {
+        admissionError =
+          error instanceof Error ? error.message : "Initiative result is stale";
+      }
+    }
     let retryablePlan = output.retryableReasoning === true;
     if (output.proposal?.kind === "plan") {
       try {
@@ -921,6 +1445,7 @@ export class AgentRoomPlanner {
       }
     }
     await this.change(scope, (s) => {
+      const previousNotes = new Set(s.notifications.map((note) => note.id));
       const op = s.operations.find((op) => op.id === id)!;
       if (op.status === "completed" || op.status === "rejected") return;
       op.usage = output.usage;
@@ -1027,6 +1552,7 @@ export class AgentRoomPlanner {
                 id: `review-result:${id}`,
                 ...conversationReference(op),
                 kind: "result",
+                ...(op.initiativeId ? { initiativeId: op.initiativeId } : {}),
                 actorId: review.reviewerParticipantId,
                 objectiveId: o.id,
                 review,
@@ -1063,6 +1589,7 @@ export class AgentRoomPlanner {
               id: `result:${id}`,
               ...conversationReference(op),
               kind: "result",
+              ...(op.initiativeId ? { initiativeId: op.initiativeId } : {}),
               actorId: op.participantId ?? "specialist",
               objectiveId: o.id,
               content: JSON.stringify(output.result),
@@ -1110,6 +1637,7 @@ export class AgentRoomPlanner {
               id: `rejected:${id}`,
               ...conversationReference(op),
               kind: "result",
+              ...(op.initiativeId ? { initiativeId: op.initiativeId } : {}),
               actorId: op.participantId ?? "specialist",
               objectiveId: op.objectiveId,
               content: `Work needs revision: ${op.error}`,
@@ -1138,6 +1666,12 @@ export class AgentRoomPlanner {
             objectiveId: op.objectiveId,
             delivered: false,
           });
+      } finally {
+        if (op.initiativeId) {
+          for (const note of s.notifications)
+            if (!previousNotes.has(note.id))
+              note.initiativeId = op.initiativeId;
+        }
       }
     });
   }
@@ -1149,6 +1683,26 @@ export class AgentRoomPlanner {
     validateRoomPlannerProposal(proposal);
     const event = s.events.find((e) => e.id === op.eventId)!;
     proposal = structuredClone(proposal);
+    const target = proposal.objectiveId
+      ? s.objectives.find((o) => o.id === proposal.objectiveId)
+      : undefined;
+    if (target?.initiativeId && target.initiativeId !== op.initiativeId)
+      fail(
+        "An initiative objective cannot become an unrestricted owner objective",
+      );
+    if (op.initiativeId) {
+      this.initiative(s, op.initiativeId);
+      if (
+        proposal.objectiveId &&
+        proposal.objectiveId !== `initiative:${op.initiativeId}`
+      )
+        fail("Initiative cannot create or redirect another objective");
+      if (
+        proposal.kind === "plan" &&
+        proposal.tasks.some((task) => task.actionLevel !== "read")
+      )
+        fail("Initiative tasks are restricted to authorized reads");
+    }
     if (proposal.kind === "plan") {
       const prior = s.objectives.find((o) => o.id === proposal.objectiveId);
       if (prior && prior.threadId !== op.threadId)
@@ -1224,13 +1778,22 @@ export class AgentRoomPlanner {
           o.status === "paused")
       )
         fail("Objective cannot be replanned in this state");
-      if (event.kind !== "message" && (!o || event.objectiveId !== o.id))
+      if (
+        event.kind !== "message" &&
+        (!o || event.objectiveId !== o.id) &&
+        !(
+          op.initiativeId &&
+          event.initiativeId === op.initiativeId &&
+          proposal.objectiveId === `initiative:${op.initiativeId}`
+        )
+      )
         fail(
           "Specialist and internal events cannot create or redirect user objectives",
         );
       if (!o) {
         o = {
           id: proposal.objectiveId,
+          ...(op.initiativeId ? { initiativeId: op.initiativeId } : {}),
           ...conversationReference(op),
           revision: 0,
           controlRevision: 0,
