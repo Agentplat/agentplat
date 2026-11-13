@@ -10,6 +10,85 @@ export interface RoomPlannerScope {
   tenantId: string;
   roomId: string;
 }
+/** A host-resolved owner policy grant. Connector payloads cannot provide this authority. */
+export interface PlannerInitiativeAdmissionV1 {
+  ownerId: string;
+  policyRef: string;
+  policyRevision: number;
+  subject: { id: string; revision: number };
+  trigger: {
+    kind: "new" | "changed" | "deadline" | "blocked";
+    eventId: string;
+    milestone?: string;
+  };
+  evidenceRefs: string[];
+  /** Immutable host binding, e.g. connection ID and grant generation. Never model supplied. */
+  source?: JsonObject;
+  scope: {
+    roomIds: string[];
+    allowedReadTools: string[];
+    maximumCalls: number;
+    maximumReadCalls: number;
+    maximumCostMicros: number;
+    /** Trigger freshness deadline, distinct from the admitted execution window. */
+    expiresAt: string;
+    maximumDurationMs: number;
+  };
+  output: "evidence_and_action_draft";
+}
+export interface PlannerInitiativeObservationInputV1 {
+  id: string;
+  admission: PlannerInitiativeAdmissionV1;
+  eligible: boolean;
+  reason: string;
+}
+/** Stored in the existing Planner CAS state, never an independent work queue. */
+export interface PlannerInitiativeObservationV1 extends PlannerInitiativeObservationInputV1 {
+  observedAt: string;
+  status: "eligible" | "suppressed" | "selected";
+  selectedAt?: string;
+  startedAt?: string;
+  executionExpiresAt?: string;
+  /** Atomic claims survive failures, lease expiry and restart. */
+  readClaims: {
+    operationId: string;
+    tool: string;
+    roomId: string;
+    at: string;
+  }[];
+  stopReason?: string;
+}
+export interface PlannerInitiativePortV1 {
+  /** Dedicated sandbox adapters; generic Room execution is never used for initiatives. */
+  propose(
+    context: RoomPlannerContext,
+    call: RoomPlannerCall,
+  ): Promise<{ proposal: RoomPlannerProposal; usage: RoomPlannerUsage }>;
+  execute(
+    scope: RoomPlannerScope,
+    task: RoomPlannerTask,
+    objective: RoomPlannerObjective,
+    call: RoomPlannerCall,
+  ): Promise<{ result: RoomPlannerTaskResult; usage: RoomPlannerUsage }>;
+  verify(
+    scope: RoomPlannerScope,
+    objective: RoomPlannerObjective,
+    results: RoomPlannerOperation[],
+    call: RoomPlannerCall,
+  ): Promise<{ review: RoomPlannerReview; usage: RoomPlannerUsage }>;
+
+  /** Deterministic current eligibility from host storage. Must never call inference or connectors. */
+  resolve(
+    scope: RoomPlannerScope,
+    id: string,
+  ): Promise<PlannerInitiativeObservationInputV1>;
+  /** Revalidate owner policy, subject revision/state, all source grants and stop controls. */
+  assertCurrent(
+    scope: RoomPlannerScope,
+    admission: PlannerInitiativeAdmissionV1,
+    phase: "admit" | "call" | "read" | "publish",
+  ): Promise<void>;
+}
 export interface RoomPlannerUsage {
   costMicros: number;
   inputTokens: number;
@@ -40,6 +119,7 @@ export interface RoomPlannerPlan extends RoomConversationReference {
   sourceEventId: string;
 }
 export interface RoomPlannerObjective extends RoomConversationReference {
+  initiativeId?: string;
   id: string;
   revision: number;
   controlRevision: number;
@@ -70,6 +150,8 @@ export interface RoomPlannerReview {
   }[];
 }
 export interface RoomPlannerEvent extends RoomConversationReference {
+  /** Engine-owned binding; acceptEvent rejects external attempts to supply it. */
+  initiativeId?: string;
   id: string;
   kind: "message" | "result" | "specialist" | "resume" | "external" | "timer";
   /** Actual persisted message ID, if event identity differs; required for threaded human messages. */
@@ -132,6 +214,11 @@ export interface RoomPlannerContext {
   feedback?: { proposal?: RoomPlannerProposal; reason: string }[];
 }
 export interface RoomPlannerCall extends RoomConversationReference {
+  initiative?: PlannerInitiativeAdmissionV1;
+  /** Initiative model sink: one dispatch per journaled operation; a second claim is rejected. */
+  assertModelCall?(): Promise<void>;
+  /** Required at every initiative source-read sink; claims an attempt before dispatch. */
+  assertRead?(tool: string, roomId: string): Promise<void>;
   operationId: string;
   signal?: AbortSignal;
   /** Recheck immediately before each protected effect; hosts must connect this at the effect sink. */
@@ -144,6 +231,8 @@ export interface RoomPlannerReasoner {
   ): Promise<{ proposal: RoomPlannerProposal; usage: RoomPlannerUsage }>;
 }
 export interface RoomPlannerOperation extends RoomConversationReference {
+  initiativeId?: string;
+  modelClaimedAt?: string;
   id: string;
   kind: "reason" | "task" | "review" | "direct";
   status: "running" | "completed" | "uncertain" | "rejected";
@@ -191,6 +280,7 @@ export interface RoomPlannerState extends RoomPlannerScope {
   /** Once configured, this host budget binding must remain connected before calls can run. */
   sharedBudgetBinding?: string;
   sharedBudgetBlock?: { reason: string; at: string };
+  initiatives?: PlannerInitiativeObservationV1[];
   objectives: RoomPlannerObjective[];
   events: RoomPlannerEvent[];
   /** Internal receipts already made obsolete by a terminal objective; payloads remain immutable. */
@@ -204,6 +294,8 @@ export interface RoomPlannerState extends RoomPlannerScope {
     objectiveId?: string;
     participantId?: string;
     delivered: boolean;
+    initiativeId?: string;
+    suppressedReason?: string;
     threadId?: string;
     replyToMessageId?: string;
   }[];
@@ -220,6 +312,7 @@ export interface RoomPlannerStore {
 export interface RoomPlannerPorts {
   store: RoomPlannerStore;
   sharedBudget?: RoomPlannerSharedBudgetPortV1;
+  initiatives?: PlannerInitiativePortV1;
   reasoner: RoomPlannerReasoner;
   /** Validate whole-plan constraints before creating any objective or work. */
   admitPlan?(

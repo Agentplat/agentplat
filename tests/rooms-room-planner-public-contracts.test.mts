@@ -2,6 +2,8 @@ import {
   createAgentRoomPlanner,
   createRuntimeRoomPlannerReasoner,
   type RoomPlannerPorts,
+  type PlannerInitiativeAdmissionV1,
+  type PlannerInitiativeObservationV1,
 } from "@agentplat/framework";
 import {
   PostgresRoomPlannerStore,
@@ -37,3 +39,16 @@ void PostgresRoomPlannerCallResults;
 void RoomPlannerWorkflowCalls;
 void forbidden;
 void proposal;
+
+declare const admission: PlannerInitiativeAdmissionV1;
+declare const observation: PlannerInitiativeObservationV1;
+const nativePlanner = createAgentRoomPlanner(ports);
+const initiativeScope = { tenantId: "tenant", roomId: "room" };
+void nativePlanner.observeInitiative(initiativeScope, observation.id);
+void nativePlanner.selectInitiative(initiativeScope, observation.id);
+void nativePlanner.assertInitiativePublication(initiativeScope, observation.id);
+void nativePlanner.operationCall(initiativeScope, "operation").then((call) => {
+  void call.assertModelCall?.();
+  void call.assertRead?.("mail.cached", initiativeScope.roomId);
+});
+void admission.scope.maximumReadCalls;

@@ -450,3 +450,58 @@ Use `ActorRoomConversations` with a `RoomConversationStore` and live host
 `RoomAccessPolicy` for multi-human Rooms. Legacy Room APIs are trusted internal
 surfaces and do not enforce human conversation isolation. See the
 [integration contract](../../docs/rooms/actor-private-conversations.md) before enabling sharing.
+
+### Host-authorized Planner initiatives (opt-in)
+
+`AgentRoomPlanner.observeInitiative(scope, id)` records an immutable
+`PlannerInitiativeObservationV1` in the existing Planner CAS state. The host's
+`initiatives.resolve` supplies deterministic eligibility, a reason, evidence
+references and an owner-authorized `PlannerInitiativeAdmissionV1`. Observation
+calls no reasoner, connector or delivery adapter. Its resolver must also remain
+local and deterministic. ID-only replay returns the original snapshot, including
+its original source/grant generation; it never reconstructs authority from a
+reconnected source. Observations are historical eligibility assessments, not a
+promise that permission is still current.
+
+`selectInitiative(scope, id)` explicitly chooses an eligible observation for
+execution. Mode changes do not select old observations. The host revalidates the
+saved admission, and the engine resolves the persisted external/timer trigger,
+pins it to `initiative:${id}`, and uses the existing event inbox, operation
+journal, Room budget and optional shared budget. External event payloads cannot
+supply initiative authority. Expired or denied selections retain a suppressed
+record and reason. Unselected obsolete subject revisions coalesce; selected
+history and newer evidence remain distinct.
+
+The opt-in `RoomPlannerPorts.initiatives` port requires separate `propose`,
+`execute` and `verify` adapters. These must expose only their declared read
+sandbox, with no generic tool discovery or external writes. Generic Room
+execution/materialization adapters are not used. Every provider dispatch must
+first call `call.assertModelCall()`, and every additional source read must first
+call `call.assertRead(tool, roomId)` at the actual sink. Call `assertCurrent()`
+immediately before protected effects. `assertModelCall` permits one provider
+dispatch per journaled operation; all reason, repair, task and review admissions
+consume the same run ceiling. Failed/uncertain operations and read attempts keep
+their claims. Admission snapshots on calls are data; native fences recheck the
+persisted grant and host `assertCurrent` before dispatch and publication.
+
+`maximumCalls`, `maximumReadCalls` and `maximumCostMicros` apply across the whole
+logical investigation. The execution window starts after successful local/shared
+budget admission; budget waiting does not consume it. Trigger freshness remains
+separate. A stopped/expired run is not automatically renewed or replayed. This
+initial capability offers no allowance-renewal API: the host must not mint a new
+ID to bypass consumed or uncertain allowance. Caps and permission stops remain
+inspectable in `state.initiatives[].stopReason`; active objectives become
+`waiting`. One active initiative investigation per Room proceeds until terminal
+or stopped; uncertain operations retain their reservations and block conflicting
+initiative work. Known late costs are always retained, while stale actionable
+notifications are durably suppressed.
+
+For durable workflow calls, use
+`RoomPlannerWorkflowCalls({ ..., bindCall: (scope, id) => planner.operationCall(scope, id) })`.
+The workflow persists the admission snapshot and rebinds model/read claims from
+the native operation rather than deserializing functions or trusting payload
+permissions. Initiative workflows without matching rebound authority fail
+closed. Existing owner-message and unadmitted external-event behavior is
+unchanged. Local tests establish bounded behavior only; release publication,
+policy activation, source permissions and live provider qualification remain
+separate host actions.

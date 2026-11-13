@@ -93,3 +93,65 @@ test("ambiguous model failure remains indeterminate and cannot be replayed", asy
     "indeterminate",
   );
 });
+
+test("initiative workflows rebind persisted model/read claims and current permission fences", async () => {
+  const admission = {
+    ownerId: "owner",
+    policyRef: "policy",
+    policyRevision: 1,
+  };
+  let reads = 0,
+    models = 0,
+    checks = 0,
+    revoked = false,
+    seenCall;
+  const bound = {
+    operationId: "initiative-operation",
+    initiative: admission,
+    assertCurrent: async () => {
+      checks++;
+      if (revoked) throw Error("revoked");
+    },
+    assertRead: async (tool, roomId) => {
+      assert.equal(tool, "mail.read");
+      assert.equal(roomId, "room");
+      reads++;
+    },
+    assertModelCall: async () => {
+      models++;
+    },
+  };
+  const f = fixture(async (_, __, call) => {
+    assert.deepEqual(call.initiative, admission);
+    await call.assertRead("mail.read", "room");
+    await call.assertModelCall();
+    seenCall = call;
+    return { usage: { costMicros: 1 }, result: { content: "Evidence" } };
+  });
+  f.options.bindCall = async (_, id) => {
+    assert.equal(id, bound.operationId);
+    return bound;
+  };
+  await new RoomPlannerWorkflowCalls(f.options).run(scope, bound, {
+    kind: "initiative",
+  });
+  assert.equal(reads, 1);
+  assert.equal(models, 1);
+  assert.ok(checks >= 4);
+  assert.equal(f.invocations, 1);
+  revoked = true;
+  await assert.rejects(seenCall.assertCurrent(), /revoked/);
+});
+
+test("initiative workflows fail closed when persisted authority cannot be rebound", async () => {
+  const f = fixture(async () => ({ usage: { costMicros: 1 } }));
+  await assert.rejects(
+    f.calls.run(
+      scope,
+      { ...f.call, initiative: { ownerId: "owner" } },
+      { kind: "initiative" },
+    ),
+    /uncertain/,
+  );
+  assert.equal(f.invocations, 0);
+});
