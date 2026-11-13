@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width" />
+  <title>AgentPlat — experimental A2UI proposal review</title>
+  <h1>Experimental proposal review</h1>
+  <p>
+    Restricted A2UI 1.0 custom catalog. Decisions use AgentPlat Room approvals.
+  </p>
+  <form>
+    <label>Room ID <input name="room" required /></label>
+    <label
+      >Pilot token
+      <input name="token" type="password" required autocomplete="off"
+    /></label>
+    <button>Connect</button>
+  </form>
+  <p role="status" aria-live="polite">Enter the Room and pilot credentials.</p>
+  <p id="decision-status" aria-live="polite"></p>
+  <main></main>
+  <script type="module" src="/experimental/a2ui/client.js"></script>
+</html>

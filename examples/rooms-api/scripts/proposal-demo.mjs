@@ -107,6 +107,30 @@ if (process.argv[2] === "inspect") {
     `Draft from research artifact ${research.artifact.id}: ${JSON.stringify(research.artifact.versions.at(-1).content)}`,
     [research.task.id],
   );
+  if (process.env.PROPOSAL_A2UI_PAUSE === "1") {
+    const pending = await request("POST", `${path}/approvals`, {
+      targetType: "artifact",
+      targetId: draft.artifact.id,
+      requestedBy: agents[1].id,
+    });
+    console.log(
+      JSON.stringify(
+        {
+          experimental: "a2ui",
+          roomId: room.id,
+          participantId: human.id,
+          tenantId: tenant,
+          approvalId: pending.id,
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(
+      "Restart the API with A2UI_PILOT_TOKEN, A2UI_PILOT_TENANT_ID and A2UI_PILOT_PARTICIPANT_ID, then open /experimental/a2ui.",
+    );
+    process.exit(0);
+  }
   await decide(
     draft.artifact,
     "request-revision",
@@ -124,7 +148,9 @@ if (process.argv[2] === "inspect") {
     createdBy: agents[1].id,
   });
   const reviewedDraft = await request("GET", path);
-  const draftCurrent = reviewedDraft.artifacts.find((item) => item.id === draft.artifact.id);
+  const draftCurrent = reviewedDraft.artifacts.find(
+    (item) => item.id === draft.artifact.id,
+  );
   const review = await reviewProposal({ artifact: draftCurrent });
   const reviewArtifact = await request("POST", `${path}/artifacts`, {
     type: "advisory_review",
@@ -132,7 +158,9 @@ if (process.argv[2] === "inspect") {
     content: review,
     contentType: "application/json",
     provenance: { sourceArtifactIds: [draft.artifact.id] },
-    risks: ["Automated evaluation is advisory and does not approve this artifact."],
+    risks: [
+      "Automated evaluation is advisory and does not approve this artifact.",
+    ],
   });
   console.log(`Advisory review artifact: ${reviewArtifact.id}`);
   console.log(JSON.stringify(review, null, 2));

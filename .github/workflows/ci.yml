@@ -124,6 +124,14 @@ jobs:
           PGDATABASE: agentplat_test
           PGUSER: agentplat_test
           PGPASSWORD: agentplat_test
+      - name: Verify experimental A2UI proposal pilot and PostgreSQL recovery
+        run: |
+          pnpm --dir examples/rooms-api install --frozen-lockfile --ignore-workspace
+          node --test examples/rooms-api/test/*.test.mjs
+        env:
+          A2UI_TEST_DATABASE_URL: postgresql://127.0.0.1:5432/agentplat_test
+          PGUSER: agentplat_test
+          PGPASSWORD: agentplat_test
       - name: Verify optional Jev example and experiment contracts
         run: node --test examples/rooms-api/test/proposal-reviewer.test.mjs experiments/jev-artifact-review/run.test.mjs
       - name: Verify standalone action control and independent consumers

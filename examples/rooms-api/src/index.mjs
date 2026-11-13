@@ -1,3 +1,6 @@
+import { closeHttpServer, runCoordinationWorker } from './lifecycle.mjs';
+import { readFile } from 'node:fs/promises';
+import { mountProposalPilot } from './a2ui/pilot.mjs';
 import { serve } from '@hono/node-server';
 import { InMemoryEventBus } from '@agentplat/events';
 import {
@@ -52,6 +55,9 @@ function parsePort(value) {
 const port = parsePort(process.env.PORT);
 const hostname = process.env.HOST ?? '0.0.0.0';
 const pool = createPostgresPool();
+// pg emits idle-client errors separately from failed queries during DB restart.
+// Log only the code: the error's client object may contain connection secrets.
+pool.on('error', error => console.error('PostgreSQL idle connection lost:', error.code ?? 'UNKNOWN'));
 
 // Fail before accepting traffic when the database configuration is invalid.
 await pool.query('SELECT 1');
@@ -165,13 +171,24 @@ const app = createRoomsApp({
   planner,
   participantMembership,
 });
+if (process.env.A2UI_PILOT_TOKEN) {
+  mountProposalPilot(app, {
+    service,
+    token: process.env.A2UI_PILOT_TOKEN,
+    tenantId: process.env.A2UI_PILOT_TENANT_ID,
+    participantId: process.env.A2UI_PILOT_PARTICIPANT_ID,
+    html: await readFile(new URL('./a2ui/index.html', import.meta.url), 'utf8'),
+  });
+  const client = await readFile(new URL('./a2ui/client.js', import.meta.url), 'utf8');
+  app.get('/experimental/a2ui/client.js', c => c.body(client, 200, { 'Content-Type': 'text/javascript' }));
+}
 const server = serve({
   fetch: app.fetch,
   hostname,
   port,
 });
-const workerRun = coordinationWorker
-  .start(workerAbort.signal)
+const workerRun = runCoordinationWorker(coordinationWorker, workerAbort.signal,
+  code => console.error('Coordination database unavailable; retrying:', code))
   .catch((error) => {
     console.error('Agent Room coordination worker failed.', error);
     process.exitCode = 1;
@@ -187,11 +204,9 @@ async function shutdown(signal) {
   console.log(`Received ${signal}; closing the HTTP server and database pool.`);
 
   try {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
     workerAbort.abort();
     coordinationWorker.stop();
+    await closeHttpServer(server);
     await workerRun;
     await pool.end();
   } catch (error) {

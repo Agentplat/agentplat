@@ -195,3 +195,11 @@ The assembly in `src/index.mjs` is intentionally explicit:
 The default policy only allows low-risk local/mock execution. External writes,
 privileged actions, and unapproved tools remain denied until an application
 adds an explicit Room policy.
+
+## Experimental A2UI proposal review
+
+An opt-in browser pilot projects pending version-bound proposal approvals into a
+restricted A2UI 1.0 custom catalog. It supports approving, rejecting and requesting
+changes through the existing RoomService. See [setup, contracts and evidence
+limits](src/a2ui/README.md). Run focused checks with `pnpm test:a2ui` from this
+example directory.

@@ -47,6 +47,9 @@ services:
       PGUSER: ${POSTGRES_USER:-agentplat}
       PGPASSWORD: ${POSTGRES_PASSWORD:-agentplat}
       PORT: ${API_PORT:-3000}
+      A2UI_PILOT_TOKEN: ${A2UI_PILOT_TOKEN:-}
+      A2UI_PILOT_TENANT_ID: ${A2UI_PILOT_TENANT_ID:-}
+      A2UI_PILOT_PARTICIPANT_ID: ${A2UI_PILOT_PARTICIPANT_ID:-}
     ports:
       - '${API_PORT:-3000}:${API_PORT:-3000}'
     depends_on:
