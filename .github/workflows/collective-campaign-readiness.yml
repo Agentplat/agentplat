@@ -71,7 +71,7 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
       - name: Build the registered provider-neutral runtime
@@ -101,7 +101,7 @@ jobs:
             --operation-directory "$RUNNER_TEMP/registered-operation" \
             --output-directory "$RUNNER_TEMP/readiness-plan"
           node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/readiness-plan/readiness-plan.json`,"utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT,`readiness_plan_digest=${p.readinessPlanDigest}\n`);'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -119,10 +119,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -149,7 +149,7 @@ jobs:
             --status "$status" --reason-code "$reason" \
             --evidence-file "$RUNNER_TEMP/node20-evidence.log" \
             --output-directory "$RUNNER_TEMP/readiness-receipts"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-node20-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -167,10 +167,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -197,7 +197,7 @@ jobs:
             --status "$status" --reason-code "$reason" \
             --evidence-file "$RUNNER_TEMP/node22-evidence.log" \
             --output-directory "$RUNNER_TEMP/readiness-receipts"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-node22-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -229,10 +229,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -271,7 +271,7 @@ jobs:
               --evidence-file "$RUNNER_TEMP/postgres-evidence.log" \
               --output-directory "$RUNNER_TEMP/readiness-receipts"
           done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-postgres-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -289,10 +289,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -332,7 +332,7 @@ jobs:
               --evidence-file "$RUNNER_TEMP/safety-evidence.log" \
               --output-directory "$RUNNER_TEMP/readiness-receipts"
           done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-safety-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -350,10 +350,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -377,7 +377,7 @@ jobs:
              .path == ".github/workflows/collective-statistical-registered-preflight.yml"' \
             "$RUNNER_TEMP/protected-preflight-run.json" > /dev/null
       - name: Download the exact protected preflight public receipts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: collective-registered-preflight-results-*
           path: ${{ runner.temp }}/protected-preflight-download
@@ -418,7 +418,7 @@ jobs:
             --readiness-directory "$RUNNER_TEMP/readiness-plan" \
             --preflight-directory "$RUNNER_TEMP/protected-preflight" \
             --output-directory "$RUNNER_TEMP/readiness-receipts"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-preflight-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -436,10 +436,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
@@ -470,7 +470,7 @@ jobs:
             --status "$status" --reason-code "$reason" \
             --evidence-file "$RUNNER_TEMP/dependency-evidence.log" \
             --output-directory "$RUNNER_TEMP/readiness-receipts"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-dependencies-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-receipts
@@ -497,14 +497,14 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.19.3
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: collective-readiness-plan-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-plan
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: collective-readiness-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/downloaded-receipts
@@ -549,7 +549,7 @@ jobs:
             --readiness-directory "$RUNNER_TEMP/readiness-plan" \
             --receipt-directory "$RUNNER_TEMP/readiness-receipts" \
             --output-directory "$RUNNER_TEMP/readiness-assessment"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collective-readiness-assessment-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/readiness-assessment
